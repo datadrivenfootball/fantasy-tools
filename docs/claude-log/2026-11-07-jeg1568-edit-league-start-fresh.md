@@ -46,3 +46,16 @@ Review fixes (independent review of 4ae77bb8, CHANGES NEEDED):
 
 ### Claimed, not confirmed
 - CI on the PR head; live behaviour after deploy.
+
+### Follow-up: one sticky Back/Next on every entry page (Jeremy, 2026-11-07)
+- connect.html and settings.html follow setup.html (#1350): the sticky action bar is the only Back/Next. The in-page
+  rows (connect `.advance-end` and the Back inside `.entry-actions`; settings `.st-actions`) stay in the markup,
+  because the bar forwards its click to them (gating, settings confirm), but they are not shown.
+- Tests that clicked the hidden `#connect-next` now click the bar's Next.
+- `tests.test_entry_sticky_bar` (3 pass), at 1440, 390 and 360:
+  - one visible Next and one visible Back per page, and the bar's Back goes to the previous step;
+  - Next is greyed until its requirement is met (connect: rosters read; setup: a team; settings: a complete lineup);
+  - the bar's Next on settings still confirms the settings;
+  - 44px targets, accessible names, Tab reaches the bar;
+  - Edit league and Start fresh stay on connect.
+- Run with the entry, edit-league, bookmark and JEG-1557 suites: 48 pass.
