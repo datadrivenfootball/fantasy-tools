@@ -430,7 +430,7 @@ def weekly(inp) -> dict:
 # ---------------------------------------------------------------------------
 
 RULES = {
-    "balance": "Position balance: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Strong up to 5 points, OK up to 10, Weak above 10.",
+    "balance": "Distance from DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points (shown as Strong), OK up to 10, Weak above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
     "superflex": "Superflex: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: Strong when the source offers its own numbers by team count; Weak with one table for every league size.",
@@ -811,7 +811,7 @@ SOURCE_LINKS = [
      "url": "https://www.fantasypros.com/2026/09/fantasy-football-trade-value-chart-week-9-2026/"},
     {"source": "FantasyPros", "label": "FantasyPros legal terms", "kind": "terms",
      "url": "https://www.fantasypros.com/about/legal/"},
-    {"source": "FantasyCalc", "label": "FantasyCalc redraft rankings page", "kind": "chart",
+    {"source": "FantasyCalc", "label": "FantasyCalc rankings page", "kind": "chart",
      "url": "https://fantasycalc.com/redraft-rankings"},
     {"source": "FantasyCalc", "label": "FantasyCalc values, Standard (raw data: ppr=0)", "kind": "endpoint",
      "url": "https://api.fantasycalc.com/values/current?isDynasty=false&numQbs=1&numTeams=12&ppr=0"},
@@ -853,6 +853,10 @@ def headline(d: dict) -> dict:
         "fantasycalc_top_flex_compared": sum(sc["fantasycalc"][p]["n"] for p in FLEX),
         "superflex_chart_qb_min": min(sf_chart_qb), "superflex_chart_qb_max": max(sf_chart_qb),
         "superflex_ddf_qb": sfx["ddf_value"]["qb_share_sf"],
+        "superflex_chart_mean_qb": r(sum(sf_chart_qb) / len(sf_chart_qb), 1),
+        "superflex_chart_spread": r(max(sf_chart_qb) - min(sf_chart_qb), 1),
+        "superflex_chart_mean_1qb": r(sum(sfx[k]["qb_share_1qb"] for k in CHARTS) / len(CHARTS), 1),
+        "unpriced_cbs_12": sum(d["depth_vs_waiver"]["sources"]["cbs"][12][p]["unpriced"] for p in POS),
         "superflex_cbs_gap": r(sfx["ddf_value"]["qb_share_sf"] - sfx["cbs"]["qb_share_sf"], 1),
         "wr_tilt_vs_ddf": wr_tilt, "rb_tilt_vs_ddf": rb_tilt,
         "pairs_raw": {k: cons[k]["raw_beats_star_pct"] for k in CHARTS},

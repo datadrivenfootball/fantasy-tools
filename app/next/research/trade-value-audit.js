@@ -8,12 +8,12 @@
   var CHARTS = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
   var GRADED = CHARTS.concat(['dynastyprocess']);  /* the four redraft charts plus the open dynasty values */
   var NAME = { cbs: 'CBS Sports', usatoday: 'USA Today', fantasypros: 'FantasyPros', fantasycalc: 'FantasyCalc', dynastyprocess: 'DynastyProcess (dynasty)',
-    espn: 'ESPN', cbsros: 'CBS rest-of-season', razzball: 'Razzball', ddf: 'DDF Value (reference)', ddf_value: 'DDF Value (reference)',
-    proj: 'Projections (our model)', analyst: 'Analyst charts' };
+    ddf: 'DDF Value (reference)', ddf_value: 'DDF Value (reference)',
+    analyst: 'Analyst charts' };
   var POS = ['QB', 'RB', 'WR', 'TE'];
-  var SHORT = { dynastyprocess: 'DynastyProc.', cbsros: 'CBS ROS', fantasycalc: 'FantasyCalc', fantasypros: 'FantasyPros' };
+  var SHORT = { dynastyprocess: 'DynastyProc.', ddf_value: 'DDF Value', fantasycalc: 'FantasyCalc', fantasypros: 'FantasyPros' };
   var DIMS = ['balance', 'scoring', 'superflex', 'league_size', 'depth', 'freshness', 'consolidation'];
-  var DIM_NAME = { balance: 'Position balance', scoring: 'Scoring formats', superflex: 'Superflex', league_size: 'League size',
+  var DIM_NAME = { balance: 'Distance from DDF Value', scoring: 'Scoring formats', superflex: 'Superflex', league_size: 'League size',
     depth: 'Depth', freshness: 'Weekly change', consolidation: '2-for-1 sense' };
   var D = null;
 
