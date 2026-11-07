@@ -180,13 +180,16 @@
     var parts = [w(v.starterDelta, "starters better", "starters weaker"), w(v.benchDelta, "bench deeper", "bench thinner")].filter(Boolean);
     return parts.length ? parts.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) : "About even";
   }
-  function pct(trade, ctx) {
+  // The two roster labels from JEG-1558, verbatim ("Your roster gets about 0.9% worse", "Their roster gets about 1.2%
+  // better"): they already carry the signed percent and the band wording, so nothing is re-formatted or invented here.
+  function pct(trade, ctx, k) {
     var O = window.DDFOpportunity;
     if (!O || typeof O.rosterImprovementPct !== "function") return null;
     try {
-      var s = O.rosterImprovementPct(trade, "sender", ctx), p = O.rosterImprovementPct(trade, "partner", ctx);
-      if (!s || !p || !finite(s.pct) || !finite(p.pct)) return null;
-      return {sender: s, partner: p, text: "Your roster " + s.shown + ". Theirs " + p.shown + ", " + p.label + "."};
+      var octx = Object.assign({}, ctx, {senderKey: k.our, partnerKey: k.market, chartKeys: ctx.analyst || undefined});
+      var s = O.rosterImprovementPct(trade, "sender", octx), p = O.rosterImprovementPct(trade, "partner", octx);
+      if (!s || !p || !finite(s.pct) || !finite(p.pct) || !s.label || !p.label) return null;
+      return {sender: s, partner: p, text: s.label + ". " + p.label + "."};
     } catch (e) { console.error(e); return null; }
   }
 
@@ -213,7 +216,7 @@
     // given is a surplus (tradeFit's depth readout).
     var natural = Boolean(fit.label === "natural" && needs.you.length && needs.youSurplus.length && needs.them.length && needs.themSurplus.length);
     var rs = reasons(you, them, {give: give, receive: recv}, needs);
-    var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx);
+    var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx, k);
     return {headline: headline(you, them, natural, needs), pct: p, natural: natural, needs: needs,
       table: {give: you.leaving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: roleBefore(x)}; }),
         get: you.arriving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: role(x)}; }),

@@ -9,7 +9,7 @@ What we guard:
   (towardAt / awayAt / depth); "Natural fit" = tradeFit natural AND need received / surplus given for both teams; the
   headline never claims their side gains when their net is under the 0.05 floor; each case carries its reasons.
 - Drift: the same checks fail when ddf-why.js is served with one number nudged.
-- The % slot shows DDFOpportunity.rosterImprovementPct's shown / label verbatim, and hides when it is absent or null.
+- The % slot shows DDFOpportunity.rosterImprovementPct's two labels verbatim, and hides when it is absent or null.
 - Not judged (no chart average for an Analyst charts valuation): explain returns null.
 - DDFWhy.text never says "DDF" or a team name.
 - find.html with the seeded league at 1440x900 and 390x844: every judged offer card has a Why button (44px tall on
@@ -190,7 +190,8 @@ class DDFWhyTest(unittest.TestCase):
                 extra = page.evaluate(r"""() => {
                   const {mine, theirs, by, ctx} = window.__why, t = {mine, theirs, give: [by('m9')], receive: [by('t5')]};
                   window.DDFOpportunity = {rosterImprovementPct: (tr, side) => side === 'sender'
-                    ? {side, pct: 4.2, shown: '+4.2%', label: 'a fair ask'} : {side, pct: -1.1, shown: '-1.1%', label: 'a fair ask'}};
+                    ? {side, pct: 4.2, shown: 4.2, band: 'better', label: 'Your roster gets about 4.2% better'}
+                    : {side, pct: -1.1, shown: -1.1, band: 'slightly_worse', label: 'Their roster gets about 1.1% worse'}};
                   const on = DDFWhy.explain(t, ctx).pct;
                   window.DDFOpportunity = {rosterImprovementPct: (tr, side) => ({side, pct: null, shown: null, label: null})};
                   const off = DDFWhy.explain(t, ctx).pct;
@@ -205,7 +206,7 @@ class DDFWhyTest(unittest.TestCase):
     def test_cases_match_finder(self):
         found, extra, errors = self._cases()
         self.assertEqual(found, [], "\n".join(found))
-        self.assertEqual(extra, {"on": "Your roster +4.2%. Theirs -1.1%, a fair ask.", "off": None, "unjudged": None})
+        self.assertEqual(extra, {"on": "Your roster gets about 4.2% better. Their roster gets about 1.1% worse.", "off": None, "unjudged": None})
         self.assertEqual(errors, [])
 
     def test_guard_fails_on_drift(self):

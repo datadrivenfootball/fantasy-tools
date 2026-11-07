@@ -63,7 +63,8 @@ never both, so a reason names at most four positions.
 - Headline leads with the card's number (your starters' change) and names the bench-weighted net when it reads
   differently ("counting your bench, ..."). Their side: "gets better too" only at net >= 0.05; between -tau and 0.05
   "stays about even, within how much the sources disagree" (tradeFit's tolerance); below -tau "gets worse".
-- % line: only `DDFOpportunity.rosterImprovementPct` (JEG-1558), verbatim, hidden when absent or null. JEG-1558 is not
+- % line: only `DDFOpportunity.rosterImprovementPct` (JEG-1558): its sender and partner `label`s verbatim (they carry
+  the signed percent and band words; `shown` is a bare number), ctx passed as `senderKey` / `partnerKey`; hidden when absent or null. JEG-1558 is not
   on main: reconcile the contract (fields, labels) when JEG-1558 merges.
 
 ## Tests
