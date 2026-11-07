@@ -116,5 +116,52 @@ class TemplateRulesTest(unittest.TestCase):
         self.assertIn("chart's own curve", TEMPLATE)
 
 
+METHODOLOGY = (ROOT / "docs" / "methodology.md").read_text(encoding="utf-8")
+
+
+class Round2Test(unittest.TestCase):
+    """JEG-1393 round 2: CX-01, CX-03, CX-04, OP-06, OP-07, OP-08."""
+
+    def test_bench_discount_constants_match_the_engine_and_python(self):
+        bd = bve.bench_discount()
+        self.assertAlmostEqual(bd["bye"], 1 / 17)
+        self.assertEqual(bd["miss"], {"QB": 0.12, "RB": 0.14, "WR": 0.11, "TE": 0.15})
+
+    def test_trim_keeps_availability_inputs(self):
+        vp = {"lineup": {"bye": 0.0625}, "chartSigma": {"RB": {"sigma_rel": 0.4}},
+              "sources": {"espn": {"positions": {"RB": {"avail": 0.8, "lineup": {"m": 0.14, "sigmaRel": 0.29}}}}}}
+        out = bve.trim_pipeline(vp)
+        self.assertEqual(out["lineup"], {"bye": 0.0625})
+        self.assertEqual(out["chartSigma"]["RB"]["sigma_rel"], 0.4)
+        self.assertEqual(out["sources"]["espn"]["positions"]["RB"]["avail"], 0.8)
+        self.assertEqual(out["sources"]["espn"]["positions"]["RB"]["lineup"]["m"], 0.14)
+
+    def test_bench_seats_state_the_usage_discount(self):
+        self.assertNotIn("bench seats are shared the same way;", TEMPLATE)
+        self.assertIn("usage discount = c^(1 + floor(k ÷ t1))", TEMPLATE)
+        self.assertIn("The alternative, not used at this setting", TEMPLATE)
+
+    def test_availability_includes_missed_games(self):
+        self.assertNotIn("a healthy player", TEMPLATE)
+        self.assertIn("after byes and missed games", TEMPLATE)
+
+    def test_header_bench_share_one_decimal(self):
+        self.assertIn("bench share <b>${pct(BS, 1)}</b>", TEMPLATE)
+
+    def test_methodology_display_factor_uses_raw_surplus(self):
+        self.assertNotIn("6. **VORP vs waivers (display)**: `V_i = v_i x Pie / G_s`", METHODOLOGY)
+        self.assertIn("`V_i = v_i x Pie / sum_j v_j`", METHODOLOGY)
+
+    def test_methodology_order_claim_is_current(self):
+        self.assertNotIn("so a source's own\n     order within a position never inverts", METHODOLOGY)
+        self.assertIn("**Adjusted does not guarantee it.**", METHODOLOGY)
+
+    def test_methodology_marks_retired_rules(self):
+        self.assertNotIn("6.4% of the pie", METHODOLOGY)
+        # Jeremy's quotes stay verbatim, annotated.
+        self.assertIn('"15% is right. There is no way 35% is rational math." (OC-2)\n  *Superseded', METHODOLOGY)
+        self.assertIn("(OC-4)\n  *Partly superseded:*", METHODOLOGY)
+
+
 if __name__ == "__main__":
     unittest.main()

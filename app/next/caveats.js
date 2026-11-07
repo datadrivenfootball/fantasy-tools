@@ -17,7 +17,7 @@
   var DETAILS = [
     ["Snapshot week", "Values come from one weekly snapshot. News since then is not in them."],
     ["Value above waivers", "A player is measured against the best player you could add from waivers, so a deep bench player can read low."],
-    ["Estimated chart values", "Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and Live market (FantasyCalc) are published numbers we put on one scale and adjust to your league settings. Where a chart does not list a player, we estimate one."],
+    ["Estimated chart values", "Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and Live market (FantasyCalc) are published numbers we put on one common scale, not adjusted to your league. DDF Value adjusts each chart to your league settings. Where a chart does not list a player, we estimate one."],
     ["Your league settings", "We use the scoring, team count, Superflex and lineup you confirmed. Check them in your league settings."],
     ["Pasted rosters", "Rosters are as of your paste. If a trade or add happened since, add your league again."],
     ["Not advice", "Values show what the charts say, not what will happen. The decision is yours."]

@@ -118,9 +118,12 @@ PAGE_PIE = """() => ({big: document.querySelector('#pie-chart .nx-donut-val').te
 ENGINE_WORKED = """(a) => { const C = window.TradeValueCurveControls, ins = C.getInspection(), p = ins.players[a.s][a.k];
   const src = ins.valuePipeline.sources[a.s], pm = C.getPublishedMath(Number(a.k), a.s);
   return {adjusted: p.adjusted, parts: [p.starterSlice, src.rates[p.pos + '|starter'], p.benchSlice, src.rates[p.pos + '|bench']],
+    vorpDisplay: p.vorpDisplay, rates: [src.rates[p.pos + '|starter'], src.rates[p.pos + '|bench']], native: p.native,
     anchor: pm.anchorTotal, chart: pm.chartTotal, factor: pm.factor}; }"""
 PAGE_WORKED = """() => ({eq: [...document.querySelectorAll('#bu-worked tbody tr')].pop().querySelector('td').textContent.trim(),
-  explain: document.getElementById('bu-explain').textContent})"""
+  explain: document.getElementById('bu-explain').textContent,
+  rows: Object.fromEntries([...document.querySelectorAll('#bu-worked tbody tr')].map(tr => [tr.querySelector('th').firstChild.textContent.trim(),
+    {value: tr.querySelector('td').textContent.trim(), how: (tr.querySelector('.nx-how') || {}).textContent || ''}]))})"""
 PAGE_BUILDUP = """() => [...document.querySelectorAll('#bu-table tbody tr')].map(tr => ({k: tr.dataset.key, cells: [...tr.querySelectorAll('td')].map(td => td.textContent.trim())}))"""
 
 
@@ -212,6 +215,20 @@ def compare(page, combo) -> list[str]:
                 a, b, c, d, approx, shown = (float(x) for x in m.groups())
                 if abs(a * b + c * d - ew["adjusted"]) > 0.005 or shown != round(ew["adjusted"], 1) or abs(approx - ew["adjusted"]) > 0.0006:
                     errors.append(f"{tag}: build-up {s} worked {pw['eq']!r}, engine adjusted {ew['adjusted']}")
+            # R2-OP-05: the pie-scaled Value above waivers is the engine's display VORP; the chart-unit row is named apart.
+            vaw = pw["rows"].get("Value above waivers (on the value pie)")
+            if not vaw or vaw["value"] != f1(ew["vorpDisplay"]) or not any(k.startswith("Above the waiver line (") for k in pw["rows"]):
+                errors.append(f"{tag}: build-up {s} value-above-waivers rows {vaw!r}, engine {ew['vorpDisplay']}")
+            # R2-OP-03: each rate's budget ÷ group total sits beside it and lands near the averaged rate (the engine averages
+            # each allocation's rate; the page divides the averaged budget by the averaged total: 1.5% apart at half PPR/10/SF).
+            for name, rate in (("Starter rate", ew["rates"][0]), ("Fill-in rate", ew["rates"][1])):
+                how = (pw["rows"].get(name) or {}).get("how", "")
+                mm = re.search(r"≈ ([\d.]+)$", how)
+                if rate and (not mm or abs(float(mm.group(1)) - rate) > 0.05 * rate):
+                    errors.append(f"{tag}: build-up {s} {name} formula {how!r}, engine rate {rate}")
+            # R2-OP-04: the Adjusted step starts from the published value, not the indexed one.
+            if f"{fpub(s, ew['native'])} → " not in pw["explain"]:
+                errors.append(f"{tag}: build-up {s} Adjusted step does not start from published {fpub(s, ew['native'])}")
             # The factor's two totals sit beside it and divide to it (R1-CX-04).
             if f"({ew['anchor']:.2f})" not in pw["explain"] or ffactor(ew["factor"]) not in pw["explain"]:
                 errors.append(f"{tag}: build-up {s} factor text lacks DDF total {ew['anchor']:.2f} or factor {ffactor(ew['factor'])}")

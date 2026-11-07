@@ -149,7 +149,10 @@
   }
   /* One player's path from a source's own number to its Adjusted value (JEG-1393, R1-CX-07 / R1-OP-07): the engine's
      own intermediates (getInspection players[source][key] and valuePipeline.sources[source]), for a trade chart as well
-     as a projection. Nothing is derived here; a readout the engine does not expose stays null. */
+     as a projection. A readout the engine does not expose stays null. R2-OP-03 / R2-OP-05 / R2-CX-02 add the inputs the
+     formulas need, read from the same records: the pie-scaled value above waivers (vorpDisplay, vorpFactor), each
+     group's budget (value pie × DDF weight) and this source's group total, and the chance he fills in from the bench,
+     the one derived readout (lineup share ÷ availability − chance above the starter line, the engine's own identity). */
   function worked(snap, source, key) {
     var ins = snap && snap.inspection;
     var p = ins && ins.players && ins.players[source] && ins.players[source][String(key)];
@@ -157,13 +160,25 @@
     var vsrc = (ins.valuePipeline && ins.valuePipeline.sources && ins.valuePipeline.sources[source]) || {};
     var posInfo = (vsrc.positions && vsrc.positions[p.pos]) || {};
     var rates = vsrc.rates || {};
+    var vp = ins.valuePipeline || {}, W = vp.ddfWeights || {}, groups = vsrc.groups || {};
+    var budget = function (g) { return finite(vp.pie) !== null && finite(W[g]) !== null ? vp.pie * W[g] : null; };
+    var movedGroups = (vsrc.unfundedMoved || []).concat(vsrc.unfundedGroups || []).reduce(function (acc, m) {
+      [m.from, m.to, m.group].forEach(function (g) { if (g) acc[g] = true; }); return acc;
+    }, {});
+    var avail = finite(posInfo.avail), share = finite(p.lineupShare), pStart = finite(p.startWorthy);
+    var fill = avail && share !== null && pStart !== null ? Math.max(0, share / avail - pStart) : null;
+    var sg = p.pos + '|starter', bg = p.pos + '|bench';
     return {
       source: source, key: String(key), pos: p.pos, estimated: Boolean(p.estimated), role: p.role || null,
       published: finite(p.native), waiver: finite(posInfo.waiver), starterLine: finite(posInfo.starterLine),
       availability: finite(posInfo.avail), aboveWaivers: finite(p.vorp), startWorthy: finite(p.startWorthy),
       lineupShare: finite(p.lineupShare), starterPart: finite(p.starterSlice), fillInPart: finite(p.benchSlice),
       starterRate: finite(rates[p.pos + '|starter']), fillInRate: finite(rates[p.pos + '|bench']),
-      adjusted: finite(p.adjusted)
+      adjusted: finite(p.adjusted),
+      aboveWaiversPie: finite(p.vorpDisplay), vorpFactor: finite(vsrc.vorpFactor), fillInChance: fill,
+      starterBudget: budget(sg), fillInBudget: budget(bg), starterWeight: finite(W[sg]), fillInWeight: finite(W[bg]),
+      starterGroupTotal: finite(groups[sg]), fillInGroupTotal: finite(groups[bg]),
+      starterMoved: Boolean(movedGroups[sg]), fillInMoved: Boolean(movedGroups[bg]), pie: finite(vp.pie)
     };
   }
   function buildUpSources() {
