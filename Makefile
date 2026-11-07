@@ -661,6 +661,8 @@ value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json
 
 test-core:
+	# JEG-1567: every published HTML file is noindex while site_noindex.SITE_NOINDEX is True (needs the built dist/).
+	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_spec_reference_value_pipeline
 	# JEG-1057: the engine side of the worked example. It ran in no target, so
 	# #867 regenerated the fixture for the new defaults and this went red unseen.
@@ -774,6 +776,7 @@ test-core:
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
+	python3 -m unittest tests.test_team_opportunity_render
 	python3 -m unittest tests.test_values_swap_routes
 	# JEG-1539 step 5: redesigned front door legacy-routes.js coverage.
 	python3 -m unittest tests.test_legacy_routes
@@ -783,6 +786,9 @@ test-core:
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
 	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
+	node tests/node/build_offer_check.cjs
+	python3 -m unittest tests.test_build_offer_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
@@ -940,6 +946,7 @@ test-core-shard-3:
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
+	python3 -m unittest tests.test_team_opportunity_render
 	python3 -m unittest tests.test_values_swap_routes
 	# JEG-1539 step 5: redesigned front door legacy-routes.js coverage.
 	python3 -m unittest tests.test_legacy_routes
@@ -949,6 +956,9 @@ test-core-shard-3:
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
 	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
+	node tests/node/build_offer_check.cjs
+	python3 -m unittest tests.test_build_offer_render
 	python3 -m unittest tests.test_espn_listed_rows
 	python3 -m unittest tests.test_page_load_no_404
 	python3 -m unittest tests.test_bench_share_low_pie
@@ -1000,6 +1010,8 @@ test-core-shard-4:
 # JEG-1335: split from shard 1, which passed its 30-minute job limit once the seat mix
 # made the engine-heavy suites (seeded hold build, desktop menu, view invariants) slower.
 test-core-shard-5:
+	# JEG-1567: every published HTML file is noindex while site_noindex.SITE_NOINDEX is True (needs the built dist/).
+	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_v2_desktop_menu_render
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
