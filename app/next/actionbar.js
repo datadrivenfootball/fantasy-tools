@@ -49,6 +49,8 @@
     var backHref=orig.getAttribute('data-back-href');
     if(backHref){var back=document.createElement('a');back.className='button ddf-actionbar__back';back.href=backHref;back.textContent=orig.getAttribute('data-back-label')||'Back';inner.appendChild(back)}
     sum=document.createElement('p');sum.className='ddf-actionbar__sum';sum.id='ddf-actionbar-sum';
+    /* JEG-1568: the in-page gate reason is hidden on entry pages, so the bar's line announces changes itself */
+    sum.setAttribute('role','status');sum.setAttribute('aria-live','polite');
     next=document.createElement('a');next.className='button primary ddf-actionbar__next';next.setAttribute('aria-describedby','ddf-actionbar-sum');
     next.addEventListener('click',function(e){e.preventDefault();if(next.getAttribute('aria-disabled')==='true')return;orig.click()});
     next.addEventListener('keydown',function(e){if(e.key===' '){e.preventDefault();next.click()}});

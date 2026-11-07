@@ -74,6 +74,7 @@ class EntryStickyBarTest(unittest.TestCase):
             self.assertGreaterEqual(box["height"], 43.5, sel)
             self.assertTrue(page.locator(sel).first.inner_text().strip(), sel)
         self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
+        self.assertEqual(page.get_attribute("#ddf-actionbar-sum", "role"), "status", "the bar's line announces the gate reason")
 
     def test_connect_setup_settings(self):
         for width in (1440, 390, 360):
