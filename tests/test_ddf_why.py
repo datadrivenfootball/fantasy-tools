@@ -9,7 +9,9 @@ What we guard:
   (towardAt / awayAt / depth); "Natural fit" = tradeFit natural AND need received / surplus given for both teams; the
   headline never claims their side gains when their net is under the 0.05 floor; each case carries its reasons.
 - Drift: the same checks fail when ddf-why.js is served with one number nudged.
-- The % slot shows DDFOpportunity.rosterImprovementPct's two labels verbatim, and hides when it is absent or null.
+- The % line uses the REAL window.DDFOpportunity (find.html loads ddf-opportunity.js; no stub): table-driven cases for
+  each partner band (better, unchanged, slightly worse, clearly worse), the zero cases (never "-0"), and the unsized
+  (null) case, which hides the line. The sender-facing sentence is the module's own, verbatim.
 - Not judged (no chart average for an Analyst charts valuation): explain returns null.
 - DDFWhy.text never says "DDF" or a team name.
 - find.html with the seeded league at 1440x900 and 390x844: every judged offer card has a Why button (44px tall on
@@ -58,6 +60,16 @@ CASES = {
     "no fit": (["m5"], ["t12"], {"loss"}, False),
 }
 
+# Real-module trades found on the hand-made rows: each partner band, the zero cases (partner -0.08 must not read "-0"), unsized.
+BAND_TRADES = {
+    "band better": (["m1"], ["t1"]),
+    "band unchanged": (["m1"], ["t4"]),
+    "band slightly worse": (["m1"], ["t3"]),
+    "band clearly worse": (["m1"], ["t2"]),
+    "partner -0.08 shows 0.0": (["m3"], ["t8"]),
+    "both near zero": (["m4"], ["t9"]),
+}
+
 ORACLE = r"""([give, receive]) => {
   const F = window.TradeValueFinder, {mine, theirs, by, ctx} = window.__why;
   const POS = ['QB', 'RB', 'WR', 'TE'];
@@ -93,7 +105,10 @@ EXPLAIN = r"""([give, receive]) => {
   const s = v => ({pos: Object.fromEntries(Object.entries(v.posDelta).map(([k, x]) => [k, +x.toFixed(6)])),
     flex: {from: (v.slots.FLEX || {from: []}).from.join(), to: (v.slots.FLEX || {to: []}).to.join()}, starter: +v.starterDelta.toFixed(6)});
   const t = DDFWhy.text({mine, theirs, give: give.map(by), receive: receive.map(by)}, ctx);
-  return {you: s(e.you), them: s(e.them), needs: e.needs, natural: e.natural, headline: e.headline, table: e.table,
+  const O = window.DDFOpportunity, oc = Object.assign({}, ctx, {senderKey: 'ddf_value', partnerKey: 'chart_avg', chartKeys: ctx.analyst});
+  const tr = {mine, theirs, give: give.map(by), receive: receive.map(by)};
+  const mod = {s: O.rosterImprovementPct(tr, 'sender', oc), p: O.rosterImprovementPct(tr, 'partner', oc)};
+  return {mod, you: s(e.you), them: s(e.them), needs: e.needs, natural: e.natural, headline: e.headline, table: e.table,
     fitUs: [+e.you.starterDelta.toFixed(6), +e.you.benchDelta.toFixed(6), +e.you.net.toFixed(6)],
     fitThem: [+e.them.starterDelta.toFixed(6), +e.them.benchDelta.toFixed(6), +e.them.net.toFixed(6)],
     kinds: e.allReasons.map(r => r.kind), texts: e.allReasons.map(r => r.text), top: e.reasons.map(r => r.kind), n: e.reasons.length, pct: e.pct, text: t,
@@ -153,8 +168,7 @@ def case_errors(page) -> list[str]:
             errors.append(f"{name}: headline {got['headline']!r} vs their net {want['themNet']:.3f}")
         if got["headline"] != "This does not make your team better." and -want["themTau"] <= want["themNet"] < 0.05 and "about even, within how much the sources disagree" not in got["headline"]:
             errors.append(f"{name}: inside tolerance but headline {got['headline']!r}")
-        if got["pct"] is not None or "data-pct" in got["html"]:
-            errors.append(f"{name}: % shown without DDFOpportunity")
+        errors += pct_errors(name, got)
         if got["text"].count("\n- ") != got["n"]:
             errors.append(f"{name}: text reasons {got['text']!r}")
         hits = [b for b in BANNED if re.search(b, got["text"])]
@@ -169,6 +183,35 @@ def case_errors(page) -> list[str]:
         if name == "consolidation 2-for-1" and not any("opens a roster spot" in t for t in got["texts"]):
             errors.append(f"{name}: no roster spot reason {got['texts']}")
     return errors
+
+
+BAND_NAME = {"better": "better", "unchanged": "essentially unchanged", "slightly_worse": "slightly worse", "clearly_worse": "clearly worse"}
+LINE_RE = re.compile(r"^Your roster (?:[+-]\d+\.\d|0\.0)%\. Theirs (?:[+-]\d+\.\d|0\.0)%, (better|essentially unchanged|slightly worse|clearly worse)$")
+
+
+def fmt_pct(n: float) -> str:
+    """Independent formatting of the module's `shown`: sign only when non-zero, one decimal, never -0."""
+    return "0.0%" if abs(n) < 0.05 else f"{'+' if n > 0 else '-'}{abs(n):.1f}%"
+
+
+def pct_errors(name, got) -> list[str]:
+    """The % line equals the real module's fields, formatted independently; hidden when either side is unsized."""
+    s, p = got["mod"]["s"], got["mod"]["p"]
+    if s["pct"] is None or p["pct"] is None:
+        return [f"{name}: % shown while unsized"] if got["pct"] is not None or "data-pct" in got["html"] else []
+    want = f"Your roster {fmt_pct(s['shown'])}. Theirs {fmt_pct(p['shown'])}, {BAND_NAME[p['band']]}"
+    out = []
+    if got["pct"] is None or got["pct"]["line"] != want:
+        out.append(f"{name}: % line {got['pct'] and got['pct']['line']!r} != {want!r}")
+    if not LINE_RE.match(want) or "-0.0" in want:
+        out.append(f"{name}: malformed % line {want!r}")
+    if 'data-pct' not in got["html"] or want not in got["html"].replace("&#39;", "'"):
+        out.append(f"{name}: panel html lacks the % line")
+    if p["sentence"] and p["sentence"] not in got["text"]:
+        out.append(f"{name}: partner sentence not in text")
+    if f"Your roster {fmt_pct(s['shown'])}" not in got["html"]:
+        out.append(f"{name}: net row lacks your %")
+    return out
 
 
 class DDFWhyTest(unittest.TestCase):
@@ -189,16 +232,24 @@ class DDFWhyTest(unittest.TestCase):
                 found = case_errors(page)
                 extra = page.evaluate(r"""() => {
                   const {mine, theirs, by, ctx} = window.__why, t = {mine, theirs, give: [by('m9')], receive: [by('t5')]};
-                  window.DDFOpportunity = {rosterImprovementPct: (tr, side) => side === 'sender'
-                    ? {side, pct: 4.2, shown: 4.2, band: 'better', label: 'Your roster gets about 4.2% better'}
-                    : {side, pct: -1.1, shown: -1.1, band: 'slightly_worse', label: 'Their roster gets about 1.1% worse'}};
-                  const on = DDFWhy.explain(t, ctx).pct;
-                  window.DDFOpportunity = {rosterImprovementPct: (tr, side) => ({side, pct: null, shown: null, label: null})};
-                  const off = DDFWhy.explain(t, ctx).pct;
-                  delete window.DDFOpportunity;
                   const unjudged = DDFWhy.explain(t, Object.assign({}, ctx, {analyst: null}));
-                  return {on: on && on.text, off, unjudged};
+                  const saved = window.DDFOpportunity;
+                  delete window.DDFOpportunity;
+                  const absent = DDFWhy.explain(t, ctx).pct;
+                  window.DDFOpportunity = saved;
+                  // Unsized: their roster has one priced player (base under the module's MIN_BASE) -> band unsized, no % line.
+                  const tiny = {mine, theirs: [by('t12')], give: [by('m1')], receive: [by('t12')]};
+                  const band = saved.rosterImprovementPct(tiny, 'partner', ctx).band, ex = DDFWhy.explain(tiny, ctx);
+                  const unsized = {band, pct: ex ? ex.pct : 'unjudged', html: ex ? DDFWhy.html(tiny, ctx, {}).includes('data-pct') : null};
+                  return {unjudged, absent, unsized, loaded: typeof saved.rosterImprovementPct};
                 }""")
+                bands = {}
+                for name, (give, receive) in BAND_TRADES.items():
+                    page.evaluate(SETUP)
+                    got = page.evaluate(EXPLAIN, [give, receive])
+                    bands[name] = (got["mod"]["p"]["band"], got["mod"]["p"]["shown"], got["pct"] is not None)
+                    found += pct_errors(name, got)
+                extra["bands"] = bands
                 return found, extra, errors
             finally:
                 browser.close()
@@ -206,7 +257,12 @@ class DDFWhyTest(unittest.TestCase):
     def test_cases_match_finder(self):
         found, extra, errors = self._cases()
         self.assertEqual(found, [], "\n".join(found))
-        self.assertEqual(extra, {"on": "Your roster gets about 4.2% better. Their roster gets about 1.1% worse.", "off": None, "unjudged": None})
+        self.assertEqual(extra["bands"], {
+            "band better": ("better", 1.1, True), "band unchanged": ("unchanged", 0.3, True),
+            "band slightly worse": ("slightly_worse", -2.3, True), "band clearly worse": ("clearly_worse", -4.5, True),
+            "partner -0.08 shows 0.0": ("unchanged", 0, True), "both near zero": ("unchanged", 0, True)})
+        self.assertEqual((extra["unjudged"], extra["absent"], extra["loaded"]), (None, None, "function"))
+        self.assertEqual(extra["unsized"], {"band": "unsized", "pct": None, "html": False})
         self.assertEqual(errors, [])
 
     def test_guard_fails_on_drift(self):
@@ -238,6 +294,12 @@ class DDFWhyTest(unittest.TestCase):
                     body = cards.first.locator(".why-body")
                     body.wait_for(state="visible", timeout=5000)
                     self.assertTrue(body.locator(".why-head").inner_text().strip())
+                    pct_line = body.locator("[data-pct]")
+                    if pct_line.count():   # the real DDFOpportunity: "Your roster +x%. Theirs -y%, band" + the module's sentence
+                        first = pct_line.inner_text().split(". ", 2)
+                        self.assertRegex(". ".join(first[:2]), LINE_RE, f"{w}: % line {pct_line.inner_text()!r}")
+                        self.assertNotIn("-0.0", pct_line.inner_text())
+                        self.assertIn("Your roster", body.locator(".why-table td").nth(2).inner_text())
                     self.assertEqual([x.strip() for x in body.locator(".why-table th").all_inner_texts()], ["You give up", "You get", "Net"])
                     self.assertTrue(1 <= body.locator(".why-reasons li").count() <= 3)
                     self.assertRegex(body.locator("a[data-charts]").inner_text(), r"^\d+/\d+ public trade charts$")
