@@ -30,3 +30,18 @@ Contract: Jeremy (via coordinator, 2026-11-07) asked for a self-contained copy t
 
 ### Claimed, not confirmed
 - CI and the rendered gate have not run (draft PR; CI defers full verification on drafts).
+
+## 2026-11-07 - JEG-1565 follow-up 2: provenance, adversarial review, method corrections
+
+Contract: Jeremy's 2026-11-07 changes, relayed by the coordinator: check the scoring claims against raw data; add player names to the curve readout and the waiver-line depth section; run an adversarial review (Codex plus a fresh Claude); use a confident tone; link the sources; add what-it-should-be blocks; grade trade charts only, with DDF Value as the reference and never graded. PR #1352 stays a draft.
+
+### Verified (check named)
+- The FantasyCalc and FantasyPros scoring claims hold in the publishers' raw output: `scoring_provenance()` reads the ppr=0/1 captures, including a live pull at 2026-11-07T18:02Z, and an independent fetch by a separate agent agreed. A 2026-09-29 capture did reorder, so the article says it looks like a change around early October.
+- `tests/test_research_trade_value_audit.py`: 15 pass. They cover numbers equal to script output, links alive (`link-check.json`; USA Today recorded not_checked_robots), no projection sources or self-grading, and no published chart tables in the page data.
+- `make validate` EXIT 0 on 706681513 (last head before the badge-label commit 63c15aeca).
+- Playwright from file:// and http at 1440 and 390, light and dark, with reduced motion: 0 errors, 0 overflow, 0 external requests in the single file.
+- Reviews: Codex gpt-6-astra flagged 16 findings and a fresh Claude Opus flagged 18, all judged and fixed or recorded as nitpicks. Codex's second delta refused under the green-CI rule (draft PR), so a fresh Claude delta ran; its last pass (706681513) left 2 low fixes, both applied.
+
+### Claimed, not confirmed
+- CI and the rendered gate have not run: the PR is a draft, and drafts defer CI.
+- The Codex check job could not start: the bridge ceiling for job_type check is zero, so a Claude subagent ran the independent check instead.
