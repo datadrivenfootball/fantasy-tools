@@ -481,3 +481,17 @@ a[href],button,input,select,textarea,summary,label,[role=button],[role=tab],[rol
 .ddf-bm-keep[hidden],.ddf-bm-go[hidden]{display:none}
 .ddf-cm-age{font-size:13px;color:var(--muted);margin:2px 0 6px}
 .ddf-cm-age[hidden]{display:none}
+/* JEG-1568: Start fresh confirm (in-page), menu action */
+.ddf-cm-fresh{display:block;width:100%;min-height:44px;margin-top:4px;background:none;border:0;padding:8px 0;text-align:left;font:inherit;font-weight:600;color:#a83e12;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.ddf-fresh-dlg{position:fixed;inset:0;z-index:120;background:rgba(18,32,44,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.ddf-fresh-dlg[hidden]{display:none}
+.ddf-fresh-panel{background:#fff;color:#12202c;border-radius:14px;max-width:460px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 64px rgba(18,32,44,.3);font-family:"Archivo",system-ui,sans-serif}
+.ddf-fresh-panel h2{margin:0 0 8px;font-size:22px}
+.ddf-fresh-panel p{margin:0 0 14px;font-size:15px;line-height:1.5}
+.ddf-sf-check{display:flex;gap:10px;align-items:flex-start;min-height:44px;font-size:15px;cursor:pointer}
+.ddf-sf-check input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:#176c4d}
+.ddf-sf-check small{display:block;color:#5c6a76;font-size:13px;margin-top:2px}
+.ddf-sf-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.ddf-sf-actions button{min-height:44px;padding:10px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;border:1px solid #bec8c1;background:#fff;color:#12202c}
+.ddf-sf-actions .ddf-sf-go{background:#a83e12;border-color:#a83e12;color:#fff}
+@media(max-width:480px){.ddf-sf-actions{flex-direction:column-reverse}.ddf-sf-actions button{width:100%}}

@@ -104,6 +104,13 @@
       if (intro) intro.textContent = "Add your league's rosters first, then confirm which team is yours.";
       return;
     }
+    /* After "Edit league" (JEG-1568): the team you had is preselected when the new paste has a team of that name, and the
+       saved league is replaced without asking (the reader chose to replace it) */
+    var prev = DDF.state.get("editprev", null);
+    if (prev && prev.team && src.kind === "pasted" && src.me < 0) {
+      var at = src.teams.map(function (t) { return t.name; }).indexOf(prev.team);
+      if (at >= 0) { src.me = at; src.rec.me = at; DDF.state.set("pasted", src.rec); }
+    }
     box.innerHTML = src.teams.map(function (t, i) {
       var sel = i === src.me;
       return '<label class="setup-option ddf-pop ddf-lift' + (sel ? " selected" : "") + '"><input type="radio" name="team" value="' + esc(t.name) + '" data-i="' + i + '" required' + (sel ? " checked" : "") + "><span><strong>" + esc(t.name) + "</strong>"
@@ -119,17 +126,18 @@
     var curLink = null; try { curLink = DDF.link && DDF.link.current && DDF.link.current(); } catch (e) { curLink = null; }
     var savedName = src.kind === "pasted" ? src.rec.name : curLink && curLink.name;
     var suggested = src.kind === "pasted" ? src.rec.suggestedName : null;
+    var fromPrev = !savedName && !suggested && prev && prev.name ? prev.name : null;
     if (nameBox && nameIn) {
       nameBox.hidden = false;
-      nameIn.value = savedName || suggested || "";
-      note.textContent = savedName ? "Used in your bookmark and page titles." : suggested
+      nameIn.value = savedName || suggested || fromPrev || "";
+      note.textContent = savedName ? "Used in your bookmark and page titles." : fromPrev ? "Your current league's name. Keep it or change it." : suggested
         ? "We found this name in your paste" + (src.rec.leagueId ? " (ID# " + src.rec.leagueId + ")" : "") + ". Keep it or change it."
         : "Used in your bookmark and page titles. Leave it empty to use \u201cMy league\u201d.";
     }
     function saveName() {
       if (!nameIn) return;
       var v = Array.from(nameIn.value.replace(/\s+/g, " ").trim()).slice(0, 40).join("").trim() || null;
-      if (src.kind === "pasted") { src.rec.name = v; DDF.state.set("pasted", src.rec); if (Number.isInteger(src.rec.me) && DDF.state.get("bridgedWs", null)) bridge(src.rec); }
+      if (src.kind === "pasted") { src.rec.name = v; DDF.state.set("pasted", src.rec); if (Number.isInteger(src.rec.me) && (DDF.state.get("bridgedWs", null) || prev)) bridge(src.rec, prev ? {replace: true} : null); }
       else if (DDF.link && DDF.link.update) { try { var cur = DDF.link.current(); if (cur) { DDF.link.update({name: v || undefined}); } } catch (e) { /* the name still shows */ } }
       if (DDF.leagueMeta) DDF.leagueMeta.refresh();
     }
@@ -145,7 +153,7 @@
       if (DDF.leagueMeta) DDF.leagueMeta.want("team", i + ":" + src.teams[i].name);
       if (src.kind === "pasted") {
         src.rec.me = i; DDF.state.set("pasted", src.rec);
-        if (bridge(src.rec) === "ask" && !DDF.state.get("bridgeKeep", false)) offerReplace(src.rec);
+        if (bridge(src.rec, prev ? {replace: true} : null) === "ask" && !DDF.state.get("bridgeKeep", false)) offerReplace(src.rec);
       }
       else if (DDF.link && DDF.link.update) { try { DDF.link.update({me: i}); } catch (err) { /* the choice still shows */ } }
     });

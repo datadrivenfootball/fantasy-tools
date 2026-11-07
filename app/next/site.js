@@ -127,7 +127,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(loaded){
       x.className = 'ddf-chipwrap';
       x.innerHTML = '<button type="button" class="ddf-chip" aria-haspopup="true" aria-expanded="false" aria-controls="ddf-chip-menu"><i aria-hidden="true"></i><span class="ddf-chip-t">Your league</span><span class="ddf-caret" aria-hidden="true">&#9662;</span></button>' +
-        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><a href="settings.html">Edit league</a></div>';
+        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><a href="connect.html?edit=1">Edit league</a><button type="button" class="ddf-cm-fresh" data-start-fresh>Start fresh</button></div>';
       fillChipMenu(x);
       setTimeout(function(){ if(window.DDF && DDF.fitLeagueChip) DDF.fitLeagueChip(); }, 0);
     }
@@ -585,6 +585,9 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       return normalizeContext(body, false);
     }).catch(function(){ return {error:'format'}; });
   }
+  /* Start fresh (JEG-1568) marks the link it wiped as used for this session, so a reload or Back does not bring it back. */
+  function linkMark(raw){ var p = parseToken(raw); return p && p.token ? p.token.length + '.' + crc16(p.token) : null; }
+  function consumed(raw){ var m = linkMark(raw); return !!m && DDF.state.get('wipedlink', null) === m; }
   function fragmentToken(hash){
     var parts = String(hash || '').replace(/^#/, '').split('&');
     for(var i = 0; i < parts.length; i++) if(parts[i].slice(0, 2) === 's=') return parts[i].slice(2);
@@ -688,10 +691,10 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
 
   DDF.link = {
     VIEW_PAGES: VIEW_PAGES,
-    hasState: function(){ return fragmentToken(location.hash) !== null; },
+    hasState: function(){ var raw = fragmentToken(location.hash); return raw !== null && !consumed(raw); },
     decode: function(){
       var raw = fragmentToken(location.hash);
-      if(raw === null) return Promise.resolve(null);
+      if(raw === null || consumed(raw)) return Promise.resolve(null);
       return decodeToken(raw).then(function(r){
         if(r && r.error){ lastError = r.error; return r; }
         fromLink = true;
@@ -727,6 +730,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     clear: function(){ current = null; fromLink = false; DDF.state.remove('league'); DDF.state.remove('link'); },
     update: function(patch){ var s = DDF.link.current(); if(!s) return null; return accept(Object.assign(clone(s), patch)); },
     pageFor: pageFor,
+    markConsumed: function(){ var raw = fragmentToken(location.hash), m = raw && linkMark(raw); if(m) DDF.state.set('wipedlink', m); return !!m; },
     /* A view whose page is not live yet maps to a live hash route at the root build ('./#compare-trade'), where no page
        reads the league. Until that page swaps in, such a link opens Values with the token, as v2 did before the entry
        pages moved (values.html applies the link's overrides and basis to the live store) (JEG-1538). */
@@ -796,7 +800,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(old){ old.firstChild.textContent = stripText(); return; }
     var d = document.createElement('div');
     d.className = 'ddf-chat-strip'; d.setAttribute('role', 'status');
-    d.innerHTML = '<span></span><a href="connect.html">Edit league</a>';
+    d.innerHTML = '<span></span><a href="connect.html?edit=1">Edit league</a>';
     d.firstChild.textContent = stripText();
     topOfMain(d);
   }
@@ -1038,6 +1042,96 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   document.addEventListener('keydown', function(e){
     if(e.key==='Escape'){ document.querySelectorAll('.valwrap.open').forEach(function(w){ w.classList.remove('open'); var c=w.querySelector('.valcaret'); if(c){c.setAttribute('aria-expanded','false'); c.focus();} }); }
   });
+})();
+
+/* ===== Start fresh (JEG-1568): clear the league from this browser, confirmed inside the page =====
+   Opened by any [data-start-fresh] control (the Your league menu, the top of connect.html). One plain line says what
+   goes; the reader's own value edits are a separate checkbox, off by default. Every key is listed here so a new store
+   gets noticed (tests/test_edit_league.py checks the source against these lists). After clearing: the address loses its
+   #s= link (marked used for this session), the header goes back to "Your league"/"Get started", and connect.html opens. */
+(function(){
+  var DDF = window.DDF = window.DDF || {};
+  var KEYS = {
+    session: ['ddf:pasted', 'ddf:league', 'ddf:link', 'ddf:ctxlink', 'ddf:waivers', 'ddf:available', 'ddf:moves', 'ddf:hold',
+      'ddf:skip', 'ddf:trade', 'ddf:settingsok', 'ddf:bridgedWs', 'ddf:bridgeKeep', 'ddf:editprev', 'ddf:bookmarked',
+      'ddf:bmhint', 'ddf:bmwant', 'ddf:bmdone', 'ddf:bmovbase', 'ddf-recommendation'],
+    sessionPrefixes: ['ddf:freshdismiss:'],
+    local: ['ddf.v2.workspaces', 'ddf.v2.league-settings', 'ddf.v2.waiverCandidates'],
+    /* the reader's own edits: only with "Also clear my value overrides" */
+    overridesSession: ['ddf:overrides', 'ddf:basis', 'ddf:posweights', 'ddf-v2-link-state'],
+    overridesLocal: ['ddf-v2-value-overrides'],
+    /* never cleared: the player table cache and the used-link mark */
+    keep: ['ddf:table:1', 'ddf:wipedlink'],
+    keepPrefixes: ['ddf:table:']
+  };
+  var CLEARS = 'This clears your league, its teams, your picked team, the league name and settings, the waivers list and the roster date from this browser.';
+  function wipe(opts){
+    opts = opts || {};
+    var rm = function(store, k){ try{ store.removeItem(k); }catch(e){} };
+    KEYS.session.forEach(function(k){ rm(sessionStorage, k); });
+    try{
+      for(var i = sessionStorage.length - 1; i >= 0; i--){
+        var k = sessionStorage.key(i);
+        if(k && KEYS.sessionPrefixes.some(function(p){ return k.indexOf(p) === 0; })) rm(sessionStorage, k);
+      }
+    }catch(e){}
+    KEYS.local.forEach(function(k){ rm(localStorage, k); });
+    if(opts.overrides){ KEYS.overridesSession.forEach(function(k){ rm(sessionStorage, k); }); KEYS.overridesLocal.forEach(function(k){ rm(localStorage, k); }); }
+    if(DDF.link && DDF.link.markConsumed) DDF.link.markConsumed();
+    try{ if(/#/.test(location.href)) history.replaceState(history.state, '', location.pathname + location.search.replace(/([?&])edit=1(&|$)/, '$1').replace(/[?&]$/, '')); }catch(e){}
+    try{ if(DDF.link && DDF.link.clear) DDF.link.clear(); }catch(e){}
+    DDF.leagueKnown = false;
+    try{ if(DDF.refreshNav) DDF.refreshNav(); }catch(e){}
+    document.title = 'Add your league rosters · Data Driven Football';
+  }
+  var dlg, opener;
+  function build(){
+    if(dlg) return dlg;
+    dlg = document.createElement('div');
+    dlg.className = 'ddf-fresh-dlg'; dlg.hidden = true;
+    dlg.innerHTML = '<div class="ddf-fresh-panel" role="dialog" aria-modal="true" aria-labelledby="ddf-sf-title" aria-describedby="ddf-sf-what">'
+      + '<h2 id="ddf-sf-title">Start fresh?</h2><p id="ddf-sf-what"></p>'
+      + '<label class="ddf-sf-check"><input type="checkbox" id="ddf-sf-ov"> <span>Also clear my value overrides<small>Your own player values, value basis and position weights. Off keeps them.</small></span></label>'
+      + '<div class="ddf-sf-actions"><button type="button" class="ddf-sf-keep">Keep my league</button><button type="button" class="ddf-sf-go">Start fresh</button></div></div>';
+    dlg.querySelector('#ddf-sf-what').textContent = CLEARS;
+    dlg.querySelector('.ddf-sf-keep').addEventListener('click', close);
+    dlg.querySelector('.ddf-sf-go').addEventListener('click', function(){
+      wipe({overrides: dlg.querySelector('#ddf-sf-ov').checked});
+      close(true);
+      var onConnect = /(^|\/)connect\.html$/.test(location.pathname);
+      try{ if(onConnect) location.replace('connect.html'); else location.assign('connect.html'); }catch(e){}
+    });
+    dlg.addEventListener('click', function(e){ if(e.target === dlg) close(); });
+    dlg.addEventListener('keydown', function(e){
+      if(e.key === 'Escape'){ e.preventDefault(); close(); return; }
+      if(e.key !== 'Tab') return;
+      var f = Array.prototype.slice.call(dlg.querySelectorAll('input, button'));
+      var first = f[0], last = f[f.length - 1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    });
+    document.body.appendChild(dlg);
+    return dlg;
+  }
+  function open(from){
+    build(); opener = from || document.activeElement;
+    dlg.querySelector('#ddf-sf-ov').checked = false;
+    dlg.hidden = false; document.documentElement.classList.add('ddf-sf-open');
+    dlg.querySelector('.ddf-sf-keep').focus();
+  }
+  function close(done){
+    if(!dlg || dlg.hidden) return;
+    dlg.hidden = true; document.documentElement.classList.remove('ddf-sf-open');
+    if(done !== true && opener && opener.focus) try{ opener.focus(); }catch(e){}
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('[data-start-fresh]');
+    if(!b) return;
+    e.preventDefault();
+    var w = b.closest('.ddf-chipwrap'); if(w){ w.classList.remove('open'); var c = w.querySelector('.ddf-chip'); if(c) c.setAttribute('aria-expanded', 'false'); }
+    open(w ? w.querySelector('.ddf-chip') : b);
+  });
+  DDF.startFresh = {KEYS: KEYS, CLEARS: CLEARS, wipe: wipe, open: open, close: close};
 })();
 
 /* ===== League meta (JEG-1564): league name, team, roster input date, freshness, page title =====

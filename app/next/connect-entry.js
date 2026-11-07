@@ -55,12 +55,45 @@
   }
 
   /* ---------- the kept league ---------- */
+  /* Editing (connect.html?edit=1 from "Edit league", JEG-1568): the current league stays in use until a new paste is read
+     or rosters are entered. `editprev` keeps what it was (sessionStorage ddf:editprev, for setup's name and team prefill);
+     backing out or emptying the box puts it back. A chat league's settings are saved to the engine when it is replaced,
+     so settings.html still shows them. */
+  var editing = null;
+  function startEditing() {
+    if (!/[?&]edit=1(&|$)/.test(location.search) || !DDF.leagueMeta) return null;
+    var info = DDF.leagueMeta.info();
+    if (!info) return null;
+    var raw = function (k) { try { return sessionStorage.getItem("ddf:" + k); } catch (e) { return null; } };
+    var settings = null;
+    try { settings = DDF.link && DDF.link.settings ? DDF.link.settings() : null; } catch (e) { settings = null; }
+    var snap = {pasted: raw("pasted"), league: raw("league"), link: raw("link"), name: info.named ? info.name : null,
+      team: info.team || null, source: info.source, settings: settings};
+    DDF.state.set("editprev", {name: snap.name, team: snap.team, source: snap.source});
+    return snap;
+  }
+  function restoreEditing() {
+    ["pasted", "league", "link"].forEach(function (k) {
+      try { if (editing[k] === null) sessionStorage.removeItem("ddf:" + k); else sessionStorage.setItem("ddf:" + k, editing[k]); } catch (e) { /* storage blocked */ }
+    });
+    document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: kept()}));
+  }
+  function keepChatSettings() {
+    var st = editing && editing.settings;
+    if (!st || !DDF.engine || !DDF.engine.apply || !Array.isArray(st.slots)) return;
+    try {
+      DDF.engine.apply({scoring: st.scoring, teams: st.teams, superflex: !!st.superflex,
+        roster: {QB: st.slots[0], RB: st.slots[1], WR: st.slots[2], TE: st.slots[3], FLEX: st.slots[4], BENCH: st.slots[5]}});
+    } catch (e) { /* settings.html asks again */ }
+  }
   function save(record) {
+    if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
   }
   function drop() {
+    if (editing) { restoreEditing(); return; }
     DDF.state.remove("pasted");
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: null}));
   }
@@ -258,15 +291,31 @@
   }
 
   /* ---------- wiring ---------- */
+  /* the top of the entry flow: "Replacing: <name>" while editing; Start fresh whenever a league is kept */
+  function showEditing() {
+    var top = $("entry-top"), info = DDF.leagueMeta ? DDF.leagueMeta.info() : null;
+    if (!top) return;
+    top.hidden = !info;
+    if (!info) return;
+    $("entry-top-text").textContent = editing
+      ? "Replacing: " + info.name + ". Your current league stays in use until you check a new paste or enter rosters."
+      : "You have a league in this browser: " + info.name + ".";
+    $("entry-keep").hidden = !editing;
+    var line = $("replacing-line");
+    if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
+  }
   function init() {
     var form = $("roster-form");
     if (!form || !DDF.leaguePaste) return;
     form.addEventListener("submit", function (e) { e.preventDefault(); check(true, true); });
     var ta = $("rosters");
     ta.addEventListener("paste", function () { setTimeout(function () { check(false, true); }, 0); });
+    editing = startEditing();
+    if (!editing) DDF.state.remove("editprev");
+    showEditing();
     ta.addEventListener("input", function () {
       var p = kept();
-      if (p && p.source === "paste") drop();
+      if (p && p.source === "paste" && !editing) drop();
       hideResult();
       if (!ta.value.trim()) { status("", ""); hideEditNames(); }
     });
@@ -295,5 +344,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }};
 })();
