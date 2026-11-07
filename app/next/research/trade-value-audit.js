@@ -86,12 +86,12 @@
   }
 
   /* Scorecard */
-  function badge(dim) {
+  function badge(dim, balance) {
     var lv = dim ? dim.level : null;
     var dots = lv == null ? '–' : '●●●'.slice(0, lv) + '○○○'.slice(0, 3 - lv);
     var b = el('span', { class: 'badge b' + (lv == null ? 0 : lv) });
     b.appendChild(el('span', { class: 'd', 'aria-hidden': 'true' }, dots));
-    b.appendChild(document.createTextNode(lv == null ? 'Not measured' : dim.label));
+    b.appendChild(document.createTextNode(lv == null ? 'Not measured' : (balance && lv === 3 ? 'Close' : balance && lv === 1 ? 'Far' : dim.label)));
     return b;
   }
   function scorecard() {
@@ -99,7 +99,7 @@
     GRADED.forEach(function (k) {
       var tr = el('tr');
       tr.appendChild(el('th', { scope: 'row' }, NAME[k] + (k === 'fantasycalc' ? ' (Live market)' : '')));
-      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname])); tr.appendChild(td); });
+      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname], dname === 'balance')); tr.appendChild(td); });
       tb.appendChild(tr);
     });
     var ul = $('#rules');
@@ -112,7 +112,7 @@
       DIMS.forEach(function (dname) {
         var dim = D.scorecard[k][dname];
         if (!dim || dim.level == null) return;
-        var b = badge(dim);
+        var b = badge(dim, dname === 'balance');
         b.insertBefore(document.createTextNode(DIM_NAME[dname] + ': '), b.childNodes[1]);
         host.appendChild(b);
       });

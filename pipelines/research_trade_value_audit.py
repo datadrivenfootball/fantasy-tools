@@ -430,7 +430,7 @@ def weekly(inp) -> dict:
 # ---------------------------------------------------------------------------
 
 RULES = {
-    "balance": "Distance from DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points (shown as Strong), OK up to 10, Weak above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
+    "balance": "Distance from DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
     "superflex": "Superflex: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: Strong when the source offers its own numbers by team count; Weak with one table for every league size.",
