@@ -6,14 +6,14 @@
   var REDUCE = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var NS = 'http://www.w3.org/2000/svg';
   var CHARTS = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
-  var GRADED = CHARTS.concat(['dynastyprocess']);  /* the four redraft charts plus the open dynasty values */
-  var NAME = { cbs: 'CBS Sports', usatoday: 'USA Today', fantasypros: 'FantasyPros', fantasycalc: 'FantasyCalc', dynastyprocess: 'DynastyProcess (dynasty)',
+  var GRADED = CHARTS;
+  var NAME = { cbs: 'CBS Sports', usatoday: 'USA Today', fantasypros: 'FantasyPros', fantasycalc: 'FantasyCalc',
     ddf: 'DDF Value (reference)', ddf_value: 'DDF Value (reference)',
     analyst: 'Analyst charts' };
   var POS = ['QB', 'RB', 'WR', 'TE'];
-  var SHORT = { dynastyprocess: 'DynastyProc.', ddf_value: 'DDF Value', fantasycalc: 'FantasyCalc', fantasypros: 'FantasyPros' };
-  var DIMS = ['balance', 'scoring', 'superflex', 'league_size', 'depth', 'freshness', 'consolidation'];
-  var DIM_NAME = { balance: 'Distance from DDF Value', scoring: 'Scoring formats', superflex: 'Superflex', league_size: 'League size',
+  var SHORT = { ddf_value: 'DDF Value', fantasycalc: 'FantasyCalc', fantasypros: 'FantasyPros' };
+  var DIMS = ['balance', 'curve', 'scoring', 'superflex', 'league_size', 'depth', 'freshness', 'consolidation'];
+  var DIM_NAME = { balance: 'Position mix vs DDF Value', curve: 'Curve shape vs DDF Value', scoring: 'Scoring formats', superflex: 'Superflex', league_size: 'League size',
     depth: 'Depth', freshness: 'Weekly change', consolidation: '2-for-1 sense' };
   var D = null;
 
@@ -99,7 +99,7 @@
     GRADED.forEach(function (k) {
       var tr = el('tr');
       tr.appendChild(el('th', { scope: 'row' }, NAME[k] + (k === 'fantasycalc' ? ' (Live market)' : '')));
-      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname], dname === 'balance')); tr.appendChild(td); });
+      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname], dname === 'balance' || dname === 'curve')); tr.appendChild(td); });
       tb.appendChild(tr);
     });
     var ul = $('#rules');
@@ -112,7 +112,7 @@
       DIMS.forEach(function (dname) {
         var dim = D.scorecard[k][dname];
         if (!dim || dim.level == null) return;
-        var b = badge(dim, dname === 'balance');
+        var b = badge(dim, dname === 'balance' || dname === 'curve');
         b.insertBefore(document.createTextNode(DIM_NAME[dname] + ': '), b.childNodes[1]);
         host.appendChild(b);
       });
@@ -122,7 +122,7 @@
   /* 1. Position shares: stacked bars that reshuffle between settings */
   function positions() {
     var fig = $('#fig-pos'), host = $('.stack', fig), cur = 'half_ppr/12/1qb', shown = false;
-    var rowsK = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc', 'dynastyprocess', 'analyst', 'ddf'];
+    var rowsK = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc', 'analyst', 'ddf'];
     var segs = {};
     rowsK.forEach(function (k) {
       host.appendChild(el('div', { class: 'name' }, NAME[k]));
@@ -213,7 +213,7 @@
       box.lines = {};
       keys.forEach(function (k) {
         var p = svg('path', { d: path(cur[k], g), fill: 'none', 'stroke-width': k === 'ddf' ? 2.5 : 2.2,
-          'stroke-dasharray': k === 'ddf' ? '6 5' : k === 'dynastyprocess' ? '2 3' : '', style: 'stroke:' + color(k) });
+          'stroke-dasharray': k === 'ddf' ? '6 5' : '', style: 'stroke:' + color(k) });
         s.appendChild(p);
         box.lines[k] = p;
       });
@@ -224,7 +224,7 @@
           used.forEach(function (u) { if (Math.abs(u - y) < 14) y = u + 14; });
           used.push(y);
           var t = svg('text', { x: g.w - g.r + 8, y: y + 4, class: 'lbl', style: 'fill:' + color(k) });
-          t.textContent = k === 'ddf' ? 'DDF Value' : k === 'dynastyprocess' ? 'DynastyProcess' : NAME[k];
+          t.textContent = k === 'ddf' ? 'DDF Value' : NAME[k];
           s.appendChild(t);
         });
       }
@@ -256,7 +256,7 @@
       var narrow = width(host) < 500, said = [], tb = el('tbody');
       keys.forEach(function (k) {
         var v = D.curves[sc][k][rk - 1], who = (D.curve_players[sc][k] || [])[rk - 1];
-        var label = k === 'ddf' ? 'DDF Value' : k === 'dynastyprocess' ? 'DynastyProcess' : NAME[k];
+        var label = k === 'ddf' ? 'DDF Value' : NAME[k];
         var name = who ? shortName(who[0], narrow) + ' (' + who[1] + ')' : 'not listed';
         var tr = el('tr');
         var th = el('th', { scope: 'row' }); var sw = el('span', { 'aria-hidden': 'true', style: 'display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;background:' + color(k) });
@@ -307,7 +307,7 @@
         var p = box.lines[k];
         p.style.transition = 'stroke-dashoffset 1.4s ease ' + (i * 120) + 'ms';
         requestAnimationFrame(function () { p.style.strokeDashoffset = '0'; });
-        setTimeout(function () { p.style.transition = ''; p.style.strokeDasharray = k === 'ddf' ? '6 5' : k === 'dynastyprocess' ? '2 3' : ''; }, 1700 + i * 120);
+        setTimeout(function () { p.style.transition = ''; p.style.strokeDasharray = k === 'ddf' ? '6 5' : ''; }, 1700 + i * 120);
       });
     });
   }
@@ -336,7 +336,7 @@
   function scoringRace() {
     var h = D.headline.reorder_avg_pct;
     var ks = Object.keys(h).sort(function (a, b) { return h[b] - h[a] || (a < b ? -1 : 1); });
-    function cell(k, p) { return D.scoring[k] ? fmt(D.scoring[k][p].order_changed_pct) : (k === 'dynastyprocess' ? '0 (one value set)' : 'n/a'); }
+    function cell(k, p) { return D.scoring[k] ? fmt(D.scoring[k][p].order_changed_pct) : 'n/a'; }
     race($('#fig-race .race'), ks.map(function (k) {
       return { name: NAME[k], text: fmt(h[k]) + '%', label: NAME[k] + ': ' + fmt(h[k]) + '% change places',
         bars: [{ value: h[k], color: color(k) }], cells: [NAME[k]].concat(['RB', 'WR', 'TE'].map(function (p) { return cell(k, p); }), [fmt(h[k])]) };
@@ -607,39 +607,9 @@
       ks.map(function (k) { return [NAME[k], w[k].snapshot_dates.join(', '), w[k].rank_move.map(fmt).join(', '), w[k].unchanged_pct.map(fmt).join(', ')]; }));
   }
 
-  /* DynastyProcess is computed in its own block; fold it into the shared shapes the charts read. */
-  function foldDynasty() {
-    var dp = D.dynastyprocess, k = 'dynastyprocess';
-    Object.keys(dp.shares).forEach(function (c) { D.position_weighting[c].sources[k] = dp.shares[c]; });
-    Object.keys(D.curves).forEach(function (sc) { D.curves[sc][k] = dp.curve; });
-    Object.keys(D.curve_players).forEach(function (sc) { D.curve_players[sc][k] = dp.curve_players; });
-    D.superflex[k] = dp.superflex;
-    D.sources[k] = { listed: dp.listed, rostered: dp.rostered, filled_in: dp.filled_in };
-    D.consolidation[k] = dp.consolidation;
-    D.weekly[k] = { snapshot_dates: dp.weekly.snapshot_dates, rank_move: dp.weekly.rank_move, unchanged_pct: dp.weekly.unchanged_pct };
-  }
-  function ageBands() {
-    var host = $('#age'); if (!host) return;
-    var b = D.dynastyprocess.age_bands, max = 5, fills = [];
-    b.forEach(function (x) {
-      host.appendChild(el('div', { class: 'name' }, 'Age ' + x.band + ' (' + x.n + ')'));
-      var tr = el('div', { class: 'track', role: 'img', 'aria-label': 'Age ' + x.band + ': ' + fmt(x.mean_rank_gain) + ' places' });
-      tr.style.position = 'relative';
-      tr.appendChild(el('div', { class: 'mid', style: 'position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--muted);opacity:.5' }));
-      var f = el('div', { class: 'fill' }), v = x.mean_rank_gain;
-      f.style.position = 'absolute'; f.style.background = v >= 0 ? 'var(--c-dynastyprocess)' : 'var(--warn)';
-      f.style.left = v >= 0 ? '50%' : (50 - Math.abs(v) / max * 50) + '%';
-      tr.appendChild(f); host.appendChild(tr);
-      host.appendChild(el('div', { class: 'val', 'aria-hidden': 'true' }, (v > 0 ? '+' : '') + fmt(v)));
-      fills.push([f, Math.abs(v) / max * 50]);
-    });
-    onVisible(host, function () { fills.forEach(function (f, i) { f[0].style.transitionDelay = (i * 120) + 'ms'; f[0].style.width = f[1] + '%'; }); });
-    table($('[data-table=age]'), ['Age', 'Players', 'Average places gained at his position'], b.map(function (x) { return [x.band, fmt(x.n), fmt(x.mean_rank_gain)]; }));
-  }
   function start(data) {
     D = data;
-    foldDynasty();
-    bindNumbers(); reveals(); scorecard(); ageBands(); positions(); curves(); scoringRace(); superflex(); depth(); trade(); pairsRace(); scatter(); freshness();
+    bindNumbers(); reveals(); scorecard(); positions(); curves(); scoringRace(); superflex(); depth(); trade(); pairsRace(); scatter(); freshness();
   }
   if (REDUCE) document.documentElement.classList.add('no-motion');
   /* The single-file copy (pipelines/build_trade_value_audit_single.py) carries the data inline. */

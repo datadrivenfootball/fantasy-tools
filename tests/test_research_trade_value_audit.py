@@ -100,15 +100,14 @@ class AuditData(unittest.TestCase):
         self.assertEqual("Weak", card["fantasypros"]["scoring"]["label"])
         self.assertEqual("OK", card["fantasycalc"]["scoring"]["label"])
         self.assertEqual("Weak", card["cbs"]["depth"]["label"])
-        self.assertEqual(set(audit.CHARTS) | {"dynastyprocess"}, set(card))  # trade charts only; no self-grading
-        self.assertEqual("Not measured", card["dynastyprocess"]["balance"]["label"])
-        self.assertEqual("Weak", card["dynastyprocess"]["scoring"]["label"])
-
-    def test_named_min_and_max_in_the_text(self):
-        """Section 9 names the charts at the ends of the like-for-like range."""
-        c = {k: v for k, v in self.fresh["dynastyprocess"]["rank_corr_common"].items() if k != "n"}
-        self.assertEqual("fantasypros", min(c, key=c.get))
-        self.assertEqual("fantasycalc", max(c, key=c.get))
+        self.assertEqual(set(audit.CHARTS), set(card))  # the four redraft charts only; DDF Value is never graded
+        self.assertEqual("Strong", card["cbs"]["curve"]["label"])   # close to the reference curve
+        self.assertEqual("Weak", card["usatoday"]["curve"]["label"])
+        self.assertEqual("Weak", card["usatoday"]["depth"]["label"])  # reaching past counts like stopping short
+        for k in audit.CHARTS:
+            listed, ros = self.fresh["sources"][k]["listed"], self.fresh["sources"][k]["rostered"]
+            gap = sum(abs(listed[p] - ros[p]) / ros[p] for p in ("QB", "RB", "WR", "TE")) / 4
+            self.assertEqual(round(100 * gap), card[k]["depth"]["value"])
 
     def test_scoring_claims_come_from_the_publishers_raw_output(self):
         prov = self.fresh["scoring_provenance"]
@@ -156,7 +155,7 @@ class AuditData(unittest.TestCase):
         p = Spans()
         p.feed(self.html)
         text = " ".join(p.text)
-        for word in ("ESPN", "Razzball", "our model gives", "Our model on the same scorecard"):
+        for word in ("ESPN", "Razzball", "DynastyProcess", "our model gives", "Our model on the same scorecard"):
             self.assertNotIn(word, text)
         self.assertNotIn("ddf", self.fresh["scorecard"])
 
@@ -164,16 +163,6 @@ class AuditData(unittest.TestCase):
         for sc, lines in self.fresh["curves"].items():
             for k, vals in lines.items():
                 self.assertEqual(len(vals), len(self.fresh["curve_players"][sc][k]), (sc, k))
-        self.assertEqual(len(self.fresh["dynastyprocess"]["curve"]), len(self.fresh["dynastyprocess"]["curve_players"]))
-
-    def test_dynastyprocess_snapshot_is_licensed_and_dated(self):
-        folder = audit.DP_DIR
-        self.assertIn("GNU GENERAL PUBLIC LICENSE", (folder / "LICENSE").read_text(encoding="utf-8"))
-        self.assertIn("GPL-3.0", (folder / "SOURCE.md").read_text(encoding="utf-8"))
-        for day in audit.DP_DATES:
-            self.assertTrue((folder / f"values-players-{day}.csv").exists(), day)
-        self.assertEqual(audit.DP_CURRENT, self.fresh["dynastyprocess"]["snapshot"])
-
 
 class StaysPrivate(unittest.TestCase):
     def test_page_is_noindex(self):

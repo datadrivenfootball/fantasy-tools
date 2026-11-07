@@ -434,7 +434,8 @@ RULES = {
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
     "superflex": "Superflex: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: Strong when the source offers its own numbers by team count; Weak with one table for every league size.",
-    "depth": "Depth: the thinnest position's listed players as a share of the players a 12-team league with our lineup rosters there (the waiver line). Strong at 100% or more, OK at 70% or more, Weak below. Lists that reach past the line are reported in section 5, not graded.",
+    "depth": "Depth: none of the four charts states a roster size, so each is measured against the waiver line of a 12-team league with our lineup. For each position, the gap between players listed and players rostered, as a share of players rostered, counting stopping short and reaching past alike; averaged over the four positions. Strong up to 10%, OK up to 30%, Weak above 30%.",
+    "curve": "Curve shape: average distance, in percentage points of each chart's own #1 player, between the chart's value curve and DDF Value's over overall ranks 1 to 100 (Half PPR). Close up to 5, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "freshness": "Weekly change: Strong when each of the four week-to-week changes in our saved weekly snapshots (weeks 5 to 9) is a distinct capture and moves last week's top 24 per position by at least a quarter of a rank on average; OK when one week did not; Weak otherwise.",
     "consolidation": "2-for-1 sense: the share of mid-tier pairs (ranks 25-60) that the raw chart says beat a top-12 player, minus the share once each player's waiver-level value is subtracted. Strong up to 10 points of difference, OK up to 25, Weak above 25.",
 }
@@ -466,13 +467,16 @@ def fresh_level(wk_k):
     return (2 if weeks_ok >= len(moves) - 1 else 1), weeks_ok
 
 
-def scorecard(meta, pw, sc, sfx, wk, cons) -> dict:
+def scorecard(meta, pw, sc, sfx, wk, cons, curves_half) -> dict:
     out = {}
     league_size_offered = {"fantasycalc"}  # its public values API takes numTeams (pipelines/pull_fantasycalc_12team.py)
     for k in CHARTS:
         gap = pw["half_ppr/12/1qb"]["gap_vs_ddf"][k]
         n_sf = sfx[k]["superflex_qbs_listed"]
-        depth = min(meta[k]["listed"][p] / meta[k]["rostered"][p] for p in POS)
+        depth = sum(abs(meta[k]["listed"][p] - meta[k]["rostered"][p]) / meta[k]["rostered"][p] for p in POS) / len(POS)
+        cv, ref = curves_half[k], curves_half["ddf"]
+        n = min(100, len(cv), len(ref))
+        cdist = sum(abs(cv[i] - ref[i]) for i in range(n)) / n
         fl, fw = fresh_level(wk[k])
         cgap = cons[k]["raw_beats_star_pct"] - cons[k]["after_waiver_beats_star_pct"]
         out[k] = {
@@ -480,7 +484,8 @@ def scorecard(meta, pw, sc, sfx, wk, cons) -> dict:
             "scoring": {"level": scoring_level(sc[k])},
             "superflex": {"level": 3 if n_sf >= 24 else 2 if n_sf > 0 else 1, "value": n_sf},
             "league_size": {"level": 3 if k in league_size_offered else 1},
-            "depth": {"level": grade(100 * depth, 100, 70, True), "value": r(100 * depth, 0)},
+            "depth": {"level": grade(100 * depth, 10, 30), "value": r(100 * depth, 0)},
+            "curve": {"level": grade(cdist, 5, 10), "value": r(cdist, 1)},
             "freshness": {"level": fl, "value": fw},
             "consolidation": {"level": grade(cgap, 10, 25), "value": r(cgap, 0)},
         }
@@ -491,15 +496,6 @@ def scorecard(meta, pw, sc, sfx, wk, cons) -> dict:
 
 
 
-# ---------------------------------------------------------------------------
-# DynastyProcess (open data, GPL-3.0): data/research/jeg1565/dynastyprocess
-# ---------------------------------------------------------------------------
-
-DP = "dynastyprocess"
-DP_DIR = REPO / "data" / "research" / "jeg1565" / "dynastyprocess"
-DP_DATES = ("2026-10-09", "2026-10-16", "2026-10-23", "2026-10-30", "2026-11-06")
-DP_CURRENT = DP_DATES[-1]
-AGE_BANDS = ((0, 25, "under 25"), (25, 28, "25 to 27"), (28, 30, "28 to 29"), (30, 99, "30 and over"))
 
 
 FC_DIR = REPO / "data" / "research" / "jeg1565" / "fantasycalc"
@@ -559,165 +555,6 @@ def scoring_provenance(inp) -> dict:
             "fantasycalc_captures_total": len(fc)}
 
 
-def dp_snapshot(inp, day: str) -> dict:
-    """{player_key: {"v1", "v2", "age"}} from the stored file, matched by
-    normalized name and position; names that match no player, or more than
-    one, are counted in "unmatched"."""
-    import csv
-    by = {}
-    for k, p in inp.players.items():
-        by.setdefault((norm_player_name(p["name"]), p["pos"]), []).append(k)
-    out, unmatched, unmatched_max = {}, 0, 0.0
-    with open(DP_DIR / f"values-players-{day}.csv", newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            if row["pos"] not in POS:
-                continue
-            keys = by.get((norm_player_name(row["player"]), row["pos"]))
-            if not keys or len(keys) > 1:
-                unmatched += 1
-                unmatched_max = max(unmatched_max, float(row["value_1qb"]))
-                continue
-            out[keys[0]] = {"v1": float(row["value_1qb"]), "v2": float(row["value_2qb"]),
-                            "age": float(row["age"]) if row["age"] not in ("", "NA") else None}
-    top = max((v["v1"] for v in out.values()), default=1.0)
-    return {"players": out, "unmatched": unmatched, "unmatched_max_pct": round(100 * unmatched_max / top, 1)}
-
-
-def dp_run(inp, snap: dict, scoring="half_ppr", superflex=0, teams=12):
-    """Our model run with DynastyProcess added as one more chart, read for its
-    own diagnostics only (the other sources' numbers come from runs without it).
-    DynastyProcess publishes one value set for every scoring format; in
-    superflex its 2QB column prices every player it lists."""
-    s = setting(inp, scoring, teams, superflex)
-    st = s.state()
-    field = "v2" if superflex else "v1"
-    nat = {k: v[field] for k, v in snap["players"].items()}
-    srcs = s._sources(st["current"])
-    srcs[DP] = vr.SourceInput(DP, "chart", dict(nat))
-    res = vr.run_pipeline(s.league, srcs, s.pos_of, list(st["included"]) + [DP], s.selection,
-                          lineup=s.lineup, hidden=st.get("hidden"), promotion_model=s.promotion_model,
-                          flex_bench_seats=s.flex_bench_seats, basis=s.basis)
-    return s, nat, res["sources"][DP]
-
-
-def dynastyprocess(inp, data: dict) -> dict:
-    snap = dp_snapshot(inp, DP_CURRENT)
-    pw = data["position_weighting"]
-    out = {"matched": len(snap["players"]), "unmatched": snap["unmatched"],
-           "unmatched_max_pct": snap["unmatched_max_pct"], "snapshot": DP_CURRENT}
-    shares = {}
-    for cid, (sc, sf) in {"half_ppr/12/1qb": ("half_ppr", 0), "half_ppr/12/sf": ("half_ppr", 1),
-                          "standard/12/1qb": ("standard", 0), "ppr/12/1qb": ("ppr", 0)}.items():
-        _, _, det = dp_run(inp, snap, sc, sf)
-        w = det["weights"]
-        shares[cid] = pct({p: w[f"{p}|starter"] + w[f"{p}|bench"] for p in POS})
-        ref = {p: pw[cid]["ddf_value"][p] / 100 for p in POS}
-        out.setdefault("gap_vs_ddf", {})[cid] = r(l1_points({p: shares[cid][p] / 100 for p in POS}, ref), 1)
-    out["shares"] = shares
-    s, nat, det = dp_run(inp, snap)
-    pos_of = s.pos_of
-    order = overall_order(nat, pos_of)
-    top = nat[order[0]]
-    waiver = {p: det["positions"][p]["waiver_value"] for p in POS}
-    out["listed"] = {p: det["positions"][p]["listed"] for p in POS}
-    out["rostered"] = {p: det["positions"][p]["rostered"] for p in POS}
-    out["filled_in"] = {p: len(det["positions"][p]["imputation_ratios"] or {}) for p in POS}
-    out["top50_mix"] = {p: sum(1 for i in order[:TOP_N] if pos_of[i] == p) for p in POS}
-    out["curve"] = [r(100 * nat[i] / top, 1) for i in order[:CURVE_N]]
-    out["curve_players"] = [[inp.players[i]["name"], pos_of[i]] for i in order[:CURVE_N]]
-    out["curve_stats"] = {
-        "listed_total": len(order),
-        **{f"rank{n}_pct": r(100 * nat[order[n - 1]] / top, 0) for n in (12, 24, 50, 100)},
-        "position_top_pct": {p: r(100 * max(v for i, v in nat.items() if pos_of[i] == p) / top, 0) for p in POS},
-    }
-    # 2-for-1, same rule as the charts.
-    vaw = {i: max(0.0, nat[i] - waiver[pos_of[i]]) for i in order}
-    stars, pairs = order[:12], list(combinations(order[24:60], 2))
-    tot = len(stars) * len(pairs)
-    raw = sum(1 for st in stars for a, b in pairs if nat[a] + nat[b] > nat[st])
-    aft = sum(1 for st in stars for a, b in pairs if vaw[a] + vaw[b] > vaw[st])
-    out["consolidation"] = {"pairs_tested": tot, "raw_beats_star_pct": r(100 * raw / tot, 0),
-                            "after_waiver_beats_star_pct": r(100 * aft / tot, 0)}
-    # Superflex: the 2QB column.
-    sf_qbs = sum(1 for k, v in snap["players"].items() if pos_of.get(k) == "QB" and v["v2"] > 0)
-    out["superflex"] = {"superflex_qbs_listed": sf_qbs, "qb_share_1qb": shares["half_ppr/12/1qb"]["QB"],
-                        "qb_share_sf": shares["half_ppr/12/sf"]["QB"]}
-    # Agreement with the four redraft charts (players both list), Half PPR.
-    base = setting(inp)
-    out["rank_corr_with"] = {}
-    for k in CHARTS:
-        other = base.natives(k)
-        common = [i for i in nat if i in other]
-        out["rank_corr_with"][k] = r(spearman([nat[i] for i in common], [other[i] for i in common]), 3)
-    # Like for like: the players all four redraft charts list (the set behind agreement()).
-    four = {k: base.natives(k) for k in CHARTS}
-    common4 = [i for i in four["cbs"] if all(i in four[k] for k in CHARTS) and i in nat]
-    out["rank_corr_common"] = {"n": len(common4), **{
-        k: r(spearman([nat[i] for i in common4], [four[k][i] for i in common4]), 3) for k in CHARTS}}
-    out["rank_corr_common_min"] = min(out["rank_corr_common"][k] for k in CHARTS)
-    out["rank_corr_common_max"] = max(out["rank_corr_common"][k] for k in CHARTS)
-    # Age: position rank on DynastyProcess against position rank by our (redraft) DDF Value.
-    ddf = ddf_values(base)
-    pool = sorted(ddf, key=lambda i: (-ddf[i], i))[:TRADE_POOL]
-    pool = [i for i in pool if i in nat and snap["players"][i]["age"] is not None]
-    def prank(values, keys):
-        rk = {}
-        for p in POS:
-            ks = sorted((i for i in keys if pos_of[i] == p), key=lambda i: (-values[i], i))
-            rk.update({i: n + 1 for n, i in enumerate(ks)})
-        return rk
-    rd, rp = prank(ddf, pool), prank(nat, pool)
-    bands = []
-    for lo, hi, label in AGE_BANDS:
-        ks = [i for i in pool if lo <= snap["players"][i]["age"] < hi]
-        moves = [rd[i] - rp[i] for i in ks]
-        bands.append({"band": label, "n": len(ks), "mean_rank_gain": r(sum(moves) / len(moves), 1) if moves else None})
-    out["age_bands"] = bands
-    out["age_pool"] = len(pool)
-    # Week to week, same rule as the other sources.
-    snaps = [dp_snapshot(inp, d)["players"] for d in DP_DATES]
-    moves, same = [], []
-    for prev, cur in zip(snaps, snaps[1:]):
-        deltas, n_same = [], 0
-        for p in POS:
-            both = [i for i in prev if i in cur and pos_of.get(i) == p]
-            rpv = {i: n for n, i in enumerate(sorted(both, key=lambda i: (-prev[i]["v1"], i)))}
-            rcu = {i: n for n, i in enumerate(sorted(both, key=lambda i: (-cur[i]["v1"], i)))}
-            topk = sorted(both, key=lambda i: (-prev[i]["v1"], i))[:WEEKLY_TOP]
-            deltas += [abs(rcu[i] - rpv[i]) for i in topk]
-            n_same += sum(1 for i in topk if cur[i]["v1"] == prev[i]["v1"])
-        moves.append(r(sum(deltas) / len(deltas), 2))
-        same.append(r(100 * n_same / len(deltas), 0))
-    out["weekly"] = {"snapshot_dates": list(DP_DATES), "rank_move": moves, "unchanged_pct": same}
-    # Scoring: one value set for every format (the file has no scoring columns).
-    out["scoring_note"] = "one value set for every scoring format"
-    # Trade box rows.
-    for row in data["players"]:
-        row["pct_of_top"][DP] = r(100 * nat[row["key"]] / top, 4) if row["key"] in nat else None
-    dp_rank = avg_pos_ranks(nat, pos_of)
-    for row in data["players"]:
-        row["pos_rank"][DP] = dp_rank.get(row["key"])
-    data["waiver_line"][DP] = {p: r(100 * waiver[p] / top, 4) for p in POS}
-    # Scorecard (balance not graded: dynasty values price future seasons, our yardstick is this season).
-    depth = min(out["listed"][p] / out["rostered"][p] for p in POS)
-    fresh_weeks = sum(1 for m in moves if m >= 0.25)
-    cgap = out["consolidation"]["raw_beats_star_pct"] - out["consolidation"]["after_waiver_beats_star_pct"]
-    card = {
-        "balance": {"level": None},
-        "scoring": {"level": 1},
-        "superflex": {"level": 3 if sf_qbs >= 24 else 2 if sf_qbs else 1, "value": sf_qbs},
-        "league_size": {"level": 1},
-        "depth": {"level": grade(100 * depth, 100, 70, True), "value": r(100 * depth, 0)},
-        "freshness": {"level": 3 if fresh_weeks == len(moves) else 2 if fresh_weeks >= len(moves) - 1 else 1,
-                      "value": fresh_weeks},
-        "consolidation": {"level": grade(cgap, 10, 25), "value": r(cgap, 0)},
-    }
-    for dim in card.values():
-        dim["label"] = LEVEL[dim["level"]]
-    data["scorecard"][DP] = card
-    return out
-
-
 DEPTH_TEAMS = (10, 12, 14)
 DEPTH_CURVE_MAX = 130   # position ranks drawn in the depth chart
 
@@ -737,25 +574,22 @@ def depth_vs_waiver(inp, data: dict) -> dict:
     """Each source's list against the waiver line, per position, at 10/12/14
     teams (Half PPR, our default lineup). The waiver line at a position is the
     value of the first player past the number the league rosters there (VP-2)."""
-    snap = dp_snapshot(inp, DP_CURRENT)
     out = {"teams": list(DEPTH_TEAMS), "rostered": {}, "sources": {}}
-    keys = (*CHARTS, DP)
+    keys = CHARTS
     for t in DEPTH_TEAMS:
         s = setting(inp, "half_ppr", t)
         diag = s.diagnostics()
         pos_of = s.pos_of
         out["rostered"][t] = {p: diag["sources"]["cbs"]["positions"][p]["rostered"] for p in POS}
-        _, dp_nat, dp_det = dp_run(inp, snap, "half_ppr", 0, t)
         for k in keys:
-            nat = dp_nat if k == DP else s.natives(k)
-            positions = dp_det["positions"] if k == DP else None
+            nat = s.natives(k)
             row = out["sources"].setdefault(k, {}).setdefault(t, {})
             total = sum(nat.values())
             past_value = 0.0
             for p in POS:
                 order = sorted((i for i in nat if pos_of.get(i) == p), key=lambda i: (-nat[i], i))
                 ros = out["rostered"][t][p]
-                waiver = positions[p]["waiver_value"] if k == DP else diag["sources"][k]["positions"][p]["waiver"]
+                waiver = diag["sources"][k]["positions"][p]["waiver"]
                 top = nat[order[0]]
                 last = order[-1]
                 beyond = order[ros:]
@@ -811,16 +645,12 @@ SOURCE_LINKS = [
      "url": "https://www.fantasypros.com/2026/09/fantasy-football-trade-value-chart-week-9-2026/"},
     {"source": "FantasyPros", "label": "FantasyPros legal terms", "kind": "terms",
      "url": "https://www.fantasypros.com/about/legal/"},
-    {"source": "FantasyCalc", "label": "FantasyCalc rankings page", "kind": "chart",
-     "url": "https://fantasycalc.com/redraft-rankings"},
+    {"source": "FantasyCalc", "label": "FantasyCalc trade value chart", "kind": "chart",
+     "url": "https://fantasycalc.com/trade-value-chart"},
     {"source": "FantasyCalc", "label": "FantasyCalc values, Standard (raw data: ppr=0)", "kind": "endpoint",
      "url": "https://api.fantasycalc.com/values/current?isDynasty=false&numQbs=1&numTeams=12&ppr=0"},
     {"source": "FantasyCalc", "label": "FantasyCalc values, Full PPR (raw data: ppr=1)", "kind": "endpoint",
      "url": "https://api.fantasycalc.com/values/current?isDynasty=false&numQbs=1&numTeams=12&ppr=1"},
-    {"source": "DynastyProcess", "label": "DynastyProcess values and formula", "kind": "method",
-     "url": "https://dynastyprocess.com/values"},
-    {"source": "DynastyProcess", "label": "DynastyProcess open data (GPL-3.0)", "kind": "data",
-     "url": "https://github.com/dynastyprocess/data"},
     {"source": "KeepTradeCut", "label": "KeepTradeCut: how player values work", "kind": "method",
      "url": "https://keeptradecut.com/about/player-values"},
     {"source": "KeepTradeCut", "label": "KeepTradeCut terms and conditions", "kind": "terms",
@@ -910,24 +740,15 @@ def build() -> dict:
         "outliers": outl[:24],
         "fantasycalc_scoring_factors": fantasycalc_scoring_factors(inp),
         "weekly": wk,
-        "scorecard": scorecard(meta, pw, sc, sfx, wk, cons),
+        "scorecard": scorecard(meta, pw, sc, sfx, wk, cons, cv["curves"]["half_ppr"]),
         "rules": RULES,
     }
     lineup = json.loads((REPO / "config" / "lineup_parameters.json").read_text(encoding="utf-8"))
     data["model_missed_game_rate_pct"] = {p: r(100 * lineup["positions"][p]["m"]["all"], 1) for p in POS}
-    # DynastyProcess publishes Value = 10500 * exp(-0.0235 * ECR) (dynastyprocess.com/values, read 2026-11-07).
-    dp = lambda rank: 10500 * math.exp(-0.0235 * rank)  # noqa: E731
-    data["dynastyprocess_formula"] = {"scale": 10500, "rate": 0.0235,
-                                      **{f"rank{n}_pct": r(100 * dp(n) / dp(1), 0) for n in (12, 24, 50, 100)}}
-    data["dynastyprocess"] = dynastyprocess(inp, data)
     data["scoring_provenance"] = scoring_provenance(inp)
     data["depth_vs_waiver"] = depth_vs_waiver(inp, data)
     data["ddf_reference"] = ddf_reference(inp, data)
     data["headline"] = headline(data)
-    data["headline"]["reorder_avg_pct"][DP] = r(sum(_reorder(
-        {k: v["v1"] for k, v in dp_snapshot(inp, DP_CURRENT)["players"].items()},
-        {k: v["v1"] for k, v in dp_snapshot(inp, DP_CURRENT)["players"].items()},
-        {k: p["pos"] for k, p in inp.players.items()})[p]["reordered"] for p in FLEX) / 3, 0)  # one value set
     cbs_top = max(setting(inp).natives("cbs").values())
     data["cbs_four_points_pct"] = r(100 * 4 / cbs_top, 1)
     data["source_links"] = {"read": LINKS_READ, "links": SOURCE_LINKS}
