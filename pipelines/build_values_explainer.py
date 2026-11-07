@@ -234,12 +234,35 @@ def trim_pipeline(vp: dict, full: bool = True) -> dict:
             row["positions"] = {}
             for p, pp in (s.get("positions") or {}).items():
                 row["positions"][p] = {**{f: pp.get(f) for f in ("method", "waiver", "starterLine", "starters",
-                                                                 "rostered", "listed", "nEstimated")},
+                                                                 "rostered", "listed", "nEstimated", "avail")},
+                                       "lineup": {f: (pp.get("lineup") or {}).get(f)
+                                                  for f in ("m", "unavailable", "nPerTeam", "sigmaRel", "sigmaFloor")}
+                                       if pp.get("lineup") else None,
                                        "estimates": {pk: trim_estimate(e) for pk, e in (pp.get("estimates") or {}).items()}}
         sources[k] = row
     return {f: vp.get(f) for f in ("version", "pie", "benchShare", "benchShareApplied", "included", "excluded",
                                    "degenerate", "ddfWeights", "allocation", "allocationMix",
-                                   "allocationExpected", "seatSigma")} | {"sources": sources}
+                                   "allocationExpected", "seatSigma", "lineup", "chartSigma")} | {"sources": sources}
+
+
+# JEG-1393 R2 (CX-03): the bench usage discount the engine applies when it
+# shares bench seats with no league loaded (value-model.js vpVorpBenchDiscount,
+# JEG-1121). Its constants are read from the engine source and must match the
+# Python twin (roster_convention.vorp_bench_discount), so the page prints the
+# numbers the engine uses.
+def bench_discount() -> dict:
+    src = (ROOT / "app" / "trade-value-chart" / "assets" / "value-model.js").read_text()
+    miss = re.search(r"var VORP_MISS = \{([^}]*)\}", src)
+    bye = re.search(r"var VORP_BYE = ([0-9.]+) / ([0-9.]+);", src)
+    if not miss or not bye:
+        raise SystemExit("bench discount constants not found in value-model.js")
+    miss_rate = {k: float(v) for k, v in re.findall(r"(QB|RB|WR|TE): ([0-9.]+)", miss.group(1))}
+    bye_rate = float(bye.group(1)) / float(bye.group(2))
+    sys.path.insert(0, str(ROOT / "pipelines" / "lib"))
+    import roster_convention as rc
+    if miss_rate != rc._BENCH_MISS_RATE or abs(bye_rate - rc._BYE_RATE) > 1e-12:
+        raise SystemExit("bench discount constants differ between value-model.js and roster_convention.py")
+    return {"bye": bye_rate, "miss": miss_rate}
 
 
 def trim(raw: dict) -> dict:
@@ -315,6 +338,7 @@ def trim(raw: dict) -> dict:
                                          "available", "paused")} for s in raw["info"]],
         "composite": raw["composite"], "positionWeights": raw["positionWeights"], "zones": raw["zones"],
         "sensitivity": raw["sensitivity"], "restored": raw["restored"],
+        "benchDiscount": bench_discount(),
         "hidden": hidden_sources(raw), "versionSources": version_sources(raw), "vorpRuns": vorp_runs(raw),
         "reconstruction": {"tolerance": CHECK_TOL, "worst": {k: r(v, 6) for k, v in worst.items()}, "off": off},
     }
