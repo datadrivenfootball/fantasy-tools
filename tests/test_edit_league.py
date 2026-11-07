@@ -117,6 +117,10 @@ class EditLeagueRenderTest(unittest.TestCase):
         page.fill("#manual-names", "")
         page.dispatch_event("#manual-names", "input")
         self.assertEqual(page.evaluate("sessionStorage.getItem('ddf:pasted')"), before, "nothing replaced the league")
+        # leaving mid-entry: one manual team typed, then away
+        page.fill("#manual-names", "One")
+        page.dispatch_event("#manual-names", "input")
+        self.assertEqual(page.evaluate("sessionStorage.getItem('ddf:pasted')"), before, "half-typed manual rows do not replace it")
         self.open(page, "team.html")
         self.assertEqual(page.text_content("header .ddf-chip .ddf-chip-t"), "USO Season XVIII")
         self.assertEqual(page.errors, [])
@@ -134,6 +138,38 @@ class EditLeagueRenderTest(unittest.TestCase):
         self.assertEqual(page.eval_on_selector("input[name=team]:checked", "e => e.value"), "Hail Marys")
         self.assertIsNone(page.get_attribute("#continue-btn", "aria-disabled"))
         self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
+
+    def test_keep_my_league_after_a_replacement_paste(self):
+        page = self.page(seed=seed_script(2))
+        self.open(page, "connect.html?edit=1")
+        before = page.evaluate("sessionStorage.getItem('ddf:pasted')")
+        page.fill("#rosters", (FIXTURES / "03-espn.txt").read_text(encoding="utf-8"))
+        page.click("#recognize-button")
+        page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        self.assertIn("Your new rosters are read", page.text_content("#entry-top-text"))
+        page.click("#entry-keep")
+        page.wait_for_url("**/team.html", timeout=20000)
+        self.assertEqual(page.evaluate("sessionStorage.getItem('ddf:pasted')"), before)
+
+    def test_editing_a_manual_league_keeps_its_team_name_and_date(self):
+        seed = seed_script(3).replace('"source": "paste"', '"source": "manual"')
+        page = self.page(seed=seed)
+        self.open(page, "team.html")
+        before = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")
+        self.open(page, "connect.html?edit=1")
+        after = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")
+        for k in ("me", "name", "enteredAt"):
+            self.assertEqual(after.get(k), before.get(k), k)
+
+    def test_editprev_ends_with_next(self):
+        page = self.page(seed=seed_script(2))
+        self.open(page, "connect.html?edit=1")
+        self.assertIsNotNone(page.evaluate("sessionStorage.getItem('ddf:editprev')"))
+        page.click("#connect-next")
+        page.wait_for_url("**/setup.html", timeout=20000)
+        page.locator("#continue-btn").evaluate("b => b.click()")   # the end button (the sticky bar repeats it on desktop)
+        page.wait_for_load_state("networkidle")
+        self.assertIsNone(page.evaluate("sessionStorage.getItem('ddf:editprev')"))
 
     def test_start_fresh_clears_every_listed_key(self):
         for clear_overrides in (False, True):
@@ -192,10 +228,25 @@ class EditLeagueRenderTest(unittest.TestCase):
         page.wait_for_url("**/connect.html", timeout=20000)
         page.go_back(wait_until="networkidle")
         self.assertNotIn("#s=", page.url)
+        self.open(page, "values.html")   # a real page load before the link opens again (a hash-only change does not reload)
         self.open(page, f"team.html#s={token}")
         page.wait_for_timeout(1000)
         self.assertIsNone(page.evaluate("DDF.link.current()"))
         self.assertIsNone(page.evaluate("sessionStorage.getItem('ddf:league')"))
+        self.assertIn("Open the link in a new tab", page.text_content(".ddf-link-notice"))
+        # the link opened on another page, then Start fresh elsewhere: Back to the link page does not import it
+        other = self.page()
+        self.open(other, f"team.html#s={token}")
+        other.wait_for_function("() => DDF.link.current() && DDF.link.current().name === 'Chat League'", timeout=20000)
+        self.open(other, "build.html")
+        other.evaluate("DDF.startFresh.open()")
+        other.click(".ddf-sf-go")
+        other.wait_for_url("**/connect.html", timeout=20000)
+        other.go_back(wait_until="networkidle")
+        other.go_back(wait_until="networkidle")
+        other.wait_for_timeout(1500)
+        self.assertIn("#s=", other.url)
+        self.assertIsNone(other.evaluate("sessionStorage.getItem('ddf:league')"))
 
     def test_dialog_keyboard_labels_and_targets(self):
         for width in (390, 1440):

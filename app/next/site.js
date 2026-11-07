@@ -587,7 +587,8 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   /* Start fresh (JEG-1568) marks the link it wiped as used for this session, so a reload or Back does not bring it back. */
   function linkMark(raw){ var p = parseToken(raw); return p && p.token ? p.token.length + '.' + crc16(p.token) : null; }
-  function consumed(raw){ var m = linkMark(raw); return !!m && DDF.state.get('wipedlink', null) === m; }
+  function wipedMarks(){ var w = DDF.state.get('wipedlink', null); return Array.isArray(w) ? w : (typeof w === 'string' ? [w] : []); }
+  function consumed(raw){ var m = linkMark(raw); return !!m && wipedMarks().indexOf(m) >= 0; }
   function fragmentToken(hash){
     var parts = String(hash || '').replace(/^#/, '').split('&');
     for(var i = 0; i < parts.length; i++) if(parts[i].slice(0, 2) === 's=') return parts[i].slice(2);
@@ -730,7 +731,14 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     clear: function(){ current = null; fromLink = false; DDF.state.remove('league'); DDF.state.remove('link'); },
     update: function(patch){ var s = DDF.link.current(); if(!s) return null; return accept(Object.assign(clone(s), patch)); },
     pageFor: pageFor,
-    markConsumed: function(){ var raw = fragmentToken(location.hash), m = raw && linkMark(raw); if(m) DDF.state.set('wipedlink', m); return !!m; },
+    /* the link on this page and the one this tab applied (ddf:ctxlink holds the same mark), so Back cannot bring either back */
+    markConsumed: function(){
+      var raw = fragmentToken(location.hash), marks = wipedMarks(), add = [raw && linkMark(raw), DDF.state.get('ctxlink', null)];
+      add.forEach(function(m){ if(m && marks.indexOf(m) < 0) marks.push(m); });
+      DDF.state.set('wipedlink', marks.slice(-20));
+      return marks.length > 0;
+    },
+    wasConsumed: function(){ var raw = fragmentToken(location.hash); return raw !== null && consumed(raw); },
     /* A view whose page is not live yet maps to a live hash route at the root build ('./#compare-trade'), where no page
        reads the league. Until that page swaps in, such a link opens Values with the token, as v2 did before the entry
        pages moved (values.html applies the link's overrides and basis to the live store) (JEG-1538). */
@@ -838,6 +846,14 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
 
   function run(){
     var hadToken = DDF.link.hasState();
+    if(DDF.link.wasConsumed()) started.then(function(){
+      if(document.querySelector('.ddf-link-notice')) return;
+      var d = document.createElement('div'); d.className = 'ddf-link-notice'; d.setAttribute('role', 'status');
+      d.innerHTML = '<span></span><button type="button" aria-label="Dismiss">×</button>';
+      d.firstChild.textContent = 'You cleared this link\u2019s league in this tab. Open the link in a new tab to load it again.';
+      d.querySelector('button').addEventListener('click', function(){ d.remove(); });
+      topOfMain(d);
+    });
     return DDF.link.decode().then(function(r){
       var error = r && r.error ? r.error : null;
       if(!error && hadToken && DDF.link.applyRouting()) return {state:r, error:null, source:'link', routed:true};
@@ -1068,6 +1084,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   function wipe(opts){
     opts = opts || {};
     var rm = function(store, k){ try{ store.removeItem(k); }catch(e){} };
+    if(DDF.link && DDF.link.markConsumed) DDF.link.markConsumed();   /* before ddf:ctxlink goes */
     KEYS.session.forEach(function(k){ rm(sessionStorage, k); });
     try{
       for(var i = sessionStorage.length - 1; i >= 0; i--){
@@ -1077,7 +1094,6 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     }catch(e){}
     KEYS.local.forEach(function(k){ rm(localStorage, k); });
     if(opts.overrides){ KEYS.overridesSession.forEach(function(k){ rm(sessionStorage, k); }); KEYS.overridesLocal.forEach(function(k){ rm(localStorage, k); }); }
-    if(DDF.link && DDF.link.markConsumed) DDF.link.markConsumed();
     try{ if(/#/.test(location.href)) history.replaceState(history.state, '', location.pathname + location.search.replace(/([?&])edit=1(&|$)/, '$1').replace(/[?&]$/, '')); }catch(e){}
     try{ if(DDF.link && DDF.link.clear) DDF.link.clear(); }catch(e){}
     DDF.leagueKnown = false;

@@ -144,6 +144,8 @@
     if (nameIn) nameIn.addEventListener("change", saveName);
     var nextBtns = [document.getElementById("continue-btn"), document.getElementById("continue-top")];
     nextBtns.forEach(function (b) { if (b) b.addEventListener("click", saveName, true); });
+    /* the edit is done once the team is confirmed with Next: later visits ask again before replacing a saved league */
+    nextBtns.forEach(function (b) { if (b) b.addEventListener("click", function () { if (b.getAttribute("href")) DDF.state.remove("editprev"); }); });
     /* Enter in the form must not submit it: at the root its action is a live hash route */
     form.addEventListener("submit", function (e) { e.preventDefault(); var b = document.getElementById("continue-btn"); if (b && b.getAttribute("href")) b.click(); });
     form.addEventListener("change", function (e) {

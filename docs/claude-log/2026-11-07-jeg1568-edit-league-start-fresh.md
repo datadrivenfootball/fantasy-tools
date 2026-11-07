@@ -25,8 +25,16 @@ What changed
   After clearing, the #s= link in the address is marked used for the session (`ddf:wipedlink`; `DDF.link.hasState`
   and `decode` skip it) and stripped with history.replaceState. Then the header refreshes and connect.html opens.
 
+Review fixes (independent review of 4ae77bb8, CHANGES NEEDED):
+- half-typed manual rows no longer replace the league while editing (only two teams with players do);
+- opening Edit league on a manual league keeps its picked team, name and date (no save while the page restores it);
+- "Keep my league" puts the old league back after a replacement paste, and the strip says the new rosters are read;
+- Start fresh also marks the link this tab applied (ddf:ctxlink), so Back to a link page on another page does not
+  import it; a cleared link reopened in the tab shows "Open the link in a new tab to load it again";
+- `ddf:editprev` ends when setup's Next is pressed.
+
 ### Verified (check named)
-- `tests.test_edit_league` (6 pass):
+- `tests.test_edit_league` (9 pass):
   - every Edit league link targets connect.html?edit=1;
   - an abandoned edit keeps the league (typing, failed read, emptied box and emptied manual entry);
   - a replacement prefills the name and team;

@@ -237,11 +237,26 @@
 
   /* ---------- manual entry ---------- */
   var manual = {teams: []};
+  /* a manual league keeps its picked team, name and date while it is edited here (the team by name) */
   function manualRecord() {
-    return {v: 1, source: "manual", site: "unknown", me: null, enteredAt: DDF.leagueMeta ? DDF.leagueMeta.today() : null,
+    var prior = kept(), mine = null;
+    if (prior && prior.source === "manual" && Number.isInteger(prior.me) && prior.teams[prior.me]) {
+      var at = manual.teams.map(function (t) { return t.name; }).indexOf(prior.teams[prior.me].name);
+      mine = at >= 0 ? at : null;
+    }
+    var rec = {v: 1, source: "manual", site: "unknown", me: mine,
+      enteredAt: prior && prior.source === "manual" && prior.enteredAt ? prior.enteredAt : (DDF.leagueMeta ? DDF.leagueMeta.today() : null),
       teams: manual.teams.map(function (t) { return {name: t.name, players: t.players.slice(), unmatched: []}; })};
+    if (prior && prior.source === "manual" && prior.name) rec.name = prior.name;
+    return rec;
   }
-  function manualSave() { if (manual.teams.length) save(manualRecord()); else drop(); }
+  var restoring = false;
+  function manualSave() {
+    if (restoring) return;
+    /* while editing, manual rows replace the league only once two teams have players (a real league), never mid-typing */
+    if (editing && manual.teams.filter(function (t) { return t.players.length; }).length < 2) { restoreEditing(); return; }
+    if (manual.teams.length) save(manualRecord()); else drop();
+  }
   /* JEG-1564: a roster read is a big input; the Bookmark button asks once, when it shows on a later page */
   function askBookmark(res) {
     if (!DDF.leagueMeta) return;
@@ -292,8 +307,9 @@
 
   /* ---------- wiring ---------- */
   /* the top of the entry flow: "Replacing: <name>" while editing; Start fresh whenever a league is kept */
+  function replaced() { var raw = null; try { raw = sessionStorage.getItem("ddf:pasted"); } catch (e) { raw = null; } return !!editing && raw !== editing.pasted; }
   function showEditing() {
-    var top = $("entry-top"), info = DDF.leagueMeta ? DDF.leagueMeta.info() : null;
+    var top = $("entry-top"), info = editing ? {name: editing.name || "My league"} : (DDF.leagueMeta ? DDF.leagueMeta.info() : null);
     if (!top) return;
     top.hidden = !info;
     if (!info) return;
@@ -301,6 +317,7 @@
       ? "Replacing: " + info.name + ". Your current league stays in use until you check a new paste or enter rosters."
       : "You have a league in this browser: " + info.name + ".";
     $("entry-keep").hidden = !editing;
+    if (editing && replaced()) $("entry-top-text").textContent = "Replacing: " + (editing.name || "My league") + ". Your new rosters are read: Next confirms them, or keep your current league.";
     var line = $("replacing-line");
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }
@@ -313,6 +330,8 @@
     editing = startEditing();
     if (!editing) DDF.state.remove("editprev");
     showEditing();
+    document.addEventListener("ddf:pasted", showEditing);
+    $("entry-keep").addEventListener("click", function () { if (editing) restoreEditing(); });
     ta.addEventListener("input", function () {
       var p = kept();
       if (p && p.source === "paste" && !editing) drop();
@@ -337,7 +356,7 @@
     if (p && p.source === "manual") {
       manual.teams = p.teams.map(function (t) { return {name: t.name, players: (t.players || []).slice()}; });
       $("manual-names").value = manual.teams.map(function (t) { return t.name; }).join("\n");
-      manualNames();
+      restoring = true; try { manualNames(); } finally { restoring = false; }
     } else manualRender();
     if (DDF.engine && DDF.engine.ready) DDF.engine.ready.then(fillPlayerOptions).catch(function () {});
     if (p && p.source === "paste" && ta.value.trim()) check(false);
