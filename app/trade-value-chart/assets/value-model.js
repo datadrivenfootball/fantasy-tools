@@ -1712,10 +1712,19 @@
     });
 
     // --- VP-4 DDF weights.
+    // JEG-1569 (prototype, default off): setting.ddf_split "charts" (or the
+    // engine-local global DDF_VALUE_SPLIT = "charts") averages only the
+    // charts in I; no chart with weights = every source in I, as before.
+    var ddfSplit = setting.ddf_split || (typeof globalThis !== "undefined" && globalThis.DDF_VALUE_SPLIT) || "all";
+    var splitSrc = included;
+    if (ddfSplit === "charts") {
+      var splitCharts = included.filter(function (src) { return out[src].family === "chart" && out[src].hasWeights; });
+      if (splitCharts.length) splitSrc = splitCharts;
+    }
     var Sraw = {}, Braw = {};
     POSITION_ORDER.forEach(function (pos) {
       var ss = 0, sn = 0, bs = 0, bn = 0;
-      included.forEach(function (src) {
+      splitSrc.forEach(function (src) {
         var o = out[src];
         if (!o.hasWeights || o.positions[pos].method === "no_players") return;
         if (o.starterMix) { ss += o.starterMix[pos]; sn += 1; }
@@ -1736,7 +1745,7 @@
       POSITION_ORDER.forEach(function (pos) {
         VP_ROLES.forEach(function (role) {
           var g = vpGroupKey(pos, role), sum = 0, n = 0;
-          included.forEach(function (src) {
+          splitSrc.forEach(function (src) {
             var o = out[src];
             if (!o.hasWeights || o.positions[pos].method === "no_players") return;
             sum += o.weights[g]; n += 1;

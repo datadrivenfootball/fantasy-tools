@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -263,6 +264,10 @@ class League:
     # JEG-1335: projection noise of the fractional flex and bench seats, in
     # mean points per game. None = SEAT_SIGMA; 0 = the hard cutoffs.
     seat_sigma: float | None = None
+    # JEG-1569 (prototype, default off): which sources set the DDF weights
+    # (VP-4). "all" = every source in I (live); "charts" = the trade charts in
+    # I only. Default from the DDF_VALUE_SPLIT environment variable.
+    ddf_split: str = "all"
 
     @property
     def starting_slots(self) -> int:
@@ -1117,11 +1122,17 @@ def two_qb_native_weights(w: dict, details: dict, included: list, computed_share
 def ddf_weights(league: League, details: dict, included: list, computed_share: bool = False) -> dict:
     """VP-4: the average of the included sources' mixes, bench fixed at bs.
     computed_share (ES-15.1): the mean of the sources' own 8-group weights,
-    renormalized; the bench share applied is then an output."""
+    renormalized; the bench share applied is then an output.
+    league.ddf_split "charts" (JEG-1569 prototype): only the charts in I are
+    averaged (no chart with weights: every source in I, as before)."""
+    split_src = included
+    if league.ddf_split == "charts":
+        charts = [k for k in included if details[k]["family"] == "chart" and details[k]["weights"] is not None]
+        split_src = charts or included
     s_raw, b_raw = {}, {}
     for p in POSITIONS:
         sv, bv = [], []
-        for k in included:
+        for k in split_src:
             d = details[k]
             if d["weights"] is None or d["positions"][p]["method"] == "no_players":
                 continue
@@ -1138,7 +1149,7 @@ def ddf_weights(league: League, details: dict, included: list, computed_share: b
         for p in POSITIONS:
             for r in ("starter", "bench"):
                 g = f"{p}|{r}"
-                vals = [details[k]["weights"][g] for k in included
+                vals = [details[k]["weights"][g] for k in split_src
                         if details[k]["weights"] is not None and details[k]["positions"][p]["method"] != "no_players"]
                 raw[g] = sum(vals) / len(vals) if vals else 0.0
         tot = sum(raw[g] for g in GROUPS)
@@ -1922,7 +1933,8 @@ class Setting:
                  expected_starts: bool = True, divergence_exclusions: set | None = None,
                  promotion_model: bool = True, flex_bench_seats: bool = True,
                  basis: dict | None = None, week: int | None = None,
-                 league_rostered=None, bench_level: str = "ddf", league_reserve=()):
+                 league_rostered=None, bench_level: str = "ddf", league_reserve=(),
+                 ddf_split: str | None = None):
         """league_rostered / bench_level / league_reserve: JEG-1188, a loaded
         league's rostered keys, the bench level to price at and the keys in
         IR or taxi slots (League fields).
@@ -1961,7 +1973,8 @@ class Setting:
             bench_share=DEFAULT_BENCH_SHARE if bench_share is None else float(bench_share),
             position_shares=position_shares, bench_share_override=bench_share_override,
             league_rostered=tuple(league_rostered) if league_rostered is not None else None,
-            bench_level=bench_level, league_reserve=tuple(league_reserve or ()))
+            bench_level=bench_level, league_reserve=tuple(league_reserve or ()),
+            ddf_split=ddf_split or os.environ.get("DDF_VALUE_SPLIT", "all"))
         self.pos_of = {k: p["pos"] for k, p in inp.players.items()}
         self._current = None
         self._prior = None
