@@ -11,12 +11,12 @@ value, and decisions come from the gaps between them. Judge features against it.
 
 ## The steps, and the code that does each (JEG-597, checked 2026-10-12)
 
-Last checked against code at `origin/main` a66f3f40 (after PR 499 JEG-536, PR 532 JEG-539, PR 557 JEG-560 and PR 558 JEG-561). Each row names the spec section, the function that does it in the browser engine (`app/trade-value-chart/assets/value-model.js`, the monolith `runValuePipeline`, whose `// --- VP-x` comments mark each step) and in the Python reference (`pipelines/value_reference.py`), and the roster convention it uses **today**. The convention that is meant to replace the differences is `roster-convention-001` in `docs/decisions.md` (JEG-556); it lands path by path in JEG-560, 561 and 563.
+Last checked against code at `origin/main` a66f3f40 (after PR 499 JEG-536, PR 532 JEG-539, PR 557 JEG-560 and PR 558 JEG-561); the "Value above waivers, per source" row was rechecked at d788d34a8 (2026-11-07, JEG-1393). "Today" in a row means live behavior; notes about older code sit under that row's **History**. Each row names the spec section, the function that does it in the browser engine (`app/trade-value-chart/assets/value-model.js`, the monolith `runValuePipeline`, whose `// --- VP-x` comments mark each step) and in the Python reference (`pipelines/value_reference.py`), and the roster convention it uses **today**. The convention that is meant to replace the differences is `roster-convention-001` in `docs/decisions.md` (JEG-556); it lands path by path in JEG-560, 561 and 563.
 
 | Step | Spec | Engine | Python reference | Roster convention used today |
 | --- | --- | --- | --- | --- |
 | Inputs and included set | VP-0, VP-1 | `runValuePipeline`, "VP-1 included set" | `Inputs`, `Setting`, `run_pipeline` | Reader's selection of sources; no roster. |
-| Value above waivers, per source | VP-2 | `runValuePipeline`, "VP-2 / VP-3 per source"; fill-in `estimateFor` | `_source_lines`, `_estimate` | The user's roster. Starters by dedicated slot, then superflex, then flex by mean projected points (`vpAllocate`, `allocate`). (Historical: bench seats are now filled per VP-2.2d and the starter line is the midpoint of VP-2.5; the notes below describe the code as of a66f3f40.) **Browser engine, as of a66f3f40:** bench seats by D'Hondt over `BENCH_MIX_12` with the user's teams times bench (`vpBenchSeats`); starter line = the value of the first non-starter, floored at the waiver line. **Python reference, since PR 557 (JEG-560):** bench seats and the starter line come from the roster convention module (`pipelines/lib/roster_convention.py`: market-bench ratios, D'Hondt; starter line = midpoint of the last starter and first non-starter). **Flex-filled bench seats (MR-28 / JEG-969, on by default since 2026-10-23):** bench-seat D'Hondt weights count superflex+flex starters alongside dedicated starters (matching `allocate_league` in the ES model); set `flex_bench_seats=false` / `setting.flex_bench_seats = false` to disable. In canonical ppr/12/1QB this changes QB bench seats from ~15 to ~4, shifting weight to RB/WR. **Skipped in 2-QB / superflex rosters (Jeremy, 2026-10-23, option A):** the market_bench 2-QB data (bps 0.28) already reflects supply-capped QB benches from FFC draft data; applying flex-filled weights on top double-counts the effect and inverts the 2-QB direction gate (JEG-702). In 2-QB/superflex, bench allocation uses dedicated starters only. **The two disagree**, so `value_check compare` reports disagree on every source until the engine is migrated (risk register `GAP-VALUECHECK-REFERENCE-AHEAD`). Waiver line (both) = for a chart, the value of the first player past the rostered count; for a projection, the mean of the 7 players around that seat (JEG-1047); on a short list after fill-in, the last listed value. Jeremy's 2026-10-12 decision for short lists is "estimate from other charts"; both implementations now do this: a short chart is filled to the rosterable set from the other charts, or else from its own curve against projected points, before its lines are read (VP-2.4, OC-5; `estimateFor`, `_estimate`). |
+| Value above waivers, per source | VP-2 | `runValuePipeline`, "VP-2 / VP-3 per source"; fill-in `estimateFor` | `_source_lines`, `_estimate` | **Today:** the user's roster. Starters by dedicated slot, then superflex (whole seats), then flex by mean projected points with fractional seats: players near the cutoff share seats (VP-2.2g, JEG-1335, σ 0.75 PPG; `vpSeatMix`, `fractional_seats.allocation_mix`). With no league loaded, bench seats are shared the same way on mean projected points times the position-and-depth usage discount of VP-2.2d (JEG-1121; the spread is discounted too); a loaded league takes its bench from its rosters (VP-2.2d2). The pipeline runs once per allocation of the mix and the results are weight-averaged. Starter line = the midpoint of the last starter and the first non-starter, floored at the waiver line (VP-2.5). Waiver line (both) = for a chart, the value of the first player past the rostered count; for a projection, the mean of the 7 players around that seat (JEG-1047); on a short list after fill-in, the last listed value. Jeremy's 2026-10-12 decision for short lists is "estimate from other charts"; both implementations now do this: a short chart is filled to the rosterable set from the other charts, or else from its own curve against projected points, before its lines are read (VP-2.4, OC-5; `estimateFor`, `_estimate`). **History** (superseded; kept for the record, not live): **Browser engine, as of a66f3f40:** bench seats by D'Hondt over `BENCH_MIX_12` with the user's teams times bench (`vpBenchSeats`); starter line = the value of the first non-starter, floored at the waiver line. **Python reference, since PR 557 (JEG-560):** bench seats and the starter line come from the roster convention module (`pipelines/lib/roster_convention.py`: market-bench ratios, D'Hondt; starter line = midpoint of the last starter and first non-starter). **Flex-filled bench seats (MR-28 / JEG-969, on by default since 2026-10-23):** bench-seat D'Hondt weights count superflex+flex starters alongside dedicated starters (matching `allocate_league` in the ES model); set `flex_bench_seats=false` / `setting.flex_bench_seats = false` to disable. In canonical ppr/12/1QB this changes QB bench seats from ~15 to ~4, shifting weight to RB/WR. **Skipped in 2-QB / superflex rosters (Jeremy, 2026-10-23, option A):** the market_bench 2-QB data (bps 0.28) already reflects supply-capped QB benches from FFC draft data; applying flex-filled weights on top double-counts the effect and inverts the 2-QB direction gate (JEG-702). In 2-QB/superflex, bench allocation uses dedicated starters only. **The two disagree**, so `value_check compare` reports disagree on every source until the engine is migrated (risk register `GAP-VALUECHECK-REFERENCE-AHEAD`). D'Hondt no longer picks the bench seats by default (the discounted-points selector of VP-2.2d does, JEG-1121; D'Hondt picks them only with `flex_bench_seats = false`), but the D'Hondt counts with flex-filled weights still set each chart's depth band for the expected-start spread (`esChartSigma`). The engine was later migrated to the reference rules (see the checks below). |
 | Expected starts (what share of value reaches a lineup) | ES-0 to ES-14 | `esPositionParts`, `resolveLineupParameters`, `esChartSigma`, `esApplyPromotionModel` | `_expected_start_parts`, `resolve_lineup`, `chart_sigma`, `_apply_promotion_model` | Same allocation as above; parameters (missed-game rates, byes, sigma) from `config/lineup_parameters.json`. Replaces the 15% slices of VP-2.6 (decision `es-value-001`, live since PR 499). The bench share is a readout (`bench_share_readout`), not an input; one override, off by default. **Promotion/demotion model (JEG-969): switched off since JEG-1142 (Jeremy, 2026-10-27).** No role-change adjustment applies to any player: no promotion bonus for bench players, no demotion penalty for marginal starters. The starter/bench weighting (expected starts, bench share) is unchanged. A master switch, `PROMOTION_MODEL_ENABLED = false` in `value-model.js`, `value_reference.py` and `spec_reference/value_pipeline.py`, overrides every `promotion_model` flag. The model code and `config/promotion_rates.json` are kept, dormant, for the JEG-1144 research; when on, it adjusted the lineup share for persistent role-change probability (bench promotion bonus by depth and weeks remaining; starter demotion penalty). |
 | Source weights and DDF weights | VP-3, VP-4 | "VP-4 DDF weights" | `_mixes`, `ddf_weights` | Each source's eight group totals (position x starter or bench) give its mix (VP-3); the DDF weights are the average of the included sources' mixes (VP-4). |
 | Fixed pie, rates, Adjusted | VP-5 | "VP-5 budgets, rates, Adjusted" | `_price` | One pie per league setting; each source's Adjusted sums to it (VP-5.6). |
@@ -76,7 +76,14 @@ implementation follows the rule as written.
   the pie."
 - "ESPN has no favored position in any part of the logic or dashboard."
 - Bench share: "15% is right. There is no way 35% is rational math." (OC-2)
+  *Superseded (not live):* expected starts (`es-value-001`, OC-9, live since
+  PR 499, 2026-10-12) make the bench share an output of the data, the bench
+  groups' total of `W`, not a setting. Today's figure is printed on Full value
+  logic ("DDF weights = the average").
 - Flex: best remaining by assumed (projected) points, not VORP. (OC-4)
+  *Partly superseded:* flex still goes by projected points, but the
+  all-or-none pick is replaced by fractional flex seats (JEG-1335, VP-2.2g):
+  players near the cutoff share seats on a normal curve, σ 0.75 PPG.
 - "We need to fill in more players to get to vorp for all rosterable players.
   We need to pull vorp by using other sources." The fill-in rule (OC-5) was
   approved as proposed.
@@ -430,7 +437,8 @@ chart DDF Value").
 1. **Group totals** over the work list, estimated players included:
    `G_s[p, starter] = sum(ssl_i)` and `G_s[p, bench] = sum(bsl_i)`. That makes
    8 groups, position x starter/bench.
-2. `G_s` = the sum of the 8. If `G_s = 0`, the source has no implied weights.
+2. `G_s` = the sum of the 8 (the denominator of the weights; the display
+   factor of VP-5.6 uses the raw surplus instead). If `G_s = 0`, the source has no implied weights.
    It is left out of VP-4, and its VORP vs waivers and Adjusted values are 0
    for every player on its work list.
 3. **Mixes** (unit-free, so a chart and a projection are comparable):
@@ -501,8 +509,11 @@ chart DDF Value").
 2. **Budgets**: `b[g] = Pie x W[g]`. In fixed-share mode the bench budgets
    total `Pie x bs` (15% of the pie by default) for every source. Under
    expected starts (the live method) they total the bench groups' share of
-   `W`, an output (6.4% of the pie at the live default on 2026-11-07), the
-   same for every source.
+   `W`, an output, the same for every source. It moves with the data, so this
+   file does not carry a live figure: Full value logic prints today's
+   ("DDF weights = the average"). For reference, on 2026-11-07 at Full PPR,
+   12 teams, the default roster it was 6.5% (152.4 of the 2,352 pie;
+   `benchShareApplied` 0.0648, Full value logic built at d788d34a8).
 3. **Unfunded groups.** When a source has `G_s[g] = 0` while `b[g] > 0`, and
    the other group at the same position has `G_s > 0`, the budget moves to
    that other group. If both are 0 (the source has no surplus at `p`), the
@@ -516,12 +527,34 @@ chart DDF Value").
    - Each source's group totals equal the budgets, and its total equals the
      pie, both counted over the work list (estimated players included, and
      shown).
-   - `A` is continuous and non-decreasing in the native, so a source's own
-     order within a position never inverts.
+   - Order (JEG-1393). **Indexed** keeps each chart's published order
+     (VP-6.4: one factor per chart, also under the allocation mix).
+     **Adjusted does not guarantee it.** Within a position the start-worthy
+     and fill-in parts are paid at different rates, and the fill-in part
+     falls as a player rises above the bench bands; under fractional seats (VP-2.2g) each
+     allocation has its own work list, estimates and lines, averaged
+     afterwards. So two players at the same position can swap, in practice
+     near the waiver line where an estimate differs by allocation. Full value
+     logic counts the swaps at the current setting ("Fixed league pie, paid
+     on the DDF weights"). *Historical:* in fixed-share mode with one
+     allocation, `A` is continuous and non-decreasing in the native (both
+     slices are, at non-negative rates), so the order held; that was the
+     earlier wording of this bullet.
    - Multiplying a source's natives by a constant changes nothing.
-6. **VORP vs waivers (display)**: `V_i = v_i x Pie / G_s`. That is one factor
-   per source, so every source's total over its work list equals the pie: the
-   same exact scale, with each source keeping its own weighting.
+6. **VORP vs waivers (display)** (current rule, ES-15.4):
+   `V_i = v_i x Pie / sum_j v_j`, where the sum is the source's **raw**
+   value above waivers over its work list, before any expected-start
+   weighting (the engine's `surplusTotal`, `surplus_total` in
+   `value_reference.py`). It is not `G_s`: under expected starts the parts
+   sum to less than `v`, so `Pie / G_s` would overprice every reading. With
+   the allocation mix (VP-2.2g) the factor is set in each allocation and the
+   displayed `V_i` and the factor are weight-averaged over the mix (not
+   `Pie /` the averaged surplus); a player off the work list in one
+   allocation counts 0 there. That is one factor per source, so every
+   source's total over its work list equals the pie: the same exact scale,
+   with each source keeping its own weighting. *Historical (fixed-share
+   mode):* there `v_i = bsl_i + ssl_i`, so `sum v = G_s` and the factor was
+   written `Pie / G_s`.
 
 ### VP-6 Rows, DDF Value and Indexed
 
@@ -1109,6 +1142,8 @@ The slider (VP-3.4) stays as the reader's override on these groups. OC-2 is
 therefore answered "source-implied, from expected starts", and OC-3 "parts by
 expected starts, continuous in the native, never reordering a source's
 players" (zero inversions at all 12 settings, `tests/test_expected_starts_model.py`).
+*Historical (JEG-1393):* that count was measured on one allocation; the
+order guarantee does not hold in general today (VP-5.5).
 
 **ES-6 Charts** use the same formula in their own units with the chart
 family's `sigma` and no floor; imputed players (VP-2.4) are in the work list
@@ -1389,7 +1424,8 @@ worked example's `variant_expected_starts` and
    term and no floor (`expected_starts_model.chart_sigma_from`).
 4. *VORP vs waivers display (VP-5.6).* The factor is `pie / sum of v_i` over
    the work list, so each source's VORP vs waivers still totals the pie; the
-   parts no longer sum to `v`.
+   parts no longer sum to `v`. Under the allocation mix it is set per
+   allocation and weight-averaged (VP-5.6 states the one current rule).
 5. *Readout (ES-14).* Per position, the bench tier is ranks `S_p + 1` to
    `N_p` of the projected-points order (VP-2.2); its share is the sum of
    their blended DDF Value over the sum over every player in that order, and

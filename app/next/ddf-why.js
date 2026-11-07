@@ -180,13 +180,22 @@
     var parts = [w(v.starterDelta, "starters better", "starters weaker"), w(v.benchDelta, "bench deeper", "bench thinner")].filter(Boolean);
     return parts.length ? parts.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) : "About even";
   }
-  function pct(trade, ctx) {
+  // The roster percent from JEG-1558 (DDFOpportunity.rosterImprovementPct): the module's own signed `shown` number (truncated
+  // toward zero, one decimal, never -0) and its `band`; the sender-facing `sentence` is shown verbatim. Our only wording is
+  // the short band name in the header line ("Your roster +0.9%. Theirs -1.2%, slightly worse"). Hidden when the module is
+  // absent or either side is unsized (pct null).
+  var BAND_NAME = {better: "better", unchanged: "essentially unchanged", slightly_worse: "slightly worse", clearly_worse: "clearly worse"};
+  var signed = function (n) { return (n > 0 ? "+" : n < 0 ? "-" : "") + Math.abs(n).toFixed(1) + "%"; };
+  function pct(trade, ctx, k) {
     var O = window.DDFOpportunity;
     if (!O || typeof O.rosterImprovementPct !== "function") return null;
     try {
-      var s = O.rosterImprovementPct(trade, "sender", ctx), p = O.rosterImprovementPct(trade, "partner", ctx);
-      if (!s || !p || !finite(s.pct) || !finite(p.pct)) return null;
-      return {sender: s, partner: p, text: "Your roster " + s.shown + ". Theirs " + p.shown + ", " + p.label + "."};
+      var octx = Object.assign({}, ctx, {senderKey: k.our, partnerKey: k.market, chartKeys: ctx.analyst || undefined});
+      var s = O.rosterImprovementPct(trade, "sender", octx), p = O.rosterImprovementPct(trade, "partner", octx);
+      if (!s || !p || !finite(s.pct) || !finite(p.pct) || !finite(s.shown) || !finite(p.shown) || !BAND_NAME[p.band]) return null;
+      var you = "Your roster " + signed(s.shown), them = "Theirs " + signed(p.shown);
+      return {sender: s, partner: p, you: signed(s.shown), them: signed(p.shown), band: BAND_NAME[p.band], sentence: p.sentence || "",
+        line: you + ". " + them + ", " + BAND_NAME[p.band], text: you + ". " + them + ", " + BAND_NAME[p.band] + "." + (p.sentence ? " " + p.sentence : "")};
     } catch (e) { console.error(e); return null; }
   }
 
@@ -213,7 +222,7 @@
     // given is a surplus (tradeFit's depth readout).
     var natural = Boolean(fit.label === "natural" && needs.you.length && needs.youSurplus.length && needs.them.length && needs.themSurplus.length);
     var rs = reasons(you, them, {give: give, receive: recv}, needs);
-    var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx);
+    var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx, k);
     return {headline: headline(you, them, natural, needs), pct: p, natural: natural, needs: needs,
       table: {give: you.leaving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: roleBefore(x)}; }),
         get: you.arriving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: role(x)}; }),
@@ -275,9 +284,9 @@
       + "</table></details>";
     return '<div class="why-body" data-natural="' + (e.natural ? "1" : "0") + '">'
       + '<p class="why-head">' + (e.natural ? '<span class="why-tag">Natural fit</span>' : "") + esc(e.headline) + "</p>"
-      + (e.pct ? '<p class="why-pct" data-pct>' + esc(e.pct.text) + "</p>" : "")
+      + (e.pct ? '<p class="why-pct" data-pct data-band="' + esc(e.pct.partner.band) + '">' + esc(e.pct.line) + "." + (e.pct.sentence ? " <span class=\"why-sentence\">" + esc(e.pct.sentence) + "</span>" : "") + "</p>" : "")
       + '<table class="why-table"><tr><th scope="row">You give up</th><td>' + side(e.table.give) + '</td></tr><tr><th scope="row">You get</th><td>' + side(e.table.get)
-      + '</td></tr><tr><th scope="row">Net</th><td>' + esc(e.table.net) + "</td></tr></table>"
+      + '</td></tr><tr><th scope="row">Net</th><td>' + esc(e.table.net) + (e.pct ? '<br><span data-pct-you>Your roster ' + esc(e.pct.you) + "</span>" : "") + "</td></tr></table>"
       + (opts.extra || "")
       + (e.reasons.length ? '<ol class="why-reasons">' + e.reasons.map(function (r) { return '<li data-kind="' + r.kind + '">' + esc(r.text) + "</li>"; }).join("") + "</ol>" : "")
       + raw + "</div>";
