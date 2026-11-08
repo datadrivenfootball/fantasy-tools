@@ -1119,16 +1119,19 @@ def two_qb_native_weights(w: dict, details: dict, included: list, computed_share
     return out
 
 
-def ddf_weights(league: League, details: dict, included: list, computed_share: bool = False) -> dict:
+def ddf_weights(league: League, details: dict, included: list, computed_share: bool = False,
+                family: str = "chart") -> dict:
     """VP-4: the average of the included sources' mixes, bench fixed at bs.
     computed_share (ES-15.1): the mean of the sources' own 8-group weights,
     renormalized; the bench share applied is then an output.
-    league.ddf_split "charts" (JEG-1569 prototype): only the charts in I are
-    averaged (no chart with weights: every source in I, as before)."""
-    split_src = included
+    league.ddf_split "charts" (JEG-1569): only the included sources of
+    `family` are averaged and the JEG-1366 2-QB rule is not applied (no such
+    source with weights: every source in I with the rule, as "all")."""
+    split_src, two_qb_rule = included, True
     if league.ddf_split == "charts":
-        charts = [k for k in included if details[k]["family"] == "chart" and details[k]["weights"] is not None]
-        split_src = charts or included
+        fam = [k for k in included if details[k]["family"] == family and details[k]["weights"] is not None]
+        if fam:
+            split_src, two_qb_rule = fam, False
     s_raw, b_raw = {}, {}
     for p in POSITIONS:
         sv, bv = [], []
@@ -1166,7 +1169,7 @@ def ddf_weights(league: League, details: dict, included: list, computed_share: b
         for p in POSITIONS:
             w[f"{p}|starter"] = (1 - bs_eff) * s_raw[p] / s_sum if s_sum > 0 else 0.0
             w[f"{p}|bench"] = bs_eff * b_raw[p] / b_sum if b_sum > 0 else 0.0
-    if uses_two_qb_native_share({"QB": league.slots.get("QB", 1), "SUPERFLEX": league.superflex}):
+    if two_qb_rule and uses_two_qb_native_share({"QB": league.slots.get("QB", 1), "SUPERFLEX": league.superflex}):
         w = two_qb_native_weights(w, details, included, computed_share, bs_eff)
         if computed_share:
             bs_eff = sum(w[f"{p}|bench"] for p in POSITIONS)
@@ -1333,6 +1336,14 @@ def run_pipeline(league: League, sources: dict, pos_of: dict, included: list,
     wts = ddf_weights(league, details, inc, computed_share=es is not None and share_in is None)
     pie = league.pie
     budgets = {g: pie * wts["weights"][g] for g in GROUPS}
+    # JEG-1569: on the "charts" split the projections are priced on their own
+    # split (DDF Projections); absent when no chart or no projection has weights.
+    wts_proj = budgets_proj = None
+    if league.ddf_split == "charts" and any(details[k]["family"] == "chart" and details[k]["weights"] is not None for k in inc):
+        if any(details[k]["family"] == "projection" and details[k]["weights"] is not None for k in inc):
+            wts_proj = ddf_weights(league, details, inc, computed_share=es is not None and share_in is None,
+                                   family="projection")
+            budgets_proj = {g: pie * wts_proj["weights"][g] for g in GROUPS}
     # JEG-528: timing factor = remaining-season fraction.
     FULL_SEASON_WEEKS = 17  # LINEUP_DEFAULT_LEAGUE_WEEKS.playoff_weeks[1]
     timing_factor = 1.0
@@ -1341,7 +1352,8 @@ def run_pipeline(league: League, sources: dict, pos_of: dict, included: list,
         if w1 >= w0:
             timing_factor = min(1.0, (w1 - w0 + 1) / FULL_SEASON_WEEKS)
     for d in details.values():
-        _price(d, budgets, pie, timing_factor)
+        _price(d, budgets_proj if budgets_proj is not None and d["family"] == "projection" else budgets,
+               pie, timing_factor)
 
     rows = _rows(sources, details, pos_of, inc, selection, m, hidden or set(), basis)
     for i, r in rows.items():
@@ -1389,7 +1401,7 @@ def run_pipeline(league: League, sources: dict, pos_of: dict, included: list,
                                                          share_in, wts["bench_share_applied"], hidden or set())
     ranking = sorted(rows, key=lambda i: (rows[i]["ddf"]["blended"]["value"] is None,
                                           -(rows[i]["ddf"]["blended"]["value"] or 0.0), i))
-    return {
+    res = {
         "included": inc, "degenerate": degenerate, "pie": pie,
         "starting_slots_per_team": league.starting_slots,
         "bench_share": league.bench_share, "bench_share_applied": wts["bench_share_applied"],
@@ -1402,6 +1414,12 @@ def run_pipeline(league: League, sources: dict, pos_of: dict, included: list,
         "bench_mix_mean": wts["bench_mix_mean"], "ddf_weights": wts["weights"],
         "group_budgets": budgets, "indexed": indexed, "rows": rows, "default_ranking": ranking,
     }
+    if league.ddf_split == "charts":  # JEG-1569: absent on the live split, so its output is unchanged
+        res["ddf_split"] = "charts" if any(details[k]["family"] == "chart" and details[k]["weights"] is not None
+                                           for k in inc) else "all"
+        res["ddf_weights_projections"] = wts_proj["weights"] if wts_proj else None
+        res["group_budgets_projections"] = budgets_proj
+    return res
 
 
 def bench_share_readout(rows: dict, order_m: dict, alloc: dict, inc: list, expected_starts: bool,
@@ -2249,6 +2267,7 @@ class Setting:
                 "included": res["included"],
                 "excluded": [{"key": k, "reason": v} for k, v in st["excluded"].items()],
                 "ddfWeights": res["ddf_weights"], "allocation": res["slot_fill"],
+                **({"ddfWeightsProjections": res["ddf_weights_projections"]} if "ddf_split" in res else {}),
                 "fillSets": res["fill_sets"], "sources": srcs}
 
 

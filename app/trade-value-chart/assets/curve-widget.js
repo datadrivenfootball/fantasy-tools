@@ -3630,7 +3630,8 @@
       }
       const override = overrides?.[key] || null;
       const valueOf = (playerKey, p) => override ? (override.get(Number(playerKey)) ?? 0) : p.adjusted;
-      const funded = {...result.budgets};
+      // JEG-1569: on the "charts" split a projection is paid its own family's budgets.
+      const funded = {...(src.budgets || result.budgets)};
       (src.unfundedMoved || []).forEach(move => { funded[move.to] += move.amount; funded[move.from] -= move.amount; });
       const unpaid = (src.unfundedGroups || []).reduce((sum, g) => sum + g.amount, 0);
       // The unpaid amount, not the whole budget: with the seat mix (JEG-1335) a

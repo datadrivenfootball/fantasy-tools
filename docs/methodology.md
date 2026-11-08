@@ -508,6 +508,39 @@ that day). JEG-1393 R4 (OP-01, OP-11).
    held ones too, so this is the main route by which projection inputs move
    the chart DDF Value (VP-6.3, "How projections price the chart DDF
    Value").
+6. **Charts-only split (JEG-1569; built, default off).** Jeremy, 2026-11-07
+   (multiple choice on the JEG-1569 report): option A, "charts-only becomes the
+   new default for DDF Value's position split", shipped with the trade value
+   audit article and flipped only on his explicit go; DDF Projections gets its
+   own projections-only split; the 2-QB rule (3a) uses the charts only.
+   `DDF_VALUE_SPLIT_DEFAULT = "all"` in `value-model.js` and the `"all"`
+   default of `League.ddf_split` in `value_reference.py` keep 1-5 live. A run
+   picks `"charts"` with `setting.ddf_split` (engine), the engine-local global
+   `DDF_VALUE_SPLIT`, the `DDF_VALUE_SPLIT` environment variable (Python
+   reference, and the engine under Node), or get-values' `split` parameter.
+   With `"charts"`:
+   - `W` = 1-3 over the charts in `I` only, with no 3a projection rule (the
+     charts' superflex / 2-QB lists set the QB share). It prices the charts,
+     and so `ddf_value` and `ddf_value_charts`.
+   - `W_proj` = 1-3 over the projections in `I` only. It prices the
+     projection sources, and so `ddf_value_projections` (the "DDF
+     (Projections)" alternate). A reader basis that mixes the two families
+     averages each source's Adjusted value on its own family's split.
+   - Reader position shares (4) apply to both. Allocation, waiver lines, the
+     pie, VORP display and Indexed scaling are unchanged; the mean-points route
+     of VP-6.3 stays (the charts have no points).
+   - No chart with weights: `W` as 1-5 (all sources, 3a included). No
+     projection with weights: the projections are priced on `W`.
+   - The result carries `ddfSplit`, `ddfWeightsProjections` and
+     `budgetsProjections` (engine; Python `ddf_split`,
+     `ddf_weights_projections`, `group_budgets_projections`, diagnostics
+     `ddfWeightsProjections`), and each source its own `budgets` (engine).
+     On `"all"` none of these keys exist, so the live output is unchanged.
+   Week 9 impact (report `06-audit/ddf-value-charts-only-split-2026-11-07.md`
+   in the handoff folder): the superflex QB share goes from 31.2-36.5% to
+   25.8-29.2%; standard 1QB RB from 51-59% to 46-54%; full-PPR 1QB moves less
+   than 0.6 points; order within a position and DDF tiers are unchanged.
+   Tests: `tests/test_jeg1569_charts_only_split.py`.
 
 ### VP-5 Fixed league pie and Adjusted values
 

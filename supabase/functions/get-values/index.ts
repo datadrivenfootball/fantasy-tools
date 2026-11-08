@@ -30,7 +30,7 @@ const LINEUP_PARAMS_URL = `${SITE_ORIGIN}/assets/lineup-parameters.json`;
 const HISTORY_INDEX_URL = `${SITE_ORIGIN}/assets/history/index.json`;
 const VALUE_LINK_URL = `${SITE_ORIGIN}/v2/ddf-value-link.js`;
 
-import { type League, type LineupDefaults, leagueKey, mapLeague } from "./league.ts";
+import { DDF_SPLITS, type League, type LineupDefaults, leagueKey, mapLeague } from "./league.ts";
 import { auditBlock, type Include, parseIncludes, priorBlock, seriesBlock } from "./analysis.ts";
 import {
   type Bundle,
@@ -409,6 +409,7 @@ Deno.serve(async (req: Request) => {
     let rawWeek: unknown = null;
     let rawBasis: unknown = null;
     let rawOv: unknown = null;
+    let rawSplit: unknown = null;
 
     if (req.method === "POST") {
       const body = await req.json();
@@ -420,6 +421,7 @@ Deno.serve(async (req: Request) => {
       rawWeek = body.week ?? null;
       rawBasis = body.basis ?? null;
       rawOv = body.ov ?? null;
+      rawSplit = body.split ?? null;
     } else {
       const url = new URL(req.url);
       scoring = url.searchParams.get("scoring") || scoring;
@@ -430,6 +432,7 @@ Deno.serve(async (req: Request) => {
       rawWeek = url.searchParams.get("week");
       rawBasis = url.searchParams.get("basis");
       rawOv = url.searchParams.get("ov");
+      rawSplit = url.searchParams.get("split");
     }
     if (typeof rawLeague === "string" && rawLeague.length <= 2000) {
       try { rawLeague = JSON.parse(rawLeague); } catch { rawLeague = null; }
@@ -468,6 +471,16 @@ Deno.serve(async (req: Request) => {
     }
     // The top-level fields are the base; the league section adds what they cannot say.
     const merged: League = { ...league, scoring, teams };
+    // JEG-1569: optional position split ("all" | "charts"); absent = the published engine's default.
+    if (rawSplit !== null && rawSplit !== undefined && rawSplit !== "") {
+      if (!DDF_SPLITS.includes(String(rawSplit))) {
+        return Response.json(
+          { error: `invalid split: ${rawSplit}. Must be one of: ${DDF_SPLITS.join(", ")}, or left out for the default` },
+          { status: 400, headers: cors },
+        );
+      }
+      merged.split = String(rawSplit);
+    }
     if (superflex && merged.roster?.SUPERFLEX === undefined) {
       merged.roster = { ...(merged.roster ?? {}), SUPERFLEX: 1 };
     }

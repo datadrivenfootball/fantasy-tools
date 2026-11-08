@@ -62,6 +62,24 @@
   // slots and no superflex slot takes its QB share of the pie from its own
   // points above the 2-QB replacement level (the projections' QB weights),
   // not the charts' superflex-market share. A superflex league is unchanged.
+  // JEG-1569: which sources set DDF Value's position split (VP-4). The live
+  // default is "all"; "charts" is the trade charts only (Jeremy 2026-11-07,
+  // option A; the default flips only on his go). A run picks it with
+  // setting.ddf_split, or engine-locally with the global DDF_VALUE_SPLIT
+  // (Node: the DDF_VALUE_SPLIT environment variable, as the Python reference).
+  var DDF_VALUE_SPLIT_DEFAULT = "all";
+  var DDF_VALUE_SPLITS = ["all", "charts"];
+  function vpDdfSplit(setting) {
+    var asked = setting && setting.ddf_split;
+    if (DDF_VALUE_SPLITS.indexOf(asked) >= 0) return asked;
+    var local = typeof globalThis !== "undefined" ? globalThis.DDF_VALUE_SPLIT : undefined;
+    if (DDF_VALUE_SPLITS.indexOf(local) >= 0) return local;
+    // Under Node (test runners, get-values parity): the same env var the Python reference reads.
+    var env = typeof process !== "undefined" && process.env ? process.env.DDF_VALUE_SPLIT : undefined;
+    if (DDF_VALUE_SPLITS.indexOf(env) >= 0) return env;
+    return DDF_VALUE_SPLIT_DEFAULT;
+  }
+
   function usesTwoQbNativeShare(shape) {
     return superflexCount(shape) === 0 && Math.floor(Number(shape && shape.QB) || 0) >= 2;
   }
@@ -1712,135 +1730,157 @@
     });
 
     // --- VP-4 DDF weights.
-    // JEG-1569 (prototype, default off): setting.ddf_split "charts" (or the
-    // engine-local global DDF_VALUE_SPLIT = "charts") averages only the
-    // charts in I; no chart with weights = every source in I, as before.
-    var ddfSplit = setting.ddf_split || (typeof globalThis !== "undefined" && globalThis.DDF_VALUE_SPLIT) || "all";
-    var splitSrc = included;
-    if (ddfSplit === "charts") {
-      var splitCharts = included.filter(function (src) { return out[src].family === "chart" && out[src].hasWeights; });
-      if (splitCharts.length) splitSrc = splitCharts;
-    }
-    var Sraw = {}, Braw = {};
-    POSITION_ORDER.forEach(function (pos) {
-      var ss = 0, sn = 0, bs = 0, bn = 0;
-      splitSrc.forEach(function (src) {
-        var o = out[src];
-        if (!o.hasWeights || o.positions[pos].method === "no_players") return;
-        if (o.starterMix) { ss += o.starterMix[pos]; sn += 1; }
-        if (o.benchMix) { bs += o.benchMix[pos]; bn += 1; }
-      });
-      Sraw[pos] = sn ? ss / sn : 0;
-      Braw[pos] = bn ? bs / bn : 0;
-    });
-    var sumS = 0, sumB = 0;
-    POSITION_ORDER.forEach(function (pos) { sumS += Sraw[pos]; sumB += Braw[pos]; });
-    var bsStar;
-    var W = vpEmptyGroups();
-    if (esMode && bsInput === null) {
-      // ES-15.1: the mean of the sources' own weights per group (over the
-      // sources VP-4.1 counts at that position), renormalized to 1. The bench
-      // share applied is the bench groups' total: an output.
-      var Wraw = vpEmptyGroups(), wTotal = 0;
+    // JEG-1569: which sources set the split. "all" (DDF_VALUE_SPLIT_DEFAULT,
+    // live): every source in I, with the JEG-1366 2-QB rule. "charts"
+    // (setting.ddf_split, or the engine-local global DDF_VALUE_SPLIT): the
+    // charts in I set the split DDF Value and the charts are priced on, with
+    // no 2-QB projection rule; the projections in I set their own split, which
+    // prices the projection sources and so DDF Projections. No chart with
+    // weights: every source, as "all". No projection with weights: the
+    // projections are priced on the charts' split.
+    var ddfSplit = vpDdfSplit(setting);
+    function vpWeightsOver(splitSrc, twoQbRule) {
+      var Sraw = {}, Braw = {};
       POSITION_ORDER.forEach(function (pos) {
-        VP_ROLES.forEach(function (role) {
-          var g = vpGroupKey(pos, role), sum = 0, n = 0;
-          splitSrc.forEach(function (src) {
-            var o = out[src];
-            if (!o.hasWeights || o.positions[pos].method === "no_players") return;
-            sum += o.weights[g]; n += 1;
-          });
-          Wraw[g] = n ? sum / n : 0;
-          wTotal += Wraw[g];
+        var ss = 0, sn = 0, bs = 0, bn = 0;
+        splitSrc.forEach(function (src) {
+          var o = out[src];
+          if (!o.hasWeights || o.positions[pos].method === "no_players") return;
+          if (o.starterMix) { ss += o.starterMix[pos]; sn += 1; }
+          if (o.benchMix) { bs += o.benchMix[pos]; bn += 1; }
         });
+        Sraw[pos] = sn ? ss / sn : 0;
+        Braw[pos] = bn ? bs / bn : 0;
       });
-      bsStar = 0;
-      POSITION_ORDER.forEach(function (pos) {
-        VP_ROLES.forEach(function (role) {
-          var g = vpGroupKey(pos, role);
-          W[g] = wTotal > 0 ? Wraw[g] / wTotal : 0;
-        });
-        bsStar += W[vpGroupKey(pos, "bench")];
-      });
-    } else {
-      bsStar = sumB === 0 ? 0 : (sumS === 0 ? 1 : bsInput);
-      POSITION_ORDER.forEach(function (pos) {
-        W[vpGroupKey(pos, "starter")] = sumS > 0 ? (1 - bsStar) * Sraw[pos] / sumS : 0;
-        W[vpGroupKey(pos, "bench")] = sumB > 0 ? bsStar * Braw[pos] / sumB : 0;
-      });
-    }
-    // JEG-1366: in a 2-QB league with no superflex slot the QB groups are the
-    // mean over the included projections; RB/WR/TE keep their relative shares
-    // of the rest (with a fixed bench share, starters and bench separately).
-    var twoQbProjs = !usesTwoQbNativeShare({ QB: (setting.slots || {}).QB, SUPERFLEX: setting.superflex }) ? []
-      : included.filter(function (src) {
-        var o = out[src];
-        return o.family === "projection" && o.hasWeights && o.positions.QB.method !== "no_players";
-      });
-    if (twoQbProjs.length && esMode && bsInput === null) {
-      var qW = {};
-      VP_ROLES.forEach(function (role) {
-        var sum = 0;
-        twoQbProjs.forEach(function (src) { sum += out[src].weights[vpGroupKey("QB", role)]; });
-        qW[role] = sum / twoQbProjs.length;
-      });
-      var restW = 0;
-      Object.keys(W).forEach(function (g) { if (g.indexOf("QB|") !== 0) restW += W[g]; });
-      var scaleW = restW > 0 ? (1 - qW.starter - qW.bench) / restW : 0;
-      Object.keys(W).forEach(function (g) {
-        W[g] = g.indexOf("QB|") === 0 ? qW[g.split("|")[1]] : W[g] * scaleW;
-      });
-      bsStar = 0;
-      POSITION_ORDER.forEach(function (pos) { bsStar += W[vpGroupKey(pos, "bench")]; });
-    } else if (twoQbProjs.length) {
-      [["starter", "starterMix", 1 - bsStar], ["bench", "benchMix", bsStar]].forEach(function (spec) {
-        var role = spec[0], mix = spec[1], target = spec[2], sum = 0, n = 0;
-        twoQbProjs.forEach(function (src) { if (out[src][mix]) { sum += out[src][mix].QB; n += 1; } });
-        if (!n) return;
-        var q = target * sum / n, rest = 0;
-        POSITION_ORDER.forEach(function (pos) { if (pos !== "QB") rest += W[vpGroupKey(pos, role)]; });
-        var scale = rest > 0 ? (target - q) / rest : 0;
+      var sumS = 0, sumB = 0;
+      POSITION_ORDER.forEach(function (pos) { sumS += Sraw[pos]; sumB += Braw[pos]; });
+      var bsStar;
+      var W = vpEmptyGroups();
+      if (esMode && bsInput === null) {
+        // ES-15.1: the mean of the sources' own weights per group (over the
+        // sources VP-4.1 counts at that position), renormalized to 1. The bench
+        // share applied is the bench groups' total: an output.
+        var Wraw = vpEmptyGroups(), wTotal = 0;
         POSITION_ORDER.forEach(function (pos) {
-          var g = vpGroupKey(pos, role);
-          W[g] = pos === "QB" ? q : W[g] * scale;
+          VP_ROLES.forEach(function (role) {
+            var g = vpGroupKey(pos, role), sum = 0, n = 0;
+            splitSrc.forEach(function (src) {
+              var o = out[src];
+              if (!o.hasWeights || o.positions[pos].method === "no_players") return;
+              sum += o.weights[g]; n += 1;
+            });
+            Wraw[g] = n ? sum / n : 0;
+            wTotal += Wraw[g];
+          });
         });
-      });
+        bsStar = 0;
+        POSITION_ORDER.forEach(function (pos) {
+          VP_ROLES.forEach(function (role) {
+            var g = vpGroupKey(pos, role);
+            W[g] = wTotal > 0 ? Wraw[g] / wTotal : 0;
+          });
+          bsStar += W[vpGroupKey(pos, "bench")];
+        });
+      } else {
+        bsStar = sumB === 0 ? 0 : (sumS === 0 ? 1 : bsInput);
+        POSITION_ORDER.forEach(function (pos) {
+          W[vpGroupKey(pos, "starter")] = sumS > 0 ? (1 - bsStar) * Sraw[pos] / sumS : 0;
+          W[vpGroupKey(pos, "bench")] = sumB > 0 ? bsStar * Braw[pos] / sumB : 0;
+        });
+      }
+      // JEG-1366: in a 2-QB league with no superflex slot the QB groups are the
+      // mean over the included projections; RB/WR/TE keep their relative shares
+      // of the rest (with a fixed bench share, starters and bench separately).
+      var twoQbProjs = !twoQbRule || !usesTwoQbNativeShare({ QB: (setting.slots || {}).QB, SUPERFLEX: setting.superflex }) ? []
+        : included.filter(function (src) {
+          var o = out[src];
+          return o.family === "projection" && o.hasWeights && o.positions.QB.method !== "no_players";
+        });
+      if (twoQbProjs.length && esMode && bsInput === null) {
+        var qW = {};
+        VP_ROLES.forEach(function (role) {
+          var sum = 0;
+          twoQbProjs.forEach(function (src) { sum += out[src].weights[vpGroupKey("QB", role)]; });
+          qW[role] = sum / twoQbProjs.length;
+        });
+        var restW = 0;
+        Object.keys(W).forEach(function (g) { if (g.indexOf("QB|") !== 0) restW += W[g]; });
+        var scaleW = restW > 0 ? (1 - qW.starter - qW.bench) / restW : 0;
+        Object.keys(W).forEach(function (g) {
+          W[g] = g.indexOf("QB|") === 0 ? qW[g.split("|")[1]] : W[g] * scaleW;
+        });
+        bsStar = 0;
+        POSITION_ORDER.forEach(function (pos) { bsStar += W[vpGroupKey(pos, "bench")]; });
+      } else if (twoQbProjs.length) {
+        [["starter", "starterMix", 1 - bsStar], ["bench", "benchMix", bsStar]].forEach(function (spec) {
+          var role = spec[0], mix = spec[1], target = spec[2], sum = 0, n = 0;
+          twoQbProjs.forEach(function (src) { if (out[src][mix]) { sum += out[src][mix].QB; n += 1; } });
+          if (!n) return;
+          var q = target * sum / n, rest = 0;
+          POSITION_ORDER.forEach(function (pos) { if (pos !== "QB") rest += W[vpGroupKey(pos, role)]; });
+          var scale = rest > 0 ? (target - q) / rest : 0;
+          POSITION_ORDER.forEach(function (pos) {
+            var g = vpGroupKey(pos, role);
+            W[g] = pos === "QB" ? q : W[g] * scale;
+          });
+        });
+      }
+      return { W: W, bsStar: bsStar, Sraw: Sraw, Braw: Braw };
     }
+    var splitCharts = [], splitProjs = [];
+    if (ddfSplit === "charts") {
+      splitCharts = included.filter(function (src) { return out[src].family === "chart" && out[src].hasWeights; });
+      splitProjs = included.filter(function (src) { return out[src].family === "projection" && out[src].hasWeights; });
+    }
+    var vw = splitCharts.length ? vpWeightsOver(splitCharts, false) : vpWeightsOver(included, true);
+    var W = vw.W, bsStar = vw.bsStar, Sraw = vw.Sraw, Braw = vw.Braw;
+    var Wp = splitCharts.length && splitProjs.length ? vpWeightsOver(splitProjs, false).W : null;
     var WBase = {};
     Object.keys(W).forEach(function (g) { WBase[g] = W[g]; });
     var shares = setting.position_shares;
     if (shares && typeof shares === "object") {
-      POSITION_ORDER.forEach(function (pos) {
-        if (!vpFinite(shares[pos])) return;
-        var st = W[vpGroupKey(pos, "starter")], be = W[vpGroupKey(pos, "bench")];
-        var sum = st + be;
-        if (!(sum > 0)) return;
-        W[vpGroupKey(pos, "starter")] = st * shares[pos] / sum;
-        W[vpGroupKey(pos, "bench")] = be * shares[pos] / sum;
+      [W, Wp].forEach(function (Wx) {
+        if (!Wx) return;
+        POSITION_ORDER.forEach(function (pos) {
+          if (!vpFinite(shares[pos])) return;
+          var st = Wx[vpGroupKey(pos, "starter")], be = Wx[vpGroupKey(pos, "bench")];
+          var sum = st + be;
+          if (!(sum > 0)) return;
+          Wx[vpGroupKey(pos, "starter")] = st * shares[pos] / sum;
+          Wx[vpGroupKey(pos, "bench")] = be * shares[pos] / sum;
+        });
       });
     }
 
     // --- VP-5 budgets, rates, Adjusted, VORP display.
     var budgets = vpEmptyGroups();
     Object.keys(W).forEach(function (g) { budgets[g] = pie * W[g]; });
+    // JEG-1569: the projections' own budgets ("charts" split only).
+    var budgetsProj = null;
+    if (Wp) {
+      budgetsProj = vpEmptyGroups();
+      Object.keys(Wp).forEach(function (g) { budgetsProj[g] = pie * Wp[g]; });
+    }
     sourceKeys.forEach(function (src) {
       var o = out[src];
+      var srcBudgets = budgetsProj && o.family === "projection" ? budgetsProj : budgets;
+      if (budgetsProj) o.budgets = srcBudgets;
       var rates = vpEmptyGroups();
       var funded = {};
-      Object.keys(budgets).forEach(function (g) { funded[g] = budgets[g]; });
+      Object.keys(srcBudgets).forEach(function (g) { funded[g] = srcBudgets[g]; });
       var moved = [], unpaid = [];
       if (o.hasWeights) {
         POSITION_ORDER.forEach(function (pos) {
           VP_ROLES.forEach(function (role) {
             var g = vpGroupKey(pos, role);
             var other = vpGroupKey(pos, role === "starter" ? "bench" : "starter");
-            if (o.groups[g] === 0 && budgets[g] > 0) {
+            if (o.groups[g] === 0 && srcBudgets[g] > 0) {
               if (o.groups[other] > 0) {
-                funded[other] += budgets[g];
+                funded[other] += srcBudgets[g];
                 funded[g] = 0;
-                moved.push({ from: g, to: other, amount: budgets[g] });
+                moved.push({ from: g, to: other, amount: srcBudgets[g] });
               } else {
-                unpaid.push({ group: g, amount: budgets[g] });
+                unpaid.push({ group: g, amount: srcBudgets[g] });
               }
             }
           });
@@ -2103,7 +2143,7 @@
       readout.overall = totalAll > 0 ? benchAll / totalAll : null;
     }
 
-    return {
+    var result = {
       version: VALUE_PIPELINE_VERSION,
       setting: setting,
       pie: pie,
@@ -2136,6 +2176,13 @@
       defaultRanking: defaultRanking,
       timingFactor: timingFactor
     };
+    // JEG-1569: present only on the "charts" split, so the live result is unchanged.
+    if (ddfSplit === "charts") {
+      result.ddfSplit = splitCharts.length ? "charts" : "all";
+      result.ddfWeightsProjections = Wp;
+      result.budgetsProjections = budgetsProj;
+    }
+    return result;
   }
 
   // VP-7.3: each row's tier from its rank on the blended DDF Value.
@@ -2461,6 +2508,8 @@
     superflexCount: superflexCount,
     usesSuperflexValues: usesSuperflexValues,
     usesTwoQbNativeShare: usesTwoQbNativeShare,
+    DDF_VALUE_SPLIT_DEFAULT: DDF_VALUE_SPLIT_DEFAULT,
+    ddfSplit: vpDdfSplit,
     stableTiebreak: stableTiebreak,
     BENCH_LEVELS: VP_BENCH_LEVELS,
     leagueDepth: vpLeagueDepth,

@@ -209,7 +209,9 @@
 
         var posAdj = starterAdj + benchAdj + waiverAdj;
         var posRaw = starterRaw + benchRaw;
-        var budget = (budgets[pos + "|starter"] || 0) + (budgets[pos + "|bench"] || 0);
+        // JEG-1569: on the "charts" split a projection is paid its own family's budgets.
+        var srcBudgets = s.budgets || budgets;
+        var budget = (srcBudgets[pos + "|starter"] || 0) + (srcBudgets[pos + "|bench"] || 0);
 
         totalListed += listed;
         totalRostered += rostered;
