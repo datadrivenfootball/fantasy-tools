@@ -46,11 +46,13 @@ HOLDS = {root: {"stage": "publisher_vs_stored", "reason": "fidelity: publisher_v
 
 
 def seeded_build() -> tuple[dict, dict]:
+    # The build's own holds stay (JEG-1583). Stripping them un-held a chart the
+    # chain had held: its section is the last promoted one, indexed on the
+    # previous ESPN anchor, so the gate re-checked old data against a new
+    # anchor and failed every held build (2026-11-08, CBS held after an ESPN
+    # re-bake). The seeds are added on top; the direct test_static_export run
+    # already skips the real holds (tests/_holds.py).
     fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    for section in fixture["sources"].values():
-        if isinstance(section, dict):
-            section.pop("validationHold", None)
-            section.pop("promotionHold", None)
     held, report = fh.apply_fidelity_holds(fixture, HOLDS, 5)
     return fixture, held
 
