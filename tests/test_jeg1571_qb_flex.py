@@ -10,7 +10,8 @@ What is pinned here:
     equals the Python reference (pipelines/value_reference.py) at 3 scorings x 4 team counts x 0/1/2 QB flex slots.
   * A 2-slot league is priced as 2 slots (not clamped to 1), and QB value rises with each QB flex slot.
   * The friend's lineup: QB values rise against the 1-QB league and against his 2-FLEX workaround.
-  * Settings > Position counts: the "Flex that can start a QB (superflex)" control (0-2), helper, 44px steppers,
+  * Settings > Position counts: FLEX (RB, WR or TE) and SUPERFLEX (QB, RB, WR or TE) are separate boxes in the
+    position grid (Jeremy, 2026-11-08: "Show it as two different positions"), SUPERFLEX 0-2, 44px steppers,
     "N starters, M bench" counts it, it reaches the engine, and a link round-trips 2 while old links decode unchanged.
   * Pasted rosters: QB flex slot labels (Q/W/R/T, OP, SUPERFLEX...) give the count (league-paste.js qbFlexSlots).
 Existing settings are byte-identical: see the JEG-1571 log entry (36 settings, edge runner, diff -r before/after).
@@ -178,14 +179,24 @@ class SettingsPage(unittest.TestCase):
         for width in (1440, 390):
             with self.subTest(width=width):
                 page = self.page(width)
-                label = page.locator("label[for=lineup-sf]")
-                self.assertEqual(label.inner_text().strip(), "Flex that can start a QB (superflex)")
-                self.assertTrue(page.locator("#sf-help").inner_text().strip())
+                grid = page.locator(".st-slots > label")
+                self.assertEqual([t.split("\n")[0].strip() for t in grid.all_inner_texts()],
+                                 ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "Bench"], "two positions in one grid")
+                self.assertEqual(page.inner_text("#elig-flex").strip(), "RB, WR or TE")
+                self.assertTrue(page.inner_text("#elig-sf").strip().startswith("QB, RB, WR or TE"))
                 inp = page.locator("#lineup-sf")
-                self.assertEqual(inp.get_attribute("aria-label"), "Flex that can start a QB")
-                self.assertEqual(inp.get_attribute("aria-describedby"), "sf-help")
+                self.assertEqual(inp.get_attribute("aria-label"), "SUPERFLEX")
+                self.assertEqual(inp.get_attribute("aria-describedby"), "elig-sf")
+                self.assertEqual(page.locator("#lineup-flex").get_attribute("aria-describedby"), "elig-flex")
+                tops = page.evaluate("() => ['qb','flex','sf','bench'].map(k => Math.round(document.getElementById('lineup-' + k).getBoundingClientRect().top))")
+                if width > 760:
+                    self.assertEqual(len(set(tops)), 1, f"steppers line up across the row: {tops}")
+                boxes = page.evaluate("() => [...document.querySelectorAll('.st-slots .stepper')].map(e => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.top]; })")
+                for a, b in zip(boxes, boxes[1:]):
+                    if abs(a[2] - b[2]) < 1:
+                        self.assertGreaterEqual(b[0] - a[1], 8, f"steppers in a row keep a gap: {a} {b}")
                 self.assertEqual((inp.get_attribute("min"), inp.get_attribute("max")), ("0", "2"))
-                for name in ("Increase QB flex", "Decrease QB flex"):
+                for name in ("Increase SUPERFLEX", "Decrease SUPERFLEX", "Increase QB", "Increase FLEX"):
                     box = page.get_by_role("button", name=name, exact=True).bounding_box()
                     self.assertGreaterEqual(box["height"], 43.5, name)
                     self.assertGreaterEqual(box["width"], 43.5, name)
@@ -195,11 +206,11 @@ class SettingsPage(unittest.TestCase):
                 for k, v in (("qb", 1), ("rb", 2), ("wr", 2), ("te", 1), ("flex", 1), ("bench", 12)):
                     page.fill(f"#lineup-{k}", str(v))
                     page.dispatch_event(f"#lineup-{k}", "input")
-                page.get_by_role("button", name="Increase QB flex", exact=True).click()
+                page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
                 self.assertEqual(page.input_value("#lineup-sf"), "1")
                 self.assertEqual(page.inner_text("#st-total").strip(), "8 starters, 12 bench")
-                page.get_by_role("button", name="Increase QB flex", exact=True).click()
-                page.get_by_role("button", name="Increase QB flex", exact=True).click()
+                page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
+                page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
                 self.assertEqual(page.input_value("#lineup-sf"), "2", "capped at 2")
                 self.assertEqual(page.inner_text("#st-total").strip(), "9 starters, 12 bench")
                 page.evaluate("() => document.getElementById('editor').requestSubmit()")
