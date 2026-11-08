@@ -14,13 +14,18 @@ Checks, on the week-9 fixture at half PPR 12 teams, 1QB and superflex:
 """
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 import unittest
 from datetime import date
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pipelines"))
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "pipelines"))
+RUNNER = ["node", "--experimental-strip-types", "--no-warnings", str(ROOT / "tests" / "_edge_pipeline_runner.cjs")]
+TOL = 1e-6
 import value_reference as vr  # noqa: E402
 
 
@@ -65,7 +70,13 @@ class ChartsOnlySplit(unittest.TestCase):
         for sf in (0, 1):
             _default, live, charts = self._pair(sf)
             self.assertNotIn("ddfWeightsProjections", live)
+<<<<<<< HEAD
             self.assertIn("ddfWeightsProjections", _default)
+=======
+            live_res = vr.Setting(self.inp, "half_ppr", 12, sf, ddf_split="all").result()
+            for key in ("ddf_split", "ddf_weights_projections", "group_budgets_projections"):
+                self.assertNotIn(key, live_res)
+>>>>>>> origin/claude/JEG-1569-split-flag
             proj = self._mean(charts, "projection")
             for g, w in charts["ddfWeightsProjections"].items():
                 self.assertAlmostEqual(w, proj[g], places=12, msg=f"sf={sf} {g}")
@@ -87,6 +98,66 @@ class ChartsOnlySplit(unittest.TestCase):
             self.assertAlmostEqual(w, mean[g], places=12, msg=g)
         qb = lambda d: d["ddfWeights"]["QB|starter"] + d["ddfWeights"]["QB|bench"]  # noqa: E731
         self.assertNotAlmostEqual(qb(live), qb(charts), places=3)
+
+
+class EngineEqualsReferenceOnTheChartsSplit(unittest.TestCase):
+    """The engine (built dist, through get-values' own league mapping, league.split) equals the
+    Python reference on the "charts" split: weights, both splits' bench share, DDF Value. A
+    default request (no split) stays on the live split."""
+
+    @classmethod
+    def setUpClass(cls):
+        from tests import _render_env
+        from tests.test_week_history import _fixture_today
+        _render_env.ensure_built()
+        today = _fixture_today()
+        cls.env = {k: v for k, v in os.environ.items() if k != "DDF_VALUE_SPLIT"}
+        cls.env["TRADE_VALUE_TODAY"] = today
+        cls.inp = vr.Inputs.load(today=date.fromisoformat(today))
+
+    def edge(self, league, *extra):
+        out = subprocess.run(RUNNER + ["--league", json.dumps(league), "--dist", str(ROOT / "dist"), *extra],
+                             capture_output=True, text=True, timeout=180, env=self.env)
+        self.assertEqual(out.returncode, 0, out.stderr[-800:])
+        return json.loads(out.stdout)
+
+    CASES = [
+        ({"scoring": "ppr", "teams": 12}, dict(scoring="ppr", teams=12), ()),
+        ({"scoring": "half_ppr", "teams": 12, "roster": {"SUPERFLEX": 1}}, dict(scoring="half_ppr", teams=12, superflex=1), ()),
+        ({"scoring": "standard", "teams": 10, "roster": {"QB": 2}}, dict(scoring="standard", teams=10, qb=2), ()),
+        ({"scoring": "ppr", "teams": 12, "roster": {"QB": 2}}, dict(scoring="ppr", teams=12, qb=2, bench_share_override=0.1),
+         ("--bench-share-override", "0.1")),
+    ]
+
+    def test_weights_and_values(self):
+        for league, kw, extra in self.CASES:
+            with self.subTest(league=league, extra=extra):
+                st = vr.Setting(self.inp, ddf_split="charts", **kw)
+                res = st.result()
+                got = self.edge({**league, "split": "charts"}, "--dump-weights", "1", *extra)
+                self.assertEqual(got.get("ddf_split"), "charts")
+                for key, want in (("ddf_weights", res["ddf_weights"]), ("ddf_weights_projections", res["ddf_weights_projections"])):
+                    for g, v in want.items():
+                        self.assertAlmostEqual(got[key][g], v, places=9, msg=f"{key} {g}")
+                self.assertAlmostEqual(got["bench_share_applied"], res["bench_share_applied"], places=9)
+                edge = {int(k): v for k, v in self.edge({**league, "split": "charts"}, *extra).items()}
+                want = {int(k): v["ddf_value"] for k, v in st.rows("adj").items()
+                        if isinstance(v.get("ddf_value"), (int, float))}
+                self.assertGreater(len(edge), 50)
+                bad = [k for k in set(edge) | set(want) if abs(edge.get(k, 0) - want.get(k, 0)) > TOL]
+                self.assertEqual(bad[:10], [], f"{len(bad)} players differ")
+
+    def test_default_request_is_the_live_split(self):
+        # The flip: a request with no split is on "charts"; split=all is the old split, with none of the new keys.
+        default = self.edge({"scoring": "ppr", "teams": 12}, "--dump-weights", "1")
+        self.assertEqual(default.get("ddf_split"), "charts")
+        got = self.edge({"scoring": "ppr", "teams": 12, "split": "all"}, "--dump-weights", "1")
+        self.assertNotIn("ddf_split", got)
+        res = vr.Setting(self.inp, "ppr", 12, ddf_split="all").result()
+        for g, v in res["ddf_weights"].items():
+            self.assertAlmostEqual(got["ddf_weights"][g], v, places=9, msg=g)
+        bogus = self.edge({"scoring": "ppr", "teams": 12, "split": "projections"}, "--dump-weights", "1")
+        self.assertEqual(bogus, default)
 
 
 if __name__ == "__main__":

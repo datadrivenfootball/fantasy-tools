@@ -142,6 +142,8 @@ export function mapLeague(
 
   // JEG-1569: the position split, passed to the published engine as setting.ddf_split. Only "all" and
   // "charts" are read; absent (or anything else) leaves the setting as before, so the engine's default applies.
+  // (index.ts refuses a bad top-level `split` with a 400; a bad league.split is ignored like other league fields.)
+  // An explicit split counts as custom (own cache entry), so "split=all" still answers "all" after the flip.
   const split = DDF_SPLITS.includes(l.split) ? (l.split as string) : null;
   if (split) custom.push("split");
 

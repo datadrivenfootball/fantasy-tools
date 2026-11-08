@@ -74,8 +74,11 @@
     if (DDF_VALUE_SPLITS.indexOf(asked) >= 0) return asked;
     var local = typeof globalThis !== "undefined" ? globalThis.DDF_VALUE_SPLIT : undefined;
     if (DDF_VALUE_SPLITS.indexOf(local) >= 0) return local;
-    // Under Node (test runners, get-values parity): the same env var the Python reference reads.
-    var env = typeof process !== "undefined" && process.env ? process.env.DDF_VALUE_SPLIT : undefined;
+    // Under Node only (test runners): the same env var the Python reference reads. Never under Deno, so a
+    // Supabase secret cannot move get-values off the page's split; get-values passes setting.ddf_split.
+    var underNode = typeof Deno === "undefined" && typeof process !== "undefined" && process.versions &&
+      process.versions.node && process.env;
+    var env = underNode ? process.env.DDF_VALUE_SPLIT : undefined;
     if (DDF_VALUE_SPLITS.indexOf(env) >= 0) return env;
     return DDF_VALUE_SPLIT_DEFAULT;
   }
