@@ -490,7 +490,7 @@
     var n = wi.rows.length;
     return 'DDF weight ' + pct2(wi.weight) + ' = the mean of the ' + n + ' included sources’ own ' + pos + ' ' + role + ' shares (held sources too): (' +
       wi.rows.map(function (x) { return label(x.source) + ' ' + pct2(x.share); }).join(' + ') + ') ÷ ' + n + ' = ' + pct2(wi.mean) +
-      (Math.abs(wi.mean - wi.weight) > 5e-6 ? '; the engine then rescales the weights for this league (a 2-QB roster’s QB groups, for example), which gives ' + pct2(wi.weight) : '');
+      (Math.abs(wi.mean - wi.weight) > 5e-6 ? '; the engine then rescales the weights (for a 2-QB roster’s QB groups, or for position shares you saved), which gives ' + pct2(wi.weight) : '');
   }
   /* R5-OP-05: how a filled-in player got his estimate. */
   var FILL_RULE = 'filled in (from the other charts or, when none is usable, from the chart’s own values against projected points)';

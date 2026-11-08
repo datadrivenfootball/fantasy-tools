@@ -179,8 +179,7 @@ implementation follows the rule as written.
    set, the DDF weights, the fill-in peers and the pie (VP-5). They are left
    out of the DDF Value blend they would feed (VP-6.3), the Indexed basis
    (VP-6.4) and the bench-weight readout (ES-14). They are still shown,
-   labelled held, on Full value logic and as optional series (JEG-1393
-   R5-OP-06).
+   labelled held, on Full value logic (JEG-1393 R5-OP-06).
 4. A source outside `I` (unpublished, no prior week) is still shown from
    its kept section. It goes through VP-2, VP-3, VP-5 and VP-6.4 against the
    same allocation, rosterable set, pie and DDF weights, with the charts in
