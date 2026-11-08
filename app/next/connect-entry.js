@@ -132,8 +132,11 @@
     if (res.notEvaluated) issues.push(res.notEvaluated + " kicker or defense line" + (res.notEvaluated === 1 ? "" : "s") + " not evaluated");
     return head + (issues.length ? " " + issues.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) + "." : "");
   }
-  function showResult(res) {
+  function showResult(res, from) {
     var card = $("recognized");
+    /* a Sleeper league is read from Sleeper, not a paste: its team names come from the league, so no rename box */
+    $("recognition-title").textContent = from === "sleeper" ? "Here's what we read from Sleeper" : "Here's what we read from your paste";
+    $("edit-team-names").hidden = from === "sleeper";
     $("recognition-summary").textContent = summaryText(res);
     var lg = res.league || {}, found = $("recognition-league");
     if (found) {
@@ -214,6 +217,7 @@
     });
   }
   function readAgain() {
+    if (kept() && kept().source === "sleeper") { hideEditNames(); return; }
     var names = $("edit-names-input").value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
     if (names.length < 2) { $("edit-names-status").textContent = "Add at least two team names, one per line."; return; }
     whenRows().then(function (r) {
@@ -344,32 +348,42 @@
     el.input.setAttribute("placeholder", src.ph); if (titleText) titleText.textContent = src.title;
     if (el.intro) el.intro.textContent = src.intro;
     $("sleeper-paste").hidden = !sl;
-    if (!sl) document.body.classList.remove("show-paste");
+    if (!sl) { document.body.classList.remove("show-paste"); sleeperSeq++; if (sleeperBusy) sleeperDone(el); }
     var out = $("link-result"); if (out) { out.textContent = ""; out.className = ""; }
   }
   function linkMsg(text, kind) { var out = $("link-result"); if (!out) return; out.textContent = text; out.className = kind ? "is-" + kind : ""; }
+  var sleeperSeq = 0;
+  function sleeperDone(el) { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); }
   function sleeperGo() {
     var el = wayEls(), id = DDF.sleeper && DDF.sleeper.parseId(el.input.value);
     if (!id) { linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Paste your Sleeper league link or ID first.", "error"); return Promise.resolve(null); }
-    if (sleeperBusy || sleeperLast === id) return Promise.resolve(null);
+    if (sleeperLast === id && kept() && kept().source === "sleeper" && kept().leagueId === id) return Promise.resolve(null);
+    /* a newer request (another ID, or switching away from Sleeper) wins; an older answer is dropped */
+    var seq = ++sleeperSeq;
+    var current = function () { return seq === sleeperSeq && provider() === "sleeper" && DDF.sleeper.parseId(el.input.value) === id; };
     sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
     linkMsg("Loading your league from Sleeper...", "loading");
-    return whenRows().then(function (rows) { return DDF.sleeper.load(id, {rows: rows, table: table()}); })
-      .then(function (out) {
-        sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy");
+    return whenRows().then(function (rows) {
+      return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
+        if (!current()) return null;
+        sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
         sleeperLast = id;
         var res = out.result;
         if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
         hideEditNames();
-        showResult(res);
+        showResult(res, "sleeper");
         save(DDF.leaguePaste.record(res, "sleeper"));
         askBookmark(res);
         var lg = res.league || {};
         linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then confirm your team.", "ok");
         status("", "");
         return out;
-      }, function () { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); return null; });
+      });
+    }, function () {
+      if (current()) { sleeperDone(el); linkMsg("Player values are still loading. Try again in a moment.", "error"); }
+      return null;
+    }).catch(function () { if (current()) { sleeperDone(el); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); } return null; });
   }
   function initSleeper() {
     var el = wayEls(); if (!el || !DDF.sleeper) return;

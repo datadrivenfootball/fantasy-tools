@@ -19,7 +19,8 @@ What changed
   - `load` fetches the four endpoints and names every team (team name, else display name; duplicates get "(2)";
     ownerless rosters become "Team N").
   - Each roster becomes the lines a rosters page shows ("Name POS TEAM"), read by the same matcher as a paste
-    (`DDF.leaguePaste.readWithNames`). The result is the same shape and the same players as the paste path.
+    (`DDF.leaguePaste.fromBlocks`, one team at a time, so emoji names and names that differ only by punctuation keep
+    their own rosters). The result is the same shape and the same players as the paste path.
     Defenses show as not evaluated; ids we cannot name show as not found.
   - League name and ID come from the league; the ID stays on the device. Settings (scoring from `rec`, team count when
     8/10/12/14, lineup slots, superflex) are read from the league.
@@ -35,13 +36,23 @@ What changed
   - It saves `ddf:pasted` (source sleeper) and applies the league's settings to the saved engine settings, so
     settings.html opens with them. Then the bookmark prompt asks once, and the sticky Next is enabled.
 
+Review fixes (independent review of 0c3665b4, CHANGES NEEDED):
+- Sleeper teams are read per team (no name matching in one long text): emoji-only names and "Team-A" / "Team A" keep
+  their rosters;
+- no "Edit team names" box for a Sleeper league (its names come from the league), and the card title reads "Here's
+  what we read from Sleeper";
+- a newer request wins: switching away from Sleeper or entering another ID mid-load drops the older answer;
+- a missing player table is a network error and is not cached; unknown ids read "A player not in our list yet
+  (Sleeper id N)"; a superflex-only lineup is left for settings.html; "values still loading" has its own message;
+- tests state the expected players from the pipeline's id map instead of the code under test, and run one at a time.
+
 ### Verified (check named)
-- `node tests/test_sleeper_import.js` (4 pass), on fixture responses with no live calls:
+- `node tests/test_sleeper_import.js` (5 pass), on fixture responses with no live calls:
   - link and ID forms;
   - a loaded league equals the paste path (same teams and players);
   - team names, defenses, unknown ids, settings;
   - errors and their messages, with no banned words.
-- `tests.test_sleeper_entry` (3 pass, Sleeper API answered by fixtures):
+- `tests.test_sleeper_entry` (4 pass, incl. switching away mid-load, Sleeper API answered by fixtures):
   - one-field Sleeper view at 1440/390/360, with ESPN and Yahoo unchanged;
   - an ID loads 4 teams, the sticky Next turns on and setup lists them, with exactly 4 calls, all to Sleeper;
   - not found, old season and network errors in plain words, with the paste fallback.

@@ -45,7 +45,10 @@
   }
   function loadPlayers(f, url) {
     if (players) return Promise.resolve(players);
-    return getJSON(f, url || "sleeper-players.json").then(function (j) { players = (j && j.p) || {}; return players; });
+    return getJSON(f, url || "sleeper-players.json").then(function (j) {
+      if (!j || !j.p) throw new Error("players");   /* not cached: the next try fetches again */
+      players = j.p; return players;
+    });
   }
 
   function settingsOf(lg) {
@@ -57,33 +60,35 @@
     var roster = {QB: count(["QB"]), RB: count(["RB"]), WR: count(["WR"]), TE: count(["TE"]),
       FLEX: count(["FLEX", "WRRB_FLEX", "REC_FLEX", "WRTE_FLEX", "RBTE_FLEX"]), BENCH: count(["BN"])};
     Object.keys(roster).forEach(function (k) { roster[k] = Math.min(20, roster[k]); });
-    var out = {scoring: scoring, superflex: count(["SUPER_FLEX"]) > 0, roster: roster};
+    var out = {scoring: scoring, superflex: count(["SUPER_FLEX"]) > 0};
+    if (roster.QB >= 1) out.roster = roster;   /* a superflex-only lineup is left for settings.html to confirm */
     var n = Number(lg.total_rosters);
     if ([8, 10, 12, 14].indexOf(n) >= 0) out.teams = n;
     return out;
   }
 
-  /* the rosters page a paste would give: team name, then one line per player */
-  function asPaste(users, rosters, map) {
+  /* one block per team: the lines a rosters page shows for it ("Josh Allen QB BUF"), read as a paste reads them */
+  function asBlocks(users, rosters, map) {
     var byUser = {};
     (users || []).forEach(function (u) { if (u && u.user_id) byUser[u.user_id] = u; });
-    var used = {}, names = [], lines = [], unknown = {};
+    var used = {}, out = [];
     (rosters || []).slice().sort(function (a, b) { return (a.roster_id || 0) - (b.roster_id || 0); }).forEach(function (r, i) {
       var u = byUser[r.owner_id] || null;
-      var name = String((u && u.metadata && u.metadata.team_name) || (u && u.display_name) || ("Team " + (r.roster_id || i + 1))).replace(/\s+/g, " ").trim().slice(0, 40);
+      var name = String((u && u.metadata && u.metadata.team_name) || (u && u.display_name) || "").replace(/\s+/g, " ").trim().slice(0, 40)
+        || "Team " + (r.roster_id || i + 1);
       var key = name.toLowerCase(), n = 2;
-      while (used[key]) { name = name.slice(0, 36) + " (" + n++ + ")"; key = name.toLowerCase(); }
+      while (used[key]) { name = Array.from(name).slice(0, 36).join("") + " (" + n++ + ")"; key = name.toLowerCase(); }
       used[key] = 1;
-      names.push(name);
-      lines.push(name);
+      var lines = [], unknown = [];
       (r.players || []).forEach(function (id) {
         var p = map[String(id)];
         if (p) lines.push(p[0] + " " + p[1] + (p[2] ? " " + p[2] : ""));
         else if (/^[A-Z]{2,3}$/.test(String(id))) lines.push(String(id) + " Defense DEF");
-        else (unknown[name] = unknown[name] || []).push("Sleeper player " + id);   /* not in the identity table yet */
+        else unknown.push("A player not in our list yet (Sleeper id " + id + ")");
       });
+      out.push({name: name, text: lines.join("\n"), unknown: unknown});
     });
-    return {names: names, text: lines.join("\n"), unknown: unknown};
+    return out;
   }
 
   function load(id, opts) {
@@ -99,13 +104,11 @@
         if (current && lg.season && String(lg.season) < String(current)) return {ok: false, code: "oldseason", season: String(lg.season)};
         if (!Array.isArray(rosters) || rosters.filter(function (r) { return r && (r.players || []).length; }).length < 2) return {ok: false, code: "empty"};
         return loadPlayers(f, opts.playersUrl).then(function (map) {
-          var page = asPaste(users, rosters, map);
-          var res = root.DDF.leaguePaste.readWithNames(page.text, page.names, opts.rows || [], {table: opts.table});
-          res.teams.forEach(function (t) {
-            (page.unknown[t.name] || []).forEach(function (line) { t.unmatched.push({line: line, reason: "missing", pos: ""}); res.missing++; });
+          var blocks = asBlocks(users, rosters, map);
+          var res = root.DDF.leaguePaste.fromBlocks(blocks, opts.rows || [], {table: opts.table, site: "sleeper", strategy: "sleeper-api"});
+          res.teams.forEach(function (t, i) {
+            blocks[i].unknown.forEach(function (line) { t.unmatched.push({line: line, reason: "missing", pos: ""}); res.missing++; });
           });
-          res.site = "sleeper";
-          res.strategy = "sleeper-api";
           res.league = {leagueName: lg.name ? String(lg.name).slice(0, 60) : null, leagueId: String(id), platform: "sleeper", confidence: 1};
           if (!res.ok) return {ok: false, code: "empty"};
           return {ok: true, result: res, settings: settingsOf(lg)};
@@ -114,7 +117,7 @@
       .catch(function () { return {ok: false, code: "network"}; });
   }
 
-  var api = {parseId: parseId, load: load, settingsOf: settingsOf, asPaste: asPaste, MESSAGES: MESSAGES, _reset: function () { players = null; }};
+  var api = {parseId: parseId, load: load, settingsOf: settingsOf, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
   root.DDF = root.DDF || {};
   root.DDF.sleeper = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

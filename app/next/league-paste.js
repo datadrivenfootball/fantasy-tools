@@ -186,7 +186,23 @@
       teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; })};
   }
 
-  var api = {read: read, readWithNames: readWithNames, record: record, _blocks: blocks};
+  /* teams given as their own blocks of lines ({name, text}), read by the live matcher one team at a time: the same
+     reading as a paste, without finding team names in one long text (JEG-1570, Sleeper) */
+  function fromBlocks(list, rows, opts) {
+    opts = opts || {};
+    var p = P(), byKey = rowsByKey(rows), ids = tableIds(opts.table);
+    var out = {ok: false, reason: "unreadable", site: opts.site || "unknown", strategy: opts.strategy || "blocks", names: [], teams: []};
+    out.teams = (list || []).map(function (b) {
+      var ex = p && p.extractPlayers ? p.extractPlayers(String(b.text || ""), rows) : {players: [], unmatched: []};
+      return team(b.name, ex.players, ex.unmatched, byKey, ids);
+    });
+    out.names = out.teams.map(function (t) { return t.name; });
+    out.ok = out.teams.length >= 2;
+    out.reason = out.ok ? null : "unreadable";
+    return summarize(out);
+  }
+
+  var api = {read: read, readWithNames: readWithNames, fromBlocks: fromBlocks, record: record, _blocks: blocks};
   root.DDF = root.DDF || {};
   root.DDF.leaguePaste = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

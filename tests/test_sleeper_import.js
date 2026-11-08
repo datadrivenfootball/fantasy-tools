@@ -19,6 +19,12 @@ const TABLE = JSON.parse(fs.readFileSync(path.join(ROOT, "app", "next", "players
 const ROWS = TABLE.map(r => { const f = r.split("|"); return {name: f[0], pos: f[1], team: f[2], player_key: Number(f[3])}; });
 const FX = n => JSON.parse(fs.readFileSync(path.join(ROOT, "tests", "fixtures", "sleeper", n + ".json"), "utf8"));
 const sys = require("child_process");
+// Sleeper id -> player_key for players the pipeline matched (data/inputs/sleeper_projection_idmap.csv)
+const IDMAP = {};
+fs.readFileSync(path.join(ROOT, "data", "inputs", "sleeper_projection_idmap.csv"), "utf8").split(/\n/).slice(1).forEach(l => {
+  const c = l.split(","); if (c[6] === "matched" && c[5]) IDMAP[c[0]] = c[5];
+});
+const PRICED = new Set(ROWS.map(r => String(r.player_key)));
 const PLAYERS = JSON.parse(sys.execFileSync("python3", ["-c",
   "import sys,json; sys.path.insert(0,'pipelines'); import build_root_pages as b; print(json.dumps(b.sleeper_players()))"], {cwd: ROOT}).toString());
 
@@ -39,11 +45,8 @@ const GOOD = {
 };
 
 let passed = 0, failed = 0;
-const pending = [];
-function test(name, fn) {
-  pending.push(Promise.resolve().then(fn).then(() => { passed++; console.log(`  ok  ${name}`); },
-    e => { failed++; console.log(`  FAIL ${name}\n       ${e.message}`); }));
-}
+const queue = [];
+function test(name, fn) { queue.push([name, fn]); }
 
 test("link and ID forms", () => {
   const want = "1313051744942428160";
@@ -56,40 +59,50 @@ test("link and ID forms", () => {
   }
 });
 
-test("a loaded league equals the paste path", async () => {
-  SL._reset();
+test("a loaded league reads like a paste of the same rosters", async () => {
   const calls = [];
   const out = await SL.load(ID, {fetch: fakeFetch(GOOD, calls), rows: ROWS, table: TABLE});
   assert.strictEqual(out.ok, true, JSON.stringify(out));
   assert.strictEqual(calls.filter(u => u.startsWith("https://api.sleeper.app/v1/")).length, 4, "4 Sleeper calls");
   assert.ok(calls.every(u => u.startsWith("https://api.sleeper.app/v1/") || u === "sleeper-players.json"), "calls go to Sleeper only");
-  const page = SL.asPaste(FX("users"), FX("rosters"), PLAYERS.p);
-  const viaPaste = LP.readWithNames(page.text, page.names, ROWS, {table: TABLE});
-  // the same teams and players as the paste path; ids Sleeper's table does not know yet are added as "not found"
-  assert.deepStrictEqual(out.result.teams.map(t => [t.name, t.players]), viaPaste.teams.map(t => [t.name, t.players]));
-  assert.deepStrictEqual(out.result.teams.map(t => t.unmatched.filter(u => !/^Sleeper player /.test(u.line))), viaPaste.teams.map(t => t.unmatched));
+  // the expected players, stated from the fixture rosters and the identity table (not from the code under test)
+  const want = FX("rosters").map(r => r.players.map(id => IDMAP[id]).filter(k => k && PRICED.has(k)));
+  out.result.teams.forEach((t, i) => assert.deepStrictEqual(t.players.map(p => p.key), want[i], t.name));
+  // and a pasted rosters page with the same lines reads to the same players
+  const text = out.result.teams.map((t, i) => [`Team ${i + 1}`].concat(FX("rosters")[i].players.map(id => PLAYERS.p[id]).filter(Boolean)
+    .map(p => `${p[0]} ${p[1]} ${p[2]}`)).join("\n")).join("\n");
+  const pasted = LP.readWithNames(text, out.result.teams.map((_, i) => `Team ${i + 1}`), ROWS, {table: TABLE});
+  assert.deepStrictEqual(pasted.teams.map(t => t.players), out.result.teams.map(t => t.players));
   const rec = LP.record(out.result, "sleeper");
-  assert.strictEqual(rec.suggestedName, "Sample Sleeper League");
+  assert.strictEqual(rec.suggestedName, "Gridiron Test League");
   assert.strictEqual(rec.leagueId, ID);
   assert.strictEqual(rec.platform, "sleeper");
   assert.strictEqual(rec.me, null);
 });
 
 test("team names, defenses, unknown ids, settings", async () => {
-  SL._reset();
   const out = await SL.load(ID, {fetch: fakeFetch(GOOD), rows: ROWS, table: TABLE});
   const teams = out.result.teams;
-  assert.deepStrictEqual(teams.map(t => t.name), ["Alpha Squad", "beta_user", "Alpha Squad (2)", "Team 4"]);
+  // an emoji-only name and a name that differs only by punctuation keep their own rosters
+  assert.deepStrictEqual(teams.map(t => t.name), ["Alpha Squad", "beta_user", "🔥🔥🔥", "Alpha-Squad"]);
+  const want = FX("rosters").map(r => r.players.filter(id => IDMAP[id] && PRICED.has(IDMAP[id])).length);
+  assert.deepStrictEqual(teams.map(t => t.players.length), want);
+  assert.ok(want.every(n => n >= 5));
   assert.strictEqual(teams[0].players.length, 7, "QB, 2 RB, 3 WR, TE matched");
   assert.deepStrictEqual(teams[0].unmatched.map(u => u.reason), ["kdef"]);
-  assert.deepStrictEqual(teams[1].unmatched.map(u => [u.line, u.reason]), [["Sleeper player 99999999", "missing"]]);
+  assert.deepStrictEqual(teams[1].unmatched.map(u => [u.line, u.reason]), [["A player not in our list yet (Sleeper id 99999999)", "missing"]]);
   assert.ok(teams.every(t => t.players.every(p => /^\d+$/.test(p.key))));
   assert.deepStrictEqual(out.settings, {scoring: "half_ppr", superflex: true, roster: {QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 5}});
   assert.ok(!("teams" in out.settings), "4 teams is not a league size the site offers, so it is left to settings.html");
 });
 
+test("a missing player table is an error, not an empty league, and is not cached", async () => {
+  const noTable = Object.assign({}, GOOD); delete noTable["sleeper-players.json"];
+  assert.strictEqual((await SL.load(ID, {fetch: fakeFetch(noTable), rows: ROWS})).code, "network");
+  assert.strictEqual((await SL.load(ID, {fetch: fakeFetch(GOOD), rows: ROWS, table: TABLE})).ok, true);
+});
+
 test("errors", async () => {
-  SL._reset();
   assert.strictEqual((await SL.load(ID, {fetch: fakeFetch({"/state/nfl": FX("state")}), rows: ROWS})).code, "notfound");
   const old = Object.assign({}, GOOD, {[`/league/${ID}`]: FX("old-league").league});
   const o = await SL.load(ID, {fetch: fakeFetch(old), rows: ROWS});
@@ -108,4 +121,11 @@ test("errors", async () => {
   assert.ok(SL.MESSAGES.oldseason({season: "2025"}).includes("2025 season"));
 });
 
-Promise.all(pending).then(() => { console.log(`\n${passed} passed, ${failed} failed`); process.exit(failed ? 1 : 0); });
+(async () => {
+  for (const [name, fn] of queue) {
+    SL._reset();   // each test starts without the cached player table
+    try { await fn(); passed++; console.log(`  ok  ${name}`); } catch (e) { failed++; console.log(`  FAIL ${name}\n       ${e.message}`); }
+  }
+  console.log(`\n${passed} passed, ${failed} failed`);
+  process.exit(failed ? 1 : 0);
+})();
