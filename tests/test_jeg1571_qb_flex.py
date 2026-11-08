@@ -181,6 +181,9 @@ class SettingsPage(unittest.TestCase):
                 page = self.page(width)
                 clipped = page.evaluate("() => [...document.querySelectorAll('.st-slots .stepper')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
                 self.assertEqual(clipped, 0, "no stepper is clipped (the + button and the number stay visible)")
+                cut = page.evaluate("""() => [...document.querySelectorAll('.st-slots .stepper input')].filter(i => {
+                  const old = i.value; i.value = '20'; const bad = i.scrollWidth > i.clientWidth; i.value = old; return bad; }).map(i => i.id)""")
+                self.assertEqual(cut, [], "a two-digit count (bench 12, 20) shows in full")
                 grid = page.locator(".st-slots > label")
                 self.assertEqual([t.split("\n")[0].strip() for t in grid.all_inner_texts()],
                                  ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "Bench"], "two positions in one grid")

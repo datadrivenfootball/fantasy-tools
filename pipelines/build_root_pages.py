@@ -65,7 +65,9 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               "rosterparse.js", "league-paste.js", "connect-entry.js", "setup-entry.js",
               "img/league-id",
               # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
-              "sleeper-import.js")
+              "sleeper-import.js",
+              # JEG-1548: the visit counter wrapper site.js loads (sends nothing until its site code is set).
+              "analytics.js")
 # JEG-1570: Sleeper player id -> [name, pos, team], from the pipeline's Sleeper identity table, written beside the pages.
 SLEEPER_IDENTITY = ROOT / "data" / "inputs" / "sleeper_identity_base.json"
 SLEEPER_PLAYERS = "sleeper-players.json"

@@ -1083,7 +1083,7 @@ const ORDER = (() => {
         const natStep = step(`${isChart(src) ? (isObserved(src) ? "Observed-trade" : "Published") : "ppg"}${est ? " (estimated)" : ""} · ${pos}${rank} ${ROLE_NAME[role]}`, fmtN(nat));
         const waiverStep = step(`Waiver line (${waiverSeat(src, pos, x)})`, fmtN(x.waiver));
         chain = (subtractionHolds(nat, x.waiver, v)
-            ? natStep + op("−") + waiverStep + op("=") + step("v", fmtN(v))
+            ? natStep + op("−") + waiverStep + (nat - x.waiver < 0 ? op(`= max(0, ${fmtN(nat - x.waiver)}) =`) : op("=")) + step("v", fmtN(v))
             : natStep + waiverStep + op("→") + step("v, restated surplus averaged over the allocations", fmtN(v))
               + `<span class="muted small">Averaged over the allocations: each allocation computes its own surplus and factor; an absent player contributes 0; v is the averaged pie-scaled value ÷ the averaged factor, so ${fmtN(nat)} − ${fmtN(x.waiver)} does not give it.</span>`)
           + op("→") + (ES ? step("Fill-in part", fmtN(bsl)) + step(`Start-worthy part (line ${fmtN(x.starterLine)})`, fmtN(ssl))

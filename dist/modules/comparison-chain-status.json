@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-08T18:34:32.044992+00:00",
+  "run_at": "2026-11-08T20:51:39.425706+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -83,7 +83,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7260 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7272 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -108,7 +108,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-08 -> 12 DDF legs -> section; review passed (6444 values)",
+      "detail": "snapshot 2026-11-08 -> 12 DDF legs -> section; review passed (6348 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -250,17 +250,19 @@
     "status": "failed",
     "command": "make validate",
     "failed_tests": [
-      "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone"
+      "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_numbers_match_engine",
+      "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes"
     ],
     "assertions": [
-      "AssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []"
+      "AssertionError: Lists differ: ['standard/10/sf1: build-up cbs shown tota[113 chars]tor'] != []",
+      "AssertionError: 'weighted over the 6 league allocations (34 to 34 rostered, read at QB35 to QB35' not found in '= the value of the first player past the league\u2019s rostered count on USA Today\u2019s list: QB35 Carson Wentz 21.00 at the heaviest allocation (34 QBs rostered); weighted over the 6 league allocations (34 rostered, read at QB35) = 21.00' : usatoday"
     ],
     "breaches": [],
     "make_targets": [
-      "Makefile:783: test-core"
+      "Makefile:803: test-core"
     ],
-    "detail": "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone\nAssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []",
-    "recorded_at": "2026-11-08T19:16:45.088619+00:00",
+    "detail": "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_numbers_match_engine\nFAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes\nAssertionError: Lists differ: ['standard/10/sf1: build-up cbs shown tota[113 chars]tor'] != []\nAssertionError: 'weighted over the 6 league allocations (34 to 34 rostered, read at QB35 to QB35' not found in '= the value of the first player past the league\u2019s rostered count on USA Today\u2019s list: QB35 Carson Wentz 21.00 at the heaviest allocation (34 QBs rostered); weighted over the 6 league allocations (34 rostered, read at QB35) = 21.00' : usatoday",
+    "recorded_at": "2026-11-08T22:04:38.171875+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }

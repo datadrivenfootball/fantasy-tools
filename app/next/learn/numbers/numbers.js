@@ -499,9 +499,12 @@
      value above waivers on the value pie ÷ the averaged value-pie factor (value-model.js vpBlendSourcePlayers). */
   function aboveText(w, plain) {
     if (![w.published, w.waiver, w.aboveWaivers].every(num)) return '';
-    var diff = w.published - w.waiver;
-    var sub = plain(w.published) + ' − ' + plain(w.waiver) + ' = ' + plain(diff);
-    if (plain(diff) === plain(w.aboveWaivers) || !num(w.aboveWaiversPie) || !num(w.vorpFactor)) return sub;
+    var diff = w.published - w.waiver, floored = Math.max(0, diff);
+    /* R8-CX-01: v = max(0, published − waiver line); a value at or below the line is 0, not a negative surplus. */
+    var sub = diff < 0
+      ? 'max(0, ' + plain(w.published) + ' − ' + plain(w.waiver) + ') = max(0, ' + plain(diff) + ') = ' + plain(0)
+      : plain(w.published) + ' − ' + plain(w.waiver) + ' = ' + plain(diff);
+    if (plain(floored) === plain(w.aboveWaivers) || !num(w.aboveWaiversPie) || !num(w.vorpFactor)) return sub;
     return 'here the engine’s figure is value above waivers on the value pie ' + w.aboveWaiversPie.toFixed(3) + ' ÷ the averaged value-pie factor ' + fFactor(w.vorpFactor) + ' = ' + plain(w.aboveWaivers) +
       '; it differs from ' + sub + ' because each of the ' + w.allocations + ' league allocations has its own waiver line and value-pie factor';
   }

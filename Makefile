@@ -208,6 +208,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_weekly_fantasypros_contract
 	python3 -m unittest tests.test_source_probe
 	python3 -m unittest tests.test_source_lateness
+	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
+	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
 	python3 -m unittest tests.test_source_snapshot_match
 	python3 -m unittest tests.test_rebuild_chain_failclosed
 	python3 -m unittest tests.test_rebuild_chain_per_source_hold
@@ -858,6 +860,9 @@ test-core:
 # is exactly test-core: a line added to test-core must also go into one shard, or
 # tests/test_validate_shards.py fails. Balanced by the per-module times of preview run 40199508029
 # (about 7.5 minutes of tests each); within a shard the lines keep test-core's order.
+# JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
+# 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
+# and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
 test-core-shard-1:
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
@@ -911,6 +916,9 @@ test-core-shard-2:
 	python3 -m unittest tests.test_v2_phone_wide_font_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_asset_load_retry
+	python3 -m unittest tests.test_espn_listed_rows
+	python3 -m unittest tests.test_page_load_no_404
+	python3 -m unittest tests.test_bench_share_low_pie
 	python3 -m unittest tests.test_value_overrides
 	python3 -m unittest tests.test_source_scale_agreement_retired
 	python3 -m unittest tests.test_value_reference_worked_example
@@ -971,19 +979,6 @@ test-core-shard-3:
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
-	python3 -m unittest tests.test_espn_listed_rows
-	python3 -m unittest tests.test_page_load_no_404
-	python3 -m unittest tests.test_bench_share_low_pie
-	python3 -m unittest tests.test_bench_budget_cut_render
-	python3 -m unittest tests.test_ddf_composite_value
-	python3 -m unittest tests.test_view_switch_hidden_defaults
-	python3 -m unittest tests.test_week_calendar
-	python3 -m unittest tests.test_week_state
-	python3 -m unittest tests.test_week_stale
-	python3 -m unittest tests.test_source_health_release
-	python3 -m unittest tests.test_roster_convention
-	python3 -m unittest tests.test_bench_miss_rate
-	python3 -m unittest tests.test_razzball_outlier_guard
 
 test-core-shard-4:
 	python3 -m unittest tests.test_static_export
@@ -1009,11 +1004,21 @@ test-core-shard-4:
 	python3 -m unittest tests.test_v2_phone_trade_actions_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_bench_share_readout_matches_reference
+	python3 -m unittest tests.test_bench_budget_cut_render
 	python3 -m unittest tests.test_position_weights_setter
+	python3 -m unittest tests.test_ddf_composite_value
+	python3 -m unittest tests.test_view_switch_hidden_defaults
 	python3 -m unittest tests.test_row_missing_reasons
+	python3 -m unittest tests.test_week_calendar
+	python3 -m unittest tests.test_week_state
+	python3 -m unittest tests.test_week_stale
+	python3 -m unittest tests.test_source_health_release
 	python3 -m unittest tests.test_two_qb_direction
 	python3 -m unittest tests.test_short_chart_waiver
+	python3 -m unittest tests.test_roster_convention
+	python3 -m unittest tests.test_bench_miss_rate
 	python3 -m unittest tests.test_roster_convention_parity
+	python3 -m unittest tests.test_razzball_outlier_guard
 	# JEG-1511 (Jeremy, 2026-11-05: "Just don't let this test block us at all"): the
 	# one-player perturbation tests run in test-unit (reported, not blocking) until
 	# JEG-1511 fixes the ES-parts coupling; band math and end-to-end stay in the gate.
