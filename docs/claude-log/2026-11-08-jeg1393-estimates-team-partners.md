@@ -49,3 +49,47 @@ Buy / Sell comparison stays; its explanation says why top starters look off agai
 - `test_public_copy_no_vorp` DOM mutation subtests ("old pill back", "old series label back") fail locally; they patch
   `app/v2/shell.html` / `v2.js`, which this change does not touch. Not checked on clean main.
 - Explore (explore.html) still averages raw rows with estimates; out of this decision's scope.
+
+## 2026-11-08 - follow-up: no price is an implied 0 (supersedes the dash counts above)
+
+Contract: Jeremy picked option (a), "No price is an implied 0". On Team and Trading Partners a dropped fill-in estimate
+counts as 0 on that chart instead of making the team incomplete, so no partner blanks; a real null (a chart that does
+not run this week) stays as before. Also state "A chart that doesn't list a player prices him at zero, below the waiver
+line" on Buy / Sell, Find's chart-count link and the Learn "Charts (Buy / Sell)" entry, and call Indexed "a pure scale
+adjustment of the published numbers".
+
+### What changed
+- `ddf-league.js` `chartRows`: an estimated chart value becomes 0 (was null). Completeness, averaging and the ranking
+  metric code are otherwise as in the entry above, so only a real null leaves a side incomplete.
+- Team: line under the league table "A chart that doesn't price a starter counts him at zero."; STARTER ANALYST (i)
+  says an estimate counts as 0 and a chart that does not run leaves the player out. Partners: the same line in each
+  Details, "What these compare" and the not-judged verdict reworded (now only for a chart with no value this week).
+- Learn glossary "Missing (—)": Team and Trading Partners count that chart at zero; a dash there only when a chart does
+  not run. "Charts (Buy / Sell)" and the Buy / Sell (i): the new sentence, keeping the exception that a filled-in
+  estimate is left out on Buy / Sell (the list-ends-before-him case is the 0). Indexed: "a pure scale adjustment of
+  the published numbers" added; the factor sentence kept.
+- `find-page.js`: the chart-count link gets a title with the sentence plus "Where the engine fills him in for that
+  chart from the other charts, that estimate counts here" (Find reads the raw engine rows, so this is accurate there).
+  aria-label and badge counting unchanged.
+
+### Seeded 11-partner league, old main vs implied 0, 12 settings
+- Analyst charts / Live market "—": 0 of 11 at every setting (leave-out version: 3 to 5).
+- Partners whose figures changed: 3 to 5 of 11 per setting. At the default setting the 4 teams with an estimated DDF
+  starter (all CBS Sports estimates) move: Team 03 (Bo Nix) 152.4 -> 151.7, Team 05 (Khalil Shakir) 144.7 -> 142.8,
+  Team 08 (Omarion Hampton) 122.1 -> 120.0, Team 09 (Dylan Sampson) 139.3 -> 137.7.
+- Rank moves: 0 of 11 at every setting (the leave-out version moved 0 to 4 through the not-judged tie-break; with
+  implied 0 every partner is judged and the tie-break order is unchanged).
+
+### Verified (check named)
+- `tests/test_team_partners_estimates.py` (updated): 0 blanks among the 11 partners at 12 settings, an estimated player
+  averages his real charts with 0, figures equal a recomputation with estimates at 0, order equals the rank oracle with
+  estimates at 0, the zero line on every partner row. Fails against the leave-out `ddf-league.js` of 870c73aa3.
+- `test_team_engine_parity`, `test_partners_rank_parity` (oracles: estimates at 0), `test_find_chart_links`,
+  `test_ddf_why`, `test_team_opportunity_render`, `test_values_page_engine_parity`, `test_learn_engine_parity`,
+  `test_dashboard_view_tags`, `test_launch_copy_guard`, `test_jeg1130_copy_glossary`, `test_v2_copy_names`,
+  `test_jeg1393_values_explainer_logic`: pass on a local `make sync` build.
+- Render: team.html, partners.html, values.html#buy-sell with the seeded league at 1280 and 390 px, no page errors
+  (only blocked Google Fonts); the zero line visible on Team and in Partners' Details at 390 px.
+
+### Claimed, not confirmed
+- No fixture case has a chart that does not run, so the "real null stays a dash" path is covered only by code reading.

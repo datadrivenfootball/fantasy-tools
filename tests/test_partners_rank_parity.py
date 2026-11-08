@@ -30,10 +30,11 @@ ORACLE = r"""(league) => {
   const rows = C.getAllRows().filter(r => POS.includes(r.pos));
   const byKey = new Map(rows.map(r => [String(r.player_key), r]));
   const shape = C.getRosterShape();
-  // JEG-1393 decision 4: a chart's fill-in estimate (row.estimated[k]) is left out of the Analyst charts and Live market.
+  // JEG-1393 decision 4: a chart's fill-in estimate (row.estimated[k]) counts as 0 on the Analyst charts and Live market
+  // (Jeremy, 2026-11-08: "No price is an implied 0").
   const CH = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
   const listed = got => got.map(r => { const est = r.estimated || {}; if (!CH.some(k => est[k])) return r;
-    const v = {...r.values}; CH.forEach(k => { if (est[k]) v[k] = null; }); return {...r, values: v}; });
+    const v = {...r.values}; CH.forEach(k => { if (est[k]) v[k] = 0; }); return {...r, values: v}; });
   // complete = every DDF starter has a value on that chart (a bench player without one adds nothing)
   const onChart = (t, rows, key) => t.L.starters.every(r => { const x = rows[t.rows.indexOf(r)]; return typeof x.values[key] === 'number' && isFinite(x.values[key]); });
   const teams = league.teams.map((t, i) => {

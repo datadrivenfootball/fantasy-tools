@@ -31,10 +31,10 @@
  *   lineup(team)     {starters, bench, slots:{QB,RB,WR,TE,FLEX,SUPERFLEX}, empty, unpriced, starterValue, benchValue, total,
  *                     analyst:{starterValue, total, complete}, live:{starterValue, total, complete}} — records, engine
  *                     values; analyst = mean of CBS Sports, USA Today, FantasyPros rows (withChartAverage), live = FantasyCalc,
- *                     both on chartRows (fill-in estimates left out); a side is complete when every DDF starter has a
- *                     value there (a bench player without one adds nothing; JEG-1393 decision 4)
- *   chartRows(rows)  engine rows with fill-in estimates left out of the Analyst charts and Live market, plus the Analyst
- *                     charts average (F.MARKET_KEY)
+ *                     both on chartRows (a fill-in estimate counts as 0); a side is complete when every DDF starter has
+ *                     a value there, so only a real null (a chart that does not run) leaves it incomplete (JEG-1393 d4)
+ *   chartRows(rows)  engine rows with each fill-in estimate on the Analyst charts and Live market set to 0 (no price is an
+ *                     implied 0), plus the Analyst charts average (F.MARKET_KEY)
  *   positionTiers()  {slots:{QB:[median..],..}, teams:[{index, positions:{QB:{ratio, tier, value, score, medianSum,
  *                     players:[record], empty}, ..}}]} — ratio = sum(min(v, 1.25 x slot median)) / sum(slot medians)
  *                     over the league's real per-slot medians from every team's starters; Strong >= 1.10, Average >= 0.90
@@ -241,15 +241,16 @@
   function priced(team) { return (team ? team.players : []).filter(function (p) { return !p.unpriced; }); }
   function recsOf(rows, ix) { return rows.map(function (r) { return ix.get(r); }); }
   // Engine rows for the Analyst charts and Live market figures: a chart's fill-in estimate (row.estimated[k]) is not that
-  // chart's own number, so it is left out as on the page records (ddf-engine.js record), then the Analyst charts average
-  // (F.MARKET_KEY, withChartAverage) is added. DDF Value is untouched.
+  // chart's own number, so it never counts; the chart does not price him, which is an implied 0 (Jeremy, 2026-11-08,
+  // JEG-1393 decision 4: "No price is an implied 0"). A real null (a chart that does not run) stays null. Then the
+  // Analyst charts average (F.MARKET_KEY, withChartAverage) is added. DDF Value is untouched.
   function chartRows(rows) {
     var keys = ANALYST.concat([LIVE]);
     var listed = rows.map(function (r) {
       var est = r.estimated || {};
       if (!keys.some(function (k) { return est[k]; })) return r;
       var v = Object.assign({}, r.values);
-      keys.forEach(function (k) { if (est[k]) v[k] = null; });
+      keys.forEach(function (k) { if (est[k]) v[k] = 0; });
       return Object.assign({}, r, {values: v});
     });
     return F().withChartAverage(listed, ANALYST);
@@ -261,7 +262,7 @@
     var L = F().lineupValue(rows, shape, VALUE_KEY);
     var slots = {};
     POS_ROWS.forEach(function (s) { slots[s] = recsOf(L.slots[s] || [], byRow); });
-    // The chart figures leave out fill-in estimates (chartRows). Each chart side is complete when every DDF starter has
+    // The chart figures count a fill-in estimate as 0 (chartRows). Each chart side is complete when every DDF starter has
     // a value there; a bench player without one adds nothing (JEG-1393 decision 4, 2026-11-08).
     var listed = chartRows(rows), byOrig = new Map(rows.map(function (r, i) { return [r, listed[i]]; }));
     var A = F().lineupValue(listed, shape, F().MARKET_KEY);
