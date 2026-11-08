@@ -202,8 +202,11 @@
   // JEG-1560 (Jeremy 2026-11-07): the chart count is a link to Build a Trade for this trade, scrolled to its charts
   // (build.html?give=..&get=..#trade-charts, the anchor JEG-1559 adds). Same count: charts even or better for them.
   function chartsHref(t) { return hrefFor(t) + "#trade-charts"; }
+  var CHARTS_TITLE = "A chart that doesn’t list a player prices him at zero, below the waiver line. Where the engine fills him in for that chart from the other charts, that estimate counts here.";
   function chartsLink(t) {
-    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t)) + '" aria-label="See the ' + t.rivalOkCount + " of " + t.chartCount
+    // JEG-1393 decision 4 (2026-11-08): the title says how an unlisted player is priced. Find reads the engine rows, so a
+    // player the engine fills in for a chart counts at that estimate here (unlike Buy / Sell, which leaves it out).
+    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + t.rivalOkCount + " of " + t.chartCount
       + ' public trade charts for this trade">' + t.rivalOkCount + "/" + t.chartCount + " public trade charts</a>";
   }
   function card(g, k, mx) {

@@ -50,6 +50,7 @@ body .sitemap .footer{max-width:1040px;margin:0 auto;padding:20px 28px 28px}
 .partners .cmp dd{display:inline;margin:0 0 0 8px;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;font-size:14px;font-weight:600}
 .partners .cmp .verdict{margin:2px 0 0;font-size:13px;color:#39413b}
 .partners .cmp .verdict.good{color:#176c4d}
+.partners .zero-note{margin:6px 0 0;font-size:13px;color:#5c6a76}
 .partners .explain p{margin:0 0 6px;font-size:13px;line-height:1.45;color:#39413b;max-width:78ch}
 .partners .act{text-align:right}
 .partners .sw{display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:0 4px;border:0;background:none;font:700 14px 'Archivo',sans-serif;color:var(--green);cursor:pointer;border-radius:99px}
@@ -108,7 +109,8 @@ body .sitemap .footer{padding:20px}
    (docs/claude-log/2026-11-07-jeg1560-partners-ranking.md): position fit on the positionTiers ratios, ties by the
    DDF Value vs Analyst charts ratio. The Details toggle shows each team's starters on DDF Value, the Analyst charts
    (average of CBS Sports, USA Today, FantasyPros) and the Live market (FantasyCalc) from DDF.league.partnerTags; a
-   source that does not list every starter is not judged (missing is never 0). Skipped teams are saved by name
+   chart that doesn't price a starter (a fill-in estimate) counts him at 0; a chart with no value this week (it does not run)
+   leaves that source not judged (JEG-1393 decision 4). Skipped teams are saved by name
    (DDF.league.setSkipped, sessionStorage ddf:skip); waivers share ddf:waivers and are never a partner or ranked. */
 (()=>{
 const $=id=>document.getElementById(id);
@@ -140,9 +142,9 @@ function reason(t,haveMe){
 const pctOver=(a,b)=>Math.round((a/b-1)*100);
 const EDGE=DDF.league.RULES.EDGE;   // the 15% rule (DECISIONS "DDF edge threshold 15%"), for both sources
 // Analyst charts / Live market vs DDF Value on this team's starters; "good" = DDF Value is higher, so their players
-// cost you less there than we rate them. ratio null = that source does not list every starter: not judged.
+// cost you less there than we rate them. ratio null = that source has no value this week for a starter: not judged.
 function verdict(src,ratio,tags){
-  if(ratio===null)return ['','Not judged: the '+src+' do not list every one of their starters.'];
+  if(ratio===null)return ['','Not judged: the '+src+' have no value this week for one of their starters.'];
   if(ratio>=1){const n=pctOver(ratio,1),head='DDF Value is '+n+'% higher than the '+src;
     return ratio>=EDGE?['good',head+': their starters cost less there than we rate them, which is good for you when you trade for them.']:['',head+', under the 15% gap we count as a real discount.'];}
   return ['','The '+src+' rate their starters '+pctOver(1,ratio)+'% above DDF Value: their players cost more there than we rate them.'];
@@ -154,7 +156,8 @@ function details(t){
    '<div class="cmp"><dt>Their starters on DDF Value</dt><dd data-v="ddf">'+fx(p.ddf)+'</dd></div>'+
    '<div class="cmp"><dt>Same starters on the Analyst charts</dt><dd data-v="analyst">'+fx(a)+'</dd><p class="verdict '+ac+'">'+esc(at)+'</p></div>'+
    '<div class="cmp"><dt>Same starters on the Live market</dt><dd data-v="live">'+fx(l)+'</dd><p class="verdict '+lc+'">'+esc(lt)+'</p></div></dl>'+
-   '<details class="explain"><summary>What these compare</summary><p>We add up this team\'s starters three ways: DDF Value, the Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and the Live market (FantasyCalc). When DDF Value is higher, that source prices their starters lower than we do, which is good for you when you trade for them. When it is lower, their players cost more there. A starter a source does not list leaves that line not judged; it is never counted as 0.</p></details></details>';
+   '<p class="zero-note">A chart that doesn’t price a starter counts him at zero.</p>'+
+   '<details class="explain"><summary>What these compare</summary><p>We add up this team\'s starters three ways: DDF Value, the Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and the Live market (FantasyCalc). When DDF Value is higher, that source prices their starters lower than we do, which is good for you when you trade for them. When it is lower, their players cost more there. A chart that doesn’t price a starter counts him at zero: a value the engine fills in for a chart that does not list him is not that chart’s own number, so it counts as 0. A chart that has no value this week (it does not run) leaves that line not judged.</p></details></details>';
 }
 function row(t,i,haveMe){
   const top=haveMe&&t.rank<=TOP&&t.score>0;

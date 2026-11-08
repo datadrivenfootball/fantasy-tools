@@ -30,7 +30,11 @@
  *   opponents()      every other team that has players (waivers are never a team here)
  *   lineup(team)     {starters, bench, slots:{QB,RB,WR,TE,FLEX,SUPERFLEX}, empty, unpriced, starterValue, benchValue, total,
  *                     analyst:{starterValue, total, complete}, live:{starterValue, total, complete}} — records, engine
- *                     values; analyst = mean of CBS Sports, USA Today, FantasyPros rows (withChartAverage), live = FantasyCalc
+ *                     values; analyst = mean of CBS Sports, USA Today, FantasyPros rows (withChartAverage), live = FantasyCalc,
+ *                     both on chartRows (a fill-in estimate counts as 0); a side is complete when every DDF starter has
+ *                     a value there, so only a real null (a chart that does not run) leaves it incomplete (JEG-1393 d4)
+ *   chartRows(rows)  engine rows with each fill-in estimate on the Analyst charts and Live market set to 0 (no price is an
+ *                     implied 0), plus the Analyst charts average (F.MARKET_KEY)
  *   positionTiers()  {slots:{QB:[median..],..}, teams:[{index, positions:{QB:{ratio, tier, value, score, medianSum,
  *                     players:[record], empty}, ..}}]} — ratio = sum(min(v, 1.25 x slot median)) / sum(slot medians)
  *                     over the league's real per-slot medians from every team's starters; Strong >= 1.10, Average >= 0.90
@@ -236,6 +240,21 @@
   /* ---- reads on the engine rows ---- */
   function priced(team) { return (team ? team.players : []).filter(function (p) { return !p.unpriced; }); }
   function recsOf(rows, ix) { return rows.map(function (r) { return ix.get(r); }); }
+  // Engine rows for the Analyst charts and Live market figures: a chart's fill-in estimate (row.estimated[k]) is not that
+  // chart's own number, so it never counts; the chart does not price him, which is an implied 0 (Jeremy, 2026-11-08,
+  // JEG-1393 decision 4: "No price is an implied 0"). A real null (a chart that does not run) stays null. Then the
+  // Analyst charts average (F.MARKET_KEY, withChartAverage) is added. DDF Value is untouched.
+  function chartRows(rows) {
+    var keys = ANALYST.concat([LIVE]);
+    var listed = rows.map(function (r) {
+      var est = r.estimated || {};
+      if (!keys.some(function (k) { return est[k]; })) return r;
+      var v = Object.assign({}, r.values);
+      keys.forEach(function (k) { if (est[k]) v[k] = 0; });
+      return Object.assign({}, r, {values: v});
+    });
+    return F().withChartAverage(listed, ANALYST);
+  }
   function lineup(team) {
     var recs = priced(team), rows = recs.map(function (r) { return r.row; });
     var byRow = new Map(recs.map(function (r) { return [r.row, r]; }));
@@ -243,14 +262,17 @@
     var L = F().lineupValue(rows, shape, VALUE_KEY);
     var slots = {};
     POS_ROWS.forEach(function (s) { slots[s] = recsOf(L.slots[s] || [], byRow); });
-    var avgRows = F().withChartAverage(rows, ANALYST);
-    var A = F().lineupValue(avgRows, shape, F().MARKET_KEY);
-    var Lv = F().lineupValue(rows, shape, LIVE);
-    var side = function (v) { return {starterValue: v.starterValue, total: v.total, complete: v.unvalued.length === 0, starters: v.starters.length, unvalued: v.unvalued.length}; };
+    // The chart figures count a fill-in estimate as 0 (chartRows). Each chart side is complete when every DDF starter has
+    // a value there; a bench player without one adds nothing (JEG-1393 decision 4, 2026-11-08).
+    var listed = chartRows(rows), byOrig = new Map(rows.map(function (r, i) { return [r, listed[i]]; }));
+    var A = F().lineupValue(listed, shape, F().MARKET_KEY);
+    var Lv = F().lineupValue(listed, shape, LIVE);
+    var startersListed = function (key) { return L.starters.every(function (r) { return finite(byOrig.get(r).values[key]); }); };
+    var side = function (v, key) { return {starterValue: v.starterValue, total: v.total, complete: startersListed(key), starters: v.starters.length, unvalued: v.unvalued.length}; };
     return {starters: recsOf(L.starters, byRow), bench: recsOf(L.bench, byRow), unvalued: recsOf(L.unvalued, byRow), slots: slots, empty: L.empty,
       unpriced: (team ? team.players : []).filter(function (p) { return p.unpriced; }),
       starterValue: L.starterValue, benchValue: L.benchValue, total: L.total, counts: L.counts,
-      analyst: side(A), live: side(Lv)};
+      analyst: side(A, F().MARKET_KEY), live: side(Lv, LIVE)};
   }
   function median(values) { return window.TradeValueTeamSummary.median(values); }
   var tierOf = function (ratio) { return ratio >= STRONG ? "strong" : ratio >= AVERAGE ? "average" : "weak"; };
@@ -398,6 +420,7 @@
     setSkipped: function (names) { setList("skip", names); },
     waiversOn: function () { try { return sessionStorage.getItem("ddf:waivers") !== "0"; } catch (e) { return true; } },
     setWaiversOn: function (on) { try { sessionStorage.setItem("ddf:waivers", on ? "1" : "0"); } catch (e) { /* this visit only */ } },
+    chartRows: chartRows,
     refresh: changed,
     on: function (fn) { listeners.push(fn); return function () { listeners = listeners.filter(function (f) { return f !== fn; }); }; },
     RULES: {CAP: CAP, STRONG: STRONG, AVERAGE: AVERAGE, EDGE: EDGE, ANALYST: ANALYST, LIVE: LIVE, VALUE_KEY: VALUE_KEY}
