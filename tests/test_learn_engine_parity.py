@@ -459,6 +459,96 @@ class LearnEngineParity(unittest.TestCase):
         self.assertIn(f"DDF Value {f1(new_ddf)}.", after, f"status kept the old setting: {after!r}")
         self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
 
+    def test_round6_waiver_line_and_notes(self):
+        """R6-OP-01: the waiver line row and the Trace derive the line from each league allocation's own run, recomputed
+        here from TradeValueCurveHarness.runPipelineWith (never the page model): the player at the first seat past the
+        heaviest allocation's rostered count, and the weight-average of every allocation's line equals the engine's.
+        R6-OP-02: the spread band's end is the D'Hondt N′, not the league's rostered count. R6-OP-03: the intro.
+        R6-OP-07: superflex Josh Allen on USA Today states the engine's restatement when the subtraction differs."""
+        cases = [(("ppr", 12, 0), "cbs", None), (("half_ppr", 10, 1), "usatoday", "Josh Allen")]
+        engine_js = """(a) => { const H = TradeValueCurveHarness, ins = TradeValueCurveControls.getInspection(), vp = ins.valuePipeline;
+          const s = DDFNumbers.snapshot(); let key = null, pos = 'RB';
+          if (a.name) { const p = s.players.find(p => p.name === a.name); key = String(p.player_key); pos = p.pos; }
+          else key = String(s.players.filter(p => p.pos === 'RB' && ins.players[a.s][String(p.player_key)]).sort((x, y) => y.ddf - x.ddf)[0].player_key);
+          const mix = vp.allocationMix && vp.allocationMix.length > 1 ? vp.allocationMix : [{weight: 1, allocation: (vp.allocationMix && vp.allocationMix[0] || {}).allocation || vp.allocation}];
+          const reads = mix.map(m => { const r = mix.length > 1 ? H.runPipelineWith({seatAllocation: m.allocation}) : {sources: {[a.s]: {players: ins.players[a.s], positions: vp.sources[a.s].positions}}};
+            const src = r.sources[a.s], P = src.positions[pos];
+            const work = Object.entries(src.players).filter(([k, q]) => q.pos === pos && isFinite(q.rank)).sort((x, y) => x[1].rank - y[1].rank);
+            const W = m.allocation[pos].rostered, at = work[W];
+            return {weight: m.weight, W, waiver: P.waiver, key: at && at[0], native: at && at[1].native, est: !!(at && at[1].estimated)}; });
+          const p = ins.players[a.s][key], P = vp.sources[a.s].positions[pos], o = vp.sources[a.s];
+          const nm = k => (s.players.find(q => String(q.player_key) === k) || {}).name || null;
+          return {key, pos, reads, names: reads.map(r => nm(r.key)), waiver: P.waiver, rostered: P.rostered, cs: vp.chartSigma[pos],
+            native: p.native, vorp: p.vorp, vorpDisplay: p.vorpDisplay, factor: o.vorpFactor, n: mix.length}; }"""
+        got = {}
+        with serve() as base, self.sync_playwright() as p:
+            browser, page, console = self._page(p, base, viewport=(390, 844))
+            for (scoring, teams, sf), src, name in cases:
+                q = f"?scoring={scoring}&teams={teams}&roster=" + ROSTER.format(sf=sf)
+                go(page, "#numbers/pie" + q)
+                page.wait_for_function(SNAP_READY, arg={"scoring": scoring, "teams": teams, "sf": bool(sf)}, timeout=60000)
+                eng = page.evaluate(engine_js, {"s": src, "name": name})
+                intro = page.text_content("#nx-method")
+                go(page, f"#numbers/build-up/{src}/{eng['pos']}{q}")
+                page.wait_for_selector("#bu-worked-pick", timeout=20000)
+                page.select_option("#bu-worked-pick", eng["key"])
+                page.wait_for_timeout(150)
+                worked = page.evaluate(PAGE_WORKED)["rows"]
+                go(page, f"#numbers/trace/{eng['key']}{q}")
+                page.wait_for_timeout(200)
+                trace = page.text_content("#tr-adj-body")
+                overflow = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
+                got[src] = (eng, intro, worked, trace, overflow)
+            browser.close()
+        u = lambda v, s: f"{round(v):,}" if s == "fantasycalc" else f"{v:.2f}"
+        for src, (eng, intro, worked, trace, overflow) in got.items():
+            pos, reads = eng["pos"], eng["reads"]
+            tot = sum(r["weight"] for r in reads)
+            line = sum(r["weight"] * r["waiver"] for r in reads) / tot
+            self.assertAlmostEqual(line, eng["waiver"], places=9, msg=f"{src}: the allocations' lines do not average to the engine's")
+            for r in reads:  # a chart's line is the one player at the first seat past the rostered count
+                self.assertAlmostEqual(r["native"], r["waiver"], places=9, msg=f"{src}: allocation line is not work[W]")
+            h = max(range(len(reads)), key=lambda i: reads[i]["weight"])
+            hr = reads[h]
+            want = f"{pos}{hr['W'] + 1} {eng['names'][h] + ' ' if eng['names'][h] else ''}{'(est.) ' if hr['est'] else ''}{u(hr['native'], src)}"
+            how = worked[f"{pos} waiver line"]["how"]
+            self.assertIn(want, how, src)
+            self.assertIn(want, trace, src)
+            if eng["n"] > 1:
+                ns = [r["W"] for r in reads]
+                self.assertIn(f"weighted over the {eng['n']} league allocations ({min(ns)} to {max(ns)} rostered, read at {pos}{min(ns) + 1} to {pos}{max(ns) + 1}", how, src)
+                self.assertIn(f") = {u(line, src)}", how, src)
+            self.assertNotIn("the engine’s line is", how, src)
+            # R6-OP-02: N′ = the starters plus the D'Hondt bench seats.
+            cs = eng["cs"]
+            want = f"to {cs['rostered']} (the {cs['starters']} seats plus {pos}’s {cs['rostered'] - cs['starters']} bench seats from a fixed D’Hondt split"
+            self.assertIn(want, worked["Spread σ"]["how"], src)
+            if cs["rostered"] != eng["rostered"]:
+                self.assertIn(f"not the league’s {eng['rostered']} rostered", worked["Spread σ"]["how"], src)
+            self.assertIn("his expected share of it in a lineup, after byes and injuries, so together less than the whole", intro)
+            self.assertNotIn("split into a start-worthy part", intro)
+            # R6-OP-07: the restatement, with both numbers, only when the subtraction differs.
+            sub = eng["native"] - eng["waiver"]
+            if u(sub, src) != u(eng["vorp"], src):
+                want = (f"here the engine’s figure is value above waivers on the value pie {eng['vorpDisplay']:.3f} ÷ the averaged value-pie factor "
+                        f"{ffactor(eng['factor'])} = {u(eng['vorp'], src)}; it differs from {u(eng['native'], src)} − {u(eng['waiver'], src)} = {u(sub, src)}")
+                self.assertIn(want, worked[f"Above the waiver line ({'FantasyCalc' if src == 'fantasycalc' else {'cbs': 'CBS Sports', 'usatoday': 'USA Today'}[src]} units)"]["how"], src)
+                self.assertIn(want, trace, src)
+                self.assertAlmostEqual(eng["vorpDisplay"] / eng["factor"], eng["vorp"], places=9)
+            else:
+                self.assertIn(f"{u(eng['native'], src)} − {u(eng['waiver'], src)} = {u(sub, src)}", worked[[k for k in worked if k.startswith("Above the waiver line")][0]]["how"], src)
+            self.assertFalse(overflow, f"{src}: horizontal overflow at 390 px")
+        self.assertNotEqual(u(got["usatoday"][0]["native"] - got["usatoday"][0]["waiver"], "usatoday"), u(got["usatoday"][0]["vorp"], "usatoday"),
+                            "Josh Allen's subtraction matches at this setting; the R6-OP-07 check proves nothing")
+        self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
+
+    def test_round6_bench_weight_scope(self):
+        """R6-CX-01: the glossary scopes Bench weight to the comparisons that use it and says Team's totals count in full."""
+        html = (DIST / "learn.html").read_text(encoding="utf-8")
+        self.assertIn("Team’s “Your roster” and ROSTER DDF totals do not use it: they count every player’s DDF Value in full.", html)
+        self.assertIn("Team’s best move, the trade fit (Build a Trade’s Why", html)
+        self.assertNotIn("when Team, Build a Trade and Buy / Sell’s natural fit add up a roster", html)
+
     def test_round5_glossary(self):
         """R5-OP-02 / R5-OP-03 / R5-OP-05: the new terms and the parts as value amounts."""
         html = (DIST / "learn.html").read_text(encoding="utf-8")

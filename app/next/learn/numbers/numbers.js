@@ -468,6 +468,43 @@
     var ok = Math.abs(L.line - w.starterLine) <= 1e-6 * Math.max(1, Math.abs(w.starterLine));
     return body + (ok ? '' : '; the engine’s line is ' + plain(w.starterLine));
   }
+  /* R6-OP-01: the waiver line's derivation, read from each league allocation's own list (learn-engine.js
+     waiverLineParts). Says so when the weighted reads do not give the engine's line. */
+  var WAIVER_RULE = { chart: 'the value of the first player past the league’s rostered count on this chart’s list', projection: 'the mean of the 7 players around the first seat past the league’s rostered count on this projection’s list' };
+  function waiverText(w, pos, plain) {
+    var L = w.waiverLineParts;
+    if (!L || !L.reads.length) return '';
+    var proj = L.family === 'projection';
+    var one = function (x) {
+      if (x.short) return 'the list ends before seat ' + (x.rostered + 1) + ', so the last player listed, ' + pos + x.listed + ' ' + nameOf(x.key) + plain(x.value);
+      if (proj) return pos + x.lo + '–' + pos + x.hi + ', mean ' + plain(x.waiver);
+      return pos + (x.rostered + 1) + ' ' + nameOf(x.key) + (x.estimated ? '(est.) ' : '') + plain(x.value);
+    };
+    var h = L.heavy, many = L.reads.length > 1;
+    var body = one(h) + (many ? ' at the heaviest allocation (' + h.rostered + ' ' + pos + 's rostered)' : ' (' + h.rostered + ' ' + pos + 's rostered)');
+    if (many) {
+      var ns = L.reads.map(function (x) { return x.rostered; });
+      var lo = Math.min.apply(null, ns), hi = Math.max.apply(null, ns);
+      var seats = lo === hi ? pos + (lo + 1) : proj ? 'bands around ' + pos + (lo + 1) + ' to ' + pos + (hi + 1) : pos + (lo + 1) + ' to ' + pos + (hi + 1);
+      var keys = L.reads.map(function (x) { return x.key; });
+      var same = !proj && keys.every(function (k) { return k && k === keys[0]; });
+      body += '; weighted over the ' + L.reads.length + ' league allocations (' + (lo === hi ? lo : lo + ' to ' + hi) + ' rostered, read at ' + seats +
+        (same && lo !== hi ? ', the same player in each allocation’s own list' : '') + ') = ' + plain(L.line);
+    }
+    var ok = Math.abs(L.line - w.waiver) <= 1e-6 * Math.max(1, Math.abs(w.waiver));
+    return body + (ok ? '' : '; the engine’s line is ' + plain(w.waiver));
+  }
+  function nameOf(key) { var p = byKey[key]; return p ? p.name + ' ' : ''; }
+  /* R6-OP-07: above the waiver line is published − waiver line only when the allocations agree; the engine's figure is
+     value above waivers on the value pie ÷ the averaged value-pie factor (value-model.js vpBlendSourcePlayers). */
+  function aboveText(w, plain) {
+    if (![w.published, w.waiver, w.aboveWaivers].every(num)) return '';
+    var diff = w.published - w.waiver;
+    var sub = plain(w.published) + ' − ' + plain(w.waiver) + ' = ' + plain(diff);
+    if (plain(diff) === plain(w.aboveWaivers) || !num(w.aboveWaiversPie) || !num(w.vorpFactor)) return sub;
+    return 'here the engine’s figure is value above waivers on the value pie ' + w.aboveWaiversPie.toFixed(3) + ' ÷ the averaged value-pie factor ' + fFactor(w.vorpFactor) + ' = ' + plain(w.aboveWaivers) +
+      '; it differs from ' + sub + ' because each of the ' + w.allocations + ' league allocations has its own waiver line and value-pie factor';
+  }
   function spreadText(w, pos) {
     if (!num(w.sigmaRel)) return '';
     var c = w.chartSpread;
@@ -480,7 +517,8 @@
     var core = c.band > 0
       ? pos + ' chart spread rate ' + c.rate.toFixed(4) + ' = the median chart disagreement at ' + pos + ' ranks ' + first + '–' + last +
         ' (' + c.band + ' players at least two charts list, each chart scaled to one total and the players ranked by their average; the band runs from half the ' +
-        c.starters + ' seats ' + pos + ' could start in, every flex and superflex seat counted, to its ' + c.rostered + ' rostered or the end of the list). A player’s disagreement is the standard deviation of the charts’ scaled values ÷ their average'
+        c.starters + ' seats ' + pos + ' could start in, every flex and superflex seat counted, to ' + c.rostered + ' (the ' + c.starters + ' seats plus ' + pos + '’s ' + (c.rostered - c.starters) + ' bench seats from a fixed D’Hondt split' +
+        (num(w.leagueRostered) && w.leagueRostered !== c.rostered ? ', not the league’s ' + w.leagueRostered + ' rostered' : '') + ') or the end of the list). A player’s disagreement is the standard deviation of the charts’ scaled values ÷ their average'
       : pos + ' chart spread rate ' + c.rate.toFixed(4) + ', the default (no players in the band)';
     return core + (conf !== 1 ? '; × projection confidence ' + conf + ' = ' + (c.rate * conf).toFixed(4) : '') +
       (Math.abs(c.rate * conf - w.sigmaRel) > 1e-9 ? '; the engine uses ' + w.sigmaRel.toFixed(4) : '');
@@ -558,9 +596,9 @@
       model.rows.map(function (x) { return '<option value="' + esc(x.key) + '"' + (x.key === r.key ? ' selected' : '') + '>' + esc(x.name + ' (' + x.pos + ')') + '</option>'; }).join('') + '</select></div>' +
       '<div class="nx-scroll"><table class="nx-table nx-worked"><caption class="nx-sr">' + esc(r.name) + ': ' + (chart ? 'published' : 'projection') + ' to adjusted value</caption><tbody>' +
       row(chart ? 'Published' + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') : 'Projected points', w.published, 'units') +
-      row(r.pos + ' waiver line', w.waiver, 'units') +
+      row(r.pos + ' waiver line', w.waiver, 'units', withNums('= ' + WAIVER_RULE[chart ? 'chart' : 'projection'].replace(chart ? 'this chart’s' : 'this projection’s', label(src) + '’s'), waiverText(w, r.pos, plain))) +
       row(r.pos + ' starter line', w.starterLine, 'units', withNums('= the midpoint of the last starter’s and the first non-starter’s values on ' + label(src) + '’s list at your league’s counts, never below the waiver line', lineText(w, r.pos, plain))) +
-      row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units') +
+      row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units', withNums('= ' + (chart ? 'published' : 'projected points') + ' − waiver line', aboveText(w, plain))) +
       row('Value above waivers (on the value pie)', w.aboveWaiversPie, 'f1', fx.pieVaw ? withNums('= above the waiver line × this source’s value-pie factor', fx.pieVaw) + (fx.pieFactor ? '. ' + fx.pieFactor : '') : '') +
       row('Availability', w.availability, 'pct', withNums('= (1 − bye share) × (1 − the position’s missed-game rate)', availText(w, r.pos))) +
       row('Spread σ', w.sigma, 'units', fx.sigma ? withNums('= ' + r.pos + (chart ? ' chart spread rate' : ' projection spread rate') + ' × ' + (chart ? 'published' : 'projected points'), fx.sigma) + (spreadText(w, r.pos) ? '. ' + spreadText(w, r.pos) : '') : '',
@@ -573,7 +611,7 @@
       row('Starter rate', w.starterRate, 'rate', withNums('= ' + r.pos + ' starter budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' start-worthy parts', fx.starterRate) + '. ' + andThen(weightText(w.starterWeightInputs, r.pos, 'starter')) + rateNote(w)) +
       row('Fill-in rate', w.fillInRate, 'rate', withNums('= ' + r.pos + ' fill-in budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' fill-in parts', fx.fillInRate) + '. ' + andThen(weightText(w.fillInWeightInputs, r.pos, 'fill-in')) + rateNote(w)) +
       '<tr><th scope="row">Adjusted = start-worthy part × starter rate + fill-in part × fill-in rate</th><td class="nx-n">' + esc(workedEquation(w)) + '</td></tr>' +
-      '</tbody></table></div><p class="nx-hint">The lines, the value above the waiver line and the parts are in ' + unitWord + '; value above waivers on the value pie is the site’s Value above waivers for this source. The league’s roster sets the waiver line and the starter line at his position; the engine averages them over the seat counts the league can produce, so ' + (chart ? 'the published value' : 'the projection') + ' minus the waiver line can differ a little from the value above the waiver line. ' +
+      '</tbody></table></div><p class="nx-hint">The lines, the value above the waiver line and the parts are in ' + unitWord + '; value above waivers on the value pie is the site’s Value above waivers for this source. The league’s roster sets the waiver line and the starter line at his position; the engine works out each seat count the league can produce on its own and restates the value above the waiver line as value above waivers on the value pie ÷ the averaged value-pie factor, so ' + (chart ? 'the published value' : 'the projection') + ' minus the waiver line can differ a little from the value above the waiver line. ' +
       'The rates fund each position’s starter and fill-in budget from the value pie (' + esc(pieText()) + '). ' + partsNote() +
       (chart ? ' The chart is adjusted from its published numbers: multiplying them by one factor (indexing) would change the rates by the opposite factor and leave the adjusted value the same.' : '') +
       ' The engine keeps full precision; a dash means it does not expose that readout.</p></details>';
@@ -629,9 +667,10 @@
       if (!w) return '<li><b>' + esc(label(s)) + '</b> does not list ' + esc(p.name) + (r && num(r.adjusted) ? '; its adjusted value is ' + f1(r.adjusted) + (r.adjusted === 0 ? ' (his value is at or below its waiver line)' : '') + '.' : '.') + '</li>';
       if (!shared) shared = w;
       var u = function (n) { return !num(n) ? DASH : s === 'fantasycalc' ? fInt(n) : n.toFixed(2); };
-      var line = lineText(w, p.pos, u);
-      return '<li><b>' + esc(label(s)) + '</b>: published ' + u(w.published) + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') + ' − ' + esc(p.pos) + ' waiver line ' + u(w.waiver) +
-        ' → ' + u(w.aboveWaivers) + ' above the waiver line (' + esc(label(s)) + ' units' + (num(w.aboveWaiversPie) ? '; value above waivers on the value pie ' + f1(w.aboveWaiversPie) : '') + ')' +
+      var line = lineText(w, p.pos, u), wline = waiverText(w, p.pos, u), above = aboveText(w, u);
+      return '<li><b>' + esc(label(s)) + '</b>: published ' + u(w.published) + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') + ' − ' + esc(p.pos) + ' waiver line ' + u(w.waiver) + (wline ? ' (' + esc(WAIVER_RULE.chart) + ': ' + esc(wline) + ')' : '') +
+        ' → ' + u(w.aboveWaivers) + ' above the waiver line (' + esc(label(s)) + ' units' + (num(w.aboveWaiversPie) ? '; value above waivers on the value pie ' + f1(w.aboveWaiversPie) : '') +
+        (above && above.indexOf('engine’s figure') >= 0 ? '; ' + esc(above) : '') + ')' +
         (num(w.starterLine) ? '; ' + esc(p.pos) + ' starter line ' + u(w.starterLine) + (line ? ' = ' + esc(line) : '') : '') +
         traceParts(w, s, u) + '; adjusted = ' + esc(workedEquation(w)) +
         ' <a href="' + link('build-up', s) + '" data-worked="' + esc(String(p.player_key)) + '">every step</a></li>';
@@ -746,7 +785,7 @@
     state.query = settingsQuery(st);
     $('nx-snapshot').textContent = snapshotLine();
     $('nx-settings').textContent = settingsLine(st) + ' · ' + overridesLine();
-    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' trade charts (' + chartMix() + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, split into a start-worthy part and a fill-in part against your league’s starter line, each paid at its group’s rate.';
+    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' trade charts (' + chartMix() + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, turned into a start-worthy part and a fill-in part against your league’s starter line (his expected share of it in a lineup, after byes and injuries, so together less than the whole), each paid at its group’s rate.';
     $('nx-sources').textContent = 'The analyst charts are CBS Sports, USA Today and FantasyPros; the live market is FantasyCalc. A chart that is held this week is left out of the average, never counted as zero.';
     $('set-scoring').value = st.scoring;
     $('set-teams').value = String(st.teams);

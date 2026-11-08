@@ -187,6 +187,7 @@
       chartSpread: vsrc.family === 'chart' && cs ? { rate: finite(cs.sigma_rel), band: finite(cs.band), starters: finite(cs.starters),
         rostered: finite(cs.rostered), players: finite(cs.players) } : null,
       starterLineParts: starterLineParts(ins, source, p.pos, posInfo),
+      waiverLineParts: waiverLineParts(snap, source, p.pos, posInfo), leagueRostered: finite(posInfo.rostered),
       starterWeightInputs: weightInputs(vp, sg, p.pos), fillInWeightInputs: weightInputs(vp, bg, p.pos),
       fillPath: est ? est.path || null : null,
       sigmaRel: sigmaRel, sigmaFloor: sigmaFloor, sigma: sigma,
@@ -231,6 +232,61 @@
     });
     var line = groups.reduce(function (t, g) { return t + g.share * g.line; }, 0);
     return { groups: groups, line: line, waiver: waiver };
+  }
+  /* JEG-1393 R6-OP-01: where the waiver line comes from (value-model.js VP-2.3: a chart reads the one player at the
+     first seat past the rostered count, work[W]; a projection the mean of the 7 players around it). Each league
+     allocation lists its own players, so the line is read from each allocation's own run (TradeValueCurveHarness
+     .runPipelineWith, read-only, the same call Full value logic's builder makes), once per snapshot. A league whose
+     waiver line follows a replacement player's own row is left without a derivation. */
+  function allocationRuns(snap) {
+    if (snap._allocRuns !== undefined) return snap._allocRuns;
+    var H = window.TradeValueCurveHarness, vp = (snap.inspection && snap.inspection.valuePipeline) || {};
+    var mix = Array.isArray(vp.allocationMix) && vp.allocationMix.length ? vp.allocationMix : null;
+    var runs = null;
+    try {
+      if (!mix || mix.length === 1) runs = [{ weight: 1, res: null, allocation: mix ? mix[0].allocation : vp.allocation }];
+      else if (H && H.runPipelineWith) runs = mix.map(function (m) { return { weight: m.weight, res: H.runPipelineWith({ seatAllocation: m.allocation }), allocation: m.allocation }; });
+    } catch (e) { runs = null; }
+    snap._allocRuns = runs;
+    return runs;
+  }
+  function waiverLineParts(snap, source, pos, posInfo) {
+    var ins = snap && snap.inspection, waiver = finite(posInfo.waiver);
+    if (!ins || waiver === null) return null;
+    var vsrc = (ins.valuePipeline && ins.valuePipeline.sources && ins.valuePipeline.sources[source]) || {};
+    var family = vsrc.family || null;
+    var runs = allocationRuns(snap);
+    if (!runs) return null;
+    var reads = [];
+    for (var j = 0; j < runs.length; j++) {
+      var r = runs[j];
+      /* One allocation and no rerun: the inspection itself is that allocation's run. */
+      var src = r.res ? (r.res.sources || {})[source] : { players: ins.players[source], positions: vsrc.positions };
+      var P = src && src.positions && src.positions[pos];
+      if (!P || P.bench_basis === 'above_replacement' || finite(P.waiver) === null) return null;
+      var ps = src.players || {};
+      var work = Object.keys(ps).filter(function (k) { return ps[k].pos === pos && finite(ps[k].rank) !== null && finite(ps[k].native) !== null; })
+        .sort(function (a, b) { return ps[a].rank - ps[b].rank; });
+      var a = r.allocation && r.allocation[pos];
+      var W = finite(P.replacement) !== null ? P.replacement : a ? finite(a.rostered) : finite(P.rostered);
+      if (W === null) return null;
+      var read = { weight: finite(r.weight) || 0, rostered: W, listed: work.length, waiver: P.waiver };
+      if (work.length > W) {
+        if (family === 'projection') {
+          read.lo = Math.max(0, W - 3) + 1; read.hi = Math.min(work.length, W + 4);
+        } else {
+          read.key = work[W]; read.value = ps[work[W]].native; read.estimated = Boolean(ps[work[W]].estimated);
+        }
+      } else if (work.length) {
+        read.short = true; read.key = work[work.length - 1]; read.value = ps[read.key].native;
+      } else return null;
+      reads.push(read);
+    }
+    var tot = reads.reduce(function (t, x) { return t + x.weight; }, 0);
+    if (!tot) return null;
+    var heavy = reads.reduce(function (h, x) { return x.weight > h.weight ? x : h; }, reads[0]);
+    var line = reads.reduce(function (t, x) { return t + x.weight * x.waiver; }, 0) / tot;
+    return { family: family, reads: reads, heavy: heavy, line: line, waiver: waiver, allocations: reads.length };
   }
   /* One group's DDF weight and the included sources' own shares it averages (value-model.js VP-4, ES-15.1: each source
      counts where it has weights and players at the position; held sources are in the included set). */
