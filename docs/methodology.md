@@ -460,6 +460,15 @@ chart DDF Value").
 
 ### VP-4 DDF weights
 
+**VP-4.1 to 4.3: fixed-share mode only (not live).** Live is expected-starts
+mode (ES-15.1): `W` is the per-group mean of the sources' own weights `w_s`
+over the sources VP-4.1 counts at that position (hidden ones included),
+renormalized to 1, and the bench share is an output (`benchShareApplied`, the
+bench groups' total: 6.5% at the default setting on 2026-11-07), not `bs`.
+Do not confuse it with the ES-14 bench-share readout (the bench tier's share
+of each position's DDF Value, which Team calls the bench weight; overall 8.3%
+that day). JEG-1393 R4 (OP-01, OP-11).
+
 1. `Sraw[p]` = the mean of `sig_s[p]`, and `Braw[p]` = the mean of
    `beta_s[p]`, each over the sources in `I` that have weights (VP-3.2), have
    that mix defined and do not have `no_players` at `p`. Empty means 0.
@@ -1124,6 +1133,13 @@ work list of VP-2.4).
 4. `share_p(x) = avail_p x [ P(X > l_p) + sum over k of fill_k x
    P(e_k < X <= e_(k-1)) ]`. Mass below `w_p` counts nothing. `share` is
    between 0 and `avail_p`, and non-decreasing in `x`.
+5. The probabilities in 4 come from `Phi`, the standard normal cumulative
+   distribution (`Phi(z)` = the chance a standard normal variable is at or
+   below `z`; `Phi(0) = 0.5`): `P(X > l) = 1 - Phi((l - x) / s(x))` and
+   `P(lo < X <= hi) = Phi((hi - x) / s(x)) - Phi((lo - x) / s(x))`
+   (value-model.js `esPhi`, `esProbBand`). The flex share of VP-2.2g uses the
+   same `Phi`, so a candidate exactly at the cutoff holds half a seat
+   (JEG-1393 R4, CX-01).
 
 **ES-5 The two parts replace the slices of VP-2.6.** For every player on the
 work list, with `v_i = max(0, x_i - w_p)` unchanged:
@@ -1430,7 +1446,11 @@ worked example's `variant_expected_starts` and
    `N_p` of the projected-points order (VP-2.2); its share is the sum of
    their blended DDF Value over the sum over every player in that order, and
    `overall` the same over all four positions. Blended over `I`, the reader's
-   input selection ignored (as the Indexed basis). With the override on the
+   input selection ignored and hidden sources left out (as the Indexed
+   basis, which it reads). It is set in each allocation and weight-averaged.
+   This is the "bench weight" of the glossary and Team (app/v2/finder.js
+   `benchWeights`); it is not the bench share applied of 1, which averages
+   every included source, hidden ones too. With the override on the
    readout reports `override: true` and the shares the override produces.
    `expected_starts_model.bench_share_readout()` computes it through the
    Python reference; the module's standalone analysis run (no fill-in, flex

@@ -115,8 +115,17 @@ EXTRA_JS = """() => {
       runs = mix.map(m => {
         const res = H.runPipelineWith({seatAllocation: m.allocation});
         const src = {};
-        Object.entries(res.sources || {}).forEach(([k, s]) => { src[k] = [s.surplusTotal, s.vorpFactor]; });
-        return {weight: m.weight, sources: src};
+        // JEG-1393 R4 (OP-03): each group's total and rate in this
+        // allocation, and each player's two parts, so the page can show the
+        // averaged rate as a sum over allocations (the builder keeps one
+        // example player per source).
+        Object.entries(res.sources || {}).forEach(([k, s]) => {
+          const parts = {};
+          Object.entries(s.players || {}).forEach(([pk, q]) => { parts[pk] = [q.benchSlice, q.starterSlice]; });
+          src[k] = [s.surplusTotal, s.vorpFactor, clone(s.groups), clone(s.rates), parts,
+                    clone(s.unfundedMoved), clone(s.unfundedGroups)];
+        });
+        return {weight: m.weight, pie: res.pie, ddfWeights: clone(res.ddfWeights), sources: src};
       });
     }
   } catch (e) { runs = null; }
@@ -170,6 +179,82 @@ def vorp_runs(raw: dict) -> dict:
         target = s.get("vorpFactor") or 0
         if target and abs(blended - target) <= RUN_TOL * abs(target):
             out[k] = [[r(w / tot, 6), r(st, 6), r(f, 9)] for w, st, f in rows]
+    return out
+
+
+def _close(a: float, b: float, tol: float = RUN_TOL) -> bool:
+    return abs(a - b) <= tol * max(abs(a), abs(b), 1e-12) or abs(a - b) <= 1e-12
+
+
+def rate_runs(raw: dict) -> dict:
+    """JEG-1393 R4 (OP-03). Per source, across the allocation mix:
+    `groups`: {group: [[weight, W_a, group total_a, rate_a], ...]} for each
+    group whose weighted rates give the engine's averaged rate to RUN_TOL
+    (`budget` says whether rate_a = pie x W_a / group total_a holds in every
+    allocation, i.e. no budget was moved to the other role);
+    `example`: one player (the largest averaged fill-in part) with
+    [[weight, fill-in_a, start-worthy_a], ...], kept only when
+    sum(weight x rate_a x part_a) / averaged rate gives the shown parts.
+    Empty with one allocation."""
+    runs = (raw.get("extra") or {}).get("vorpRuns") or []
+    if len(runs) < 2 or any(len(next(iter(run["sources"].values()), [])) < 5 for run in runs):
+        return {}
+    vp = raw["inspection"]["valuePipeline"]
+    players = raw["inspection"].get("players") or {}
+    tot = sum(run["weight"] for run in runs)
+    out = {}
+    for k, s in (vp.get("sources") or {}).items():
+        recs = [run["sources"].get(k) for run in runs]
+        if any(not rec or not isinstance(rec[2], dict) or not isinstance(rec[3], dict) for rec in recs):
+            continue
+        rates = s.get("rates") or {}
+        groups = {}
+        for g, target in rates.items():
+            rows = []
+            for run, rec in zip(runs, recs):
+                w_a = (run.get("ddfWeights") or {}).get(g)
+                gt, ra = rec[2].get(g), rec[3].get(g)
+                if not all(isinstance(v, (int, float)) for v in (w_a, gt, ra)):
+                    rows = None
+                    break
+                rows.append([run["weight"] / tot, w_a, gt, ra, run.get("pie")])
+            if not rows or not isinstance(target, (int, float)):
+                continue
+            if not _close(sum(w * ra for w, _, _, ra, _ in rows), target):
+                continue
+            budget = all(isinstance(pie, (int, float)) and gt > 0 and _close(pie * w_a / gt, ra, 1e-9)
+                         or (gt == 0 and ra == 0) for _, w_a, gt, ra, pie in rows)
+            groups[g] = {"budget": budget, "runs": [[r(w, 9), r(w_a, 9), r(gt, 6), r(ra, 9)]
+                                                    for w, w_a, gt, ra, _ in rows]}
+        if not groups:
+            continue
+        entry = {"groups": groups}
+        # The example: the player with the largest averaged fill-in part.
+        best = None
+        for pk, p in (players.get(k) or {}).items():
+            b = p.get("benchSlice")
+            if isinstance(b, (int, float)) and b > 0 and (best is None or b > best[1]):
+                best = (pk, b)
+        if best:
+            pk = best[0]
+            p = players[k][pk]
+            pos = (raw["inspection"]["rows"].get(pk) or {}).get("pos") or p.get("pos")
+            gb, gs = f"{pos}|bench", f"{pos}|starter"
+            parts = [(rec[4] or {}).get(pk) or [0, 0] for rec in recs]
+            rows = [[run["weight"] / tot, *(v if isinstance(v, (int, float)) else 0 for v in pp[:2])]
+                    for run, pp in zip(runs, parts)]
+            ok = gb in groups and gs in groups
+            if ok:
+                for j, (g, shown) in enumerate(((gb, p.get("benchSlice")), (gs, p.get("starterSlice")))):
+                    rate = rates.get(g) or 0
+                    if not rate:
+                        continue
+                    restated = sum(row[0] * rec[3][g] * row[1 + j] for rec, row in zip(recs, rows)) / rate
+                    ok = ok and isinstance(shown, (int, float)) and _close(restated, shown)
+            if ok:
+                entry["example"] = {"pk": pk, "pos": pos,
+                                    "runs": [[r(w, 9), r(b, 6), r(st, 6)] for w, b, st in rows]}
+        out[k] = entry
     return out
 
 
@@ -430,7 +515,7 @@ def trim(raw: dict) -> dict:
         "sensitivity": raw["sensitivity"], "restored": raw["restored"],
         "benchDiscount": bench_discount(),
         "hidden": hidden_sources(raw), "versionSources": version_sources(raw), "vorpRuns": vorp_runs(raw),
-        "heavyRun": heavy_run(raw),
+        "heavyRun": heavy_run(raw), "rateRuns": rate_runs(raw),
         "reconstruction": {"tolerance": CHECK_TOL, "worst": {k: r(v, 6) for k, v in worst.items()}, "off": off},
     }
 
