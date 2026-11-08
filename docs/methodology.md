@@ -1113,7 +1113,9 @@ change to them is a value change and is reviewed as one.
   realized projection error (then `sigma` becomes the measured error).
 - Chart family: the same construction on the four charts after putting each
   on a common scale (one factor per chart over the players all four list):
-  QB 58%, RB 50%, WR 52%, TE 84% this week; no floor (ES-6).
+  no floor (ES-6). At adoption (JEG-536, 2026-10-12) the rates were QB 58%,
+  RB 50%, WR 52%, TE 84%; they move with the charts each week, and Full value
+  logic prints the live rates.
 - The result is insensitive to all of these (ES-7 sensitivity): the decision
   is about the form, not the numbers.
 - The 95% intervals in the table are binomial over team games and are too
@@ -1123,8 +1125,10 @@ change to them is a value change and is reviewed as one.
   JEG-525 item d). Whether `m_RB` should weight recent seasons more is MR-25;
   the bench tier moves by at most 0.15 points across the candidates.
 
-**ES-2 Roster.** VP-2.2 unchanged: dedicated, greedy flex (OC-4 A), the
-greedy bench fill of VP-2.2d (JEG-1121), `S_p` and `N_p` per source. `n_p = max(1, round(S_p / T))` is the
+**ES-2 Roster.** VP-2.2 unchanged: dedicated, then fractional flex seats
+(VP-2.2g, JEG-1335; it replaced the greedy flex of OC-4 A), the bench of
+VP-2.2d (JEG-1121; shared fractionally with no league loaded, VP-2.2g),
+`S_p` and `N_p` per source, set in each allocation of the VP-2.2g mix. `n_p = max(1, round(S_p / T))` is the
 starters per team at `p`, flex winners included.
 
 - **Roster decision (JEG-563, 2026-10-16; supersedes the JEG-521 constraint).**
@@ -1155,8 +1159,10 @@ work list of VP-2.4).
 2. A starter at `p` is unavailable in a week with probability
    `q_p = b + (1 - b) m_p`. The depth-`k` bench player on an average team
    plays when at least `k` of his team's `n_p` starters are out:
-   `fill_k = P(Binomial(n_p, q_p) >= k)`. At 12 teams this week:
-   RB depth 1 about 0.34, depth 2 about 0.04; WR depth 1 about 0.48.
+   `fill_k = P(Binomial(n_p, q_p) >= k)`. At 12 teams at adoption (JEG-536,
+   2026-10-12): RB depth 1 about 0.34, depth 2 about 0.04; WR depth 1 about
+   0.48. They move with the bye share and the starter counts; Full value logic
+   prints the live probabilities.
 3. The level of a player projected at `x` is `X ~ Normal(x, s(x))` with
    `s(x) = max(sigma_p x, sigma_floor,p)` (for a chart, `sigma_chart,p x`).
    `X` is where his projection will sit when a manager sets a lineup, not
