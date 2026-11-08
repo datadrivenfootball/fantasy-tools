@@ -176,9 +176,11 @@ class SettingsPage(unittest.TestCase):
 
     def test_control_render_and_engine(self):
         import re
-        for width in (1440, 390):
+        for width in (1440, 820, 390):
             with self.subTest(width=width):
                 page = self.page(width)
+                clipped = page.evaluate("() => [...document.querySelectorAll('.st-slots .stepper')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
+                self.assertEqual(clipped, 0, "no stepper is clipped (the + button and the number stay visible)")
                 grid = page.locator(".st-slots > label")
                 self.assertEqual([t.split("\n")[0].strip() for t in grid.all_inner_texts()],
                                  ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "Bench"], "two positions in one grid")
@@ -189,7 +191,7 @@ class SettingsPage(unittest.TestCase):
                 self.assertEqual(inp.get_attribute("aria-describedby"), "elig-sf")
                 self.assertEqual(page.locator("#lineup-flex").get_attribute("aria-describedby"), "elig-flex")
                 tops = page.evaluate("() => ['qb','flex','sf','bench'].map(k => Math.round(document.getElementById('lineup-' + k).getBoundingClientRect().top))")
-                if width > 760:
+                if width > 1100:
                     self.assertEqual(len(set(tops)), 1, f"steppers line up across the row: {tops}")
                 boxes = page.evaluate("() => [...document.querySelectorAll('.st-slots .stepper')].map(e => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.top]; })")
                 for a, b in zip(boxes, boxes[1:]):
