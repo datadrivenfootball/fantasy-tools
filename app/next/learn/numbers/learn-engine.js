@@ -168,7 +168,16 @@
     var avail = finite(posInfo.avail), share = finite(p.lineupShare), pStart = finite(p.startWorthy);
     var fill = avail && share !== null && pStart !== null ? Math.max(0, share / avail - pStart) : null;
     var sg = p.pos + '|starter', bg = p.pos + '|bench';
+    /* R4-OP-04: the spread the chance above the starter line uses (esPositionParts: σ = max(rate × native, floor)). */
+    var lineup = posInfo.lineup || {};
+    var sigmaRel = finite(lineup.sigmaRel), sigmaFloor = finite(lineup.sigmaFloor) || 0, native = finite(p.native);
+    var sigma = sigmaRel === null || native === null ? null : native > 0 ? Math.max(sigmaRel * native, sigmaFloor) : sigmaFloor;
     return {
+      sigmaRel: sigmaRel, sigmaFloor: sigmaFloor, sigma: sigma,
+      /* R4-OP-03 / R4-OP-09: how many league allocations the engine averages, and the averaged total value above
+         waivers the value-pie factor divides (vorpFactor = pie ÷ surplusTotal in each allocation). */
+      allocations: Array.isArray(vp.allocationMix) && vp.allocationMix.length ? vp.allocationMix.length : 1,
+      surplusTotal: finite(vsrc.surplusTotal),
       source: source, key: String(key), pos: p.pos, estimated: Boolean(p.estimated), role: p.role || null,
       published: finite(p.native), waiver: finite(posInfo.waiver), starterLine: finite(posInfo.starterLine),
       availability: finite(posInfo.avail), aboveWaivers: finite(p.vorp), startWorthy: finite(p.startWorthy),
