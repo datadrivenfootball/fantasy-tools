@@ -17,6 +17,8 @@
  *   context()              {shape, expected, weights, gate, analyst, ready} from the engine (null before it loads)
  *   searchPartner(ctx, mine, theirs, opts) -> {trades, total, sanityDropped, guardrailDropped, searched, partial}
  *   classify(trade)        'natural' | 'neutral' | 'force' | 'unjudged'
+ *   waiverAlternative(...)  JEG-1572: the best available players at the positions received vs the trade (see below);
+ *                          searchPartner sets trade.waiver and moves a Natural fit a free pickup mostly matches to neutral
  *   group(trades, opts)    TradeValueFinder.groupTrades per class
  *   pickups(ctx, mineEntries, candEntries, token) -> TradeValueWaivers.evaluateAll output (+ dd, roster entries)
  *   entriesOf(team)        DDF.league team -> waivers-style entries [{key, name, pos, team}]
@@ -70,7 +72,8 @@
   }
 
   // One partner, searched the way the live league search searches a pairing. mine / theirs: engine rows (whole rosters).
-  // opts: {your, their, sizes:[1..4], minBench:{QB,RB,WR,TE}, held:Set(player_key)}.
+  // opts: {your, their, sizes:[1..4], minBench:{QB,RB,WR,TE}, held:Set(player_key),
+  //        waivers:[{row, starterDelta}] (the Waivers tab's results for your roster; JEG-1572)}.
   function searchPartner(ctx, mine, theirs, opts) {
     var f = F(), your = valuation(opts.your), their = valuation(opts.their);
     var sizes = (opts.sizes && opts.sizes.length ? opts.sizes : [1, 2]).slice().sort();
@@ -89,6 +92,11 @@
     var fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: your.key, marketKey: their.key,
       chartKeys: ctx.analyst || undefined, z: f.FIT_Z} : null;
     var mineW = widen(mine), theirW = widen(theirs);
+    // A list typed on waivers.html is only checked against your roster: a player on either roster here is not available.
+    var onRoster = new Set(mine.concat(theirs).map(keyOf));
+    var waiverPool = (opts.waivers || []).filter(function (w) { return w && w.row && finite(w.starterDelta) && !onRoster.has(keyOf(w.row)); }).map(function (w) {
+      return {row: widen([w.row])[0], pos: w.row.pos, starterDelta: w.starterDelta};
+    });
     var byKey = new Map(mineW.concat(theirW).map(function (r) { return [keyOf(r), r]; }));
     var wide = function (rows) { return rows.map(function (r) { return byKey.get(keyOf(r)) || r; }); };
     var slots = ctx.shape ? ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX"].reduce(function (n, s) { return n + (ctx.shape[s] || 0); }, 0) : 0;
@@ -103,11 +111,51 @@
         unbalanced: Boolean(t.unbalanced), fit: fit,
         you: fit ? fit.us.starterDelta : null, them: fit ? fit.them.starterDelta : null};
       out.cls = classify(out);
+      // JEG-1572: compare with the best available players at the positions you receive (listed offers only).
+      if (out.cls === "natural" || out.cls === "neutral") {
+        out.waiver = waiverAlternative({give: give, receive: recv, fit: fit}, mineW, theirW, fitCtx, waiverPool);
+        if (out.waiver && out.waiver.demoted && out.cls === "natural") { out.cls = "neutral"; out.waiver.was = "natural"; }
+      }
       return out;
     });
     return {trades: trades, total: res.total, sanityDropped: res.sanityDropped, guardrailDropped: res.guardrailDropped || 0,
       searched: {mine: res.mine, theirs: res.theirs}, partial: theirs.filter(function (r) { return ["QB", "RB", "WR", "TE"].indexOf(r.pos) >= 0; }).length < slots,
       judged: judged};
+  }
+  // JEG-1572 (a friend's real league, 2026-11-08: "willing to give away some of my good RBs to plug a QB hole that could
+  // better be filled via the waiver wire"). Before an offer counts as a Natural fit, the same tradeFit is run again on your
+  // roster with the best available players added at the positions you receive (one per player you receive there, best
+  // first by the Waivers tab's own starter gain; no drop, since a drop only touches the bench). No new value math: two
+  // tradeFit calls on engine rows.
+  //   gain       = your starters' change from the trade (the card's number, fit.us.starterDelta)
+  //   gainAfter  = the same trade's starters' change once those pickups are on your roster
+  //   covered    = (gain - gainAfter) / gain, clamped to 0..1: the share of the trade's gain a free pickup already gets
+  //   demoted    = covered >= WAIVER_SHARE (covered is null when the gain is under 0.05), or your side of the Natural fit test fails once the pickups are in (the trade's
+  //                gain beyond the waiver option no longer beats what it costs you: the starters you send away)
+  // A demoted Natural fit is listed under Partner neutral (its numbers are unchanged). Waivers are never a trade partner:
+  // the pickups only change your own roster for the comparison.
+  var WAIVER_SHARE = 0.5;
+  function waiverAlternative(trade, mineW, theirW, fitCtx, pool) {
+    var f = F();
+    if (!fitCtx || !trade.fit || !pool || !pool.length) return null;
+    var need = {};
+    trade.receive.forEach(function (r) { if (["QB", "RB", "WR", "TE"].indexOf(r.pos) >= 0) need[r.pos] = (need[r.pos] || 0) + 1; });
+    var picks = [];
+    ["QB", "RB", "WR", "TE"].forEach(function (p) {
+      if (!need[p]) return;
+      pool.filter(function (w) { return w.pos === p && w.starterDelta > 0; }).slice()
+        .sort(function (a, b) { return b.starterDelta - a.starterDelta || String(a.row.player_key).localeCompare(String(b.row.player_key)); })
+        .slice(0, need[p]).forEach(function (w) { picks.push(w.row); });
+    });
+    if (!picks.length) return null;
+    var roster = mineW.concat(picks);
+    var fit2 = f.tradeFit({mine: {roster: roster, leaving: trade.give, arriving: trade.receive}, theirs: {roster: theirW, leaving: trade.receive, arriving: trade.give}}, fitCtx);
+    if (!fit2) return null;
+    var gain = trade.fit.us.starterDelta, after = fit2.us.starterDelta;
+    var covered = finite(gain) && finite(after) && gain >= 0.05 ? Math.max(0, Math.min(1, (gain - after) / gain)) : null;
+    var ok = Boolean(fit2.natural && fit2.natural.us && fit2.natural.us.ok);
+    return {players: picks.map(function (r) { return {key: keyOf(r), name: r.name, pos: r.pos}; }), gain: gain, gainAfter: after, netAfter: fit2.us.net,
+      covered: covered, ok: ok, demoted: (covered !== null && covered >= WAIVER_SHARE) || !ok};
   }
   // Natural fit is tradeFit's label (both sides, JEG-1324). Partner neutral: not natural, and the other team's side of the
   // fit is not worse than its noise floor (the live "neutral" / "favorable" reading of their side). The rest are force fits.
@@ -146,5 +194,5 @@
   var shown = function (n) { return Math.abs(n) < 0.05 ? "0.0" : (n > 0 ? "+" : "−") + Math.abs(n).toFixed(1); };
 
   DDF.find = {VALUATIONS: VALUATIONS, valuation: valuation, ANALYST: ANALYST, context: context, searchPartner: searchPartner,
-    classify: classify, group: group, pickups: pickups, entriesOf: entriesOf, rowsOf: rowsOf, shown: shown, finite: finite};
+    classify: classify, group: group, waiverAlternative: waiverAlternative, WAIVER_SHARE: WAIVER_SHARE, pickups: pickups, entriesOf: entriesOf, rowsOf: rowsOf, shown: shown, finite: finite};
 })();

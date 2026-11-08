@@ -26,10 +26,10 @@
   var onBasis = function (b) { return /projections$/.test(b) ? b : b === "Analyst charts" ? "the analyst charts" : b === "Live market (FantasyCalc)" ? "live market (FantasyCalc) value" : b + " value"; };
   function updateBasisText() {
     var B = basis();
-    $("natural-def").textContent = "Both sides improve: your team on " + onBasis(B.you) + ", their team on " + onBasis(B.them) + ".";
+    $("natural-def").textContent = "Both sides improve: your team on " + onBasis(B.you) + ", their team on " + onBasis(B.them) + ". An offer a free pickup mostly matches is listed under Partner neutral.";
     $("neutral-def").textContent = "Your team improves on " + onBasis(B.you) + "; their team does not get worse on " + onBasis(B.them) + " (within the sources' disagreement).";
     $("force-def").textContent = "Your team improves on " + onBasis(B.you) + ", but their team loses on " + onBasis(B.them) + ". Shown so you can see them; they are a harder sell.";
-    $("fit-note").textContent = "Natural fit: both teams improve (you on " + B.you + ", them on " + (B.them === "Analyst charts" ? "the analyst charts" : B.them) + "). Partner neutral: you improve and their side does not get worse. Force fits: they lose; listed only when you pick them.";
+    $("fit-note").textContent = "Natural fit: both teams improve (you on " + B.you + ", them on " + (B.them === "Analyst charts" ? "the analyst charts" : B.them) + "). Partner neutral: you improve and their side does not get worse; an offer where the best available players at the positions you get already close half the gap or more is listed here too. Force fits: they lose; listed only when you pick them.";
     $("sort-ddf").textContent = "Biggest " + B.you + " gain";
     $("sort-note").textContent = "Order offers by how much your starters improve, how much theirs improve, or the biggest " + B.you + " gain.";
   }
@@ -124,11 +124,11 @@
     var heavy = sizes().indexOf(4) >= 0 && list.length > HEAVY_PARTNERS;
     S.heavy = heavy && $("partner").value === "all";
     if (heavy) list = list.filter(function (t) { return String(t.index) === $("partner").value; });
-    var sig = searchSig(cur, ctx, list);
+    var sig = searchSig(cur, ctx, list) + JSON.stringify(waiverPool().map(function (w) { return [keyOf(w.row), w.starterDelta]; }));
     if (!force && sig === S.sig) return render();
     S.sig = sig;
     var token = ++S.token;
-    var mine = DDF.find.rowsOf(me), opts = {your: basis().yv, their: basis().tv, sizes: sizes(), minBench: minBench(), held: held()};
+    var mine = DDF.find.rowsOf(me), opts = {your: basis().yv, their: basis().tv, sizes: sizes(), minBench: minBench(), held: held(), waivers: waiverPool()};
     var groups = [], notes = {sanity: 0, guardrail: 0, partial: [], unjudged: false, searchedTop: false};
     S.running = true;
     for (var i = 0; i < list.length; i++) {
@@ -224,11 +224,12 @@
     var you = t.you, them = t.them;
     return '<article class="pkg ddf-lift" style="--d:' + (k * 40) + 'ms" data-offer data-cls="' + g.cls + '" data-partner="' + esc(g.partner)
       + '" data-give="' + esc(t.give.map(keyOf).join(",")) + '" data-receive="' + esc(t.receive.map(keyOf).join(","))
-      + '" data-you="' + (you === null ? "" : you) + '" data-them="' + (them === null ? "" : them) + '" data-edge="' + t.edge + '">'
+      + '" data-you="' + (you === null ? "" : you) + '" data-them="' + (them === null ? "" : them) + '" data-edge="' + t.edge + '"' + (t.waiver ? ' data-waiver-covered="' + (t.waiver.covered === null ? "" : t.waiver.covered.toFixed(3)) + '" data-waiver-demoted="' + (t.waiver.demoted ? "1" : "0") + '"' : "") + '>'
       + '<div class="pk-main"><div class="pk-ex"><div class="pk-side"><small>You give</small>' + giveCell + '</div><span class="pk-arrow" aria-hidden="true">&rarr;</span>'
       + '<div class="pk-side"><small>You get</small><b>' + gets + "</b></div></div>"
-      + '<div class="pk-meta"><span class="ptag">' + esc(g.partner) + '</span><span class="fit">' + FIT_WORD[g.cls] + "</span>"
+      + '<div class="pk-meta"><span class="ptag" data-partner-tag title="' + esc("Trading partner: " + g.partner) + '">Trade with <b>' + esc(g.partner) + '</b></span><span class="fit">' + FIT_WORD[g.cls] + "</span>"
       + '<span class="fit">' + chartsLink(t) + " even or better for them</span></div>"
+      + (t.waiver && t.waiver.demoted && window.DDFWhy && DDFWhy.waiverLine ? '<p class="muted pk-note" data-waiver-note>' + esc(DDFWhy.waiverLine(t.waiver, t.give)) + "</p>" : "")
       + (added.length ? '<p class="muted pk-note">Players even out: ' + esc(added.join(", ")) + ".</p>" : "")
       + (throwIns.length ? '<p class="muted pk-note">Also seen with ' + esc(names(throwIns)) + " (worth 0.0) added.</p>" : "")
       + (t.unbalanced ? '<p class="muted pk-note">Uneven player counts: the team getting more players has no bench player left to add.</p>' : "")
@@ -246,7 +247,7 @@
     var slot = det.querySelector(".why-slot");
     if (!g || !slot || slot.dataset.filled === "1") return;
     var t = selected(g), B = basis(), ctx = Object.assign({}, DDF.find.context(), {ourKey: DDF.find.valuation(B.yv).key, marketKey: DDF.find.valuation(B.tv).key});
-    slot.innerHTML = window.DDFWhy.body({mine: g.mineRows, theirs: g.theirRows, give: t.give, receive: t.receive}, ctx,
+    slot.innerHTML = window.DDFWhy.body({mine: g.mineRows, theirs: g.theirRows, give: t.give, receive: t.receive, waiver: t.waiver || null}, ctx,
       {extra: '<p class="why-charts">' + chartsLink(t) + " even or better for them</p>"}) || '<p class="muted">No explanation for this offer yet.</p>';
     slot.dataset.filled = "1";
   }
@@ -281,6 +282,14 @@
     S.pickups = av.entries.length ? DDF.find.pickups(ctx, DDF.find.entriesOf(me), av.entries, basis().yv) : null;
   }
   var gainOf = function (r) { return Math.round(r.starterDelta * 10) / 10; };
+  // JEG-1572: the pickups that improve your starters (the cards below), handed to the trade search as the waiver alternative.
+  function waiverPool() {
+    // A list typed on waivers.html is only checked against your roster: a player on any team here is not available.
+    var rostered = new Set();
+    ((S.cur && S.cur.teams) || []).forEach(function (t) { DDF.find.rowsOf(t).forEach(function (r) { rostered.add(keyOf(r)); }); });
+    return (S.pickups ? S.pickups.results : []).filter(function (r) { return r.starterDelta !== null && gainOf(r) > 0 && !rostered.has(keyOf(r.candidate)); })
+      .map(function (r) { return {row: r.candidate, starterDelta: r.starterDelta}; });
+  }
   function renderPickups() {
     var box = $("pickup-cards"), note = $("pickup-note"), combos = $("pickup-combos");
     var on = $("see-waivers").checked && !$("sec-waivers").hidden;
