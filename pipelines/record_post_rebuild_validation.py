@@ -53,7 +53,7 @@ def summarize(log_text: str) -> dict:
         else "make validate failed (see the workflow log)")
     return {
         "status": "failed",
-        "command": "make validate",
+        "command": "make validate-data",
         "failed_tests": failed_tests,
         "assertions": assertions[:20],
         "breaches": breaches,

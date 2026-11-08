@@ -60,7 +60,10 @@ def has_if_clause(step_block):
 
 
 ARTIFACT_NAME = "github-pages-${{ github.sha }}-${{ github.run_attempt }}"
-SUCCESS_GUARD = '[ "$BUILD_RESULT" = "success" ] && [ "$SHARD_RESULT" = "success" ]'
+# JEG-1485 decision A (Jeremy, 2026-11-08): the deploy is gated on the build's
+# data checks (validate-base + data-gate); the test-core matrix still runs and
+# gates PRs, but no longer blocks a deploy.
+SUCCESS_GUARD = '[ "$BUILD_RESULT" = "success" ]'
 
 
 def pages_problems(text):
@@ -86,7 +89,7 @@ def pages_problems(text):
                 problems.append(f"{name} checks must block on failure")
     problems += shard_problems(text, "validate-shard")
     problems += matrix_problems((ROOT / "Makefile").read_text(encoding="utf-8"), text, "pages.yml")
-    for command in (WORKFLOW_GUARDS, "make validate-base"):
+    for command in (WORKFLOW_GUARDS, "make validate-base", "make data-gate"):
         if (command, False) not in build_steps(build):
             problems.append(f"build must run blocking {command}")
     gate = get_step(steps(build), "tests/rendered_gate/gate.mjs")
@@ -111,8 +114,8 @@ def pages_problems(text):
         problems.append("only build may upload the publication artifact")
     if text.count("uses: actions/deploy-pages@") != 1:
         problems.append("only deploy may publish")
-    if setting(deploy, "needs") != "[build, validate-shard]":
-        problems.append("deploy must need build and the full shard matrix")
+    if setting(deploy, "needs") != "[build]":
+        problems.append("deploy must need the build (validate-base + data-gate)")
     if setting(deploy, "if") != "always()":
         problems.append("deploy must check failed, cancelled and skipped dependencies")
     if "continue-on-error" in deploy:
@@ -122,10 +125,8 @@ def pages_problems(text):
         problems.append("deploy must check success first and then publish without rebuilding")
     else:
         guard, publish = deploy_blocks
-        for binding in ("BUILD_RESULT: ${{ needs.build.result }}",
-                        "SHARD_RESULT: ${{ needs.validate-shard.result }}"):
-            if binding not in guard:
-                problems.append("deploy must check the actual build and matrix results")
+        if "BUILD_RESULT: ${{ needs.build.result }}" not in guard:
+            problems.append("deploy must check the actual build result")
         if "uses: actions/deploy-pages@v4" not in publish:
             problems.append("deploy must publish after its success guard")
         if setting(publish, "artifact_name") != "${{ needs.build.outputs.artifact-name }}":
@@ -160,7 +161,8 @@ class PagesParallelValidationTest(unittest.TestCase):
                                       "unconditionally and block")
 
     def test_conditional_or_allowed_failure_checks_are_caught(self):
-        for command in (WORKFLOW_GUARDS, "make validate-base", "make test-core-shard-${{ matrix.shard }}"):
+        for command in (WORKFLOW_GUARDS, "make validate-base", "make data-gate",
+                        "make test-core-shard-${{ matrix.shard }}"):
             for field in ("if: false", "continue-on-error: true"):
                 with self.subTest(command=command, field=field):
                     self.assertCaught(PAGES.replace(f"run: {command}\n", f"run: {command}\n        {field}\n", 1),
@@ -187,10 +189,11 @@ class PagesParallelValidationTest(unittest.TestCase):
         self.assertCaught(PAGES.replace("      - run: make reference\n", ""), "commands must be")
 
     def test_dependency_and_success_guard_bypasses_are_caught(self):
-        for old, new, fragment in (("needs: [build, validate-shard]", "needs: [build]", "full shard matrix"),
+        for old, new, fragment in (("    needs: [build]\n", "    needs: []\n", "need the build"),
                                    ("if: always()", "if: success()", "skipped dependencies"),
                                    (SUCCESS_GUARD, "true", "check success first"),
-                                   ("SHARD_RESULT: ${{ needs.validate-shard.result }}", "SHARD_RESULT: success", "actual build and matrix"),
+                                   ("BUILD_RESULT: ${{ needs.build.result }}", "BUILD_RESULT: success", "actual build result"),
+                                   ("      - run: make data-gate\n", "", "blocking make data-gate"),
                                    ("        uses: actions/deploy-pages@v4", "        if: always()\n        uses: actions/deploy-pages@v4", "bypass the success guard")):
             with self.subTest(fragment=fragment):
                 self.assertCaught(PAGES.replace(old, new, 1), fragment)
@@ -203,7 +206,7 @@ class PagesParallelValidationTest(unittest.TestCase):
                 with self.subTest(build=build, shard=shard):
                     result = subprocess.run(["bash", "-e", "-c", script], capture_output=True,
                                             env={**os.environ, "BUILD_RESULT": build, "SHARD_RESULT": shard})
-                    self.assertEqual(result.returncode == 0, build == shard == "success")
+                    self.assertEqual(result.returncode == 0, build == "success")
 
     def test_artifact_must_come_from_the_rendered_build(self):
         upload = get_step(steps(job(PAGES, "build")), "uses: actions/upload-pages-artifact@")

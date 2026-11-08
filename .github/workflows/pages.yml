@@ -67,6 +67,11 @@ jobs:
       # JEG-133: validation runs on every commit and blocks publication.
       # test-core runs in validate-shard; the coverage guard pins the exact union.
       - run: make validate-base
+      # JEG-1485 decision A (Jeremy, 2026-11-08): publication is gated on data
+      # checks (validate-base + data-gate = make validate-data, the same gate
+      # the rebuild chain runs). test-core still runs in validate-shard and
+      # gates PRs in preview.yml, but a code test no longer blocks a deploy.
+      - run: make data-gate
       # Monitor signals refreshed on every deploy (warnings, never deploy
       # blocks; Jeremy 2026-10-08). GAP-E2E-FIDELITY: the JEG-77 card's only
       # producer. GAP-031: the ESPN-zeroed staleness signal (exits 1 when it
@@ -151,7 +156,7 @@ jobs:
       - run: make test-core-shard-${{ matrix.shard }}
 
   deploy:
-    needs: [build, validate-shard]
+    needs: [build]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -159,14 +164,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # A skipped, cancelled or failed build/matrix must never publish.
-      - name: Every build and shard job passed
+      # A skipped, cancelled or failed build (validate-base + data-gate) must
+      # never publish. JEG-1485 decision A: the test-core matrix (validate-shard)
+      # still runs on every push and shows red on the commit, but the deploy does
+      # not wait for it; code tests gate PRs (preview.yml) and the nightly suite.
+      - name: The build and its data checks passed
         env:
           BUILD_RESULT: ${{ needs.build.result }}
-          SHARD_RESULT: ${{ needs.validate-shard.result }}
         run: |
-          echo "build: $BUILD_RESULT, validate-shard: $SHARD_RESULT"
-          [ "$BUILD_RESULT" = "success" ] && [ "$SHARD_RESULT" = "success" ]
+          echo "build (validate-base + data-gate): $BUILD_RESULT"
+          [ "$BUILD_RESULT" = "success" ]
       - id: deployment
         uses: actions/deploy-pages@v4
         with:

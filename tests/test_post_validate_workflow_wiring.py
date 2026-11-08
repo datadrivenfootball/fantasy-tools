@@ -13,7 +13,7 @@ WORKFLOW = ROOT / '.github/workflows/rebuild-chain.yml'
 
 def validation_shell():
     script = script_of(find_step(WORKFLOW.read_text(), CHAIN))
-    start = script.index('set +e\nenv -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate > output/post-rebuild-validate.log')
+    start = script.index('set +e\nenv -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate-data > output/post-rebuild-validate.log')
     end = script.index('# The published build', start)
     return script[start:end].replace('${{ steps.week.outputs.nfl_week }}', '8')
 

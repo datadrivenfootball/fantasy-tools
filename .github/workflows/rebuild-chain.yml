@@ -341,7 +341,7 @@ jobs:
             || echo "::warning title=fidelity-hold::the fidelity hold step failed; see the log"
           echo "initial_validate_start $(date -u +%FT%TZ)" >> output/chain-phase-timing.txt
           set +e
-          env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate > output/post-rebuild-validate.log 2>&1
+          env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate-data > output/post-rebuild-validate.log 2>&1
           rc=$?
           set -e
           echo "initial_validate_end $(date -u +%FT%TZ) rc=$rc" >> output/chain-phase-timing.txt
@@ -360,7 +360,7 @@ jobs:
             # Re-run the COMPLETE gate once on the rolled-back fixture. Never
             # rerun the source chain or publish before confirm succeeds.
             set +e
-            env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate > output/post-rebuild-validate-retry.log 2>&1
+            env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate-data > output/post-rebuild-validate-retry.log 2>&1
             retry_rc=$?
             set -e
             echo "retry_validate_end $(date -u +%FT%TZ) rc=$retry_rc" >> output/chain-phase-timing.txt

@@ -61,6 +61,59 @@ Owner: the Claude lane (coordinator). Response: same hour in waking hours
    comment and is closed by a person after the live check.
 4. **Record** the timeline and cause in a `docs/claude-log/` entry and on JEG-1485.
 
+## What the chain checks before publishing (JEG-1485 decision A)
+
+Jeremy, 2026-11-08: the chain checks **data** only before publishing; code
+tests keep gating PRs and run nightly; a held week still alerts within 2 hours.
+
+- The rebuild chain runs `make validate-data` = `validate-base` + `data-gate`,
+  before it commits anything. It fails closed: if any data check fails, only the
+  status is published and the week-held alert fires.
+- `pages.yml` deploys when its build job passes `validate-base` + `data-gate`.
+  The test-core matrix still runs on every main push and shows red on the commit,
+  but the deploy no longer waits for it.
+- `preview.yml` (PRs) runs `validate-base`, `data-gate` and all of test-core.
+  That is the code gate.
+
+**A data check** asserts something about this build's own artifacts (the fixture,
+players.json, the history index, dist/), so a failure means the numbers or the
+site would be wrong. It covers:
+
+- **Engine vs reference on the data and the build itself** (`validate-base`):
+  `reference`, `sync` (its history no-relabel guard stops the sync on a bad week
+  file), `guard-harness` (the ESPN anchor guard), `value-check-compare --strict`
+  (engine vs Python reference on every value) and `test-integration`.
+- **Shape and published-number protection**: `test_static_export`,
+  `test_seeded_hold_build`, `test_rank_guard` (published order),
+  `test_view_invariants` (equal pies and same-scale views), `test_kdst_removed`,
+  `test_player_scenario_matrix` (starter, bench and waiver boundaries ordered on
+  current players).
+- **Source coverage and identity joins**: `test_comparison_source_integrity`,
+  `test_cbsros_bake_identity`, `test_suffix_identity`, `test_player_aliases`.
+- **Bake-to-section consistency**: `test_games_remaining`, `test_ppg_tie_parity`,
+  `test_bake_on_change`, `test_razzball_refresh`, `test_razzball_one_save`,
+  `test_market_bench`.
+- **Week label and freshness**: `test_lineup_content_week_advance`.
+- **The built site**: `test_published_surfaces`, `test_verify_live`,
+  `test_page_load_no_404`, `test_site_noindex`.
+
+**A code test** checks the behaviour of code, on synthetic inputs or with
+current data used only as sample input. These stay in test-core and gate PRs:
+page and render parity (`test_team_opportunity_render`, `test_learn_engine_parity`,
+`test_*_engine_parity`, phone layouts), worked examples (`test_value_pipeline_engine`,
+`test_spec_reference_value_pipeline`), and property or perturbation tests that
+search the live data for a scenario (`test_fractional_seats_stability`; the
+waiver-band perturbation tests are already non-blocking). Engine-vs-reference
+agreement on the data is not lost when these move out of the gate: it is
+`value-check-compare --strict`.
+
+Rules for the list: every `data-gate` line is also in test-core, and
+`tests/test_chain_data_gate.py` fails when they drift. Move a test into
+`data-gate` only if it reads the build's artifacts and its failure means
+published numbers or the site would be wrong. If a code test is red on main,
+the site keeps publishing data, so fix main the same day: the next data deploy
+ships the code at the tip of main.
+
 ## Testing the alert
 
 Dispatch `Source lateness check` with `week_held_drill=true` once (any branch),
