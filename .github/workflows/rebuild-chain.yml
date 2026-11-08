@@ -103,7 +103,7 @@ jobs:
         run: |
           echo "WORKFLOW_STARTED_AT=$(date -u +%FT%TZ)" >> $GITHUB_ENV
           # JEG-1512: the published commit, for the week-held alert when this run does not push.
-          echo "CHECKOUT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "CHECKOUT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo 'Concurrency policy: same-ref pending runs may be replaced by a newer dispatch; running runs are not cancelled. Branch proofs have a separate slot. Job timeout: 120 minutes.' | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:

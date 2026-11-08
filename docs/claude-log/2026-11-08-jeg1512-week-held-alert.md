@@ -42,7 +42,7 @@ said 2026-11-08T21:00Z. Run 41952295990 (11-05 02:08Z, 4 days red) logged
 - Discrimination: with the old working-tree read, `ChainStuckReadsCommittedHistory`
   fails ('none' != 'open').
 - `tests.test_validate_shards`, `tests.test_run_suite` OK; actionlint finding count
-  unchanged (40, all pre-existing shellcheck notes).
+  unchanged vs main (40 lines, all pre-existing shellcheck notes).
 
 ### Independent review (Opus, PR #1381 comment) and fixes
 - Medium: a successful run that does not push had HEAD = its unpublished candidate,
