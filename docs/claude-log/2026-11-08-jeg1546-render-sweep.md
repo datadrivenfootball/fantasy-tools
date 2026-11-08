@@ -18,7 +18,7 @@
     players per chart differed.
   - The oracle now reads the source-level flag. A new check keeps the row label tied to it: every row-labelled
     estimate must also be marked in the view. This loosens nothing the view shows; the tie runs one way (subset)
-    instead of requiring equality.
+    instead of requiring equality. Review follow-up: a view-only estimate for a chart must have no published number of its own (`getPublishedMath` native is null), which is checked independently of the inspection flag.
 - **test_v2_chart_fit_render**, plus four more harnesses with the same pattern (advanced, chart_zones, disagree,
   names). Each copied `dist/` and served `/v2/`, which is now the stub, so the wait for `TradeValueV2.chart()`
   timed out. They now copy the build-only shell to `/v2-app.html` in their temp dist. All 5 modules pass.
@@ -29,6 +29,7 @@
   - Until Jeremy decides, exactly that one message (`KNOWN_RESULTS_BELOW_FOLD`) is tolerated. All other checks
     still run, the mutation guard ignores the known message, and the test goes red once the results are back on
     the first screen.
+  - It is bounded: a message is tolerated only while the results are at most 400px past the 80% line (2026-11-08: 138-298px).
   - **This is a deliberate, narrow loosening, recorded here.**
 - **test_render_sweep_shards** (nightly): JEG-1403 put test_uso_site_journey_render in test-render-extra but in
   no shard. It is now in shard 3; its 18 tests pass in 3 minutes.
@@ -36,7 +37,7 @@
   without `?design=fieldnotes`, are skipped while that nav is hidden. Links everywhere else, hidden views
   included, are still checked. All 3 tests pass.
 
-### Reds the full run exposed, not fixed here (registered in docs/baseline-reds/registry.json)
+### Reds the full run exposed, not fixed here (registered in docs/baseline-reds/registry.json as `local` only, since the daily sweep had not run them yet; add `daily sweep` once a sweep run shows them)
 - JEG-1581: `.v2-inj-chip` is 11px (test_v2_mobile_phase1_render, and test_v2_tokens on the nightly). Product CSS.
 - JEG-1582: test_v2_finder_fit_render. findTrades no longer yields a 1-for-2 package. Root cause open.
 - JEG-1584: five v2 League tab modules (live, shared_roster, status, phone, tables).

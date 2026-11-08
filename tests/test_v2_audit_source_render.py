@@ -54,7 +54,9 @@ ORACLE = """(src) => {
       indexed: chart ? fin(r.values[src]) : null,
       adjusted: chart ? fin(r.values[src + '_adjusted']) : fin(r.values[src]),
       estimated: est,
-      rowEstimated: Boolean((r.estimated || {})[src])
+      rowEstimated: Boolean((r.estimated || {})[src]),
+      // Independent of the inspection flag: a chart player the source really lists has a published number.
+      listedNative: chart ? fin((C.getPublishedMath(r.player_key, src) || {}).native) : null
     };
   });
   return {oracle: out, listed: Object.keys(insp.players[src]).length};
@@ -129,6 +131,8 @@ def check_source(page, src) -> list[str]:
             errors.append(f"{src}/{r['key']}: estimated {r['estimated']} but the engine says {o['estimated']}")
         if o["rowEstimated"] and not r["estimated"]:
             errors.append(f"{src}/{r['key']}: the engine row marks him estimated but the view does not")
+        if r["estimated"] and not o["rowEstimated"] and src not in PROJECTIONS and o["listedNative"] is not None:
+            errors.append(f"{src}/{r['key']}: marked estimated but the chart lists him (published {o['listedNative']})")
     # The drawn series carry the same numbers, and never a zero for a missing value.
     for stage in ("published", "indexed", "adjusted"):
         want = [[r["key"], oracle[r["key"]][stage]] for r in got["rows"] if r["key"] in oracle and oracle[r["key"]][stage] is not None]

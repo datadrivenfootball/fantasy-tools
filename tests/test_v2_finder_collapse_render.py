@@ -161,11 +161,17 @@ def run_checks(overrides=None, viewports=((1366, 768), (390, 844), (320, 640))) 
 # results start below the first screen after Find, at every viewport. Until JEG-1576 is decided, exactly this message is
 # tolerated (JEG-1546); every other check still runs. When the results are back on the first screen the known-failure
 # assertion below goes red: remove this filter then.
-KNOWN_RESULTS_BELOW_FOLD = re.compile(r"\[\d+px\] results start at -?\d+px of a \d+px screen after folding")
+KNOWN_RESULTS_BELOW_FOLD = re.compile(r"\[\d+px\] results start at (-?\d+)px of a (\d+)px screen after folding")
+# Bounded: on 2026-11-08 the results sat 138-298 px past the 80% line (906/768, 805/844, 823/640); the summary is 338 px.
+# Anything further down is a new regression, not JEG-1576.
+KNOWN_MAX_PAST_LINE = 400
 
 
 def without_known(errors: list[str]) -> list[str]:
-    return [e for e in errors if not KNOWN_RESULTS_BELOW_FOLD.fullmatch(e)]
+    def known(e):
+        m = KNOWN_RESULTS_BELOW_FOLD.fullmatch(e)
+        return bool(m) and int(m.group(1)) - 0.8 * int(m.group(2)) <= KNOWN_MAX_PAST_LINE
+    return [e for e in errors if not known(e)]
 
 
 class FinderCollapseRenderTest(unittest.TestCase):
