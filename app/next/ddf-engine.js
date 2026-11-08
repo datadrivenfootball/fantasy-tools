@@ -20,7 +20,8 @@
  *   players()             page records for every priced player (see record below), cached per rebuild
  *   player(key)           one record
  *   settings()            {scoring, teams, roster:{QB,RB,WR,TE,FLEX,SUPERFLEX,BENCH,K,DST}}
- *   apply(partial)        set scoring / teams / superflex (bool) / roster; saves; returns settings()
+ *   apply(partial)        set scoring / teams / superflex (bool) / superflexSlots (0-2, wins over the bool) / roster;
+ *                         saves; returns settings()
  *   applyVisit(partial)   the same (plus weeks, week, adv, shares) for this visit only, never saved (a shared trade link's league)
  *   meta()                {buildTag, asOf, week}
  *   on(fn)                fn() after every rebuild (settings, basis or override change); returns an unsubscribe
@@ -40,6 +41,7 @@
   var OV_KEY = "ddf-v2-value-overrides";
   var LINK_KEY = "ddf-v2-link-state";
   var WS_KEY = "ddf.v2.workspaces";
+  var SF_SLOTS_MAX = 2;   // JEG-1571: curve-widget.js ROSTER_BOUNDS.SUPERFLEX
   var finite = function (v) { return typeof v === "number" && isFinite(v); };
   var C = null, cache = null, listeners = [], state = {values: {}, names: {}, basis: {mode: "default"}, session: false};
 
@@ -166,11 +168,20 @@
       else localStorage.setItem(LEAGUE_KEY, JSON.stringify(Object.assign(JSON.parse(text), {savedAt: Date.now()})));
     } catch (e) { /* the settings still apply for this visit */ }
   }
+  // JEG-1571: QB-eligible flex (superflex) slots per team, 0-2. superflexSlots (a count) wins over the superflex
+  // boolean (true = 1 slot, as before); null = the partial does not say.
+  function superflexOf(partial) {
+    var n = Number(partial.superflexSlots);
+    if (partial.superflexSlots !== undefined && Number.isInteger(n) && n >= 0) return Math.min(SF_SLOTS_MAX, n);
+    if (typeof partial.superflex === "boolean") return partial.superflex ? 1 : 0;
+    return null;
+  }
   function apply(partial) {
     partial = partial || {};
     if (partial.scoring) C.setScoring(partial.scoring, false);
     if (partial.teams) C.setTeams(Number(partial.teams), false);
-    if (typeof partial.superflex === "boolean") C.setRosterSpot("SUPERFLEX", partial.superflex ? 1 : 0, false);
+    var sf = superflexOf(partial);
+    if (sf !== null) C.setRosterSpot("SUPERFLEX", sf, false);
     if (partial.roster) Object.keys(partial.roster).forEach(function (k) { C.setRosterSpot(k, partial.roster[k], false); });
     saveSettings();
     changed();
@@ -192,7 +203,8 @@
     });
     if (partial.scoring) attempt(function () { C.setScoring(partial.scoring, false); });
     if (partial.teams) attempt(function () { C.setTeams(Number(partial.teams), false); });
-    if (typeof partial.superflex === "boolean") attempt(function () { C.setRosterSpot("SUPERFLEX", partial.superflex ? 1 : 0, false); });
+    var sf = superflexOf(partial);
+    if (sf !== null) attempt(function () { C.setRosterSpot("SUPERFLEX", sf, false); });
     if (partial.roster) Object.keys(partial.roster).forEach(function (k) { attempt(function () { C.setRosterSpot(k, partial.roster[k], false); }); });
     if (Number.isInteger(partial.week) && C.setWeek) attempt(function () { C.setWeek(partial.week, false); });
     if (partial.adv && C.setLineupSettings) attempt(function () {
@@ -234,7 +246,7 @@
     if (!s || ["standard", "half_ppr", "ppr"].indexOf(s.scoring) < 0 || !Array.isArray(s.slots) || s.slots.length !== 6) return null;
     var keys = ["QB", "RB", "WR", "TE", "FLEX", "BENCH"], roster = {};
     keys.forEach(function (k, i) { if (Number.isInteger(s.slots[i])) roster[k] = s.slots[i]; });
-    roster.SUPERFLEX = s.superflex ? 1 : 0;
+    roster.SUPERFLEX = !s.superflex ? 0 : (Number(s.superflexSlots) === SF_SLOTS_MAX ? SF_SLOTS_MAX : 1);
     return {scoring: s.scoring, teams: Number(s.teams), roster: roster};
   }
 

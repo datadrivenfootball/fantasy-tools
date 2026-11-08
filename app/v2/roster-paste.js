@@ -129,7 +129,7 @@
   var SLOT_LABELS = {
     QB: 1, RB: 1, WR: 1, TE: 1, K: 1, DEF: 1, "D/ST": 1, DST: 1,
     FLEX: 1, "W/R/T": 1, "W/R": 1, "RB/WR": 1, "RB/WR/TE": 1,
-    SUPERFLEX: 1, SF: 1, OP: 1, "Q/W/R/T": 1,
+    SUPERFLEX: 1, SF: 1, OP: 1, "Q/W/R/T": 1, "W/R/T/Q": 1, QWRT: 1, SFLX: 1, SUPER_FLEX: 1,   // JEG-1571
     BN: 1, BENCH: 1, BE: 1, Bench: 1,
     IR: 1, "IR+": 1,
   };

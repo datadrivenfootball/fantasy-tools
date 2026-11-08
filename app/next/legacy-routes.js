@@ -107,8 +107,10 @@
     var roster = (src && src.roster) || {};
     var fallback = {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, BENCH: 7};
     var slots = SLOT_ORDER.map(function (k) { var n = Number(roster[k]); return Number.isInteger(n) && n >= 0 && n <= 20 ? n : fallback[k]; });
-    return {scoring: (src && src.scoring) || "ppr", teams: nearestTeams(Number(src && src.teams)) || 12,
+    var out = {scoring: (src && src.scoring) || "ppr", teams: nearestTeams(Number(src && src.teams)) || 12,
       superflex: Number(roster.SUPERFLEX) > 0, slots: slots};
+    if (Number(roster.SUPERFLEX) >= 2) out.superflexSlots = 2;   // JEG-1571: two QB-eligible flex slots
+    return out;
   }
 
   function loadScript(src) {
