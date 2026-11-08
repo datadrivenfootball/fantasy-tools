@@ -90,5 +90,73 @@ class RunSuiteTest(unittest.TestCase):
         self.assertGreater(len(modules), 100)
 
 
+class NightlyShardingTest(unittest.TestCase):
+    def test_partition_preserves_occurrences_and_order(self):
+        from tests.run_suite import shard_commands
+        commands = ["duplicate", "a", "duplicate", "b", "c", "d", "e"]
+        shards = [shard_commands(commands, i, 6) for i in range(1, 7)]
+        self.assertEqual(shards, [["duplicate", "e"], ["a"], ["duplicate"], ["b"], ["c"], ["d"]])
+        self.assertEqual(shard_commands(commands, 1, 1), commands)
+        for index, count in [(0, 6), (7, 6), (1, 0), (-1, 2)]:
+            with self.assertRaises(ValueError):
+                shard_commands(commands, index, count)
+
+    def test_real_suite_partition_includes_guards_node_and_pytest(self):
+        from collections import Counter
+        from tests.run_suite import recipe_lines, shard_commands, suite_guards
+        commands = suite_guards("test-unit-modules") + recipe_lines(ROOT / "Makefile", "test-unit-modules")
+        shards = [shard_commands(commands, i, 6) for i in range(1, 7)]
+        self.assertEqual(Counter(c for shard in shards for c in shard), Counter(commands))
+        self.assertEqual(sum(map(len, shards)), len(commands))
+        self.assertEqual(sum(c == "python3 -m unittest tests.test_no_real_clock" for shard in shards for c in shard), 1)
+        self.assertTrue(any("node " in c for c in commands))
+        self.assertTrue(any("-m pytest " in c for c in commands))
+
+    def test_cli_shard_continues_reports_timings_and_returns_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            makefile = Path(tmp) / "Makefile"
+            makefile.write_text("suite:\n\tpython3 -c \"raise SystemExit(7)\"\n\tpython3 -c \"raise SystemExit(9)\"\n\tpython3 -c \"print('last-ran')\"\n")
+            proc = subprocess.run([sys.executable, str(RUNNER), "--makefile", str(makefile), "suite", "--shard-index", "1", "--shard-count", "2"], capture_output=True, text=True, timeout=30)
+            self.assertEqual(proc.returncode, 1, proc.stderr)
+            self.assertIn("last-ran", proc.stdout)
+            self.assertNotIn("SystemExit(9)", proc.stdout)
+            self.assertIn("1/2 passed", proc.stdout)
+            self.assertEqual(proc.stdout.count("run_suite: START:"), 2)
+            self.assertEqual(proc.stdout.count("run_suite: END"), 2)
+            self.assertIn("END (rc=7,", proc.stdout)
+            self.assertIn("END (rc=0,", proc.stdout)
+
+    def test_environment_selection_is_consumed_before_children(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            makefile = Path(tmp) / "Makefile"
+            makefile.write_text("suite:\n\tpython3 -c \"raise SystemExit(9)\"\n\tpython3 -c \"import os; assert 'RUN_SUITE_SHARD_INDEX' not in os.environ; assert 'RUN_SUITE_SHARD_COUNT' not in os.environ\"\n")
+            env = dict(os.environ, RUN_SUITE_SHARD_INDEX="2", RUN_SUITE_SHARD_COUNT="2")
+            proc = subprocess.run([sys.executable, str(RUNNER), "--makefile", str(makefile), "suite"], env=env, capture_output=True, text=True, timeout=30)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertIn("1/1 passed", proc.stdout)
+            self.assertNotIn("SystemExit(9)", proc.stdout)
+
+    def test_invalid_cli_fails_before_reading_makefile(self):
+        proc = subprocess.run([sys.executable, str(RUNNER), "--makefile", "/nonexistent/Makefile", "suite", "--shard-count", "0"], capture_output=True, text=True, timeout=30)
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("require 1 <= shard-index <= shard-count", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+    def test_workflow_keeps_all_shards_and_one_baseline_writer(self):
+        text = (ROOT / ".github/workflows/full-suite.yml").read_text()
+        self.assertIn("shard: [1, 2, 3, 4, 5, 6]", text)
+        self.assertIn("fail-fast: false", text)
+        self.assertIn("continue-on-error: true", text)
+        # JEG-1547: six shards of about 19-29 minutes each; 60 is 2x headroom (was one 120-minute job).
+        self.assertIn("timeout-minutes: 60", text)
+        self.assertIn("RUN_SUITE_SHARD_INDEX: ${{ matrix.shard }}", text)
+        self.assertIn("RUN_SUITE_SHARD_COUNT: 6", text)
+        self.assertIn("          make test-unit\n", text)
+        self.assertIn("BASH_ENV:", text)
+        self.assertEqual(text.count("matrix.shard == 1"), 3)
+        self.assertEqual(text.count("uses: actions/cache/save@v4"), 1)
+        self.assertIn("name: full-suite-shard-${{ matrix.shard }}", text)
+
+
 if __name__ == "__main__":
     unittest.main()
