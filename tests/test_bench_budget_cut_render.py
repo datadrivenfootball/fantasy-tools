@@ -79,7 +79,8 @@ SHIFT = 0.01
 
 # The mutation: one source funds 1% of each bench budget as starter budget
 # instead (pie-conserving, see the module docstring).
-FUND_ANCHOR = "Object.keys(budgets).forEach(function (g) { funded[g] = budgets[g]; });"
+# JEG-1569: srcBudgets = the source's family budgets (the shared budgets on the live "all" split).
+FUND_ANCHOR = "Object.keys(srcBudgets).forEach(function (g) { funded[g] = srcBudgets[g]; });"
 WIDGET = ROOT / "app" / "trade-value-chart" / "assets" / "curve-widget.js"
 GUARD_ANCHOR = "const groupsOk = Object.values(groups).every(g => Math.abs(g.total - g.budget) <= tolerance);"
 
