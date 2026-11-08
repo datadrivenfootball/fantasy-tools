@@ -61,3 +61,16 @@ Review fixes (independent review of 0c3665b4, CHANGES NEEDED):
 
 ### Claimed, not confirmed
 - CI on the PR head; live behaviour after deploy (verified with the same public league, not stored in the repo).
+
+### Guided Sleeper step (Jeremy, 2026-11-08)
+- One step, no "Step 1" numbering. Heading "Add your Sleeper league" and the line "Paste your league link or ID and
+  we'll load every team's roster. No copying needed."
+- The field is labelled "Sleeper league link or ID", with the placeholder "sleeper.com/leagues/... or a number" and
+  the example line "For example sleeper.com/leagues/1234567890123456 or just 1234567890123456." beneath it.
+- One primary button, "Load my league" (paste and Enter also load). Then the loading line and "We found: <name>, N
+  teams, M players. Check the list below, then press Next to confirm your team." The sticky bar's Next is the
+  Continue.
+- The league ID help comes first among the secondary items, and "Paste the rosters page instead" is a small link
+  after it. The duplicate box heading is hidden.
+- `tests.test_sleeper_entry`, at 390/360/1440, checks: no paste box by default, no numbering, the wording and
+  example, Next disabled until the league loads, and the ID help before the fallback.

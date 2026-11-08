@@ -326,9 +326,9 @@
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }
   /* ---------- Sleeper (JEG-1570): the league ID loads every roster; no copy and paste ---------- */
-  var SLEEPER = {h3: "Sleeper league link or ID", p: "Paste your league link or league ID. Sleeper rosters are public, so we load every team for you.",
-    label: "Sleeper league link or ID", btn: "Get my league", ph: "A Sleeper league link or ID", title: "Add your Sleeper league",
-    intro: "Paste your Sleeper league link or ID. We load every team for you, no copying needed."};
+  var SLEEPER = {h3: "Sleeper league link or ID", p: "Paste your league link or ID and we'll load every team's roster. No copying needed.",
+    label: "Sleeper league link or ID", btn: "Load my league", ph: "sleeper.com/leagues/... or a number", title: "Add your Sleeper league",
+    intro: "Sleeper rosters are public, so there is nothing to copy."};
   var original = null, sleeperBusy = false, sleeperLast = null;
   function provider() { var b = document.querySelector("[data-provider][aria-pressed='true']"); return b ? b.getAttribute("data-provider") : "espn"; }
   function wayEls() {
@@ -348,6 +348,8 @@
     el.input.setAttribute("placeholder", src.ph); if (titleText) titleText.textContent = src.title;
     if (el.intro) el.intro.textContent = src.intro;
     $("sleeper-paste").hidden = !sl;
+    $("sleeper-example").hidden = !sl;
+    el.btn.classList.toggle("primary", sl);   /* one clear action on the Sleeper step */
     if (!sl) { document.body.classList.remove("show-paste"); sleeperSeq++; if (sleeperBusy) sleeperDone(el); }
     var out = $("link-result"); if (out) { out.textContent = ""; out.className = ""; }
   }
@@ -376,7 +378,7 @@
         save(DDF.leaguePaste.record(res, "sleeper"));
         askBookmark(res);
         var lg = res.league || {};
-        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then confirm your team.", "ok");
+        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then press Next to confirm your team.", "ok");
         status("", "");
         return out;
       });
