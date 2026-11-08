@@ -181,6 +181,7 @@
   // site.js may already have taken the tag off the address bar (window.DDF._srcTag).
   function withSrc(url) {
     var m = /[?&]src=([a-z0-9_-]{1,40})(?:&|$)/.exec(location.search);
+    if (window.DDF && window.DDF._srcCounted) return url;   // this page already counted the visit
     var tag = m ? m[1] : (window.DDF && typeof window.DDF._srcTag === "string" && /^[a-z0-9_-]{1,40}$/.test(window.DDF._srcTag) ? window.DDF._srcTag : null);
     if (!tag) return url;
     try { var u = new URL(url, location.href); u.searchParams.set("src", tag); return u.href; } catch (e) { return url; }

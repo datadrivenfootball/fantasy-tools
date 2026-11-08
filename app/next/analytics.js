@@ -156,7 +156,7 @@
   else if(source || entryPage()){
     var saved = false;
     try{ saved = /(^|[#&])s=/.test(location.hash); }catch(e){}
-    send(source || (saved ? 'visit/saved-link' : 'visit/direct'), true);
+    if(send(source || (saved ? 'visit/saved-link' : 'visit/direct'), true) && source) window.DDF._srcCounted = true;
     var phone = false;
     try{ phone = window.innerWidth < 768; }catch(e){}
     send(phone ? 'device/phone' : 'device/desktop', true);

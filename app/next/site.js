@@ -712,7 +712,8 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   function pageFor(view){ return VIEW_PAGES[view] || 'team.html'; }
   function livePage(view){ var p = pageFor(view); return p.indexOf('#') >= 0 ? 'values.html' : p; }
   /* JEG-1548: a connector link's ?src= tag rides along when connect.html forwards a link to its view's page */
-  function srcParam(){ var t = DDF._srcTag; return typeof t === 'string' && /^[a-z0-9_-]{1,40}$/.test(t) ? '?src=' + t : ''; }
+  /* not once this page has counted it (analytics.js sets DDF._srcCounted), so the visit counts once */
+  function srcParam(){ var t = DDF._srcCounted ? null : DDF._srcTag; return typeof t === 'string' && /^[a-z0-9_-]{1,40}$/.test(t) ? '?src=' + t : ''; }
   function isConnectPage(){ return /(^|\/)connect\.html$/.test(location.pathname) || document.body.classList.contains('connect'); }
 
   /* Pretty JSON with primitive arrays on one line, so a 12-team block stays readable in a chat. */

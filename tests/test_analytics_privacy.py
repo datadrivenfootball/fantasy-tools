@@ -260,7 +260,8 @@ class AnalyticsPrivacyTest(unittest.TestCase):
         page.wait_for_function("() => window.DDF && DDF._analytics", timeout=20000)
         page.wait_for_timeout(500)
         events = [p for p, e in self.counts(page) if e]
-        self.assertIn("visit/chatgpt/make_state", events)
+        self.assertEqual(events.count("visit/chatgpt/make_state"), 1, events)
+        self.assertEqual(events.count("device/desktop"), 1, events)
         self.assertTrue(page.evaluate("() => /(^|[#&])s=/.test(location.hash)"))
         self.assertEqual(page.evaluate("() => location.search"), "")
         self.assert_no_league_data(page)
