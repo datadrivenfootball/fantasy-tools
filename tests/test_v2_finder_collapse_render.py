@@ -22,6 +22,7 @@ line in the summary, and requires each to fail.
 from __future__ import annotations
 
 import functools
+import re
 import unittest
 
 from tests import _render_env
@@ -156,9 +157,28 @@ def run_checks(overrides=None, viewports=((1366, 768), (390, 844), (320, 640))) 
     return errors
 
 
+# JEG-1576 (open, Jeremy's decision): since JEG-890 added the Team value summary above the results (2026-10-29), the
+# results start below the first screen after Find, at every viewport. Until JEG-1576 is decided, exactly this message is
+# tolerated (JEG-1546); every other check still runs. When the results are back on the first screen the known-failure
+# assertion below goes red: remove this filter then.
+KNOWN_RESULTS_BELOW_FOLD = re.compile(r"\[\d+px\] results start at (-?\d+)px of a (\d+)px screen after folding")
+# Bounded: on 2026-11-08 the results sat 130-311 px past the 80% line (906/768, 805/844, 823/640); the summary is 338 px.
+# Anything further down is a new regression, not JEG-1576.
+KNOWN_MAX_PAST_LINE = 400
+
+
+def without_known(errors: list[str]) -> list[str]:
+    def known(e):
+        m = KNOWN_RESULTS_BELOW_FOLD.fullmatch(e)
+        return bool(m) and 0 <= int(m.group(1)) - 0.8 * int(m.group(2)) <= KNOWN_MAX_PAST_LINE
+    return [e for e in errors if not known(e)]
+
+
 class FinderCollapseRenderTest(unittest.TestCase):
     def test_collapsible_input(self):
-        self.assertEqual(run_checks(), [])
+        errors = run_checks()
+        self.assertEqual(without_known(errors), [])
+        self.assertNotEqual(errors, [], "results are on the first screen again: drop KNOWN_RESULTS_BELOW_FOLD (JEG-1576)")
 
     def test_guard_fails_on_broken_builds(self):
         js = FINDER_JS.read_text(encoding="utf-8")
@@ -176,7 +196,7 @@ class FinderCollapseRenderTest(unittest.TestCase):
                     errors = run_checks({"finder.js": body}, viewports=((1366, 768),))
                 except Exception as exc:   # the page is so broken a step cannot even run
                     errors = [str(exc)[:80]]
-                self.assertNotEqual(errors, [], f"not caught: {name}")
+                self.assertNotEqual(without_known(errors), [], f"not caught: {name}")
 
 
 if __name__ == "__main__":

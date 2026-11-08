@@ -78,7 +78,9 @@ class RenderSweepShardsTest(unittest.TestCase):
         wf = (ROOT / ".github/workflows/render-sweep.yml").read_text(encoding="utf-8")
         for n in ("1", "2", "3"):
             self.assertIn(n, re.search(r"shard:\s*\[([^\]]*)\]", wf).group(1))
-        self.assertIn("make test-render-sweep-${{ matrix.shard }}", wf)
+        # JEG-1546: each shard runs through run_suite.py so it continues past a red module.
+        self.assertIn("make test-render-sweep-shard SHARD=${{ matrix.shard }}", wf)
+        self.assertIn("test-render-sweep-shard:\n\tpython3 tests/run_suite.py test-render-sweep-$(SHARD)\n", self.makefile)
         self.assertIn("fail-fast: false", wf)
         self.assertIn("timeout-minutes: 60", wf)
         self.assertIsNone(re.search(r"^\s*schedule:", wf, re.M))

@@ -1104,6 +1104,11 @@ test-render-sweep:
 # tests/test_render_sweep_shards.py fails otherwise, so a module added to test-render-extra must also
 # be added to one shard. Balanced by the per-module times of run 40287913420 (about 25 minutes each;
 # modules that run had not reached, at 80 s assumed, are spread by that guess).
+# JEG-1546: render-sweep.yml runs a shard through run_suite.py (keeps going past a red module and lists every failed
+# one), so one red module no longer hides the rest of its shard. `make test-render-sweep-N` still stops at the first red.
+test-render-sweep-shard:
+	python3 tests/run_suite.py test-render-sweep-$(SHARD)
+
 test-render-sweep-1:
 	# JEG-1389: settings reload regression, previously missing from all run lists.
 	python3 -m unittest tests.test_jeg1389_link_settings_reload_render
@@ -1168,6 +1173,8 @@ test-render-sweep-3:
 	# shard, because a make recipe stops at its first red module and this one would otherwise never run.
 	python3 -m unittest tests.test_compare_evidence_view_render
 	python3 -m unittest tests.test_v2_consistency_render
+	# JEG-1546: JEG-1403 added this to test-render-extra but to no shard (test_render_sweep_shards red); 18 tests, about 3 min, green on 2026-11-08 (Mac).
+	python3 -m unittest tests.test_uso_site_journey_render
 	python3 -m unittest tests.test_v2_a11y_batch1_render
 	python3 -m unittest tests.test_v2_a11y_batch2_render
 	python3 -m unittest tests.test_v2_chart_height_render

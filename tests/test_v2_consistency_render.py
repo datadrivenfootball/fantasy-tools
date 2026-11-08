@@ -18,8 +18,10 @@ import re
 import unittest
 
 from tests import _render_env
+from tests.test_static_export import strip_comments
 from tests.test_published_league_settings_render import _chromium_executable
 from tests.test_v2_deal_read_render import _served, V2_JS, ROOT
+from tests._dist_server import V2_SHELL_PAGE, V2_URL
 
 APP = ROOT / "app" / "v2"
 AUDIT_PIE_JS = APP / "audit-pie.js"
@@ -72,7 +74,9 @@ def run_checks(patches=None) -> list[str]:
         raise _render_env.unavailable(f"Playwright is not available: {exc}") from exc
     bodies = {}
     for name, (old, new) in (patches or {}).items():
-        path = (ROOT / "dist" / "v2" / "index.html") if name == "index.html" else APP / name
+        # JEG-1546: since JEG-1539 the v2 shell is build-only (build/v2/index.html), served at /v2-app.html;
+        # dist/v2/index.html is the legacy redirect stub.
+        path = V2_SHELL_PAGE if name == "index.html" else APP / name
         text = path.read_text(encoding="utf-8")
         assert old in text, f"patch anchor missing in {name}: {old!r}"
         bodies[name] = text.replace(old, new)
@@ -89,7 +93,7 @@ def run_checks(patches=None) -> list[str]:
             page.route(lambda u: not u.startswith("http://127.0.0.1"), lambda route: route.abort())
             for name, body in bodies.items():
                 kind = "text/html" if name == "index.html" else "text/javascript"
-                for pattern in ((f"**/v2/{name}*", "**/v2/") if name == "index.html" else (f"**/v2/{name}*",)):
+                for pattern in ((f"**/{V2_URL}*",) if name == "index.html" else (f"**/v2/{name}*",)):
                     page.route(pattern, lambda route, *_, body=body, kind=kind: route.fulfill(status=200, content_type=kind, body=body))
             page.goto(base + "#compare-trade", wait_until="networkidle")
             page.wait_for_function("() => window.TradeValueV2 && window.TradeValueV2.compare()", timeout=60000)
@@ -130,7 +134,8 @@ def run_checks(patches=None) -> list[str]:
 def source_problems(finder: str | None = None) -> list[str]:
     out = []
     finder = FINDER_JS.read_text(encoding="utf-8") if finder is None else finder
-    if "available trade chart" in finder:
+    # Check source strings that can reach readers, excluding non-visible JS comments.
+    if "available trade chart" in strip_comments("finder.js", finder):
         out.append("finder.js: the 'no trade found' note still says 'available trade chart(s) say' (reads '1 of 1 available trade charts say')")
     trade = TRADE_JS.read_text(encoding="utf-8")
     if re.search(r"of \$\{\w+\} trade charts (agree|have)", trade):
@@ -146,6 +151,31 @@ PATCHES = {
     "arrow on an in-app link": {"index.html": ("See every value</a>", "See every value ↗</a>")},
     "market difference opposite to gap": {"v2.js": ("diff.textContent = fmtGap(-m.diff);", "diff.textContent = `${m.diff > 0 ? \"▲\" : \"▼\"} ${Math.abs(m.diff).toFixed(1)} ${m.diff > 0 ? \"above\" : \"below\"}`;")},
 }
+
+
+class SourceWordingGuardTest(unittest.TestCase):
+    def test_comments_do_not_trigger_copy_guard(self):
+        original = FINDER_JS.read_text(encoding="utf-8")
+        for comment in ("// at least one available trade chart says the rival wins\n",
+                        "/*\n available trade chart says\n*/\n"):
+            with self.subTest(comment=comment):
+                self.assertEqual(source_problems(comment + original), [])
+
+    def test_bad_reader_wording_still_fails_with_comments(self):
+        original = FINDER_JS.read_text(encoding="utf-8")
+        broken = original.replace("the one available chart says", "available trade chart says")
+        self.assertNotEqual(broken, original)
+        problems = source_problems("// available trade chart in a comment\n" + broken)
+        self.assertTrue(any("the 'no trade found' note still says" in problem for problem in problems))
+
+    def test_strings_containing_comment_markers_still_fail(self):
+        original = FINDER_JS.read_text(encoding="utf-8")
+        for expression in ('"https://example.test/available trade chart says"',
+                           "'/* available trade chart says */'",
+                           '`available trade chart says ${"//"}`'):
+            with self.subTest(expression=expression):
+                problems = source_problems(original + "\nconst readerCopy = " + expression + ";\n")
+                self.assertTrue(any("the 'no trade found' note still says" in problem for problem in problems))
 
 
 class ConsistencyRenderTest(unittest.TestCase):
