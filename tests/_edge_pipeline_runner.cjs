@@ -153,7 +153,10 @@ const pipeline = ValueModel.runValuePipeline(input);
 
 // JEG-1366: --dump-weights prints the DDF weights (VP-4) and the bench share they were built with, and stops.
 if (args["dump-weights"]) {
-  process.stdout.write(JSON.stringify({ ddf_weights: pipeline.ddfWeights, bench_share_applied: pipeline.benchShareApplied }));
+  process.stdout.write(JSON.stringify({ ddf_weights: pipeline.ddfWeights, bench_share_applied: pipeline.benchShareApplied,
+    // JEG-1569: the split's keys, only on the "charts" split.
+    ...(pipeline.ddfSplit !== undefined
+      ? { ddf_split: pipeline.ddfSplit, ddf_weights_projections: pipeline.ddfWeightsProjections } : {}) }));
   process.exit(0);
 }
 
