@@ -36,6 +36,11 @@
     };
   }
 
+  function fillPathOf(vp, source, pos, pk) {
+    var o = vp.sources && vp.sources[source], e = o && o.positions && o.positions[pos] && o.positions[pos].estimates;
+    return e && e[pk] ? e[pk].path || null : null;
+  }
+
   /* ---- snapshot of the engine's current build ---- */
   function snapshot() {
     var E = engine();
@@ -78,7 +83,8 @@
         }
         sources[s] = {
           published: p ? finite(p.native) : null, indexed: idx, adjusted: adj, role: p ? p.role || null : null,
-          estimated: p ? Boolean(p.estimated) : false, listed: Boolean(p), rank: p ? finite(p.rank) : null
+          estimated: p ? Boolean(p.estimated) : false, listed: Boolean(p), rank: p ? finite(p.rank) : null,
+          fillPath: p && p.estimated ? fillPathOf(vp, s, p.pos, pk) : null
         };
       });
       players.push({
@@ -172,7 +178,17 @@
     var lineup = posInfo.lineup || {};
     var sigmaRel = finite(lineup.sigmaRel), sigmaFloor = finite(lineup.sigmaFloor) || 0, native = finite(p.native);
     var sigma = sigmaRel === null || native === null ? null : native > 0 ? Math.max(sigmaRel * native, sigmaFloor) : sigmaFloor;
+    var lp = vp.lineup || {}, cs = (vp.chartSigma || {})[p.pos] || null;
+    var est = p.estimated && posInfo.estimates ? posInfo.estimates[String(key)] : null;
     return {
+      /* JEG-1393 R5-OP-02: the inputs behind availability, the starter line, the spread rate and the DDF weights, at
+         the reader's setting, so the worked rows can print their derivation. */
+      family: vsrc.family || null, byeShare: finite(lp.bye), missRate: finite(lineup.m), confidence: finite(lp.projection_confidence),
+      chartSpread: vsrc.family === 'chart' && cs ? { rate: finite(cs.sigma_rel), band: finite(cs.band), starters: finite(cs.starters),
+        rostered: finite(cs.rostered), players: finite(cs.players) } : null,
+      starterLineParts: starterLineParts(ins, source, p.pos, posInfo),
+      starterWeightInputs: weightInputs(vp, sg, p.pos), fillInWeightInputs: weightInputs(vp, bg, p.pos),
+      fillPath: est ? est.path || null : null,
       sigmaRel: sigmaRel, sigmaFloor: sigmaFloor, sigma: sigma,
       /* R4-OP-03 / R4-OP-09: how many league allocations the engine averages, and the averaged total value above
          waivers the value-pie factor divides (vorpFactor = pie ÷ surplusTotal in each allocation). */
@@ -189,6 +205,57 @@
       starterGroupTotal: finite(groups[sg]), fillInGroupTotal: finite(groups[bg]),
       starterMoved: Boolean(movedGroups[sg]), fillInMoved: Boolean(movedGroups[bg]), pie: finite(vp.pie)
     };
+  }
+  /* The starter line's two players (value-model.js VP-2.5: the midpoint of the last starter and the first non-starter on
+     the source's filled-in list, never below the waiver line), for each starter count the league allocations give the
+     position, with the share of the allocations that have it. The list is the engine's own order (rank). */
+  function starterLineParts(ins, source, pos, posInfo) {
+    var vp = ins.valuePipeline || {};
+    var ps = (ins.players && ins.players[source]) || {};
+    var work = Object.keys(ps).filter(function (k) { return ps[k].pos === pos && finite(ps[k].rank) !== null && finite(ps[k].native) !== null; })
+      .sort(function (a, b) { return ps[a].rank - ps[b].rank; }).map(function (k) { return { key: k, value: ps[k].native }; });
+    var mix = Array.isArray(vp.allocationMix) && vp.allocationMix.length ? vp.allocationMix : [{ weight: 1, allocation: vp.allocation }];
+    var byS = {}, total = 0;
+    mix.forEach(function (m) {
+      var a = m.allocation && m.allocation[pos], S = a ? finite(a.starters) : null, wt = finite(m.weight);
+      if (S === null || wt === null) return;
+      byS[S] = (byS[S] || 0) + wt; total += wt;
+    });
+    var waiver = finite(posInfo.waiver);
+    if (!total || waiver === null) return null;
+    var groups = Object.keys(byS).map(Number).sort(function (a, b) { return b - a; }).map(function (S) {
+      if (S <= 0 || work.length < S) return { starters: S, share: byS[S] / total, last: null, next: null, line: waiver, floored: true };
+      var last = work[S - 1], next = work.length > S ? work[S] : null;
+      var mid = next ? (last.value + next.value) / 2 : last.value;
+      return { starters: S, share: byS[S] / total, last: last, next: next, mid: mid, line: Math.max(mid, waiver), floored: mid < waiver };
+    });
+    var line = groups.reduce(function (t, g) { return t + g.share * g.line; }, 0);
+    return { groups: groups, line: line, waiver: waiver };
+  }
+  /* One group's DDF weight and the included sources' own shares it averages (value-model.js VP-4, ES-15.1: each source
+     counts where it has weights and players at the position; held sources are in the included set). */
+  function weightInputs(vp, group, pos) {
+    var srcs = vp.sources || {};
+    var rows = (vp.included || []).filter(function (s) {
+      var o = srcs[s];
+      return o && o.weights && finite(o.weights[group]) !== null && !(o.positions && o.positions[pos] && o.positions[pos].method === 'no_players');
+    }).map(function (s) { return { source: s, label: LABELS[s] || s, share: srcs[s].weights[group] }; });
+    var W = vp.ddfWeights ? finite(vp.ddfWeights[group]) : null;
+    if (!rows.length || W === null) return null;
+    var mean = rows.reduce(function (t, r) { return t + r.share; }, 0) / rows.length;
+    return { rows: rows, mean: mean, weight: W };
+  }
+  /* How each filled-in player at a source got his estimate (value-model.js estimateFor: "peers" = scaled from the other
+     charts, "curve" = the chart's own values against projected points), counted over the given positions. */
+  function fillMethods(snap, source, positions) {
+    var vsrc = snap && snap.inspection && snap.inspection.valuePipeline && snap.inspection.valuePipeline.sources && snap.inspection.valuePipeline.sources[source];
+    if (!vsrc || !vsrc.positions) return null;
+    var out = { peers: 0, curve: 0, other: 0 };
+    positions.forEach(function (pos) {
+      var e = (vsrc.positions[pos] && vsrc.positions[pos].estimates) || {};
+      Object.keys(e).forEach(function (k) { var path = e[k] && e[k].path; out[path === 'peers' || path === 'curve' ? path : 'other'] += 1; });
+    });
+    return out;
   }
   function buildUpSources() {
     var S = window.DDFAuditSource;
@@ -242,7 +309,7 @@
 
   window.DDFLearnEngine = {
     CHARTS: CHARTS, LABELS: LABELS, SCORING_LABEL: SCORING_LABEL,
-    load: load, snapshot: snapshot, health: health, buildUp: buildUp, worked: worked, buildUpSources: buildUpSources, sourceUrl: sourceUrl,
+    load: load, snapshot: snapshot, health: health, buildUp: buildUp, worked: worked, fillMethods: fillMethods, buildUpSources: buildUpSources, sourceUrl: sourceUrl,
     rosterLabel: rosterLabel, onRebuild: function (fn) { var E = engine(); if (E && E.on) E.on(fn); }
   };
 })();

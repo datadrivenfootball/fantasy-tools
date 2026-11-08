@@ -128,6 +128,19 @@ PAGE_WORKED = """() => ({eq: [...document.querySelectorAll('#bu-worked tbody tr'
   explain: document.getElementById('bu-explain').textContent,
   rows: Object.fromEntries([...document.querySelectorAll('#bu-worked tbody tr')].map(tr => [tr.querySelector('th').firstChild.textContent.trim(),
     {value: tr.querySelector('td').textContent.trim(), how: (tr.querySelector('.nx-how') || {}).textContent || ''}]))})"""
+# JEG-1393 R5-OP-02 / R5-OP-05: the raw engine inputs behind CBS Sports's RB worked row, for the top RB by DDF Value.
+ENGINE_R5 = """() => { const C = window.TradeValueCurveControls, ins = C.getInspection(), vp = ins.valuePipeline, src = vp.sources.cbs;
+  const top = C.getAllRows().filter(r => r.pos === 'RB' && r.ddfByVersion && r.ddfByVersion.blended && isFinite(r.ddfByVersion.blended.value)
+    && ins.players.cbs[String(r.player_key)]).sort((a, b) => b.ddfByVersion.blended.value - a.ddfByVersion.blended.value)[0];
+  const P = src.positions.RB, mix = (vp.allocationMix && vp.allocationMix.length) ? vp.allocationMix : [{weight: 1, allocation: vp.allocation}];
+  const weights = {}, method = {};
+  Object.keys(vp.sources).forEach(s => { weights[s] = vp.sources[s].weights; method[s] = vp.sources[s].positions.RB.method; });
+  const paths = [];
+  ['QB','RB','WR','TE'].forEach(q => Object.values(src.positions[q].estimates || {}).forEach(e => paths.push(e.path)));
+  return {key: String(top.player_key), bye: vp.lineup.bye, m: P.lineup.m, avail: P.avail, conf: vp.lineup.projection_confidence,
+    sigmaRel: P.lineup.sigmaRel, cs: vp.chartSigma.RB, W: vp.ddfWeights, included: vp.included, weights, method,
+    work: Object.values(ins.players.cbs).filter(p => p.pos === 'RB').map(p => [p.rank, p.native]),
+    mix: mix.map(m => [m.weight, m.allocation.RB.starters]), waiver: P.waiver, starterLine: P.starterLine, paths}; }"""
 PAGE_BUILDUP = """() => [...document.querySelectorAll('#bu-table tbody tr')].map(tr => ({k: tr.dataset.key, cells: [...tr.querySelectorAll('td')].map(td => td.textContent.trim())}))"""
 
 
@@ -366,6 +379,96 @@ class LearnEngineParity(unittest.TestCase):
         self.assertIn("It is not the bench share of the pie shown on Full value logic", gloss)
         self.assertFalse(overflow, "horizontal overflow at 390 px")
         self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
+
+    def test_round5_derivations_and_status(self):
+        """R5-OP-02: the worked rows derive availability, the starter line, the chart spread rate and the DDF weights at the
+        reader's setting, recomputed here from the engine's raw inspection (never the page model), at two settings.
+        R5-OP-05: the build-up's filled-in count says how each estimate was made. R5-OP-08: the status line follows a
+        settings change."""
+        settings = [("ppr", 12, 0), ("half_ppr", 10, 1)]
+        got, errors = {}, []
+        with serve() as base, self.sync_playwright() as p:
+            browser, page, console = self._page(p, base, viewport=(390, 844))
+            for scoring, teams, sf in settings:
+                q = f"?scoring={scoring}&teams={teams}&roster=" + ROSTER.format(sf=sf)
+                go(page, "#numbers/pie" + q)
+                page.wait_for_function(SNAP_READY, arg={"scoring": scoring, "teams": teams, "sf": bool(sf)}, timeout=60000)
+                eng = page.evaluate(ENGINE_R5)
+                go(page, f"#numbers/build-up/cbs/RB{q}")
+                page.wait_for_selector("#bu-worked-pick", timeout=20000)
+                page.select_option("#bu-worked-pick", eng["key"])
+                page.wait_for_timeout(150)
+                worked = page.evaluate(PAGE_WORKED)["rows"]
+                go(page, f"#numbers/build-up/cbs{q}")
+                page.wait_for_timeout(150)
+                meta = page.text_content("#bu-meta")
+                go(page, f"#numbers/trace/{eng['key']}{q}")
+                page.wait_for_timeout(150)
+                trace = page.text_content("#tr-adj-body")
+                got[(scoring, teams, sf)] = (eng, worked, meta, trace)
+            # R5-OP-08: on the Trace at the second setting, switch to 12 teams with the page's own control.
+            before = page.text_content("#nx-live")
+            page.select_option("#set-teams", "12")
+            page.wait_for_function(SNAP_READY, arg={"scoring": "half_ppr", "teams": 12, "sf": True}, timeout=60000)
+            page.wait_for_timeout(300)
+            after = page.text_content("#nx-live")
+            new_ddf = page.evaluate("""(k) => { const r = TradeValueCurveControls.getAllRows().find(r => String(r.player_key) === k);
+              return r.ddfByVersion.blended.value; }""", got[settings[1]][0]["key"])
+            browser.close()
+        for combo, (eng, worked, meta, trace) in got.items():
+            tag = "/".join(map(str, combo))
+            # Availability = (1 − bye share) × (1 − missed-game rate).
+            a = (1 - eng["bye"]) * (1 - eng["m"])
+            want = f"(1 − bye share {eng['bye'] * 100:.2f}%) × (1 − RB missed-game rate {eng['m'] * 100:.2f}%) = {1 - eng['bye']:.4f} × {1 - eng['m']:.4f} = {a * 100:.1f}%"
+            if want not in worked["Availability"]["how"] or abs(a - eng["avail"]) > 1e-9:
+                errors.append(f"{tag}: availability {worked['Availability']['how']!r}, want {want!r} (engine {eng['avail']})")
+            # DDF weight = mean of the included sources' own shares for the group.
+            for group, row in (("RB|starter", "Starter rate"), ("RB|bench", "Fill-in rate")):
+                shares = [eng["weights"][s][group] for s in eng["included"] if eng["weights"].get(s) and eng["method"][s] != "no_players"]
+                mean = sum(shares) / len(shares)
+                role = "starter" if group.endswith("starter") else "fill-in"
+                want = f"DDF weight {eng['W'][group] * 100:.2f}% = the mean of the {len(shares)} included sources’ own RB {role} shares (held sources too)"
+                if abs(mean - eng["W"][group]) > 5e-6 or want not in worked[row]["how"] or f"÷ {len(shares)} = {mean * 100:.2f}%" not in worked[row]["how"]:
+                    errors.append(f"{tag}: {group} weight {worked[row]['how'][:300]!r}, want {want!r} mean {mean}")
+                if want not in trace:
+                    errors.append(f"{tag}: trace lacks the {group} weight derivation")
+            # Starter line = midpoint of the last starter and first non-starter at each allocation's count, weighted.
+            work = [v for _, v in sorted((r, v) for r, v in eng["work"])]
+            shares = {}
+            for wt, s in eng["mix"]:
+                shares[s] = shares.get(s, 0) + wt
+            tot = sum(shares.values())
+            line = sum(w / tot * max((work[s - 1] + work[s]) / 2 if len(work) > s else work[s - 1], eng["waiver"]) for s, w in shares.items())
+            want = f"weighted by those shares, {line:.2f}" if len(shares) > 1 else f"= {line:.2f} ({next(iter(shares))} RB starters)"
+            if abs(line - eng["starterLine"]) > 1e-6 or want not in worked["RB starter line"]["how"]:
+                errors.append(f"{tag}: starter line {worked['RB starter line']['how']!r}, want {want!r} (engine {eng['starterLine']})")
+            # Chart spread rate and its rank band.
+            cs = eng["cs"]
+            first = cs["starters"] // 2 + 1
+            want = f"RB chart spread rate {cs['sigma_rel']:.4f} = the median chart disagreement at RB ranks {first}–{first + cs['band'] - 1} ({cs['band']} players"
+            if want not in worked["Spread σ"]["how"] or abs(cs["sigma_rel"] * eng["conf"] - eng["sigmaRel"]) > 1e-9:
+                errors.append(f"{tag}: spread {worked['Spread σ']['how']!r}, want {want!r}")
+            # R5-OP-05: how CBS Sports's estimates were made.
+            peers, curve = eng["paths"].count("peers"), eng["paths"].count("curve")
+            want = ("filled in from the other charts," if not curve else
+                    f"filled in ({peers} from the other charts, {curve} from the chart’s own values against projected points")
+            if f"{peers + curve} {want}" not in meta:
+                errors.append(f"{tag}: build-up meta {meta[:200]!r}, want {want!r}")
+        self.assertEqual(errors, [], "\n".join(errors))
+        self.assertNotEqual(f1(new_ddf), before.split("DDF Value ")[-1].rstrip("."), "the setting change did not move his value; the check proves nothing")
+        self.assertIn(f"DDF Value {f1(new_ddf)}.", after, f"status kept the old setting: {after!r}")
+        self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
+
+    def test_round5_glossary(self):
+        """R5-OP-02 / R5-OP-03 / R5-OP-05: the new terms and the parts as value amounts."""
+        html = (DIST / "learn.html").read_text(encoding="utf-8")
+        for term in ("g-starter-line", "g-availability", "g-ddf-weights"):
+            self.assertIn(f'id="{term}"', html)
+        self.assertIn("(1 − bye share) × (1 − the position’s missed-game rate)", html)
+        self.assertEqual(html.count("× his value above the waiver line × his chance of clearing"), 2)
+        self.assertNotIn("start-worthy part (his chance of clearing", html)
+        self.assertNotIn("filled in from the other charts is left out", html)
+        self.assertEqual(html.count("from the other charts or, when none is usable, from the chart’s own values against projected points"), 2)
 
     def test_overrides_and_basis_not_applied(self):
         """Learn explains the model's own DDF Value: a stored override and a one-chart basis must not change it."""
