@@ -86,9 +86,10 @@ class BuilderHelpersTest(unittest.TestCase):
 
 class TemplateRulesTest(unittest.TestCase):
     def test_ddf_value_is_the_trade_charts(self):
-        self.assertIn("DDF Value = mean(Adjusted value of each included, non-hidden trade chart that prices the player)",
-                      TEMPLATE)
-        self.assertIn("DDF Value = mean(Adjusted over included, non-hidden trade charts that price the player)", TEMPLATE)
+        self.assertIn("DDF Value = mean(Adjusted value of each included, non-hidden trade chart that prices the player's "
+                      "position; a chart that does not list the player counts 0)", TEMPLATE)
+        self.assertIn("DDF Value = mean(Adjusted over included, non-hidden trade charts that price the player's "
+                      "position; a chart that does not list the player counts 0)", TEMPLATE)
         self.assertNotIn("non-hidden source that prices the player", TEMPLATE)
         # The trace averages each version's own sources, not every counted source.
         self.assertIn('chain("blended", "ddf_value")', TEMPLATE)
@@ -345,6 +346,31 @@ class Round4Test(unittest.TestCase):
         self.assertIn("fractional flex seats\n(VP-2.2g, JEG-1335", METHODOLOGY)
         self.assertNotIn("this week", METHODOLOGY[METHODOLOGY.index("**ES-1"):METHODOLOGY.index("**ES-5")])
         self.assertIn("At adoption (JEG-536, 2026-10-12) the rates were QB 58%", METHODOLOGY)
+
+    # Round 7.
+    def test_unlisted_chart_counts_zero_not_left_out(self):
+        # R7-OP-02: value-model.js rowCell gives a chart that does not list him
+        # (below_depth) Adjusted 0, which is averaged; only no_players is null.
+        self.assertNotIn("a chart that does not price the player is left out", TEMPLATE)
+        self.assertNotIn("A source that does not price a player is left out", TEMPLATE)
+        self.assertIn("a chart whose list ends before this player counts 0 (an implied 0", TEMPLATE)
+        self.assertIn("Only a chart that does not price the position at all (it lists nobody there) or is held is left out.",
+                      TEMPLATE)
+
+    def test_seth_mcgowan_mean_counts_the_zero(self):
+        # R7-OP-02 live case: CBS does not list him, so it counts 0 over 4 charts.
+        adjusted = {"cbs": 0, "usatoday": 4.5301, "fantasypros": 0.1647, "fantasycalc": 0.1812}
+        self.assertAlmostEqual(sum(adjusted.values()), 4.876, places=4)
+        self.assertAlmostEqual(sum(adjusted.values()) / len(adjusted), 1.219, places=3)
+
+    def test_trace_prints_the_subtraction_only_when_it_holds(self):
+        # R7-CX-02: Jalen Nailor CBS, 1.2 - 0.4271 != 0.1179 over 9 allocations.
+        self.assertIn("const subtractionHolds = (nat, waiver, v)", TEMPLATE)
+        self.assertIn("chain = (subtractionHolds(nat, x.waiver, v)", TEMPLATE)
+        self.assertIn("v, restated surplus averaged over the allocations", TEMPLATE)
+        self.assertIn("each allocation computes its own surplus and factor; an absent player contributes 0; "
+                      "v is the averaged pie-scaled value ÷ the averaged factor", TEMPLATE)
+        self.assertEqual(TEMPLATE.count('op("=") + step("v", fmtN(v))'), 1)
 
 
 if __name__ == "__main__":
