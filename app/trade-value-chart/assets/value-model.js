@@ -2405,7 +2405,7 @@
         unfundedGroups: o.unfundedGroups, unfundedMoved: o.unfundedMoved, vorpFactor: o.vorpFactor,
         indexedFactor: o.indexedFactor === undefined ? null : o.indexedFactor, positions: positions };
     });
-    return {
+    var diag = {
       version: result.version, setting: result.setting, pie: result.pie, method: result.method,
       benchShare: result.benchShare, benchShareInput: result.benchShareInput,
       benchShareOverride: result.benchShareOverride, lineup: result.lineup, chartSigma: result.chartSigma,
@@ -2417,6 +2417,15 @@
       seatSigma: vpSeatSigma(result.setting || {}),
       sources: sources
     };
+    // JEG-1569: the split's keys, only on the "charts" split (the live diagnostics are unchanged).
+    if (result.ddfSplit !== undefined) {
+      diag.ddfSplit = result.ddfSplit;
+      diag.ddfWeightsProjections = result.ddfWeightsProjections;
+      Object.keys(sources).forEach(function (src) {
+        if (result.sources[src].budgets) sources[src].budgets = result.sources[src].budgets;
+      });
+    }
+    return diag;
   }
 
   // JEG-1177 (JEG-1176): the week-transition rule. Python twin:
