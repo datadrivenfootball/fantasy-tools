@@ -1,0 +1,467 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Team assessment · Data Driven Football</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"><style>
+.team-page{max-width:1040px;padding:44px 28px 56px}
+.team-page h1{max-width:22ch;margin:0 0 10px;text-wrap:balance}
+.team-page p{max-width:74ch}
+.team-page .card{padding:26px;margin:24px 0}
+.team-page section[id]{scroll-margin-top:120px}
+.team-page .team-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+.team-page .team-stats .card{margin:0;padding:24px 28px;position:relative}
+.team-page .team-stats .stat-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.team-page .team-stats h3{margin:0;font-size:20px}
+.team-page .rank-pill{display:inline-block;padding:4px 12px;border-radius:99px;background:#e8f5ee;color:#176c4d;border:1px solid #176c4d;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13px;font-weight:600;white-space:nowrap}
+.team-page .stat-value{font-family:var(--serif);font-size:56px;line-height:1;font-weight:600;color:#176c4d;font-variant-numeric:tabular-nums;margin:16px 0 8px;letter-spacing:-.02em}
+.team-page .stat-sub{margin:0;color:#5c6a76;font-size:14px}
+.team-page .team-context{margin:24px 0!important;padding:14px 18px;background:#e8f5ee;border-left:3px solid #176c4d;border-radius:0 10px 10px 0;font-size:15px;line-height:1.55;max-width:none}
+.team-page .team-context strong{font-weight:700;color:#0d120e}
+.team-page .team-table{padding:0;background:transparent;border:0}
+.team-page .team-table .table-wrap{border:1px solid var(--border);border-radius:12px;background:#fff}
+.team-page table{width:100%;font-size:14px;border-collapse:collapse}
+.team-page th{padding:14px 8px;color:#17364c;background:#eef1ec}
+.team-page th button{padding:0;background:transparent;border:0;border-radius:0;font-size:11px;color:inherit}
+.team-page td{padding:14px 8px;overflow-wrap:anywhere}
+.team-page td.number{position:relative;isolation:isolate;font-family:'IBM Plex Mono',monospace;font-weight:500}
+.team-page td.number .vbar{position:absolute;left:6px;top:7px;bottom:7px;width:calc((100% - 12px)*var(--w));background:#e3f1e8;border-radius:4px;z-index:-1}
+.team-page tbody tr.selected{background:#e8f5ee;font-weight:700}
+.team-page tbody tr.selected td:first-child{box-shadow:inset 3px 0 0 #176c4d;color:#176c4d}
+.team-page tbody tr.selected .vbar{background:#bfe0c9}
+.team-page td[data-rank]::after{content:attr(data-rank);margin-left:8px;padding:2px 8px;border-radius:99px;background:#176c4d;color:#fff;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;vertical-align:1px}
+.team-page tbody tr{cursor:pointer}
+.team-page tbody tr:hover{background:#f3f7f4}
+.team-page tbody tr.selected:hover{background:#e8f5ee}
+.team-page .info summary{width:17px;height:17px;line-height:15px}
+.team-page .info[open] span{position:fixed;top:auto;left:50%;transform:translateX(-50%);width:min(330px,85vw);white-space:normal;text-align:left;background:white;color:#12202c}
+.team-page .asset-areas>div{display:flex;align-items:baseline;gap:16px;padding:16px 0}
+.team-page .asset-areas>div+div{border-top:1px solid var(--border)}
+.team-page .asset-areas h3{margin:0;background:#dcead9;color:#034531;border-radius:4px;padding:4px 8px;white-space:nowrap;font-size:14px;font-family:"Archivo",system-ui,sans-serif;font-weight:700}
+.team-page .asset-areas p{margin:0}
+.team-page .asset-areas>p{margin-top:16px}
+.team-page a:hover{text-decoration:underline}
+.team-page .row .button:hover{text-decoration:none}
+.team-page ::selection{background:#d7ecd9;color:#142b25}
+.team-page .notice{font-size:13px}
+.team-shell .sitemap .footer{max-width:1200px;margin:auto;padding:20px}
+@media(max-width:760px){.team-page{padding:28px 16px 40px}.team-page .team-stats{gap:10px}.team-page .team-stats .card{padding:16px}.team-page .team-stats .stat-top{flex-direction:column;align-items:flex-start;gap:6px}.team-page .team-stats h3{font-size:17px}.team-page .stat-value{font-size:40px}.team-page .card{padding:20px}.team-page .table-wrap{overflow:auto}.team-page table{min-width:690px}.team-page tbody td:first-child,.team-page thead th:first-child{position:sticky;left:0;background:#fff;z-index:2}.team-page tbody tr.selected td:first-child{background:#e8f5ee}.team-page thead th:first-child{background:#eef1ec}.team-page section[id]{scroll-margin-top:180px}.team-page .asset-areas>div{flex-direction:column;gap:8px}}
+</style><link rel="icon" href="data:,"><style id="qa-pass">
+:focus-visible{outline:3px solid #176c4d;outline-offset:2px}
+header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
+.aiband :focus-visible{outline-color:#176c4d}
+
+.ws-steps{max-width:1040px}
+body .sitemap .in{max-width:1040px;padding:32px 28px 28px;grid-template-columns:repeat(4,minmax(0,1fr))}
+body .sitemap .footer{max-width:1040px;margin:0 auto;padding:20px 28px 28px}
+.sitemap a{min-height:0}
+.mkt,.num.mkt,.kd{color:#5c6a76}
+.prem{color:#a83e12}
+@media(max-width:760px){
+ body .sitemap .in{grid-template-columns:repeat(2,minmax(0,1fr));padding:28px 20px}
+ body .sitemap .footer{padding:20px}
+ .sitemap a{padding:12px 0}
+ .header-inner button,.header-inner a,.morewrap>button{min-height:44px}
+ .ctx-strip a{display:inline-flex;align-items:center;min-height:44px}
+ .ws-steps a,.ws-steps span,.ws-steps strong{min-height:44px;display:inline-flex;align-items:center}
+ .button,.btn,button.primary{min-height:44px}
+ summary{min-height:44px;display:flex;align-items:center}
+}
+
+.team-page .team-table th button,.team-page .team-table th summary{position:relative}
+@media(max-width:760px){.team-page .team-table th button::after,.team-page .team-table th summary::after{content:"";position:absolute;inset:-14px -4px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+</style><style id="team-rework">
+/* TIER RULES (Nov 6, Jeremy: bars must show the full range, not all green).
+   Three tiers, always shown as colour + text label + number.
+   1) Teams (league table): rank on that column among the 12 teams. Ranks 1-4 Strong, 5-8 Average, 9-12 Weak (thirds; ties share the better rank).
+   2) Your positions: score = sum over starter slots of min(player DDF, 1.25 x league median for that slot); ratio = score / sum of slot medians.
+      The cap stops one star hiding a thin slot. Strong >= 1.10, Average 0.90 to 1.09, Weak < 0.90.
+   League slot medians are the real per-slot medians of every team's starters (DDF.league.positionTiers, JEG-1539). */
+.team-page{--t-strong:#176c4d;--t-avg:#b25e00;--t-weak:#b3261e;--t-strong-bg:#e8f5ee;--t-avg-bg:#fdf1d6;--t-weak-bg:#fbe4e1;--t-strong-tx:#0f5238;--t-avg-tx:#6b3a00;--t-weak-tx:#8f1a12;--t-strong-bar:#cfe8d6;--t-avg-bar:#f8e3a6;--t-weak-bar:#f4c0b8}
+.team-page .team-stats h2{margin:0;font-size:20px}
+.team-page .pos-table tbody th[scope=row]{background:#fff;color:var(--text);text-transform:none;letter-spacing:0;font-size:inherit}
+.team-page .part{margin:0 0 40px}
+.team-page .part+.part{padding-top:32px;border-top:2px solid var(--border)}
+.team-page h2{margin:0 0 8px}
+.team-page .part>h2.part-title{font-size:28px;margin-bottom:10px}
+.team-page .tier-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;list-style:none;margin:10px 0 14px;padding:0;font-size:13px;color:#33424e}
+.team-page .tier-legend li{display:inline-flex;align-items:center;gap:6px}
+.team-page .tier-legend .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.team-page .sw.strong,.team-page .fill.strong{background:var(--t-strong)}.team-page .sw.average,.team-page .fill.average{background:var(--t-avg)}.team-page .sw.weak,.team-page .fill.weak{background:var(--t-weak)}
+.team-page .tier{display:inline-block;padding:2px 9px;border-radius:99px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;border:1px solid currentColor}
+.team-page .tier.strong{color:var(--t-strong-tx);background:var(--t-strong-bg)}.team-page .tier.average{color:var(--t-avg-tx);background:var(--t-avg-bg)}.team-page .tier.weak{color:var(--t-weak-tx);background:var(--t-weak-bg)}
+.team-page .pos-table .table-wrap{border:1px solid var(--border);border-radius:12px;background:#fff}
+.team-page .pos-table td,.team-page .pos-table th{padding:14px 12px;text-align:left;vertical-align:middle}
+.team-page .pos-table th.num,.team-page .pos-table td.num{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.team-page .pos-table .posname{font-weight:700;font-size:16px;display:block}
+.team-page .pos-table .players{display:block;color:#33424e;font-size:13px;margin-top:2px}
+.team-page .pos-table .meter{display:flex;align-items:center;gap:12px}
+.team-page .pos-table .track{position:relative;flex:1 1 140px;min-width:100px;height:14px;background:#eef1ec;border-radius:7px}
+.team-page .pos-table .track .fill{display:block;height:100%;border-radius:7px 0 0 7px;border-radius:7px}
+.team-page .pos-table .track .median{position:absolute;top:-4px;bottom:-4px;left:80%;width:2px;background:#17364c}
+.team-page .pos-table .pct{display:block;font-size:12px;color:#33424e;margin-top:4px;font-family:"IBM Plex Mono",monospace}
+.team-page .pos-table tbody tr{cursor:default}
+.team-page .pos-table tbody tr:hover{background:transparent}
+.team-page .strength-cell{min-width:240px}
+.team-page .takeaways{margin:24px 0}
+.team-page .takeaways .asset-areas>div{padding:14px 0}
+.team-page .takeaways h3{min-width:0}
+.team-page .next-step{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-top:24px}
+.team-page .next-step .button.primary{font-size:16px;padding-left:24px;padding-right:24px}
+.team-page .league-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 8px}
+.team-page .league-facts>div{padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:#fff}
+.team-page .league-facts dt{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#5c6a76;margin:0 0 4px}
+.team-page .league-facts dd{margin:0;font-weight:600}
+.team-page .team-table .table-wrap{margin-top:8px}
+.team-page td.number .cell{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.team-page td.number .cell .tier{font-size:10px;padding:1px 6px;color:var(--t-strong-tx)}
+.team-page td.number .vbar{background:var(--t-strong-bar)}
+.team-page td.number .vbar.average{background:var(--t-avg-bar)}.team-page td.number .vbar.weak{background:var(--t-weak-bar)}
+.team-page td.number .cell .tier.average{color:var(--t-avg-tx)}.team-page td.number .cell .tier.weak{color:var(--t-weak-tx)}
+.team-page tbody tr.selected .vbar{background:var(--t-strong-bar)}
+.team-page tbody tr.selected .vbar.average{background:var(--t-avg-bar)}.team-page tbody tr.selected .vbar.weak{background:var(--t-weak-bar)}
+.team-page td.number .cell .tier{background:rgba(255,255,255,.8)}
+.team-page #team-overview{margin:20px 0 0}
+.team-page #team-overview .asset-areas>div{padding:12px 0}
+.team-page #team-overview[hidden]{display:none}
+@media(max-width:760px){
+ .team-page .part>h2.part-title{font-size:24px}
+ .team-page .team-stats h2{font-size:17px}
+ .team-page .league-facts{grid-template-columns:1fr}
+ .team-page .pos-table table{min-width:0;display:block}
+ .team-page .pos-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+ .team-page .pos-table tbody{display:block}
+ .team-page .pos-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;border-top:1px solid var(--border)}
+ .team-page .pos-table tbody tr:first-child{border-top:0}
+ .team-page .pos-table tbody th[scope=row],.team-page .pos-table tbody td:first-child{position:static}
+ .team-page .pos-table td.strength-cell{grid-column:1/-1;padding-top:0}
+ .team-page .pos-table .table-wrap{overflow:visible}
+ .team-page .pos-table .track{flex:1 1 auto}
+ .team-page .pos-table td,.team-page .pos-table th{padding:12px 8px}
+ .team-page .pos-table .strength-cell{min-width:0}
+ .team-page .pos-table .track{min-width:70px;flex-basis:70px}
+ .team-page .next-step .button{width:100%;justify-content:center;text-align:center}
+ .team-page .next-step .button.primary{order:-1}
+ .team-page .team-table table{min-width:760px}
+}
+</style><style id="advance-pass">.team-page .next-label{flex:1 1 220px;font-size:15px;color:#4b5a66;margin:0}.team-page .next-top{margin:16px 0 8px;justify-content:flex-start;gap:16px}.team-page .next-top .next-label{flex:0 1 auto}.team-page .next-end{margin:32px 0 8px}@media(max-width:600px){.team-page .next-end .next-label,.team-page .next-top .next-label{flex:1 0 100%;order:-2}}</style><style id="imported-league">
+/* F01 (2026-11-06, Jeremy: "Show the imported league, mark numbers not priced"). A league from a #s= link or ddf:league shows its own names,
+   settings and players; every value the engine does not price for it reads "Not priced" (JEG-1539). */
+body.league-pending .team-page{visibility:hidden}
+.team-page .np{color:#5c6a76;font-weight:500;font-family:"Archivo",system-ui,sans-serif;font-size:14px;white-space:nowrap}
+.team-page .opp-denom{display:block;margin:8px 0;font-style:normal}
+/* R4-CX-02: the best-move (i) carries the percent's arithmetic, so it opens centred in the viewport and scrolls inside
+   (with top:auto the fixed popover sat at a fixed viewport offset, below the fold, whatever the scroll). */
+.team-page #opp-title .info[open]>span{top:50%;transform:translate(-50%,-50%);z-index:60;max-height:min(70vh,480px);overflow-y:auto;overscroll-behavior:contain;font-family:system-ui,sans-serif;letter-spacing:0;line-height:1.45}
+.team-page .np .info{vertical-align:1px;margin-left:4px;white-space:normal}
+.team-page .np .info>span{white-space:normal}
+.team-page .np .info summary{min-height:0;display:inline-block;position:relative}
+.team-page .np .info summary::after{content:"";position:absolute;inset:-13px}
+.team-page .stat-value.np-value{font-family:"Archivo",system-ui,sans-serif;font-size:24px;line-height:1.3;color:#5c6a76;font-weight:600;letter-spacing:0;white-space:normal}
+.team-page .rank-pill.np-pill{background:#f3f5f2;color:#5c6a76;border-color:#c5ccc7;white-space:normal}
+.team-page .np-note{margin:10px 0 14px;font-size:14px;color:#4b5a66}
+.team-page .pos-table .track.neutral{background:repeating-linear-gradient(135deg,#eef1ec 0 8px,#e4e8e3 8px 16px)}
+.team-page .tier.none{color:#4b5a66;background:#f3f5f2;border-color:#c5ccc7}
+.team-page .mine-badge{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:99px;background:#176c4d;color:#fff;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;vertical-align:1px}
+.team-page .tier-legend[hidden]{display:none}
+.team-page .empty-rosters{padding:18px 12px;color:#33424e}
+.team-page .pos-table .players.full{font-size:14px;line-height:1.5;white-space:normal}
+.team-page .pos-table tbody th[scope=row]{white-space:normal}
+@media(max-width:760px){.team-page .stat-value.np-value{font-size:19px}}
+.team-page .opp{margin:24px 0}
+.team-page .opp h2{margin:0 0 10px}
+.team-page .opp-body{display:grid;grid-template-columns:minmax(0,1fr);column-gap:28px}
+@media(min-width:900px){.team-page .opp-body{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}.team-page .opp-body>.opp-look{grid-column:2;grid-row:1/span 3;align-self:start;margin-top:0}.team-page .opp-body>:not(.opp-look){grid-column:1}}
+.team-page .opp-tier{margin:0;font-family:"Archivo",system-ui,sans-serif;font-weight:700;font-size:22px;color:#0d120e}
+.team-page .opp-tier[data-tier]::before{content:"";display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:10px;vertical-align:middle;background:#8a958f}
+.team-page .opp-tier[data-tier="big"]::before{background:#176c4d}
+.team-page .opp-tier[data-tier="medium"]::before{background:#3f9a6f}
+.team-page .opp-tier[data-tier="marginal"]::before{background:#c9a227}
+.team-page .opp-line{margin:8px 0 0;max-width:68ch;line-height:1.55}
+.team-page .opp-look{margin:12px 0 0;padding:10px 14px;background:#f4f6f2;border-radius:10px;max-width:68ch;line-height:1.5}
+.team-page .opp-look b{font-weight:700}
+.team-page .opp-waivers{margin:10px 0 0;color:#4a5560;font-size:15px}
+.team-page .opp-note{display:block;margin-top:6px;color:#4a5560;font-size:14px}
+@media(max-width:760px){.team-page .opp-tier{font-size:19px}}
+</style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script></head><body class="team-shell"><header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="values.html">Values</a><div class="morewrap"><button type="button" aria-expanded="false" aria-controls="team-more">More ▾</button><div class="menu" id="team-more"><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a></div></div></nav></div></header><div class="ctx-strip"><span></span><a href="connect.html?edit=1">Edit league</a></div><main class="team-page">
+<section class="card empty-league" id="no-league" hidden aria-labelledby="no-league-title">
+<h1 id="no-league-title">Add your league to see your team</h1>
+<p>Paste your league's rosters and we will show your starters, your roster by position and how every team in the league compares, all at your league's settings.</p>
+<p><a class="button primary" href="connect.html">Add your league</a></p>
+</section>
+<section class="part" id="your-team" aria-labelledby="team-title">
+<h1 id="team-title">Your team at a glance</h1>
+<p class="muted" id="team-intro">Your starting lineup and roster, position by position, with where you are strong and where you are thin. Best eligible lineup on DDF Value at your league's settings.</p>
+<div data-ddf-caveats="assessment"></div>
+<div class="next-step next-top"><span class="next-label" id="next-top-label">Next: pick players.</span><a class="button primary" href="explore.html">Next: pick players</a></div>
+<div class="team-stats"><div class="card ddf-lift"><div class="stat-top"><h2>Your starters</h2><span class="rank-pill" id="rank-starter"></span></div><p class="stat-value" id="val-starter">—</p><p class="stat-sub" id="sub-starter"></p></div><div class="card ddf-lift"><div class="stat-top"><h2>Your roster</h2><span class="rank-pill" id="rank-roster"></span></div><p class="stat-value" id="val-roster">—</p><p class="stat-sub" id="sub-roster"></p></div></div>
+<p class="team-context" id="team-context"></p>
+
+<section class="card opp" id="opportunity" aria-labelledby="opp-title">
+<h2 id="opp-title">Your best move right now <details class="info"><summary aria-label="How this is sized">ⓘ</summary><span>We look for the biggest gain from one waiver pickup or one trade of one or two players a side that fits both rosters. The gain is in DDF Value, with your starters in full and each bench player at the <a href="learn.html#numbers/glossary/bench-weight">bench weight</a> for his position (the share of that position’s DDF Value the league’s bench players hold), and it is shown as a share of your team’s value counted the same way, before the move.<em class="opp-denom" id="opp-denom">The team value it divides by shows here once your best move is sized.</em> A gain inside the normal noise of the values counts as no move. Under 3% is no meaningful move, 3 to 6% a small edge, 6 to 10% a real opportunity, 10% or more a big one. One place in a league's value ranking is often about 4 to 6%. Teams you skip on Pick trading partners and players you hold are left out, as on Trade &amp; Waiver Recommendations. Where to look compares each of your starting slots with the typical player in that slot across your league on the analyst charts (CBS Sports, USA Today and FantasyPros), so it can point somewhere the DDF read does not. These lines were set from one week of three 12-team half-PPR leagues, so treat them as a guide, especially in superflex or full-PPR leagues. The other team always decides what it accepts.</span></details></h2>
+<div class="opp-body" aria-live="polite"><p class="opp-tier" id="opp-tier">Sizing your best move…</p>
+<p class="opp-line" id="opp-line"></p>
+<p class="opp-look" id="opp-look" hidden></p>
+<p class="opp-waivers" id="opp-waivers" hidden></p></div>
+</section>
+
+<section class="pos-table" id="positions" aria-labelledby="pos-title">
+<h2 id="pos-title">Your roster by position <details class="info"><summary aria-label="About position strength">ⓘ</summary><span>Strength compares each starter slot with the league median for that slot, taken from every team's best lineup on DDF Value. A star counts for at most 125% of the median, so one great player cannot hide a thin slot. Strong is 110% or more of the league median, Average is 90% to under 110%, Weak is under 90%. The dark line on each bar marks the league median.</span></details></h2>
+<ul class="tier-legend" aria-label="Strength key"><li><span class="sw strong" aria-hidden="true"></span>Strong</li><li><span class="sw average" aria-hidden="true"></span>Average</li><li><span class="sw weak" aria-hidden="true"></span>Weak</li><li>Dark line on a bar: league median</li></ul>
+<div class="table-wrap"><table id="pos-grid"><caption class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Your starters by position with DDF value and strength against the league median</caption><thead><tr><th scope="col">POSITION</th><th scope="col" class="num">STARTER DDF</th><th scope="col">STRENGTH VS LEAGUE</th></tr></thead><tbody></tbody></table></div>
+<p class="np-note" id="pos-note" hidden></p>
+</section>
+
+<section class="card takeaways" id="team-assets" aria-labelledby="take-title">
+<h2 id="take-title">Strengths, needs and what to do next</h2>
+<div class="asset-areas" id="take-areas"></div>
+</section>
+</section>
+
+<section class="part" id="league" aria-labelledby="league-title">
+<h2 id="league-title" class="part-title">Your league</h2>
+<h3>League details</h3>
+<dl class="league-facts"><div><dt>Format</dt><dd id="fact-format"></dd></div><div><dt>Lineup</dt><dd id="fact-lineup"></dd></div><div><dt>Source</dt><dd id="fact-source"></dd></div></dl>
+<section class="team-table" aria-labelledby="cmp-title"><h3 id="cmp-title">How the league compares</h3><p id="cmp-intro">Select any team to see its overview. Bars show each team against the league: Strong is the top third, Average the middle third, Weak the bottom third.</p>
+<ul class="tier-legend" aria-label="Strength key" id="cmp-legend"></ul>
+<div class="table-wrap"><table><caption class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Every team in the league with starter and roster value on DDF and on the analyst charts; select a row to see that team</caption><thead><tr><th scope="col" aria-sort="none"><button data-sort="name" aria-label="Sort by TEAM">TEAM ↕</button> <details class="info"><summary aria-label="About TEAM">ⓘ</summary><span>Team name; Your team is the team you picked as yours.</span></details></th><th scope="col" aria-sort="none"><button data-sort="starter" aria-label="Sort by STARTER DDF">STARTER DDF ↕</button> <details class="info"><summary aria-label="About STARTER DDF">ⓘ</summary><span>Best eligible starting lineup on DDF value.</span></details></th><th scope="col" aria-sort="none"><button data-sort="analystStarter" aria-label="Sort by STARTER ANALYST">STARTER ANALYST ↕</button> <details class="info"><summary aria-label="About STARTER ANALYST">ⓘ</summary><span>Best eligible starting lineup on the analyst charts: the average of the CBS Sports, USA Today and FantasyPros indexed values (each chart on DDF Value’s common scale), with no adjustment for your league. A chart that doesn’t price a player counts him at zero: a value the engine fills in for a chart that does not list him is an estimate, not that chart’s own number, so it counts as 0 here. A chart that does not run this week leaves the player out of this column.</span></details></th><th scope="col" aria-sort="none"><button data-sort="roster" aria-label="Sort by ROSTER DDF">ROSTER DDF ↕</button> <details class="info"><summary aria-label="About ROSTER DDF">ⓘ</summary><span>Full roster on DDF value.</span></details></th><th scope="col" aria-sort="none"><button data-sort="analystRoster" aria-label="Sort by ROSTER ANALYST">ROSTER ANALYST ↕</button> <details class="info"><summary aria-label="About ROSTER ANALYST">ⓘ</summary><span>Full roster on the analyst charts: the average of the CBS Sports, USA Today and FantasyPros indexed values (each chart on DDF Value’s common scale), with no adjustment for your league.</span></details></th></tr></thead><tbody id="league-rows"></tbody></table></div><p class="notice" id="analyst-zero">A chart that doesn’t price a starter counts him at zero.</p><p class="notice" id="sort-status" role="status"></p>
+<div class="card asset-areas" id="team-overview" aria-live="polite" hidden></div></section>
+</section>
+<div class="next-step next-end"><a class="button" href="settings.html">Back</a><span class="next-label" id="next-end-label">Next: pick players. All of your players start included.</span><a class="button primary" id="team-next" href="explore.html" data-sticky-next data-back-href="settings.html" data-back-label="Back" data-next-label="Next: pick players" data-summary="Next: pick players">Next: pick players</a></div>
+<script src="caveats.js"></script></main><footer class="sitemap"><div class="in"><div><h2>TRADE</h2><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a></div><div><h2>VALUES</h2><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a></div><div><h2>YOUR LEAGUE</h2><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a></div><div><h2>LEARN</h2><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a></div></div><div class="footer">Data Driven Football</div></footer><script src="site.js"></script><script>document.querySelectorAll(".table-wrap").forEach(function(w){if(w.scrollWidth>w.clientWidth+1||matchMedia("(max-width:760px)").matches){w.tabIndex=0;w.setAttribute("role","region");w.setAttribute("aria-label","League comparison table, scrolls sideways")}});</script><!-- ddf-engine -->
+<script src="v2/finder.js" defer></script>
+<script src="v2/team-summary.js" defer></script>
+<script src="ddf-engine.js" defer></script>
+<script src="ddf-league.js" defer></script>
+<script src="v2/nfl-byes.js" defer></script>
+<script src="v2/player-status.js" defer></script>
+<script src="v2/waivers.js" defer></script>
+<script src="find-engine.js" defer></script>
+<script src="ddf-opportunity.js" defer></script>
+<script type="module">
+/* Team assessment on the live engine (JEG-1539). Every number is a DDF.league read: TradeValueFinder lineups on engine rows,
+   the league's real per-slot medians (positionTiers) and the league table ranks. A value the engine does not price reads
+   "Not priced", never 0. Tier rules: DECISIONS "Team assessment rework" (2026-11-06). */
+(function () {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fx = v => (typeof v === 'number' && isFinite(v)) ? v.toFixed(1) : '—';
+  const TIER_LABEL = {strong: 'Strong', average: 'Average', weak: 'Weak'};
+  const SOURCE_LABEL = {link: 'From your chat', pasted: 'Pasted rosters', saved: 'Your saved league'};
+  const ordinal = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th'));
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const POS_LABEL = {QB: 'QB', RB: 'RB', WR: 'WR', TE: 'TE', FLEX: 'FLEX', SUPERFLEX: 'SUPERFLEX'};
+  const NP = '<span class="np">Not priced<details class="info"><summary aria-label="About not priced">ⓘ</summary><span>The value engine has no DDF Value for this player (kickers and defenses are not valued). He is listed, not counted as 0.</span></details></span>';
+  const last = name => String(name).split(' ').slice(-1)[0];
+  let sortKey = null, sortAsc = false, table = [], tiers = null, cur = null;
+
+  function lineupText(s) {
+    const [qb, rb, wr, te, flex, bench] = s.slots;
+    const sf = !s.superflex ? 0 : (Number(s.superflexSlots) === 2 ? 2 : 1);   // JEG-1571
+    return [[qb, 'QB'], [rb, 'RB'], [wr, 'WR'], [te, 'TE'], [flex, 'FLEX']].concat(sf ? [[sf, 'SUPERFLEX']] : [])
+      .filter(x => x[0] > 0).map(x => x[0] + ' ' + x[1]).concat([bench + ' bench']).join(' · ');
+  }
+  function rankThirds(n) {
+    const a = Math.round(n / 3), b = Math.round(2 * n / 3);
+    return [['strong', 'Strong (ranks 1-' + a + ')'], ['average', 'Average (' + (a + 1) + '-' + b + ')'], ['weak', 'Weak (' + (b + 1) + '-' + n + ')']];
+  }
+
+  function renderEmpty() {
+    $('no-league').hidden = false;
+    $('your-team').hidden = true; $('league').hidden = true;
+    document.querySelector('.next-end').hidden = true;
+    if (window.DDF && DDF.actionBar && DDF.actionBar.setDisabled) DDF.actionBar.setDisabled(true, 'Add your league first');
+  }
+
+  function renderMine(c, mine) {
+    const L = DDF.league.lineup(mine);
+    const row = table.find(r => r.index === mine.index);
+    const n = table.length;
+    $('val-starter').textContent = fx(L.starterValue);
+    $('val-roster').textContent = fx(L.total);
+    $('rank-starter').textContent = row ? '#' + row.ranks.starter + ' of ' + n : '';
+    $('rank-roster').textContent = row ? '#' + row.ranks.roster + ' of ' + n : '';
+    $('sub-starter').textContent = 'DDF value · ' + plural(L.starters.length, 'offense starter');
+    $('sub-roster').textContent = 'DDF value · ' + plural(mine.players.length, 'player') + (L.unpriced.length ? ' (' + L.unpriced.length + ' not priced)' : '');
+    $('team-context').innerHTML = row
+      ? `<strong>${esc(mine.name)}</strong> ranks <strong>${ordinal(row.ranks.roster)}</strong> of ${n} in roster value and <strong>${ordinal(row.ranks.starter)}</strong> in starter value on DDF, and ${ordinal(row.ranks.analystStarter)} in starter value on the analyst charts. The bars below show where that value sits by position.`
+      : '';
+
+    // Positions: dedicated slots, then FLEX / SUPERFLEX, each against the league's real slot medians.
+    const mineTiers = tiers.teams.find(t => t.index === mine.index);
+    const rows = Object.keys(POS_LABEL).filter(p => mineTiers && mineTiers.positions[p]).map(p => {
+      const x = mineTiers.positions[p];
+      const names = x.players.map(r => esc(last(r.n)) + ' ' + fx(r.ddf)).join(' · ') + (x.empty ? (x.players.length ? ' · ' : '') + plural(x.empty, 'empty slot') : '');
+      if (x.ratio === null) return `<tr><th scope="row"><span class="posname">${p}</span><span class="players">${names || 'No starter'}</span></th><td class="num">${fx(x.value)}</td><td class="strength-cell"><div class="meter"><span class="track neutral" aria-hidden="true"></span><span><b class="tier none">No tier</b><span class="pct">No league median yet</span></span></div></td></tr>`;
+      const width = Math.min(x.ratio / 1.25, 1) * 100;
+      return `<tr data-pos="${p}" data-tier="${x.tier}"><th scope="row"><span class="posname">${p}</span><span class="players">${names}</span></th><td class="num">${fx(x.value)}</td><td class="strength-cell"><div class="meter"><span class="track" aria-hidden="true"><i class="fill ${x.tier}" data-grow="x" style="width:${width.toFixed(1)}%"></i><i class="median"></i></span><span><b class="tier ${x.tier}">${TIER_LABEL[x.tier]}</b><span class="pct">${Math.round(x.ratio * 100)}% of league median</span></span></div></td></tr>`;
+    });
+    const bench = L.bench.length ? `<tr><th scope="row"><span class="posname">Bench</span><span class="players full">${L.bench.map(r => esc(r.n) + ' ' + fx(r.ddf)).join(' · ')}</span></th><td class="num">${fx(L.benchValue)}</td><td class="strength-cell"><span class="pct">Not in the best lineup</span></td></tr>` : '';
+    const np = L.unpriced.length ? `<tr><th scope="row"><span class="posname">Not priced</span><span class="players full">${L.unpriced.map(p => esc(p.name) + (p.pos ? ' (' + esc(p.pos) + ')' : '')).join(' · ')}</span></th><td class="num">${NP}</td><td class="strength-cell"><span class="pct">Not counted</span></td></tr>` : '';
+    document.querySelector('#pos-grid tbody').innerHTML = rows.join('') + bench + np;
+    if (DDF.growBars) DDF.growBars();
+
+    // Strengths, needs and what to do next: from the tiers and engine rows only.
+    const pos = mineTiers ? Object.keys(mineTiers.positions).filter(p => mineTiers.positions[p].tier) : [];
+    const strong = pos.filter(p => mineTiers.positions[p].tier === 'strong');
+    const weak = pos.filter(p => mineTiers.positions[p].tier === 'weak');
+    const TS = window.TradeValueTeamSummary;
+    const gaps = TS.marketGaps(DDF.league.chartRows(L.starters.concat(L.bench).map(r => r.row)), TS.NOISE_FLOOR);
+    const names = list => { const n = list.map(g => esc(g.name)); return n.length > 1 ? n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1] : n.join(''); };
+    const items = [
+      ['Strengths', strong.length ? `${strong.join(', ')} ${strong.length === 1 ? 'rates' : 'rate'} 110% or more of the league median. Protect these: seek a return that preserves your lineup.` : 'No position is 110% or more of the league median yet.'],
+      ['Needs', weak.length ? `${weak.join(', ')} ${weak.length === 1 ? 'is' : 'are'} under 90% of the league median: the place to look for upgrades.` : 'No position is under 90% of the league median.'],
+      ['Analyst premium', gaps.over.length ? `${names(gaps.over.slice(0, 3))} rate higher on the analyst charts than on DDF value. Compare returns.` : 'None of your players rate clearly higher on the analyst charts than on DDF value.'],
+      ['Bench depth', L.bench.length ? `${names(L.bench.slice(0, 2).map(r => ({name: r.n})))} may offer useful depth to another team. Evaluate the full exchange.` : 'You have no bench players outside your best lineup.']
+    ];
+    $('take-areas').innerHTML = items.map(([h, t]) => `<div><h3>${h}</h3><p>${t}</p></div>`).join('') + '<p>These are areas to explore, not instructions to trade. All players start included on the next screen.</p>';
+    const line = 'Next: pick players.' + (strong.length ? ' Strong at ' + strong.join(', ') + '.' : '') + (weak.length ? ' Thin at ' + weak.join(', ') + '.' : '');
+    $('next-top-label').textContent = line;
+    const summary = (strong.length || weak.length) ? line.replace('Next: pick players. ', '') : 'Your team: ' + mine.name;
+    $('team-next').setAttribute('data-summary', summary);
+    if (DDF.actionBar && DDF.actionBar.setSummary) DDF.actionBar.setSummary(summary);
+  }
+
+  // JEG-1558: opportunity size (DDFOpportunity.computeTeam: the find.html trade search and the Waivers tab's pickups).
+  let oppRun = 0;
+  const SLOT_WORD = {QB: 'quarterback', RB: 'running back', WR: 'receiver', TE: 'tight end', FLEX: 'flex', SUPERFLEX: 'superflex'};
+  function slotText(slot) {
+    const m = /^([A-Z]+)(\d+)$/.exec(slot) || [slot, slot, '1'];
+    const n = {1: 'first', 2: 'second', 3: 'third', 4: 'fourth'}[m[2]] || m[2] + 'th';
+    return `${slot}, your ${n} ${SLOT_WORD[m[1]] || m[1]} slot`;
+  }
+  // The JEG-1557 caveats note carries the best-move caveat in its slot (one line, set once a read exists).
+  function oppCaveat(on) {
+    const slot = document.querySelector('[data-ddf-caveats="assessment"] .ddf-caveats__slot');
+    if (slot) slot.textContent = on ? 'Best move size: a guide set from one week of three 12-team half-PPR leagues. The other team decides what it accepts.' : '';
+  }
+  // R4-CX-02: the denominator of the best-move percent, read with the same finder calls ddf-opportunity.js worth()
+  // makes (starters in full + each bench player × his position's bench weight). Shown only when it equals o.worth.
+  const f2 = v => v.toFixed(2), pc2 = v => (v * 100).toFixed(2) + '%';
+  function denomText(o, mine) {
+    const F = window.TradeValueFinder, ctx = DDF.find.context();
+    if (!F || !ctx || !ctx.shape || typeof o.worth !== 'number' || !isFinite(o.worth)) return null;
+    const L = F.lineupValue(DDF.find.rowsOf(mine), ctx.shape, 'ddf_value'), weights = ctx.weights || {};
+    const byPos = {};
+    L.bench.forEach(r => {
+      const v = r.values ? r.values.ddf_value : null;
+      if (typeof v === 'number' && isFinite(v)) byPos[r.pos] = (byPos[r.pos] || 0) + v;
+    });
+    const parts = Object.keys(byPos).map(p => ({pos: p, value: byPos[p], weight: F.benchWeight(weights, p)}));
+    const bench = parts.reduce((t, x) => t + x.weight * x.value, 0), total = L.starterValue + bench;
+    if (Math.abs(total - o.worth) > 1e-6) return null;
+    const list = parts.filter(x => x.value > 0).map(x => `${x.pos} ${f2(x.value)} × ${pc2(x.weight)} = ${f2(x.weight * x.value)}`);
+    const wts = ['QB', 'RB', 'WR', 'TE'].map(p => p + ' ' + pc2(F.benchWeight(weights, p))).join(' · ');
+    const ratio = o.gain > 0 && o.pct !== null ? ` Gain ÷ that value: ${f2(o.gain)} ÷ ${f2(total)} × 100 = ${(100 * o.gain / total).toFixed(2)}%, shown as ${o.shown.toFixed(1)}% (cut, not rounded, to one decimal).` : '';
+    return `Your team value before the move, counted this way: ${f2(total)} = your starters ${f2(L.starterValue)} in full + your bench ${f2(bench)} at its bench weights` +
+      (list.length ? ` (${list.join(' · ')})` : '') + `. Bench weights at these settings: ${wts}. The “Your roster” total above (${$('val-roster').textContent}) counts every player in full, so it is not this number.` + ratio;
+  }
+  function renderOpportunity(c, mine) {
+    const run = ++oppRun, box = $('opportunity');
+    const tier = $('opp-tier'), line = $('opp-line'), look = $('opp-look'), wv = $('opp-waivers');
+    box.hidden = false;
+    tier.removeAttribute('data-tier'); tier.textContent = 'Sizing your best move…'; line.textContent = ''; look.hidden = true; wv.hidden = true;
+    $('opp-denom').textContent = 'The team value it divides by shows here once your best move is sized.';
+    if (!window.DDFOpportunity || !DDF.find) { tier.textContent = 'Your best move could not be sized here.'; return; }
+    DDFOpportunity.computeTeam(c, mine, () => run !== oppRun).then(o => {
+      if (run !== oppRun) return;
+      if (!o) { tier.textContent = 'Your best move could not be sized yet.'; line.textContent = 'The values are still loading. Reload the page if this stays.'; return; }
+      let denom = null;
+      try { denom = denomText(o, mine); } catch (e) { denom = null; }   // the explanation never blocks the read
+      if (denom) $('opp-denom').textContent = denom;
+      tier.dataset.tier = o.tier;
+      oppCaveat(true);
+      tier.textContent = o.headline;
+      const where = o.source === 'trade' ? ' <a href="find.html">See trade ideas</a>' : o.source === 'waiver' ? ' <a href="waivers.html">See waiver pickups</a>' : '';
+      line.innerHTML = esc(o.line) + where;
+      if (o.hole) {
+        look.innerHTML = `<b>Where to look:</b> ${esc(slotText(o.hole.slot))}. On the analyst charts your player there is about ${o.hole.gap.toFixed(1)} value below the typical player in that slot across your league. A gap is a place to look, not a move we found.`;
+        look.hidden = false;
+      }
+      const wvText = !window.TradeValueWaivers || o.reason === 'unsized' ? '' : !o.candidates ? 'Waivers: no available players to check yet. Add them on the Waivers page.'
+        : !o.waiver || o.waiver.gain <= 0.05 ? 'Waivers: nothing available beats your bench right now.'
+        : o.waiversEmpty ? `Waivers: the best pickup adds about ${o.waiver.gain.toFixed(1)} value, within the normal noise of the values.`
+        : o.source === 'waiver' ? '' : `Waivers: the best pickup adds about ${o.waiver.gain.toFixed(1)} value, less than the trade.`;
+      wv.textContent = wvText; wv.hidden = !wvText;
+      if (o.skipped > 0 || o.held > 0) line.insertAdjacentHTML('beforeend', ` <span class="opp-note">Teams you skipped on Pick trading partners and players you hold are left out, as on Trade &amp; Waiver Recommendations.</span>`);
+    }, e => { console.error(e); if (run === oppRun) tier.textContent = 'Your best move could not be sized here.'; });
+  }
+
+  function renderNoMe(c) {
+    ['val-starter', 'val-roster'].forEach(id => { $(id).textContent = '—'; });
+    ['rank-starter', 'rank-roster'].forEach(id => { $(id).textContent = ''; });
+    $('sub-starter').innerHTML = 'Your team is not picked yet · <a href="setup.html">Pick your team</a>';
+    $('sub-roster').textContent = '';
+    $('team-context').innerHTML = `This league has ${plural(c.teams.length, 'team')}. <a href="setup.html">Pick your team</a> to see your starters and strengths.`;
+    document.querySelector('#pos-grid tbody').innerHTML = '<tr><td colspan="3" class="empty-rosters">Your team is not picked yet. <a href="setup.html">Pick your team</a> to see your players.</td></tr>';
+    $('take-areas').innerHTML = '<p>Strengths and needs appear once you pick your team.</p>';
+  }
+
+  function cell(r, key, complete) {
+    const max = Math.max(...table.map(x => x[key]).filter(v => isFinite(v)), 1);
+    const t = r.tiers[key];
+    return `<td class="number"><i class="vbar ${t}" data-grow="x" style="--w:${(r[key] / max).toFixed(3)}"></i><span class="cell"><span${complete === false ? ' title="Some players are not on all three analyst charts and are left out"' : ''}>${fx(r[key])}${complete === false ? '*' : ''}</span><b class="tier ${t}">${TIER_LABEL[t]}</b></span></td>`;
+  }
+  function renderTable() {
+    const rows = table.slice();
+    if (sortKey) rows.sort((a, b) => (sortKey === 'name' ? a.name.localeCompare(b.name) : a[sortKey] - b[sortKey]) * (sortAsc ? 1 : -1));
+    else rows.sort((a, b) => b.starter - a.starter || a.index - b.index);
+    $('league-rows').innerHTML = rows.map(r => `<tr tabindex="0" data-team="${r.index}"${r.mine ? ' class="mine selected"' : ''}><td${r.mine ? ` data-rank="${ordinal(r.ranks.starter)}"` : ''}>${esc(r.name)}${r.mine ? '<span class="mine-badge">Your team</span>' : ''}</td>${cell(r, 'starter')}${cell(r, 'analystStarter', r.analystComplete)}${cell(r, 'roster')}${cell(r, 'analystRoster', r.analystComplete)}</tr>`).join('')
+      || '<tr><td colspan="5" class="empty-rosters">No team in this league has priced players yet.</td></tr>';
+    if (DDF.growBars) DDF.growBars();
+  }
+  function showOverview(index) {
+    const ov = $('team-overview');
+    document.querySelectorAll('#league-rows tr').forEach(tr => tr.classList.toggle('selected', Number(tr.dataset.team) === index));
+    const r = table.find(x => x.index === index);
+    if (!r || r.mine) { ov.hidden = true; ov.innerHTML = ''; return; }
+    const t = tiers.teams.find(x => x.index === index);
+    const by = tier => t ? Object.keys(t.positions).filter(p => t.positions[p].tier === tier) : [];
+    const team = cur.teams[index], L = DDF.league.lineup(team);
+    ov.innerHTML = `<h3>${esc(r.name)} overview</h3><p class="team-context">${esc(r.name)} ranks <strong>${ordinal(r.ranks.roster)}</strong> in roster value and <strong>${ordinal(r.ranks.starter)}</strong> in starter value on DDF (${ordinal(r.ranks.analystRoster)} and ${ordinal(r.ranks.analystStarter)} on the analyst charts).</p>
+<div><h3>Strong at</h3><p>${by('strong').join(', ') || 'No position at 110% or more of the league median'}</p></div>
+<div><h3>Thin at</h3><p>${by('weak').join(', ') || 'No position under 90% of the league median'}</p></div>
+<div><h3>Starters</h3><p>${L.starters.map(p => esc(p.n) + ' ' + fx(p.ddf)).join(' · ') || 'None priced'}</p></div>`;
+    ov.hidden = false;
+  }
+
+  function render(c) {
+    cur = c;
+    if (!c) { renderEmpty(); return; }
+    $('no-league').hidden = true; $('your-team').hidden = false; $('league').hidden = false;
+    document.querySelector('.next-end').hidden = false;
+    table = DDF.league.leagueTable();
+    tiers = DDF.league.positionTiers();
+    const mine = DDF.league.myTeam();
+    if (mine) { renderMine(c, mine); renderOpportunity(c, mine); } else { renderNoMe(c); oppRun++; $('opportunity').hidden = true; oppCaveat(false); }
+    const s = c.settings;
+    $('fact-format').textContent = DDF.link && DDF.link.settingsLabel ? DDF.link.settingsLabel(s) : s.scoring + ' · ' + s.teams + ' teams';
+    $('fact-lineup').textContent = lineupText(s);
+    $('fact-source').innerHTML = `${esc(c.name)} · ${SOURCE_LABEL[c.source] || ''} · <a href="settings.html">Change settings</a>`;
+    const n = table.length;
+    $('cmp-intro').textContent = `${plural(n, 'team')} with priced players${c.settings.teams !== c.teams.length ? ' (league size ' + c.settings.teams + ')' : ''}. Select any team to see its overview. Strong is the top third of the league on that column, Average the middle third, Weak the bottom third.`;
+    $('cmp-legend').innerHTML = rankThirds(n).map(([k, l]) => `<li><span class="sw ${k}" aria-hidden="true"></span>${l}</li>`).join('');
+    renderTable();
+    $('team-overview').hidden = true;
+  }
+
+  $('league-rows').addEventListener('click', e => { const tr = e.target.closest('tr[data-team]'); if (tr) showOverview(Number(tr.dataset.team)); });
+  $('league-rows').addEventListener('keydown', e => { const tr = e.target.closest('tr[data-team]'); if (tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showOverview(Number(tr.dataset.team)); } });
+  document.querySelectorAll('[data-sort]').forEach(b => b.addEventListener('click', () => {
+    const k = b.dataset.sort, th = b.closest('th');
+    sortAsc = th.getAttribute('aria-sort') !== 'ascending'; sortKey = k;
+    document.querySelectorAll('.team-table th').forEach(x => x.setAttribute('aria-sort', 'none'));
+    th.setAttribute('aria-sort', sortAsc ? 'ascending' : 'descending');
+    renderTable();
+    $('sort-status').textContent = 'Sorted by ' + b.textContent.replace(' ↕', '') + ', ' + (sortAsc ? 'ascending' : 'descending') + '.';
+  }));
+
+  document.body.classList.add('league-pending');
+  const done = () => document.body.classList.remove('league-pending');
+  DDF.league.ready.then(c => { render(c); done(); DDF.league.on(render); }, e => { console.error(e); renderEmpty(); done(); });
+
+  const more = document.querySelector('.morewrap'), moreButton = more && more.querySelector('button');
+  if (moreButton) document.addEventListener('click', () => moreButton.setAttribute('aria-expanded', String(more.classList.contains('open'))));
+  if (moreButton) document.addEventListener('keydown', e => { if (e.key === 'Escape' && more.classList.contains('open')) { more.classList.remove('open'); moreButton.setAttribute('aria-expanded', 'false'); moreButton.focus(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('details.info[open]').forEach(d => { d.open = false; d.querySelector('summary').focus(); }); });
+  document.addEventListener('click', e => { document.querySelectorAll('details.info[open]').forEach(d => { if (!d.contains(e.target)) d.open = false; }); });
+  document.addEventListener('toggle', e => { if (e.target.matches && e.target.matches('details.info[open]')) document.querySelectorAll('details.info[open]').forEach(d => { if (d !== e.target) d.open = false; }); }, true);
+})();
+</script>
+</body></html>

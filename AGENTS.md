@@ -483,6 +483,12 @@ review and merge protocol above):
 - **`make sync` is the single publish path** and stamps the build tag. `dist/`
   is generated: edit sources or fixtures, then run sync. Do not re-add
   `dist/static`, `dist/server`, `space.json` or `deploy.sh`.
+- **The site is noindex while source-data permissions settle** (JEG-1567, 2026-11-07).
+  `make sync`'s last step (`pipelines/site_noindex.py`) adds
+  `<meta name="robots" content="noindex, nofollow">` to every HTML file in `dist/`.
+  A robots.txt cannot do it: Pages serves this repo under `/fantasy-tools/`, and
+  crawlers read only `datadrivenfootball.github.io/robots.txt`. To reverse, set
+  `SITE_NOINDEX = False` in that file and run `make sync`; nothing else changes.
 - **Never pause or kill bridge processes** (Jeremy, 2026-11-02, JEG-1476). On
   2026-11-01 a Codex chat asked to stop a flashing Chrome icon sent SIGSTOP to
   the bridge's Codex app-server and two Claude workers, and Codex froze for 23
@@ -535,7 +541,7 @@ publisher shape disagreement is the product.)
 Moved from a claude.ai artifact into the dashboard (Jeremy, 2026-10-25,
 JEG-1086). `make sync` builds it to `dist/value-logic/index.html` (builder
 `pipelines/build_values_explainer.py`, page template and engine extractor in
-`app/values-explainer/`); How values work shows it inline in a same-origin frame (JEG-1107: Jeremy, 2026-10-25, "ensure this is part of the main dashboard, not some seperate dashboard"), and the bare `value-logic/` URL redirects into that tab. Every number is read
+`app/values-explainer/`); How values work shows it inline in a same-origin frame (JEG-1107: Jeremy, 2026-10-25, "ensure this is part of the main dashboard, not some seperate dashboard"), and the bare `value-logic/` URL redirects into that tab. Since JEG-1536 (2026-11-06) that route redirects to Learn's Full value logic tab (`learn.html#numbers/logic`), which frames the same page; Learn's numbers tabs read the engine through `app/next/learn/numbers/learn-engine.js` and reuse `v2/audit-pie.js` and `v2/audit-source.js`, so keep those published when `/v2/` retires. Every number is read
 from the chart engine at the default setting (12 teams, Full PPR). It needs
 Playwright: skipped with a notice locally, an error where
 `RENDER_TESTS_REQUIRED=1`. Keep it current:

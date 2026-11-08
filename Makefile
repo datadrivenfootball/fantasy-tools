@@ -208,6 +208,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_weekly_fantasypros_contract
 	python3 -m unittest tests.test_source_probe
 	python3 -m unittest tests.test_source_lateness
+	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
+	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
 	python3 -m unittest tests.test_source_snapshot_match
 	python3 -m unittest tests.test_rebuild_chain_failclosed
 	python3 -m unittest tests.test_rebuild_chain_per_source_hold
@@ -333,6 +335,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_vorp_translation_unified
 	python3 -m unittest tests.test_two_qb_direction
 	python3 -m unittest tests.test_short_chart_waiver
+	# JEG-1511: non-blocking until the ES-parts fix lands (moved out of test-core).
+	python3 -m unittest tests.test_waiver_band_line.OnePlayerPerturbationTest
 	python3 -m unittest tests.test_published_league_settings_engine
 	python3 -m unittest tests.test_published_league_settings_render
 	python3 -m unittest tests.test_value_reference_worked_example
@@ -659,6 +663,8 @@ value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json
 
 test-core:
+	# JEG-1567: every published HTML file is noindex while site_noindex.SITE_NOINDEX is True (needs the built dist/).
+	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_spec_reference_value_pipeline
 	# JEG-1057: the engine side of the worked example. It ran in no target, so
 	# #867 regenerated the fixture for the new defaults and this went red unseen.
@@ -728,6 +734,10 @@ test-core:
 	# JEG-1341: mutation proof for roster-paste.js (#1134, JEG-1272); ran in no target.
 	python3 -m unittest tests.test_roster_paste_mutation_proof
 	node tests/test_v2_league_paste.js
+	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
+	node tests/test_entry_league_paste.js
+	# JEG-1570: Sleeper import (fixture API responses, no live calls).
+	node tests/test_sleeper_import.js
 	node tests/test_v2_name_format.js
 	python3 -m unittest tests.test_v2_headlines
 	python3 -m unittest tests.test_v2_movers
@@ -757,10 +767,54 @@ test-core:
 	python3 -m unittest tests.test_v2_phone_zoom_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_main_table_engine_parity
+	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
+	python3 -m unittest tests.test_values_page_engine_parity
+	# JEG-1539: team.html and find.html engine parity (same pattern as values page).
+	python3 -m unittest tests.test_team_engine_parity
+	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
+	python3 -m unittest tests.test_partners_rank_parity
+	python3 -m unittest tests.test_find_chart_links
+	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
+	python3 -m unittest tests.test_ddf_why
+	python3 -m unittest tests.test_league_card_pasted
+	python3 -m unittest tests.test_find_engine_parity
+	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
+	python3 -m unittest tests.test_find_waiver_alternative
+	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
+	python3 -m unittest tests.test_ddf_opportunity
+	python3 -m unittest tests.test_team_opportunity_render
+	python3 -m unittest tests.test_values_swap_routes
+	# JEG-1539 step 5: redesigned front door legacy-routes.js coverage.
+	python3 -m unittest tests.test_legacy_routes
+	python3 -m unittest tests.test_legacy_links_state
+	python3 -m unittest tests.test_values_zero_override
+	python3 -m unittest tests.test_build_root_pages
+	# JEG-1537: build.html engine parity and the Compare a trade redirects.
+	python3 -m unittest tests.test_build_page_engine_parity
+	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
+	node tests/node/build_offer_check.cjs
+	python3 -m unittest tests.test_build_offer_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
+	# JEG-1534: the /next/ preview build stays noindex and inside dist/next/.
+	python3 -m unittest tests.test_next_preview
 	python3 -m unittest tests.test_launch_copy_guard
+	# JEG-1536: Learn > How we get our numbers equals the engine (3 scorings x 10/12 teams x superflex), Manifesto verbatim.
+	python3 -m unittest tests.test_learn_engine_parity
+	# JEG-1538: entry pages at the root (paste -> recognition, setup -> live league store, link codec vectors, routes).
+	python3 -m unittest tests.test_entry_pages
+	# JEG-1557: mobile defects, connect rework, caveats note, touch behavior (390 and 360, 1440 for the note).
+	python3 -m unittest tests.test_jeg1557_mobile_connect
+	# JEG-1564: bookmark prompts, titles, league names, roster date freshness bands, header chip fit.
+	python3 -m unittest tests.test_bookmark_freshness
+	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
+	python3 -m unittest tests.test_edit_league
+	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
+	python3 -m unittest tests.test_entry_sticky_bar
+	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
+	python3 -m unittest tests.test_sleeper_entry
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -797,12 +851,18 @@ test-core:
 	# (tests.test_value_pipeline_engine is wired into test-core by #914 / JEG-1057.)
 	python3 -m unittest tests.test_razzball_outlier_guard
 	# JEG-1047: projection waiver line is the 7-player band (one fringe player can't reprice a position).
-	python3 -m unittest tests.test_waiver_band_line
+	# JEG-1511 (Jeremy, 2026-11-05: "Just don't let this test block us at all"): the
+	# one-player perturbation tests run in test-unit (reported, not blocking) until
+	# JEG-1511 fixes the ES-parts coupling; band math and end-to-end stay in the gate.
+	python3 -m unittest tests.test_waiver_band_line.BandMathTest tests.test_waiver_band_line.EndToEndTest
 
 # JEG-1170: test-core split into parallel shards for preview.yml and pages.yml. Their union
 # is exactly test-core: a line added to test-core must also go into one shard, or
 # tests/test_validate_shards.py fails. Balanced by the per-module times of preview run 40199508029
 # (about 7.5 minutes of tests each); within a shard the lines keep test-core's order.
+# JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
+# 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
+# and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
 test-core-shard-1:
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
@@ -844,6 +904,10 @@ test-core-shard-2:
 	python3 -m unittest tests.test_v2_compare
 	python3 -m unittest tests.test_v2_finder_trifit
 	node tests/test_v2_league_paste.js
+	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
+	node tests/test_entry_league_paste.js
+	# JEG-1570: Sleeper import (fixture API responses, no live calls).
+	node tests/test_sleeper_import.js
 	python3 -m unittest tests.test_v2_trade_story
 	python3 -m unittest tests.test_v2_phone_customize_targets_render
 	python3 -m unittest tests.test_v2_phone_fallback_font_render
@@ -852,6 +916,9 @@ test-core-shard-2:
 	python3 -m unittest tests.test_v2_phone_wide_font_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_asset_load_retry
+	python3 -m unittest tests.test_espn_listed_rows
+	python3 -m unittest tests.test_page_load_no_404
+	python3 -m unittest tests.test_bench_share_low_pie
 	python3 -m unittest tests.test_value_overrides
 	python3 -m unittest tests.test_source_scale_agreement_retired
 	python3 -m unittest tests.test_value_reference_worked_example
@@ -884,19 +951,34 @@ test-core-shard-3:
 	python3 -m unittest tests.test_v2_phone_source_links_render
 	python3 -m unittest tests.test_v2_phone_zoom_render
 	python3 -m unittest tests.test_main_table_engine_parity
-	python3 -m unittest tests.test_espn_listed_rows
-	python3 -m unittest tests.test_page_load_no_404
-	python3 -m unittest tests.test_bench_share_low_pie
-	python3 -m unittest tests.test_bench_budget_cut_render
-	python3 -m unittest tests.test_ddf_composite_value
-	python3 -m unittest tests.test_view_switch_hidden_defaults
-	python3 -m unittest tests.test_week_calendar
-	python3 -m unittest tests.test_week_state
-	python3 -m unittest tests.test_week_stale
-	python3 -m unittest tests.test_source_health_release
-	python3 -m unittest tests.test_roster_convention
-	python3 -m unittest tests.test_bench_miss_rate
-	python3 -m unittest tests.test_razzball_outlier_guard
+	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
+	python3 -m unittest tests.test_values_page_engine_parity
+	# JEG-1539: team.html and find.html engine parity (same pattern as values page).
+	python3 -m unittest tests.test_team_engine_parity
+	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
+	python3 -m unittest tests.test_partners_rank_parity
+	python3 -m unittest tests.test_find_chart_links
+	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
+	python3 -m unittest tests.test_ddf_why
+	python3 -m unittest tests.test_league_card_pasted
+	python3 -m unittest tests.test_find_engine_parity
+	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
+	python3 -m unittest tests.test_find_waiver_alternative
+	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
+	python3 -m unittest tests.test_ddf_opportunity
+	python3 -m unittest tests.test_team_opportunity_render
+	python3 -m unittest tests.test_values_swap_routes
+	# JEG-1539 step 5: redesigned front door legacy-routes.js coverage.
+	python3 -m unittest tests.test_legacy_routes
+	python3 -m unittest tests.test_legacy_links_state
+	python3 -m unittest tests.test_values_zero_override
+	python3 -m unittest tests.test_build_root_pages
+	# JEG-1537: build.html engine parity and the Compare a trade redirects.
+	python3 -m unittest tests.test_build_page_engine_parity
+	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
+	node tests/node/build_offer_check.cjs
+	python3 -m unittest tests.test_build_offer_render
 
 test-core-shard-4:
 	python3 -m unittest tests.test_static_export
@@ -922,20 +1004,51 @@ test-core-shard-4:
 	python3 -m unittest tests.test_v2_phone_trade_actions_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_bench_share_readout_matches_reference
+	python3 -m unittest tests.test_bench_budget_cut_render
 	python3 -m unittest tests.test_position_weights_setter
+	python3 -m unittest tests.test_ddf_composite_value
+	python3 -m unittest tests.test_view_switch_hidden_defaults
 	python3 -m unittest tests.test_row_missing_reasons
+	python3 -m unittest tests.test_week_calendar
+	python3 -m unittest tests.test_week_state
+	python3 -m unittest tests.test_week_stale
+	python3 -m unittest tests.test_source_health_release
 	python3 -m unittest tests.test_two_qb_direction
 	python3 -m unittest tests.test_short_chart_waiver
+	python3 -m unittest tests.test_roster_convention
+	python3 -m unittest tests.test_bench_miss_rate
 	python3 -m unittest tests.test_roster_convention_parity
-	python3 -m unittest tests.test_waiver_band_line
+	python3 -m unittest tests.test_razzball_outlier_guard
+	# JEG-1511 (Jeremy, 2026-11-05: "Just don't let this test block us at all"): the
+	# one-player perturbation tests run in test-unit (reported, not blocking) until
+	# JEG-1511 fixes the ES-parts coupling; band math and end-to-end stay in the gate.
+	python3 -m unittest tests.test_waiver_band_line.BandMathTest tests.test_waiver_band_line.EndToEndTest
 
 # JEG-1335: split from shard 1, which passed its 30-minute job limit once the seat mix
 # made the engine-heavy suites (seeded hold build, desktop menu, view invariants) slower.
 test-core-shard-5:
+	# JEG-1567: every published HTML file is noindex while site_noindex.SITE_NOINDEX is True (needs the built dist/).
+	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_v2_desktop_menu_render
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
+	# JEG-1534: the /next/ preview build stays noindex and inside dist/next/.
+	python3 -m unittest tests.test_next_preview
 	python3 -m unittest tests.test_launch_copy_guard
+	# JEG-1536: Learn > How we get our numbers equals the engine (3 scorings x 10/12 teams x superflex), Manifesto verbatim.
+	python3 -m unittest tests.test_learn_engine_parity
+	# JEG-1538: entry pages at the root (paste -> recognition, setup -> live league store, link codec vectors, routes).
+	python3 -m unittest tests.test_entry_pages
+	# JEG-1557: mobile defects, connect rework, caveats note, touch behavior (390 and 360, 1440 for the note).
+	python3 -m unittest tests.test_jeg1557_mobile_connect
+	# JEG-1564: bookmark prompts, titles, league names, roster date freshness bands, header chip fit.
+	python3 -m unittest tests.test_bookmark_freshness
+	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
+	python3 -m unittest tests.test_edit_league
+	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
+	python3 -m unittest tests.test_entry_sticky_bar
+	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
+	python3 -m unittest tests.test_sleeper_entry
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe

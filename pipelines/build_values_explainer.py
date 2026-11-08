@@ -33,6 +33,7 @@ import functools
 import hashlib
 import http.server
 import json
+import math
 import os
 import re
 import socketserver
@@ -92,6 +93,262 @@ def math_review_items() -> list[dict]:
     return items
 
 
+# Read after extract.js has put the page back at the default setting (JEG-1393):
+#  - each DDF Value version's composite inputs and display series, so the page
+#    can say which sources a version holds back (inputs minus series);
+#  - each source's raw surplus total and value-above-waivers factor in every
+#    allocation of the fractional-seat mix, so the page can show the division
+#    that is true per allocation (the final factor is their weighted average,
+#    not pie / the averaged surplus). Read-only: runPipelineWith reruns the
+#    engine on the page's own natives and changes nothing on the page.
+EXTRA_JS = """() => {
+  const C = window.TradeValueCurveControls, H = window.TradeValueCurveHarness;
+  const clone = x => JSON.parse(JSON.stringify(x ?? null));
+  const versions = {};
+  for (const v of ["ddf_value", "ddf_value_charts", "ddf_value_projections"]) {
+    try { versions[v] = clone(C.getCompositeInputs(v)); } catch (e) { versions[v] = null; }
+  }
+  let runs = null;
+  try {
+    const mix = (H && H.pipeline && H.pipeline().allocationMix) || [];
+    if (mix.length > 1) {
+      runs = mix.map(m => {
+        const res = H.runPipelineWith({seatAllocation: m.allocation});
+        const src = {};
+        // JEG-1393 R4 (OP-03): each group's total and rate in this
+        // allocation, and each player's two parts, so the page can show the
+        // averaged rate as a sum over allocations (the builder keeps one
+        // example player per source).
+        Object.entries(res.sources || {}).forEach(([k, s]) => {
+          const parts = {};
+          Object.entries(s.players || {}).forEach(([pk, q]) => { parts[pk] = [q.benchSlice, q.starterSlice]; });
+          src[k] = [s.surplusTotal, s.vorpFactor, clone(s.groups), clone(s.rates), parts,
+                    clone(s.unfundedMoved), clone(s.unfundedGroups)];
+        });
+        return {weight: m.weight, pie: res.pie, ddfWeights: clone(res.ddfWeights), sources: src};
+      });
+    }
+  } catch (e) { runs = null; }
+  // JEG-1393 R3 (OP-02): the heaviest allocation's own run, per source and
+  // position: the lines, n and q, the bench bands and each player's parts, so
+  // the page can rebuild one player's fill-in part for one allocation.
+  let heavy = null;
+  try {
+    const pl = H && H.pipeline && H.pipeline();
+    const mix = (pl && pl.allocationMix) || [];
+    let hi = 0;
+    mix.forEach((m, j) => { if (m.weight > mix[hi].weight) hi = j; });
+    const res = mix.length > 1 ? H.runPipelineWith({seatAllocation: mix[hi].allocation}) : pl;
+    const sources = {};
+    Object.entries((res && res.sources) || {}).forEach(([k, s]) => {
+      const positions = {};
+      Object.entries(s.positions || {}).forEach(([p, x]) => {
+        const l = x.lineup || null;
+        positions[p] = {starters: x.starters, rostered: x.rostered, waiver: x.waiver, starterLine: x.starterLine,
+          avail: x.avail, lineup: l && {m: l.m, unavailable: l.unavailable, nPerTeam: l.nPerTeam,
+                                        sigmaRel: l.sigmaRel, sigmaFloor: l.sigmaFloor},
+          bands: (x.bands || []).map(b => [b.depth, b.lo, b.hi, b.fill])};
+      });
+      const players = {};
+      Object.entries(s.players || {}).forEach(([pk, q]) => { players[pk] = [q.native, q.benchSlice, q.starterSlice]; });
+      sources[k] = {positions, players};
+    });
+    heavy = {weight: mix.length ? mix[hi].weight : 1, sources};
+  } catch (e) { heavy = null; }
+  return {compositeByVersion: versions, vorpRuns: runs, heavyRun: heavy};
+}"""
+VERSION_OF = {"ddf_value": "blended", "ddf_value_charts": "charts", "ddf_value_projections": "projections"}
+RUN_TOL = 1e-6  # relative: the weighted per-allocation factors must give the engine's factor
+
+
+def vorp_runs(raw: dict) -> dict:
+    """Per source: [[weight, raw surplus total, factor], ...] across the
+    allocation mix, kept only when the weighted factors reproduce the
+    engine's blended factor (else the page falls back to saying it is a blend)."""
+    runs = (raw.get("extra") or {}).get("vorpRuns") or []
+    vp_sources = raw["inspection"]["valuePipeline"]["sources"]
+    out = {}
+    if len(runs) < 2:
+        return out
+    tot = sum(run["weight"] for run in runs)
+    for k, s in vp_sources.items():
+        rows = [[run["weight"], *((run["sources"].get(k) or [None, None])[:2])] for run in runs]
+        if any(x[1] is None or x[2] is None for x in rows):
+            continue
+        blended = sum(w * f for w, _, f in rows) / tot
+        target = s.get("vorpFactor") or 0
+        if target and abs(blended - target) <= RUN_TOL * abs(target):
+            out[k] = [[r(w / tot, 6), r(st, 6), r(f, 9)] for w, st, f in rows]
+    return out
+
+
+def _close(a: float, b: float, tol: float = RUN_TOL) -> bool:
+    return abs(a - b) <= tol * max(abs(a), abs(b), 1e-12) or abs(a - b) <= 1e-12
+
+
+def rate_runs(raw: dict) -> dict:
+    """JEG-1393 R4 (OP-03). Per source, across the allocation mix:
+    `groups`: {group: [[weight, W_a, group total_a, rate_a], ...]} for each
+    group whose weighted rates give the engine's averaged rate to RUN_TOL
+    (`budget` says whether rate_a = pie x W_a / group total_a holds in every
+    allocation, i.e. no budget was moved to the other role);
+    `example`: one player (the largest averaged fill-in part) with
+    [[weight, fill-in_a, start-worthy_a], ...], kept only when
+    sum(weight x rate_a x part_a) / averaged rate gives the shown parts.
+    Empty with one allocation."""
+    runs = (raw.get("extra") or {}).get("vorpRuns") or []
+    if len(runs) < 2 or any(len(next(iter(run["sources"].values()), [])) < 5 for run in runs):
+        return {}
+    vp = raw["inspection"]["valuePipeline"]
+    players = raw["inspection"].get("players") or {}
+    tot = sum(run["weight"] for run in runs)
+    out = {}
+    for k, s in (vp.get("sources") or {}).items():
+        recs = [run["sources"].get(k) for run in runs]
+        if any(not rec or not isinstance(rec[2], dict) or not isinstance(rec[3], dict) for rec in recs):
+            continue
+        rates = s.get("rates") or {}
+        groups = {}
+        for g, target in rates.items():
+            rows = []
+            for run, rec in zip(runs, recs):
+                w_a = (run.get("ddfWeights") or {}).get(g)
+                gt, ra = rec[2].get(g), rec[3].get(g)
+                if not all(isinstance(v, (int, float)) for v in (w_a, gt, ra)):
+                    rows = None
+                    break
+                rows.append([run["weight"] / tot, w_a, gt, ra, run.get("pie")])
+            if not rows or not isinstance(target, (int, float)):
+                continue
+            if not _close(sum(w * ra for w, _, _, ra, _ in rows), target):
+                continue
+            budget = all(isinstance(pie, (int, float)) and gt > 0 and _close(pie * w_a / gt, ra, 1e-9)
+                         or (gt == 0 and ra == 0) for _, w_a, gt, ra, pie in rows)
+            groups[g] = {"budget": budget, "runs": [[r(w, 9), r(w_a, 9), r(gt, 6), r(ra, 9)]
+                                                    for w, w_a, gt, ra, _ in rows]}
+        if not groups:
+            continue
+        entry = {"groups": groups}
+        # The example: the player with the largest averaged fill-in part.
+        best = None
+        for pk, p in (players.get(k) or {}).items():
+            b = p.get("benchSlice")
+            if isinstance(b, (int, float)) and b > 0 and (best is None or b > best[1]):
+                best = (pk, b)
+        if best:
+            pk = best[0]
+            p = players[k][pk]
+            pos = (raw["inspection"]["rows"].get(pk) or {}).get("pos") or p.get("pos")
+            gb, gs = f"{pos}|bench", f"{pos}|starter"
+            parts = [(rec[4] or {}).get(pk) or [0, 0] for rec in recs]
+            rows = [[run["weight"] / tot, *(v if isinstance(v, (int, float)) else 0 for v in pp[:2])]
+                    for run, pp in zip(runs, parts)]
+            ok = gb in groups and gs in groups
+            if ok:
+                for j, (g, shown) in enumerate(((gb, p.get("benchSlice")), (gs, p.get("starterSlice")))):
+                    rate = rates.get(g) or 0
+                    if not rate:
+                        continue
+                    restated = sum(row[0] * rec[3][g] * row[1 + j] for rec, row in zip(recs, rows)) / rate
+                    ok = ok and isinstance(shown, (int, float)) and _close(restated, shown)
+            if ok:
+                entry["example"] = {"pk": pk, "pos": pos,
+                                    "runs": [[r(w, 9), r(b, 6), r(st, 6)] for w, b, st in rows]}
+        out[k] = entry
+    return out
+
+
+def _phi(z: float) -> float:
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def band_fill(x: float, s: float, waiver: float, avail: float, bands: list) -> float:
+    """The fill-in part of one player in one allocation (value-model.js
+    esPositionParts): avail x v x sum over bands of P(>= depth of the team's
+    starters out) x P(level in band). Used only to check the page's worked
+    example against the engine's own number."""
+    v = max(0.0, x - waiver)
+    tot = 0.0
+    for _depth, lo, hi, fill in bands:
+        if hi <= lo:
+            continue
+        if s <= 0:
+            p = 1.0 if lo < x <= hi else 0.0
+        else:
+            p = _phi((hi - x) / s) - _phi((lo - x) / s)
+        tot += fill * p
+    return avail * v * tot
+
+
+def heavy_run(raw: dict) -> dict | None:
+    """The heaviest allocation's run for one example trade chart (FantasyCalc
+    when it is included and not hidden, else the first such chart): per
+    position its lines, n, q and bands, and each player's [native, fill-in,
+    start-worthy]. `check` is the worst gap between the band arithmetic and
+    the engine's fill-in part over that chart's players."""
+    hr = (raw.get("extra") or {}).get("heavyRun") or {}
+    vp = raw["inspection"]["valuePipeline"]
+    srcs = hr.get("sources") or {}
+    hidden = {h["key"] for h in hidden_sources(raw)}
+    charts = [k for k, s in (vp.get("sources") or {}).items()
+              if s.get("family") == "chart" and s.get("included") and k not in hidden and k in srcs]
+    if not charts:
+        return None
+    key = "fantasycalc" if "fantasycalc" in charts else charts[0]
+    s = srcs[key]
+    positions, worst = {}, 0.0
+    for p, x in (s.get("positions") or {}).items():
+        l = x.get("lineup") or {}
+        bands = [b for b in (x.get("bands") or []) if isinstance(b, list) and len(b) == 4]
+        positions[p] = {"starters": x.get("starters"), "rostered": x.get("rostered"), "waiver": x.get("waiver"),
+                        "starterLine": x.get("starterLine"), "avail": x.get("avail"),
+                        "n": l.get("nPerTeam"), "q": l.get("unavailable"), "sigmaRel": l.get("sigmaRel"),
+                        "sigmaFloor": l.get("sigmaFloor"), "bands": bands}
+    players = {}
+    for pk, row in (s.get("players") or {}).items():
+        nat, fill, start = (list(row) + [None, None, None])[:3]
+        if not all(isinstance(v, (int, float)) for v in (nat, fill, start)):
+            continue
+        players[pk] = [r(nat, 4), r(fill, 4), r(start, 4)]
+    pos_of = {pk: (raw["inspection"]["rows"].get(pk) or {}).get("pos") for pk in players}
+    for pk, (nat, fill, _start) in players.items():
+        x = positions.get(pos_of.get(pk)) or {}
+        if not x.get("bands") or not all(isinstance(x.get(f), (int, float)) for f in ("waiver", "avail", "sigmaRel")):
+            continue
+        sd = max(x["sigmaRel"] * nat, x.get("sigmaFloor") or 0) if nat > 0 else (x.get("sigmaFloor") or 0)
+        worst = max(worst, abs(band_fill(nat, sd, x["waiver"], x["avail"], x["bands"]) - fill))
+    return {"source": key, "weight": hr.get("weight"), "positions": positions, "players": players,
+            "check": r(worst, 4)}
+
+
+def hidden_sources(raw: dict) -> list[dict]:
+    """The sources the engine runs (allocation, weights, pie) but leaves out of
+    every DDF Value blend: red holds and divergence excludes (curve-widget.js
+    eligibilityReason, `hidden: true`)."""
+    keys = set(raw["inspection"]["valuePipeline"]["sources"])
+    seen, out = set(), []
+    for e in (raw.get("diagnostics") or {}).get("excluded") or []:
+        if e.get("hidden") and e.get("key") in keys and e["key"] not in seen:
+            seen.add(e["key"])
+            out.append({"key": e["key"], "reason": e.get("reason"), "level": e.get("holdLevel")})
+    return out
+
+
+def version_sources(raw: dict) -> dict:
+    """Per DDF Value version: the composite inputs, the display series and the
+    sources that actually price at least one player (from the engine rows)."""
+    comp = (raw.get("extra") or {}).get("compositeByVersion") or {}
+    used = {v: set() for v in VERSION_OF.values()}
+    for row in raw["inspection"]["rows"].values():
+        for ver, b in (row.get("ddfByVersion") or {}).items():
+            used.setdefault(ver, set()).update(b.get("sources") or [])
+    out = {}
+    for key, ver in VERSION_OF.items():
+        c = comp.get(key) or {}
+        out[ver] = {"inputs": c.get("inputs"), "series": c.get("series"), "used": sorted(used.get(ver, ()))}
+    return out
+
+
 def extract() -> dict:
     from playwright.sync_api import sync_playwright
 
@@ -111,6 +368,7 @@ def extract() -> dict:
             page.wait_for_function(
                 "window.TradeValueCurveControls && window.TradeValueCurveControls.isReady()", timeout=120000)
             data = page.evaluate(script, {"settings": SETTINGS})
+            data["extra"] = page.evaluate(EXTRA_JS)
             browser.close()
     finally:
         srv.shutdown()
@@ -144,19 +402,42 @@ def trim_estimate(e: dict) -> dict:
 def trim_pipeline(vp: dict, full: bool = True) -> dict:
     sources = {}
     for k, s in (vp.get("sources") or {}).items():
-        row = {f: s.get(f) for f in ("family", "included", "totalVorp", "groups", "weights", "starterMix",
+        row = {f: s.get(f) for f in ("family", "included", "totalVorp", "surplusTotal", "groups", "weights", "starterMix",
                                        "benchMix", "rates", "unfundedGroups", "unfundedMoved",
                                        "vorpFactor", "indexedFactor")}
         if full:
             row["positions"] = {}
             for p, pp in (s.get("positions") or {}).items():
                 row["positions"][p] = {**{f: pp.get(f) for f in ("method", "waiver", "starterLine", "starters",
-                                                                 "rostered", "listed", "nEstimated")},
+                                                                 "rostered", "listed", "nEstimated", "avail")},
+                                       "lineup": {f: (pp.get("lineup") or {}).get(f)
+                                                  for f in ("m", "unavailable", "nPerTeam", "sigmaRel", "sigmaFloor")}
+                                       if pp.get("lineup") else None,
                                        "estimates": {pk: trim_estimate(e) for pk, e in (pp.get("estimates") or {}).items()}}
         sources[k] = row
     return {f: vp.get(f) for f in ("version", "pie", "benchShare", "benchShareApplied", "included", "excluded",
                                    "degenerate", "ddfWeights", "allocation", "allocationMix",
-                                   "allocationExpected", "seatSigma")} | {"sources": sources}
+                                   "allocationExpected", "seatSigma", "lineup", "chartSigma")} | {"sources": sources}
+
+
+# JEG-1393 R2 (CX-03): the bench usage discount the engine applies when it
+# shares bench seats with no league loaded (value-model.js vpVorpBenchDiscount,
+# JEG-1121). Its constants are read from the engine source and must match the
+# Python twin (roster_convention.vorp_bench_discount), so the page prints the
+# numbers the engine uses.
+def bench_discount() -> dict:
+    src = (ROOT / "app" / "trade-value-chart" / "assets" / "value-model.js").read_text()
+    miss = re.search(r"var VORP_MISS = \{([^}]*)\}", src)
+    bye = re.search(r"var VORP_BYE = ([0-9.]+) / ([0-9.]+);", src)
+    if not miss or not bye:
+        raise SystemExit("bench discount constants not found in value-model.js")
+    miss_rate = {k: float(v) for k, v in re.findall(r"(QB|RB|WR|TE): ([0-9.]+)", miss.group(1))}
+    bye_rate = float(bye.group(1)) / float(bye.group(2))
+    sys.path.insert(0, str(ROOT / "pipelines" / "lib"))
+    import roster_convention as rc
+    if miss_rate != rc._BENCH_MISS_RATE or abs(bye_rate - rc._BYE_RATE) > 1e-12:
+        raise SystemExit("bench discount constants differ between value-model.js and roster_convention.py")
+    return {"bye": bye_rate, "miss": miss_rate}
 
 
 def trim(raw: dict) -> dict:
@@ -232,6 +513,9 @@ def trim(raw: dict) -> dict:
                                          "available", "paused")} for s in raw["info"]],
         "composite": raw["composite"], "positionWeights": raw["positionWeights"], "zones": raw["zones"],
         "sensitivity": raw["sensitivity"], "restored": raw["restored"],
+        "benchDiscount": bench_discount(),
+        "hidden": hidden_sources(raw), "versionSources": version_sources(raw), "vorpRuns": vorp_runs(raw),
+        "heavyRun": heavy_run(raw), "rateRuns": rate_runs(raw),
         "reconstruction": {"tolerance": CHECK_TOL, "worst": {k: r(v, 6) for k, v in worst.items()}, "off": off},
     }
 

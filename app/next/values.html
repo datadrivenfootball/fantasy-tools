@@ -1,0 +1,430 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>DDF · Values</title><link rel="stylesheet" href="styles.css"><style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+.values-page{caret-color:#176c4d;scrollbar-color:#bec8c1 #f7f8f5}.values-page ::selection{background:#d7ecd9;color:#142b25}.values-page .values-context{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#5c6a76;margin:20px 0 28px}.values-context strong{color:#12202c}.values-section{margin:0 0 36px;padding:24px;background:#fff;border:1px solid #dbe0dc;border-radius:14px}.values-section>.cluster{padding-bottom:24px;border-bottom:1px solid #dbe0dc;gap:14px}.values-section [role=toolbar]>label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}.values-page input[type=search]{max-width:145px;caret-color:#176c4d}.values-page input::placeholder{color:#5c6a76;opacity:1}.values-page input,.values-page select,.values-page button,.values-page summary{min-height:40px}.values-page button:hover,.values-page select:hover,.values-page summary:hover{border-color:#176c4d}.values-page :focus-visible{outline:3px solid #176c4d;outline-offset:3px}.values-more{margin-left:auto}.values-more .menu-panel{z-index:10;box-shadow:none;border-radius:12px}.values-page .values-more small{display:block;max-width:65ch}.values-page .values-legend-ddf,.values-page .values-legend-market,.values-page .values-legend-range{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#142b25}.values-legend-ddf:before{content:'';width:24px;border-top:4px solid #142b25}.values-legend-market:before{content:'';width:24px;border-top:2px dashed #5c6a76}.values-legend-range:before{content:'';height:15px;width:7px;background:#176c4d;opacity:.5}.values-page #vchart{font-family:'IBM Plex Mono',monospace}.values-page .notice{max-width:75ch}.values-page .table-wrap{scrollbar-color:#bec8c1 #f7f8f5}.values-page .sitemap h2{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.1em;color:#5c6a76;margin:0 0 10px}.values-footer{max-width:1200px;margin:0 auto;padding:18px 20px 28px}.values-page .sitemap .in{grid-template-columns:repeat(4,1fr)}
+
+@media(max-width:760px){.values-section{padding:18px 14px}.values-more{margin-left:0}.values-page .sitemap .in{grid-template-columns:repeat(2,1fr)}.values-page .values-context{margin-bottom:22px}.values-section>.cluster{gap:12px}.values-page .values-more .menu-panel{left:0;right:auto;max-width:calc(100vw - 60px)}}
+</style><script src="site.js" defer></script><style>
+/* tabs + Buy / Sell */
+.values-page .screen-tabs{display:flex;gap:6px;border-bottom:1px solid #dbe0dc;margin:4px 0 14px}
+.values-page .screen-tabs button[role=tab]{min-height:44px;padding:10px 16px;border:0;border-bottom:3px solid transparent;border-radius:0;margin-bottom:-1px;background:none;color:#39413b;font:600 15px Archivo,system-ui,sans-serif;cursor:pointer;box-shadow:none}
+.values-page .screen-tabs button[role=tab]:hover{background:var(--green-soft);color:var(--green)}
+.values-page .screen-tabs button[role=tab][aria-selected=true]{color:var(--green);border-bottom-color:var(--green);background:none}
+.values-page .screen-tabs button[role=tab]:focus-visible{outline:3px solid #176c4d;outline-offset:-3px}
+.vctx{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 16px;margin:0 0 6px}.vctx .vchips{margin:0}.vctx .values-more{margin:0}
+[role=tabpanel][hidden]{display:none}[role=tabpanel]:focus-visible{outline:3px solid #176c4d;outline-offset:4px}
+.bs-h{margin:18px 0 4px;font-size:clamp(26px,3.2vw,34px)}.bs-sub{margin:0 0 18px;color:#5c6a76;max-width:70ch}
+.bs-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.bs-card{background:#fff;border:1px solid #dbe0dc;border-radius:12px;padding:18px 18px 12px;min-width:0}.bs-card h3{margin:0 0 2px;font-size:22px}.bs-note{margin:0 0 10px;color:#5c6a76;font-size:14px}
+.bs-cnt{display:inline-block;margin-left:4px;padding:0 6px;border:1px solid #c9d2cc;border-radius:99px;font:600 10.5px 'IBM Plex Mono',monospace;color:#39413b;background:#f7f8f5;vertical-align:1px;white-space:nowrap}
+.bs-def{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:-4px 0 12px;font-size:13px;color:#5c6a76}.values-page .bs-info>summary{padding:0;min-height:0;min-width:0;list-style:none;cursor:pointer;display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid #bec8c1;border-radius:50%;font-size:12px;color:#5c6a76;background:#fff}@media(pointer:coarse),(max-width:760px){.values-page .bs-info>summary{width:44px;height:44px}}.values-page .bs-info>span{color:#142b25;max-width:720px}
+.bs-head,.bs-row{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.6fr) minmax(0,.7fr) minmax(0,1.25fr);gap:4px 8px;align-items:center}
+.bs-head{font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#5c6a76;padding:6px 10px;border-bottom:1px solid #dbe0dc}
+.bs-head span:nth-child(2),.bs-head span:nth-child(3),.bs-row .bs-n{text-align:right}
+.bs-list{list-style:none;margin:0;padding:0}.bs-list li{border-bottom:1px solid #eef1ec}.bs-list li:last-child{border-bottom:0}
+.values-page button.bs-row{width:100%;min-height:56px;padding:8px 10px;border:1px solid transparent;border-radius:10px;background:none;color:#142b25;text-align:left;font:500 14.5px Archivo,system-ui,sans-serif;cursor:pointer;box-shadow:none}
+.values-page button.bs-row:hover{background:#f4f8f5;color:#142b25}
+.values-page button.bs-row[aria-pressed=true]{background:var(--green-soft);border-color:#bfe0c9;color:#142b25}
+.values-page button.bs-row:focus-visible,.values-page button.bs-opt:focus-visible{outline:3px solid #176c4d;outline-offset:2px}
+.bs-name{display:block;min-width:0}.bs-name strong{font-weight:700}.bs-name small{display:block;color:#5c6a76;font-size:12.5px;margin-top:2px}
+.bs-n{font:500 14px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}.bs-n small{display:block;font:500 10.5px Archivo,system-ui,sans-serif;color:#5c6a76}
+.bs-tag{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}.bs-tag.dg{background:var(--green-soft);color:#0f5a3f}.bs-tag.mh{background:#fff0e8;color:#a83e12}.bs-tag.nf{background:#e8f5ee;color:#0f5a3f;border:1px solid #bfe0c9}.bs-tag.ck{background:#eef1ec;color:#39413b}
+.bs-yours{display:inline-block;margin-left:6px;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;color:#a83e12}
+.bs-flag{display:inline-block;margin-left:6px;font-size:11.5px;font-weight:600;color:#5c6a76}.bs-wk{display:inline-block;margin-left:6px;font:600 10.5px 'IBM Plex Mono',monospace;border:1px solid #dbe0dc;border-radius:99px;padding:0 7px;color:#39413b}
+.values-page button.bs-more{margin:6px 0 4px;min-height:44px}.values-page button.bs-more[hidden]{display:none}.bs-two.solo{max-width:820px}.bs-head span:nth-child(3){padding-right:6px}.bs-row .bs-mkt{padding-right:6px}.bs-empty{padding:16px 10px;color:#5c6a76;font-size:14px}
+.bs-nolg{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:14px 18px;margin:0 0 18px;background:#fff0e8;border:1px solid #f0cdb8;border-radius:12px}.bs-nolg[hidden]{display:none}.bs-nolg p{margin:0;font-weight:600;color:#7c2f0d}
+.bs-nolg .btn{min-height:44px;display:inline-flex;align-items:center}
+.bs-pick{margin-top:18px;background:#fff;border:1px solid #dbe0dc;border-radius:12px;padding:18px}.bs-pick[hidden]{display:none}.bs-pick h3{margin:0 0 2px;font-size:20px}
+.bs-opts{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}
+.values-page button.bs-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:76px;padding:10px 14px;border:1px solid #dbe0dc;border-radius:10px;background:#fff;color:#142b25;text-align:left;font:500 14px Archivo,system-ui,sans-serif;cursor:pointer;box-shadow:none}
+.values-page button.bs-opt:hover{background:#f4f8f5;color:#142b25}.values-page button.bs-opt[aria-pressed=true]{background:var(--green-soft);border-color:var(--green);color:#142b25}.bs-opt .bs-meta{font:500 12.5px 'IBM Plex Mono',monospace;color:#39413b}
+.bs-detail{margin-top:18px;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr) minmax(0,1.3fr);gap:16px 20px;align-items:stretch;background:#fff;border:1px solid #bfe0c9;border-top:4px solid var(--green);border-radius:12px;padding:22px 24px;box-shadow:0 10px 28px rgba(23,108,77,.08)}.bs-detail[hidden]{display:none}
+.bs-dhead small{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--green-soft);color:#0f5a3f;font-weight:600;font-size:13px}.bs-dhead h3{margin:10px 0 0;font-size:clamp(30px,3.4vw,40px);line-height:1.1}
+.values-page .bs-box{min-width:0;overflow:visible!important;padding:16px 18px;background:#f7f8f5;border:1px solid #dbe0dc;border-radius:10px}.bs-box h4{margin:0 0 8px;font:600 19px/1.2 var(--serif,Newsreader,Georgia,serif)}.values-page .bs-box table{min-width:0!important;width:100%;border-collapse:collapse;font-size:14px}.bs-box th{font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#5c6a76;text-align:right;padding:6px 6px;border-bottom:1px solid #dbe0dc}.bs-box td{padding:10px 6px;text-align:right;font:500 14px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;border-bottom:1px solid #eef1ec}.bs-box tr:last-child td{border-bottom:0}.bs-box th:first-child,.bs-box td:first-child{text-align:left;font-family:Archivo,system-ui,sans-serif}
+.bs-fithead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px}.bs-fithead h4{margin:0}.bs-checks{list-style:none;margin:0;padding:0}.bs-checks li{padding:5px 0;font-size:14.5px}.bs-checks .ok{color:#0f5a3f;font-weight:700}.bs-checks .no{color:#a83e12;font-weight:700}.bs-checks .na{color:#5c6a76;font-weight:700}
+.bs-act{grid-column:1/-1}.bs-act .btn{display:inline-flex;align-items:center;min-height:48px;white-space:nowrap}
+.bs-fine{margin:14px 0 0;color:#5c6a76;font-size:13.5px}
+@media(max-width:1100px){.bs-detail{grid-template-columns:1fr 1fr}.bs-dhead{grid-column:1/-1}}
+@media(max-width:900px){.bs-two{grid-template-columns:1fr}}
+@media(max-width:760px){.bs-detail{grid-template-columns:1fr;padding:18px 16px}.bs-act .btn{width:100%;justify-content:center;white-space:normal}.vctx{flex-direction:column}}
+@media(max-width:600px){.bs-head{display:none}.values-page button.bs-row{grid-template-columns:1fr 1fr 1fr;padding:8px 6px}.bs-row .bs-name{grid-column:1/-1}.bs-row .bs-n{text-align:left}.bs-row .bs-gap{grid-column:1/-1}.bs-card{padding:14px 10px 8px}.bs-row .bs-ddf::before{content:attr(data-label);display:block;font:500 10.5px Archivo,system-ui,sans-serif;color:#5c6a76}.bs-row .bs-mkt::before{content:attr(data-label);display:block;font:500 10.5px Archivo,system-ui,sans-serif;color:#5c6a76}}
+@media(prefers-reduced-motion:no-preference){.bs-detail.pop{animation:bspop .4s cubic-bezier(.2,.9,.3,1.1)}}
+@keyframes bspop{from{transform:translateY(8px);opacity:.6}to{transform:none;opacity:1}}
+/* Overrides tab */
+.ov-tabn{display:inline-block;margin-left:7px;min-width:20px;padding:1px 6px;border-radius:99px;background:#fff0e8;color:#a83e12;font:600 11.5px 'IBM Plex Mono',monospace;vertical-align:1px}.ov-tabn[hidden]{display:none}
+.bs-ovr,.ov-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:#fff0e8;color:#a83e12;border:1px solid #f0cdb8;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.04em;text-transform:uppercase;vertical-align:1px;white-space:nowrap}
+.ov-privacy{margin:-6px 0 18px;padding:10px 14px;background:#f7f8f5;border:1px solid #dbe0dc;border-radius:10px;font-size:14px;color:#39413b;max-width:75ch}
+.ov-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start;margin-bottom:18px}
+.ov-lbl{display:block;font-weight:600;font-size:14px;margin:12px 0 6px}
+.ov-combo{position:relative}.values-page .ov-combo input{width:100%;max-width:none;min-height:44px}
+.ov-list,#ov-list{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);max-height:300px;overflow:auto;margin:0;padding:4px;list-style:none;background:#fff;border:1px solid #bec8c1;border-radius:10px;box-shadow:0 10px 24px rgba(20,43,37,.14)}#ov-list[hidden]{display:none}
+#ov-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:6px 10px;border-radius:8px;cursor:pointer;font-size:14.5px}
+#ov-list li[aria-selected=true],#ov-list li:hover{background:var(--green-soft)}#ov-list li small{font:500 12.5px 'IBM Plex Mono',monospace;color:#39413b;white-space:nowrap}#ov-list li.none{cursor:default;color:#5c6a76}
+.ov-sel{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:14px 0 8px}.ov-sel strong{font:600 22px/1.2 var(--serif,Newsreader,Georgia,serif)}.ov-sel small{color:#5c6a76;font-size:13px}
+.ov-ref{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 4px}.ov-ref div{padding:8px 10px;background:#f7f8f5;border:1px solid #e3e7e2;border-radius:9px;min-width:0}.ov-ref dt{font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#5c6a76}.ov-ref dd{margin:2px 0 0;font:600 18px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}.ov-ref dd.yours{color:#a83e12}
+.ov-set{display:flex;align-items:center;gap:12px}.values-page .ov-set input[type=number]{width:96px;min-height:44px;font:600 16px 'IBM Plex Mono',monospace;text-align:right}.values-page .ov-set input[type=range]{flex:1;min-width:0;min-height:44px;accent-color:#a83e12;margin:0}
+.ov-err{margin:4px 0 0;color:#a83e12;font-size:13.5px;font-weight:600}.ov-err:empty{display:none}
+.ov-preview{margin:6px 0 0;font-size:14px;color:#39413b;min-height:1.4em}
+.ov-btns{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}.values-page .ov-btns .btn,.values-page .ov-lhead .btn,.values-page .ov-active button{min-height:44px}
+.ov-lbtns{display:flex;flex-wrap:wrap;gap:8px}.ov-lbtns .btn[hidden]{display:none}.ov-share{margin:6px 0 0;font-size:13.5px;color:var(--green);font-weight:600}.ov-share:empty{display:none}
+.ov-loaded{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin:0 0 14px;padding:8px 14px;background:#fff0e8;border:1px solid #f0cdb8;border-radius:10px;font-weight:600;color:#7c2f0d}.ov-loaded[hidden]{display:none}.values-page .ov-loaded .btn{min-height:44px}
+.ov-lhead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.ov-lhead h3{margin:0}.ov-lhead .btn[hidden]{display:none}
+.ov-active{list-style:none;margin:10px 0 4px;padding:0}.ov-active li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 0;border-top:1px solid #eef1ec}.ov-active li:first-child{border-top:0}
+.ov-active .ov-who{flex:1 1 180px;min-width:0}.ov-active .ov-who strong{display:block}.ov-active .ov-who span{font:500 13px 'IBM Plex Mono',monospace;color:#39413b}.ov-active .ov-acts{display:flex;gap:8px}
+.ov-d{font-weight:700}.ov-d.up{color:#0f5a3f}.ov-d.dn{color:#a83e12}
+.ov-empty{color:#5c6a76;font-size:14px;margin:8px 0}
+.ov-sum{margin:6px 0 14px;font-size:16px;line-height:1.5}.ov-sum strong{font-weight:700}
+.ov-areas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.ov-area{padding:14px 16px;background:#f7f8f5;border:1px solid #dbe0dc;border-radius:10px;min-width:0}.ov-area h4{margin:0 0 6px;font:600 18px/1.2 var(--serif,Newsreader,Georgia,serif)}.ov-area ul{list-style:none;margin:0;padding:0}.ov-area li{padding:5px 0;font-size:14px;border-top:1px solid #e6eae4}.ov-area li:first-child{border-top:0}.ov-area .same{color:#5c6a76}.ov-area a{color:var(--green);font-weight:600}
+.ov-num{font:500 13.5px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ov-every{margin-top:14px;border:1px solid #dbe0dc;border-radius:10px;padding:0 14px}.ov-every summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+.ov-every table{width:100%;min-width:0!important;border-collapse:collapse;font-size:14px;margin:0 0 12px}.ov-every th{font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#5c6a76;text-align:left;padding:6px;border-bottom:1px solid #dbe0dc;background:none;position:static}.ov-every td{padding:8px 6px;border-bottom:1px solid #eef1ec;vertical-align:top;position:static;background:none}
+.values-page tbody tr.ov-row td.pl{box-shadow:inset 3px 0 0 #a83e12}
+.values-page td.ovcell{white-space:normal;line-height:1.25}.ov-was{display:block;font-size:11.5px;color:#5c6a76}.ov-now{color:#a83e12;font-weight:700}
+@media(max-width:900px){.ov-grid,.ov-areas{grid-template-columns:1fr}}
+@media(max-width:600px){.ov-every thead{display:none}.ov-every tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:8px 0;border-bottom:1px solid #eef1ec}.ov-every td{border:0!important;padding:0!important}.ov-every td:nth-child(2),.ov-every td:nth-child(3){grid-column:1}.ov-every td:nth-child(2){font-weight:600}.ov-every td:nth-child(4){grid-column:2;grid-row:1/span 2;align-self:center}.ov-every td:nth-child(4) a{display:inline-flex;align-items:center;min-height:44px}.ov-ref{grid-template-columns:1fr 1fr 1fr;gap:6px}.ov-ref dd{font-size:15px}.ov-ref div{padding:6px 8px}.ov-every th:nth-child(1),.ov-every td:nth-child(1){display:none}.ov-every{padding:0 10px}}
+/* value paths: quiet per-player actions (Set your own value, Buy / Sell view) */
+.vp-acts{display:inline-flex;gap:2px;flex-wrap:wrap;vertical-align:middle;margin-left:8px}
+.values-page button.vp-act{min-height:28px;padding:2px 8px;border:0;background:none;color:#176c4d;font:600 12px Archivo,system-ui,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer;border-radius:6px}
+.values-page button.vp-act:hover{background:#eef6f0;border:0;color:#124f39}
+.values-page button.vp-act:focus-visible{outline:3px solid #176c4d;outline-offset:1px}
+.values-card .vp-acts{display:flex;margin:0 0 10px;gap:4px}
+.values-card .vp-act{border:1px solid #cfe0d4!important;background:#f4f8f5!important;text-decoration:none!important;padding:4px 10px!important}
+.vp-bs{padding:0 10px 8px}.vp-bs .vp-act{margin-left:-8px}
+.bs-list li.bs-hl{background:#fff0e8;box-shadow:inset 3px 0 0 #e96528;border-radius:8px}
+.bs-hlnote{margin:8px 0 14px;padding:8px 12px;border-left:3px solid #e96528;background:#fff7f2;max-width:75ch;font-size:14px}
+.ov-saved{margin:12px 0 0;padding:8px 12px;border-left:3px solid #176c4d;background:#eef6f0;font-size:14px;border-radius:0 8px 8px 0}.ov-saved a{color:#124f39;font-weight:600}
+.ov-session-note{margin:0 0 10px;padding:8px 12px;background:#f0f4ff;border:1px solid #c5cef5;border-radius:8px;font-size:13.5px;color:#2a3680}.ov-session-note[hidden]{display:none}
+.ov-modes{display:flex;flex-wrap:wrap;gap:4px 16px;border:0;margin:12px 0 4px;padding:0}.ov-modes label{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600}
+.ov-comparables{margin:8px 0 2px;padding:8px 10px;background:#f7f8f5;border:1px solid #e3e7e2;border-radius:9px}
+.ov-comp-list{list-style:none;margin:0;padding:0}.ov-comp-list li{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13.5px}
+.ov-comp-self{font-weight:700;background:var(--green-soft);border-radius:5px;padding:2px 6px;margin:0 -6px}
+.ov-comp-val{margin-left:auto;font:500 13px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;color:#39413b}
+.ov-basis-section{margin-bottom:18px}
+.ov-basis-grp{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
+.ov-basis-btn{padding:6px 14px;min-height:38px;font-size:13.5px}
+.ov-basis-btn.is-on{background:var(--green-soft)!important;border-color:var(--green)!important;color:var(--green)!important;font-weight:700}
+.ov-basis-btn[aria-disabled=true]{opacity:.5;cursor:not-allowed}
+.ov-basis-label{margin:8px 0 0;font-size:13.5px;color:#39413b;line-height:1.5;padding:8px 10px;background:#f7f8f5;border:1px solid #e3e7e2;border-radius:8px}
+.ov-wlist{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.ov-wrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:8px 10px;background:#f7f8f5;border:1px solid #e3e7e2;border-radius:9px}
+.ov-wrow.is-paused{opacity:.6}.ov-wlabel{flex:1 1 120px;min-width:0;font-size:14px;font-weight:600;cursor:pointer}
+.ov-wnum{width:62px;min-height:38px;font:600 14px 'IBM Plex Mono',monospace;text-align:right}
+.ov-wpct{font:600 11.5px 'IBM Plex Mono',monospace;min-width:34px;text-align:right;color:#39413b}
+.ov-wnote{flex-basis:100%;font-size:12px;color:#5c6a76;margin-top:2px}
+.ov-wrow input[type=range]{flex:1;min-width:80px;min-height:0;accent-color:var(--green)}
+.ov-io{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}
+.ov-io-note{font-size:13px;color:#5c6a76;align-self:center}.ov-io-note:empty{display:none}
+@media(hover:hover) and (pointer:fine){.values-page tbody tr .vp-acts{opacity:0}.values-page tbody tr:hover .vp-acts,.values-page tbody tr:focus-within .vp-acts,.values-page tbody tr.values-hl .vp-acts{opacity:1}}
+@media(max-width:760px){.values-page tbody td.pl .vp-acts{display:flex;margin:2px 0 0 -8px}}
+@media(pointer:coarse),(max-width:760px){.values-page button.vp-act{min-height:44px;min-width:44px;padding:8px 10px}.values-card .vp-act{padding:8px 12px!important}.ov-saved a{display:inline-block;padding:12px 4px}}
+</style></head><body class="values-page"><header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="values.html" aria-current="page">Values</a><div class="morewrap"><button type="button" aria-expanded="false" aria-controls="values-nav-menu">More ▾</button><div class="menu" id="values-nav-menu"><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a></div></div></nav></div></header><main><style>
+.series{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:22px 0}.chart-layout{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px;align-items:stretch}.chart-box{min-width:0}
+.range-title{font-weight:700;font-size:14px;color:#142b25;white-space:nowrap}
+.value-range{display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:2px}.value-range .range-title{align-self:flex-start;margin-bottom:6px}
+.values-page input.numeric-thumb{width:74px;min-height:30px;padding:3px 6px;text-align:center;border:0;border-radius:999px;background:#176c4d;color:#fff;font:600 14px 'IBM Plex Mono',monospace;-moz-appearance:textfield;appearance:textfield}
+.values-page input.numeric-thumb::-webkit-inner-spin-button,.values-page input.numeric-thumb::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.dual{position:relative}.dual:before{content:'';position:absolute;background:#bfe0c9;border-radius:4px}
+.dual input[type=range]{position:absolute;margin:0;padding:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;min-height:0;border:0}
+.dual input[type=range]::-webkit-slider-runnable-track{background:transparent;border:0}
+.dual input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:18px;height:18px;border-radius:50%;background:#176c4d;border:3px solid #fff;box-shadow:0 0 0 1px #176c4d;cursor:grab}
+.dual input[type=range]::-moz-range-thumb{pointer-events:auto;width:14px;height:14px;border-radius:50%;background:#176c4d;border:3px solid #fff;box-shadow:0 0 0 1px #176c4d;cursor:grab}
+.dual input[type=range]:focus-visible{outline:none}.dual input[type=range]:focus-visible::-webkit-slider-thumb{outline:3px solid #e96528;outline-offset:2px}
+.dual-v{width:24px;flex:1;min-height:150px}.dual-v:before{left:9px;width:6px;top:0;bottom:0}.dual-v input[type=range]{writing-mode:vertical-lr;direction:rtl;inset:0;width:24px;height:100%}
+.dual-h{flex:1;height:24px;min-width:120px}.dual-h:before{top:9px;height:6px;left:0;right:0}.dual-h input[type=range]{inset:0;width:100%;height:24px}
+.rank-controls{display:flex;align-items:center;gap:12px;margin:16px 0 8px}.rank-controls .range-title{width:98px}
+.count-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;margin:8px 0 18px;padding-left:110px}
+.values-page .segmented button{min-height:36px;min-width:58px;border:0;border-left:1px solid #dbe0dc;border-radius:0;background:#fff;font:600 14px 'Archivo',sans-serif;color:#142b25;padding:6px 14px}
+.values-page .segmented button:first-child{border-left:0}
+.values-page .segmented button[aria-checked=true],.values-page .segmented button[aria-checked=true]:hover{background:#d7ecd9;color:#0f4a33;box-shadow:none;filter:none}
+.values-page .link-button{border:0;background:none;color:#176c4d;font-weight:600;padding:6px 4px;min-height:36px;box-shadow:none}
+.series label{display:inline-flex;align-items:center;gap:8px}.values-page .series input[type=checkbox]{min-height:0;width:18px;height:18px;margin:0}.count-note{color:#176c4d;font-style:italic}.hint{font-size:13px;font-style:italic}
+.values-page th .sort{all:unset;cursor:pointer;font:inherit;font-weight:700;display:inline-flex;gap:6px;align-items:center}.values-page th .sort:focus-visible{outline:3px solid #176c4d;outline-offset:2px}.values-page th .arrow{font-size:10px;color:#176c4d;min-width:10px}
+.methodology{padding:18px;border:1px solid #dbe0dc;border-radius:10px;margin-bottom:30px}@media(max-width:760px){.series{gap:12px}.chart-layout{grid-template-columns:64px minmax(0,1fr);gap:6px}.value-range .range-title{display:none}.values-page input.numeric-thumb{width:58px;font-size:12px}.rank-controls .range-title{width:auto}.count-row{padding-left:0}.values-page .segmented button{min-width:0;padding:6px 12px}.values-page input[type=search]{max-width:100%;flex:1}.values-section [role=toolbar]{flex-wrap:wrap}}
+</style><style>
+.values-page .values-adv{border:1px solid #dbe0dc;border-radius:10px;margin:12px 0 0;padding:10px 14px}.values-page .values-adv legend{font-weight:700;font-size:13px;padding:0 6px}.values-page .values-adv label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin:6px 0}.values-page .values-adv input[type=checkbox]{min-height:0;width:18px;height:18px;margin:0}.values-page .values-adv small{display:block;color:#5c6a76;margin-top:6px}
+.values-page .values-more .menu-panel{min-width:320px}
+.values-page details.values-adv{padding:0}.values-page .values-more details.values-adv>summary{border:0;cursor:pointer;justify-content:space-between;font-weight:700;font-size:13px;min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px}.values-page details.values-adv>summary:focus-visible{outline:3px solid #176c4d;outline-offset:2px}.values-page .vaw-body{padding:0 14px 12px}
+.values-page .vaw-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px}.values-page .vaw-row>label{margin:6px 0}.values-page .values-adv label.vaw-sub{padding-left:26px}.values-page .values-adv label.vaw-sub:has(input:disabled){color:#7a8690}
+.values-page .vinfo{display:contents}.values-page .values-more details.values-adv>summary::after{content:'▸';font-size:12px;color:#5c6a76}.values-page .values-more details.values-adv[open]>summary::after{content:'▾'}
+.values-page .values-more .vinfo>summary{padding:0;min-height:0;min-width:0;list-style:none;cursor:pointer;display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid #bec8c1;border-radius:50%;font-size:12px;color:#5c6a76;background:#fff}.values-page .vinfo>summary::-webkit-details-marker{display:none}.values-page .vinfo>summary:focus-visible{outline:3px solid #176c4d;outline-offset:2px}.values-page .vinfo>span{flex-basis:100%;display:block;font-size:13px;line-height:1.45;background:#f7f8f5;border:1px solid #e6e9e6;border-radius:8px;padding:8px 10px;margin:2px 0 6px}.values-page .vinfo a{color:#176c4d;font-weight:600}
+.values-page .vaw-legend{display:inline-flex;align-items:center;gap:6px}.values-page .vaw-narrow{display:none}.values-page td.vaw-na{color:#59666f}@media(max-width:760px){.values-page button.sort:has(.vaw-wide){position:relative}.values-page .vaw-wide{position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.values-page .vaw-narrow{display:inline}}.values-page .vaw-legend[hidden]{display:none}
+@media(pointer:coarse),(max-width:760px){.values-page .values-more .vinfo>summary{width:44px;height:44px}.values-page details.values-adv>summary{min-height:44px}}
+.values-hit{fill:transparent;cursor:pointer;outline:none}.values-hit:focus-visible,.values-hit:focus{stroke:#e96528;stroke-width:3}
+.values-page tbody tr[data-i]{cursor:pointer}.values-page tbody tr.values-hl td{background:#fff0e8!important}.values-page tbody tr:focus-visible{outline:3px solid #176c4d;outline-offset:-3px}
+.values-card{position:fixed;z-index:60;width:min(290px,calc(100vw - 16px));background:#fff;border:1.5px solid #176c4d;border-radius:12px;padding:14px 16px 14px;box-shadow:0 10px 28px rgba(20,43,37,.2);font-size:13px;color:#142b25}.values-card[hidden]{display:none}.values-card:focus{outline:none}
+.values-card .vc-head{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.values-card .vc-name{font-size:16px;font-weight:800}.values-card .vc-sub{color:#5c6a76;font-size:12px;margin-top:2px}
+.values-page .values-card .vc-close{min-height:30px;min-width:30px;padding:0;border:1px solid #dbe0dc;background:#fff;border-radius:8px;font-size:18px;line-height:1;cursor:pointer}
+.values-card dl{display:grid;grid-template-columns:1fr auto;gap:5px 12px;margin:10px 0 12px}.values-card dt{color:#5c6a76}.values-card dd{margin:0;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}.values-card .vc-pos{color:#176c4d}.values-card .vc-neg{color:#a83e12}
+.values-page .values-card a.vc-link{display:inline-block;background:#176c4d;color:#fff;border-radius:8px;padding:9px 14px;font-weight:700;text-decoration:none}
+.values-risers{margin:0 0 36px;padding:24px;background:#fff;border:1px solid #dbe0dc;border-radius:14px}.values-risers h2{margin:0 0 4px;font-size:24px}.values-risers>p{margin:0 0 18px;color:#5c6a76}.values-risers .vr-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.values-risers h3{font-size:15px;margin:0 0 8px}.values-risers ul{list-style:none;margin:0;padding:0}.values-risers li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #dbe0dc}.values-risers .vr-name{flex:1;min-width:0;font-weight:600}.values-risers .vr-name small{color:#5c6a76;font-weight:400;margin-left:4px}.values-risers .vr-delta{font-weight:800;min-width:74px;text-align:right;font-variant-numeric:tabular-nums}.values-risers .up{color:#176c4d}.values-risers .down{color:#a83e12}.values-risers svg{flex:none}.values-risers button{min-height:36px;padding:4px 12px;border:1px solid #176c4d;background:#fff;color:#176c4d;border-radius:8px;font-weight:600;cursor:pointer}
+.values-page .aiband{margin:0 auto 36px;background:#f5efe1;border-radius:12px;padding:30px 38px}.values-page .aiband .ai-in{display:flex;align-items:center;gap:28px}.values-page .aiband h2{font-size:27px;margin:0;color:#10130f}.values-page .aiband p{margin:0;font-size:16.5px;color:#333a34;flex:1}.values-page .aiband .copybtn{flex:none;background:transparent;border:1.6px solid #4a554c;color:#17211a;font-size:16px;font-weight:600;padding:11px 20px;border-radius:9px;cursor:pointer}.values-page .aiband .copybtn:hover{background:#fff}.values-page .aiband #copy-status{font-size:13.5px;color:#176c4d;margin-left:10px}
+@media(max-width:760px){.values-page .values-more .menu-panel{min-width:0}.values-risers{padding:18px 14px}.values-risers .vr-grid{grid-template-columns:1fr;gap:18px}.values-risers li{flex-wrap:wrap}.values-page .aiband{padding:18px 20px}.values-page .aiband .ai-in{flex-direction:column;align-items:flex-start;gap:14px}.values-page .aiband h2{font-size:21px}.values-page .aiband p{font-size:14px}}
+</style>
+<style>
+/* polish: lean on the shared layer (container, serif headlines, header, segmented); only page-specific bits here */
+.values-page{--pos-qb:#6b4aa0;--pos-qb-bg:#efeaf8;--pos-rb:#176c4d;--pos-rb-bg:#e3f3ea;--pos-wr:#2d5fa8;--pos-wr-bg:#e6eef9;--pos-te:#946512;--pos-te-bg:#fbf0d6}
+.values-page main{padding-top:26px}
+.values-page h1{margin:0 0 4px}
+.values-page .vintro{margin:0 0 10px;max-width:70ch}
+.screen-tabs{display:flex;margin:4px 0 12px}.screen-tabs a{text-decoration:none}
+.vchips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.vchip{font:500 12px 'IBM Plex Mono',monospace;letter-spacing:.04em;padding:4px 10px;border:1px solid #dbe0dc;border-radius:99px;background:#fff;color:#39413b}
+.vchip-hist{background:var(--green-soft);border-color:#bfe0c9;color:var(--green);font-weight:600}
+.values-section{margin:0 0 28px;padding:18px 20px;border-radius:var(--card-radius)}
+.values-section>.cluster{padding-bottom:12px;gap:10px}
+.values-page .series{margin:12px 0 6px;gap:6px 18px;font-size:14px}
+.values-page .series strong{font-weight:600;color:#39413b}
+.values-page .values-section input,.values-page .values-section select,.values-page .values-section summary,.values-page .values-section button{min-height:38px}
+.values-page .values-section input.numeric-thumb{min-height:24px}
+.values-page .values-section .series input[type=checkbox]{accent-color:var(--green);min-height:0}
+.values-page .values-more summary{border:1px solid #bec8c1;border-radius:9px;padding:8px 14px;font-weight:600}
+/* smaller dual slider */
+.chart-layout{grid-template-columns:62px minmax(0,1fr);gap:8px}
+.value-range{gap:4px}.value-range .range-title{margin:0 0 2px;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#5c6a76}
+.values-page input.numeric-thumb{width:54px;padding:1px 4px;font-size:12px;background:var(--green)}
+.dual-v{width:18px}.dual-v:before{left:7.5px;width:3px}.dual-v input[type=range]{width:18px}
+.dual-h{height:18px}.dual-h:before{top:7.5px;height:3px}.dual-h input[type=range]{height:18px}
+.dual input[type=range]::-webkit-slider-thumb{width:14px;height:14px;border-width:2px}
+.rank-controls{margin:8px 0 4px;gap:10px}.rank-controls .range-title{width:auto;font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#5c6a76}
+.count-row{padding-left:0;margin:6px 0 14px;gap:8px 14px}
+.count-row .range-title{font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:#5c6a76}
+.values-page .segmented button{min-height:34px;min-width:50px;padding:5px 12px;border:0;border-left:1px solid #dbe0dc;border-radius:0;font:600 14px 'Archivo',sans-serif;color:#39413b;background:#fff}
+.values-page .segmented button:first-child{border-left:0}
+.values-page .segmented button[aria-checked=true],.values-page .segmented button[aria-checked=true]:hover{background:var(--green-soft);color:var(--green);box-shadow:none}
+.count-note{font:500 12px 'IBM Plex Mono',monospace;font-style:normal}
+.hint-i{position:relative;display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid #bec8c1;border-radius:50%;font-size:12px;color:#5c6a76;cursor:help}
+.hint-i:hover::after,.hint-i:focus::after{content:attr(data-tip);position:absolute;left:50%;bottom:130%;transform:translateX(-30%);width:230px;padding:8px 10px;background:#142b25;color:#fff;border-radius:8px;font-size:12px;line-height:1.4;z-index:30;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+.values-hit.on{fill:rgba(23,108,77,.16);stroke:var(--green);stroke-width:2}
+/* table */
+.values-page .table-wrap{margin-top:8px;border:1px solid #e3e7e2;border-radius:10px;max-width:100%;overflow-x:auto}
+.values-page table{table-layout:auto;min-width:480px;font-size:14px;width:100%}
+.values-page th{background:#f2f5f1;font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:#39413b;padding:10px 12px;white-space:nowrap}
+.values-page td{padding:11px 12px;border-bottom:1px solid #eef1ec}
+.values-page th.pl,.values-page td.pl{text-align:left;position:sticky;left:0;background:#fff;z-index:1;min-width:190px}
+.values-page th.pl{background:#f2f5f1}
+.values-page th.num,.values-page td.num{text-align:right;width:112px;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;font-size:13.5px}
+.values-page th.num .sort{justify-content:flex-end;text-transform:uppercase;letter-spacing:.06em}
+.values-page .pn{font-weight:600}.pstar{color:#e96528}
+.values-page tbody tr{transition:background .12s}
+.values-page tbody tr:hover td{background:var(--green-soft)!important}
+.pos{display:inline-block;margin-left:6px;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.04em;padding:2px 7px;border-radius:99px;vertical-align:1px}
+.pos-QB{background:var(--pos-qb-bg);color:var(--pos-qb)}.pos-RB{background:var(--pos-rb-bg);color:var(--pos-rb)}.pos-WR{background:var(--pos-wr-bg);color:var(--pos-wr)}.pos-TE{background:var(--pos-te-bg);color:var(--pos-te)}
+.dpos{color:var(--green);font-weight:600}.dneg{color:#c2501a;font-weight:600}
+.values-page .vcta{display:inline-block;padding:10px 18px;text-decoration:none;margin-top:6px}
+/* risers */
+.values-risers{border-radius:var(--card-radius)}
+.values-risers li{padding:10px 0}.values-risers .vr-delta{font-family:'IBM Plex Mono',monospace;font-size:14px}
+.values-risers button{border-radius:9px}
+/* ai band follows shared container */
+.values-page .aiband{border-radius:var(--card-radius)}
+.values-page .aiband .copybtn{border-radius:10px}
+@media(max-width:760px){
+ .values-page main{padding-top:18px}
+ .values-section{padding:14px 12px}
+ .values-section>.cluster{gap:8px}.values-page input[type=search]{max-width:none;flex:1 1 140px}
+ .values-more{margin-left:0}
+ .chart-layout{grid-template-columns:50px minmax(0,1fr);gap:4px}
+ .values-page input.numeric-thumb{width:46px;font-size:11px}
+ .values-page th.pl,.values-page td.pl{min-width:150px}
+ .values-page th.num,.values-page td.num{width:84px}
+ .values-page .aiband{padding:18px 16px}
+ .values-risers svg{display:none}
+}
+/* motion: only when the visitor has not asked for less */
+@media (prefers-reduced-motion:no-preference){
+ .vdraw .vline{stroke-dasharray:1;stroke-dashoffset:1;animation:vdraw .9s cubic-bezier(.3,.7,.2,1) forwards}
+ .vdraw .vline-d{opacity:0;animation:vfade .5s .5s forwards}
+ .vdraw .vdot{opacity:0;animation:vfade .35s forwards;animation-delay:calc(var(--i)*40ms + 250ms)}
+ .values-hit{transition:fill .12s,stroke-width .12s}
+ .values-card:not([hidden]){animation:vcard .16s cubic-bezier(.2,.9,.3,1.2)}
+ .vr-arr{display:inline-block;animation:vslide .6s .3s ease-out both}
+ .vr-delta.down .vr-arr{animation-name:vslide-d}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@keyframes vdraw{to{stroke-dashoffset:0}}
+@keyframes vfade{to{opacity:1}}
+@keyframes vcard{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes vslide{from{transform:translateY(5px);opacity:0}to{transform:none;opacity:1}}
+@keyframes vslide-d{from{transform:translateY(-5px);opacity:0}to{transform:none;opacity:1}}
+
+.vsr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+.chart-box{position:relative}
+.pstar{color:#b9470f!important}
+.pos-TE{color:#7d530a!important}
+.hint-i:focus-visible,.values-page .values-more summary:focus-visible,.values-page .series input:focus-visible{outline:3px solid #176c4d;outline-offset:2px}
+.values-page .series label{min-height:32px}
+@media(pointer:coarse),(max-width:760px){
+ .values-page .series{gap:0 18px}.values-page .series label{min-height:44px}
+ .values-page .values-section input,.values-page .values-section select,.values-page .values-section summary,.values-page .values-section button{min-height:44px}
+ .values-page .values-section .series input[type=checkbox]{min-height:0;width:22px;height:22px}
+ .values-page .values-adv input[type=checkbox]{width:22px;height:22px}
+ .values-page .segmented button{min-height:44px;min-width:52px}
+ .values-page .values-section input.numeric-thumb{min-height:44px;width:54px}
+ .hint-i{width:44px;height:44px}
+ .dual-v{width:44px}.dual-v:before{left:20px}.dual-v input[type=range]{width:44px}
+ .dual-h{height:44px}.dual-h:before{top:20px}.dual-h input[type=range]{height:44px}
+ .dual input[type=range]::-webkit-slider-thumb{width:26px;height:26px}
+ .values-risers button{min-height:44px;min-width:60px}
+}
+
+/* JEG-1535 live values: league settings, more sources, load error, risers prior -> now */
+.vset{border:0;margin:0 0 12px;padding:0}.vset legend{font-weight:700;padding:0;margin-bottom:4px}
+.vset-note{margin:0 0 8px;font-size:13px;color:#59666f}
+.vset-row{display:flex;align-items:center;gap:8px;margin:6px 0}.vset-row label{min-width:70px}
+.vset-row select{min-height:36px}
+.vset-slots{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.vset-slot{display:flex;flex-direction:column;font-size:12px;gap:2px}.vset-slot input{width:56px;min-height:36px}
+.vset-status{font-size:13px;color:#176c4d;min-height:1em;margin:4px 0 0}
+.vmore-src{display:inline-block}.vmore-src summary{cursor:pointer;text-decoration:underline}
+.vmore-list{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px}
+.values-error{background:#fff0e8;border:1px solid #a83e12;color:#a83e12;border-radius:8px;padding:10px 12px;margin:8px 0}
+.vr-was{font-size:13px;color:#59666f;white-space:nowrap}
+.vr-none{color:#59666f;font-size:14px;list-style:none}
+@media (max-width:760px){.vset-slot input,.vset-row select{min-height:44px}}
+</style>
+<h1>Values</h1><div class="screen-tabs" role="tablist" aria-label="Values views"><button type="button" role="tab" id="tab-chart" data-tab="chart" aria-controls="panel-chart" aria-selected="true">Chart</button><button type="button" role="tab" id="tab-bs" data-tab="buy-sell" aria-controls="panel-bs" aria-selected="false" tabindex="-1">Buy / Sell</button><button type="button" role="tab" id="tab-ov" data-tab="overrides" aria-controls="panel-ov" aria-selected="false" tabindex="-1">Overrides<span class="ov-tabn" id="ov-tabn" hidden></span></button></div><div class="vctx"><div class="vchips" aria-label="Values context"><span class="vchip vchip-hist" id="vchip-week">Loading values</span><span class="vchip" id="vchip-scoring" hidden></span><span class="vchip" id="vchip-teams" hidden></span><span class="vchip" id="vchip-sf" hidden>Superflex</span><span class="vchip" data-for="chart">Modeled depth</span><span class="vchip" data-for="buy-sell" hidden title="Charts = the average of the four charts’ indexed values (three analyst charts and the live market); the badge says how many went in">Charts = average of the charts’ indexed values (n/4)</span><span class="vchip" data-for="overrides" hidden>Applied after DDF’s numbers</span><span class="vchip" id="vchip-ctx" hidden></span></div><details class="menu values-more"><summary>Customize</summary><div class="menu-panel"><fieldset class="vset" id="vset"><legend>Your league settings</legend><p class="vset-note">They change every number on this page and on the rest of the site, and are kept in this browser.</p><div class="vset-row"><label for="set-scoring">Scoring</label><select id="set-scoring"><option value="standard">Standard</option><option value="half_ppr">Half PPR</option><option value="ppr">Full PPR</option></select></div><div class="vset-row"><label for="set-teams">Teams</label><select id="set-teams"><option>8</option><option>10</option><option>12</option><option>14</option></select></div><div class="vset-row"><label><input type="checkbox" id="set-sf"> Superflex</label></div><div class="vset-slots" id="set-slots"></div><p class="vset-status" id="set-status" role="status"></p></fieldset><details class="values-adv" id="vaw-adv"><summary>Advanced</summary><div class="vaw-body"><div class="vaw-row"><label><input type="checkbox" id="vaw-on" aria-describedby="vaw-note"> Value above waivers</label><details class="vinfo"><summary aria-label="About Value above waivers">ⓘ</summary><span role="note">How much better a player is than the best one you could pick up for free at his position, counting all his points. DDF Value starts from this and adjusts it for where he ranks in your league: players good enough to start at their position, given roster sizes and team count, are valued at starter level, and players expected to sit on benches at bench level. <a href="learn.html#numbers/glossary/value-above-waivers">Value above waivers in the glossary</a></span></details></div><label class="vaw-sub"><input type="checkbox" id="vaw-chart" disabled aria-describedby="vaw-note"> Plot it on the chart</label><small id="vaw-note"></small></div></details></div></details></div><div role="tabpanel" id="panel-chart" aria-labelledby="tab-chart"><p class="muted vintro">Explore DDF fantasy trade values by player rank, with comparable sources and historical context.</p><section class="values-section"><div class="cluster" role="toolbar" aria-label="Values controls"><input id="search" type="search" placeholder="Search players…" aria-label="Search players"><select id="position" aria-label="Position"><option>All positions</option><option>QB</option><option>RB</option><option>WR</option><option>TE</option></select><label>Rank by: <select id="rank"><option value="ddf">DDF Value</option><option value="cbs">CBS Sports · indexed</option></select></label></div><div class="series"><strong>Sources (series):</strong><label><input type="checkbox" id="ddf" checked> DDF Value</label><label title="CBS Sports: an analyst trade chart"><input type="checkbox" id="cbs" checked> CBS Sports (analyst chart) · indexed</label><label title="FantasyCalc: live market activity, what people actually pay in trades"><input type="checkbox" id="fantasycalc"> Live market (FantasyCalc) · indexed</label><span class="vaw-legend" id="vaw-legend" hidden><svg width="26" height="10" aria-hidden="true"><path d="M1 5H25" stroke="#7a4fa8" stroke-width="3" stroke-dasharray="9 3 2 3"/></svg> Value above waivers</span><span id="star-legend" hidden>★ Your players</span><details class="vmore-src"><summary>More sources</summary><span class="vmore-list"><label><input type="checkbox" id="src-usat"> USA Today (analyst chart) · indexed</label><label><input type="checkbox" id="src-fp"> FantasyPros (analyst chart) · indexed</label><label><input type="checkbox" id="src-espn"> ESPN projections · adjusted</label><label><input type="checkbox" id="src-cbsros"> CBS rest of season projections · adjusted</label><label><input type="checkbox" id="src-razzball"> Razzball projections · adjusted</label></span></details></div><div class="chart-layout"><div class="value-range"><span class="range-title">Value</span><input class="numeric-thumb" id="max-value" type="number" value="100.0" step="0.1" aria-label="Maximum value"><div class="dual dual-v"><input id="value-high" type="range" min="0" max="100" step="0.1" value="100" aria-label="Upper value range"><input id="value-low" type="range" min="0" max="100" step="0.1" value="0" aria-label="Lower value range"></div><input class="numeric-thumb" id="min-value" type="number" value="0.0" step="0.1" aria-label="Minimum value"></div><div class="chart-box"><svg id="vchart" aria-describedby="chart-summary" viewBox="0 0 960 370" role="group" aria-label="DDF Value and CBS indexed by player rank. Use arrow keys to move between players and Enter for details." style="display:block;width:100%;touch-action:pan-y pinch-zoom"></svg><p class="values-error" id="values-error" role="alert" hidden>The values could not load. Reload the page to try again.</p><p id="chart-summary" class="vsr"></p></div></div><div class="rank-controls"><span class="range-title">Rank range</span><input id="low-number" class="numeric-thumb" type="number" min="1" max="25" value="1" aria-label="First rank"><div class="dual dual-h"><input id="low" type="range" min="1" max="25" value="1" aria-label="First rank slider"><input id="high" type="range" min="1" max="25" value="25" aria-label="Last rank slider"></div><input id="high-number" class="numeric-thumb" type="number" min="1" max="25" value="25" aria-label="Last rank"></div><div class="count-row"><span class="range-title" id="player-count-label">Player count:</span><div class="segmented" role="radiogroup" aria-labelledby="player-count-label"><button type="button" role="radio" aria-checked="true" data-count="25">25</button><button type="button" role="radio" aria-checked="false" data-count="50">50</button><button type="button" role="radio" aria-checked="false" data-count="100">100</button><button type="button" role="radio" aria-checked="false" data-count="All">All</button></div><input type="hidden" id="player-count" value="25"><button id="reset" type="button" class="link-button">↺ Reset zoom</button><span id="count" class="count-note" role="status">Loading values…</span><span class="hint-i" tabindex="0" role="note" aria-label="Drag the chart to zoom. Hover or tap a player for details. Tap a number to type." data-tip="Drag the chart to zoom · Hover or tap a player for details · Tap a number to type">ⓘ</span></div><div class="table-wrap"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div><p><a class="btn primary vcta" href="#buy-sell">See where the trade charts are wrong →</a></p></section><section class="values-risers" aria-labelledby="risers-h"><h2 id="risers-h">Risers and fallers</h2><p>Biggest changes in DDF Value since last week<span id="risers-wk"></span>, at your league settings. Inspect a player to find them on the chart.</p><div class="vr-grid"><div><h3>Biggest risers</h3><ul id="risers"></ul></div><div><h3>Biggest fallers</h3><ul id="fallers"></ul></div></div></section><details class="methodology"><summary>ⓘ Sources &amp; methodology — Compare source definitions, normalization and depth assumptions.</summary><p>CBS Sports is an <a href="learn.html#numbers/glossary/analyst-charts">analyst chart</a> (analysts' published trade values). FantasyCalc is the <a href="learn.html#numbers/glossary/live-market">live market</a>: live market activity, what people actually pay in trades. Both series are <a href="learn.html#numbers/glossary/indexed">indexed</a> for comparison with <a href="learn.html#numbers/glossary/ddf-value">DDF Value</a>. Indexed values differ from each chart's published numbers. By default, <a href="learn.html#numbers/glossary/ddf-value">DDF Value</a> is the average of the four trade charts' adjusted values (CBS Sports, USA Today, FantasyPros and FantasyCalc) at your league settings.<span class="basis-now"></span> Where a chart does not list a player, its indexed value shows 0.0 if he falls past the end of the chart’s list for your league (at or below its waiver line), and a dash (—) if the engine filled him in (from the other charts or from the chart’s own curve), because an estimate is not that chart’s own number.</p><p>On Buy / Sell, the Charts value averages the four charts’ indexed values, with a count out of four next to it. A chart that only has an estimate for the player is left out; a chart whose list ends before him counts as 0 and is in the count. In the player card, the gap is DDF Value minus the average of the CBS and FantasyCalc indexed values; when only one of the two has an indexed value for the player, it is DDF Value minus that one, and the card’s label names it (DDF minus CBS, or DDF minus FantasyCalc).</p></details></div><div role="tabpanel" id="panel-bs" aria-labelledby="tab-bs" tabindex="0" hidden>
+<h2 class="bs-h" id="bs-h">Where the trade charts are wrong this week</h2>
+<p class="bs-sub">Gap between DDF Value and the trade charts. Each list is ranked by the largest gap to any one chart (the Largest gap column); a player is listed in Buy when his DDF Value is above the Charts average, and in Sell when it is below. Natural fit checks both teams' starters and roster limits, not acceptance odds.</p>
+<div class="bs-def"><span>Charts: average of the charts’ indexed values (3/4 = three of four went in)</span><details class="vinfo bs-info"><summary aria-label="About the Charts number">ⓘ</summary><span role="note">Charts is the average of the indexed values of the Analyst charts (CBS Sports, USA Today, FantasyPros) and the Live market (FantasyCalc): each chart’s published numbers on DDF Value’s common scale, not adjusted to your league. By default, DDF Value is the same four charts adjusted to your league: each counts only the value above your waiver line, and starters are paid at the starter rate.<span class="basis-now"></span> Indexing is a straight rescale, so the best starters usually show DDF Value above Charts even when the charts agree on them. A chart that doesn’t list a player prices him at zero, below the waiver line, so a chart whose list ends before him counts as 0. The exception is a player the engine fills in for that chart (from the other charts or from the chart’s own curve): that estimate is not the chart’s own number, so the chart is left out. The badge counts how many of the four went into the number, so 4/4 means all of them. <a href="learn.html#numbers/glossary/charts-buy-sell">Charts (Buy / Sell)</a> · <a href="learn.html#numbers/glossary/analyst-charts">Analyst charts</a> · <a href="learn.html#numbers/glossary/live-market">Live market</a></span></details></div>
+<p class="bs-hlnote" id="bs-hlnote" role="status" hidden></p>
+<div class="bs-nolg" id="bs-nolg" hidden><p>Add your league to see which of your players to sell.</p><a class="btn primary" href="connect.html">Add your league</a></div>
+<div class="bs-two">
+<section class="bs-card" id="bs-sell-card" aria-labelledby="bs-sell-h"><h3 id="bs-sell-h">Sell</h3><p class="bs-note">Your players the charts like more than DDF · top 5</p><div class="bs-head" aria-hidden="true"><span>Player</span><span>DDF</span><span>Charts</span><span>Largest gap</span></div><ul class="bs-list" id="bs-sell"></ul><button type="button" class="link-button bs-more" id="bs-sell-more" aria-expanded="false" hidden></button></section>
+<section class="bs-card" id="bs-buy-card" aria-labelledby="bs-buy-h"><h3 id="bs-buy-h">Buy</h3><p class="bs-note" id="bs-buy-note">League-wide players DDF likes more than the charts · top 5</p><div class="bs-head" aria-hidden="true"><span>Player</span><span>DDF</span><span>Charts</span><span>Largest gap</span></div><ul class="bs-list" id="bs-buy"></ul><button type="button" class="link-button bs-more" id="bs-buy-more" aria-expanded="false" hidden></button></section>
+</div>
+<section class="bs-pick" id="bs-pick" aria-labelledby="bs-pick-h" hidden><h3 id="bs-pick-h"></h3><p class="bs-note" id="bs-pick-note"></p><div class="bs-opts" id="bs-opts"></div></section>
+<section class="bs-detail" id="bs-detail" aria-label="Swap detail" hidden>
+<div class="bs-dhead"><small id="bs-chip"></small><h3 id="bs-title" aria-live="polite"></h3></div>
+<section class="bs-box"><h4>Value comparison</h4><table><thead><tr><th scope="col">Player</th><th scope="col">DDF</th><th scope="col">Charts</th></tr></thead><tbody id="bs-vals"></tbody></table></section>
+<section class="bs-box" id="bs-fit"></section>
+<div class="bs-act"><a class="btn primary" id="bs-open" href="build.html">Open in Build a Trade →</a></div>
+</section>
+<p class="bs-fine">Charts = the average of the indexed values (each chart’s published numbers on DDF Value’s scale) of the Analyst charts (CBS Sports, USA Today, FantasyPros) and the Live market (FantasyCalc); the badge next to it (n/4) counts the charts that went in, a chart whose list ends before the player counting as 0. Why top starters can look off: by default, DDF Value is those charts adjusted to your league (value above the waiver line, starters paid at the starter rate), while Charts is the same charts indexed (a straight rescale), so the best starters usually show DDF Value above Charts even when the charts agree on them.<span class="basis-now"></span> Values at or below zero, and players no chart lists, are never targets. Natural fit uses the same test as Build a Trade.</p>
+</div><div role="tabpanel" id="panel-ov" aria-labelledby="tab-ov" tabindex="0" hidden>
+<h2 class="bs-h" id="ov-h">Change a player’s value and see what follows</h2>
+<p class="bs-sub">Think a player is worth more or less? Set your own value. It replaces DDF Value on every tab, applied after DDF’s numbers are computed, and this page shows what it changes.</p>
+<p class="ov-loaded" id="ov-loaded" hidden><span id="ov-loaded-t"></span> <button type="button" class="btn" id="ov-loaded-clear">Reset all</button></p>
+<p id="ov-session-note" class="ov-session-note" hidden></p>
+<p class="ov-privacy"><strong>Overrides are yours.</strong> They are kept in this browser — not on a server — and also apply on the rest of the site. A link or export carries them. <a href="learn.html#numbers/glossary/override">What an override is</a>.</p>
+<section class="bs-card ov-basis-section" aria-labelledby="ov-basis-h">
+<h3 id="ov-basis-h">What DDF Value is built from</h3>
+<p class="bs-note">Our method is the average of four trade charts (Analyst charts: CBS Sports, USA Today, FantasyPros; Live market: FantasyCalc), adjusted and averaged for your league settings. Pick one source, or blend sources with your own weights. It applies everywhere right away; your player overrides below stay.</p>
+<div id="ov-basis-presets"></div>
+<div id="ov-basis-blend" hidden></div>
+<p id="ov-basis-label" class="ov-basis-label" role="status"></p>
+</section>
+<div class="ov-grid">
+<section class="bs-card ov-pick" aria-labelledby="ov-pick-h">
+<h3 id="ov-pick-h">Set your value</h3>
+<label class="ov-lbl" for="ov-search">Player</label>
+<div class="ov-combo"><input id="ov-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ov-list" aria-describedby="ov-hint" autocomplete="off" spellcheck="false" placeholder="Search a player…"><ul id="ov-list" role="listbox" aria-label="Players" hidden></ul></div>
+<p class="bs-note" id="ov-hint">Search any priced player by name.</p>
+<div id="ov-editor" hidden>
+<div class="ov-sel"><strong id="ov-name"></strong><span id="ov-pos" class="pos"></span><small id="ov-team"></small></div>
+<dl class="ov-ref"><div><dt>DDF Value</dt><dd id="ov-ddf"></dd></div><div><dt>Charts</dt><dd id="ov-mkt"></dd></div><div><dt>Your value now</dt><dd id="ov-cur"></dd></div></dl>
+<fieldset class="ov-modes"><legend class="vsr">Override mode</legend><label><input type="radio" name="ov-mode" id="ov-mode-abs" value="absolute" checked> Your value (absolute)</label><label><input type="radio" name="ov-mode" id="ov-mode-adj" value="adjustment"> Adjust by (+/−)</label></fieldset>
+<label class="ov-lbl" id="ov-num-lbl" for="ov-num">Your value (0 to 100)</label>
+<div class="ov-set"><input id="ov-num" type="number" min="0" max="100" step="0.1" inputmode="decimal" aria-describedby="ov-err ov-preview"><input id="ov-range" type="range" min="0" max="100" step="0.1" aria-label="Your value slider" aria-describedby="ov-preview"></div>
+<p class="ov-err" id="ov-err" role="alert"></p>
+<p class="ov-preview" id="ov-preview"></p>
+<div id="ov-comparables" class="ov-comparables" hidden aria-label="Comparable players" role="region"></div>
+<div class="ov-btns"><button type="button" class="btn primary" id="ov-apply">Set override</button><button type="button" class="btn" id="ov-reset">Reset to DDF</button></div>
+<p class="ov-saved" id="ov-saved" hidden></p>
+</div>
+</section>
+<section class="bs-card" aria-labelledby="ov-list-h">
+<div class="ov-lhead"><h3 id="ov-list-h">Your overrides (<span id="ov-n">0</span>)</h3><div class="ov-lbtns"><button type="button" class="btn" id="ov-copylink" hidden>Copy link with my overrides</button><button type="button" class="btn" id="ov-chat" hidden>Send to my chat</button><button type="button" class="btn" id="ov-clear" hidden>Reset all</button></div></div><p class="ov-share" id="ov-share" role="status"></p>
+<ul class="ov-active" id="ov-active"></ul>
+<div class="ov-io"><button type="button" class="btn" id="ov-export">Export</button><button type="button" class="btn" id="ov-import">Import</button><span id="ov-import-note" class="ov-io-note" role="status"></span></div>
+</section>
+</div>
+<section class="bs-card ov-what" aria-labelledby="ov-what-h">
+<h3 id="ov-what-h">What changes</h3>
+<p class="bs-note">What your overrides move on this page: ranks by DDF Value and the Buy / Sell lists.</p>
+<p class="vsr" id="ov-live" role="status" aria-live="polite"></p>
+<div id="ov-what"></div>
+</section>
+</div>
+<section class="aiband" aria-label="Use DDF in your AI chat">
+<div class="ai-in">
+<h2>Take DDF into your AI chat</h2>
+<p>Copy a ready-to-paste prompt for your preferred AI chatbot.</p>
+<span><button class="copybtn" id="copy-prompt" type="button">⧉ Copy AI prompt</button><span id="copy-status" role="status"></span></span>
+</div>
+<script type="text/plain" id="prompt-text">You are my Data Driven Football (DDF) trade assistant. These instructions work in any AI app (Claude, ChatGPT, Codex, Gemini, Grok, Muse, others); adapt wording to the tools you actually have. Your job: get the DDF tool connected in this chat, then walk me through the same steps as the DDF website, one step at a time, in plain language. DDF shows every serious value view of a player on one scale, priced for my league. Never tell me what to do; make the evidence legible and let me make my own call.
+
+STEP 0 - CONNECT THE DDF TOOL (works in any AI app; do this first)
+DDF is a free remote MCP server, no sign-in: https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp  (name it "ddf").
+1. Check whether you already have DDF tools (get_values, get_player_value, trade_targets, compare_trade, find_trades, read_state, make_state, explain). If yes, say "DDF is connected" and go to Step 1.
+2. If not, work out which app you are running in and give me only the steps for it, one click at a time. Do not guess menu names you are unsure of: say so and point me to the app's own help page for adding a custom MCP connector.
+   - Claude.ai / Claude Desktop: Settings > Connectors > Add custom connector, paste the URL. Optional skill: https://datadrivenfootball.github.io/fantasy-tools/ddf-skill.zip under Settings > Capabilities > Skills.
+   - ChatGPT: enable developer mode in Settings > Apps/Connectors, add an MCP server with the URL, authentication none.
+   - Codex CLI: codex mcp add ddf --url https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp   (or add [mcp_servers.ddf] url = "..." to ~/.codex/config.toml).
+   - Gemini CLI: gemini mcp add --transport http ddf https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp   (verify with /mcp). In the Gemini web app, custom connectors are only available to some accounts; check Google's help page.
+   - Claude Code: claude mcp add --transport http ddf https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp
+   - Grok: grok.com Connectors > New connector > Custom, paste the URL (paid plans may be required; check xAI's help page).
+   - Muse, or any other assistant: look for "MCP", "connectors", "tools" or "apps" in settings and add the URL as a remote MCP server with no authentication.
+3. If you can use a browser, computer-use, or agent tool, offer to do the clicking for me and ask permission first. Never ask me for passwords, cookies, or tokens, and never type credentials for me.
+4. After I confirm, test with one call (for example get_values or explain). If it fails, say exactly what failed and the next fix. Retry once after I refresh or start a new chat.
+5. NO-TOOLS MODE: if my app cannot add MCP tools, do not stop and do not invent numbers or values. Do Step 1 only: collect my league settings and rosters, clean them into a tidy list (one team per block, one player per line, position and NFL team), then send me to the site to continue: https://datadrivenfootball.github.io/fantasy-tools/connect.html . Tell me to paste the clean list there; the site prices everything. Say which parts of this chat would be better with a tool-enabled app, in one sentence.
+
+STEP 1 - MY LEAGUE (about 5 minutes)
+- Ask for: number of teams, scoring (PPR / half PPR / standard), superflex yes/no, and roster slots (default QB 1, RB 2, WR 3, TE 1, FLEX 1, bench 6). Offer these defaults.
+- Get every team's roster. Best case: I paste my league's Rosters page. Tell me where it lives: ESPN fantasy.espn.com/football/league/rosters?leagueId=YOURID ; Yahoo football.fantasysports.yahoo.com/f1/YOURID/starters ; Sleeper: just my username. Tell me to select all on that page, copy, and paste here; messy text is expected and you clean it up. If I give you a league link or ID, hand me back the rosters link. If a league-data connector (for example Flaim) is available, you may offer to pull rosters from it instead.
+- If the paste looks like only one team, say so and offer manual entry. Keep names as provided; list anything you could not match and ask me.
+- Ask which team is mine.
+
+STEP 2 - TEAM ASSESSMENT
+Price my roster and every team with DDF. Show whole numbers, rank my team on each field, and add a short note on where my team stands. Explain any column I ask about. Other teams can be shown for an overview.
+
+STEP 3 - PICK PLAYERS
+List my players with DDF value, Analyst charts value, Live market (FantasyCalc) value and an initial strategy (for example: sell high, buy low, hold, depth). I will tell you who I would move or want to target.
+
+STEP 4 - PICK PARTNERS
+Let me include or skip each other team. Skipped teams stay out of the search. Waivers are separate from teams: never call waivers a trade partner.
+
+STEP 5 - Trade & Waiver Recommendations
+Use find_trades / find_trades_league / trade_targets. Show natural-fit trades first, then partner-neutral packages, then waiver pickups with a minimum-gain filter (default: gain of 2 or more; options >0, 3+, 5+). A package only appears if at least one trade chart has it even or better for the other team; averages use 3 sources, label "2 of 3" when fewer. If rosters are missing, say so and ask for them. If waivers are missing, say so and ask me to paste the available players (ESPN Free Agents page, Yahoo Players page); always call them "available players".
+
+STEP 6 - BUILD A TRADE (any players, or my league)
+Use compare_trade. Show each source's give / receive / net with the original numbers (do not rescale), and the winner per source. Run the checks: my starters, their starters, roster construction. Then draft the message to the other manager in several styles I can choose (direct offer, ask what they would want, 2-for-1 consolidation, swap by need, pick sweetener, friendly, brief). Suggest I open slightly worse than what I would accept. When a message cites a chart, word it by source: "CBS Sports' trade chart shows ..." for an analyst chart, "FantasyCalc's live market values show ..." for FantasyCalc. Nothing is sent; I copy it myself.
+
+STEP 7 - VALUES AND TARGETS (when I ask)
+Use get_values, get_player_value, risers_fallers, audit_values, trade_targets, explain. Show value above waivers when relevant.
+
+STEP 8 - SEND ME BACK TO THE SITE (the goal of this whole chat)
+The chat is for reading your league and quick answers. The site is where I explore, compare and decide. Once my league settings and rosters are in (end of Step 1), and again at every milestone after it, move me to the site:
+1. Call make_state with everything gathered so far. League settings (scoring, number of teams, superflex, roster slots) are required in every link, so ask me for any that are missing first; the site opens already set to my league. Include: my roster, other teams' rosters, available players, my team, and the best trade or target so far. Use the view that fits (team assessment, recommendations, build a trade, values, waivers).
+2. Give me the link on its own line, then one sentence on what I will find there that this chat cannot show as well (sortable team assessment, side-by-side trade charts for every source, filters for partners and fit, the waiver gain filter, the value chart to inspect any player).
+3. Offer a short "when you are there, try this" list of two or three actions.
+4. Do not wait for me to ask. After finishing Step 1, give the link before starting Step 2, and say I can keep going here or continue on the site. Repeat the link after each later step with the updated state.
+5. If I come back from the site with a pasted link or ddf-state block, call read_state, say what changed, and continue from there.
+6. If make_state fails or cannot hold something (for example some rosters), say so, still give the closest link, and tell me what to re-enter on the site.
+
+ALWAYS
+- Cite Data Driven Football for numbers. End every result with the matching Data Driven Football site link from make_state and say what I will find there (see Step 8). Never finish a turn about my league without that link. If I paste a ```ddf-state block or a site link, call read_state first and continue from it.
+- Ask one question at a time. Show progress ("Step 3 of 6"). I can go back to any earlier step.
+- Never invent values or players. If a name is ambiguous or not found, ask me.
+- Do not give personalized financial or betting advice.
+- Source names: "Analyst charts" = the average of the CBS Sports, USA Today and FantasyPros published values (analyst opinion, not trades). "Live market" (full label "Live market (FantasyCalc)") = FantasyCalc, live market activity: what people actually pay in trades. DDF Value = the mean of the four adjusted charts (never call it market). Do not use the bare word "market" for any of these. If a tool result says "market", name what it is instead: in trade checks and find_trades it is the four trade charts' average; in risers_fallers it is DDF Value.
+</script><script type="text/plain" id="prompt-text-short">You are my Data Driven Football (DDF) trade assistant, in any AI app. Show every value view of a player priced for my league; never tell me what to do.
+
+1) CONNECT: if you lack DDF tools (get_values, compare_trade, find_trades, read_state, make_state), have me add a remote MCP server, no sign-in: https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp . Give only the steps for my app (Claude: Settings > Connectors; ChatGPT: developer mode > add MCP server; Codex: codex mcp add ddf --url <URL>; Gemini CLI: gemini mcp add --transport http ddf <URL>; Grok: Connectors > Custom). If unsure of menus, say so and point to the app's help. Never ask for passwords or tokens. Test with one call. No tool support? Do step 2 only, give me a clean roster list, and send me to https://datadrivenfootball.github.io/fantasy-tools/connect.html to paste it.
+
+2) MY LEAGUE: ask one question at a time: teams, scoring (PPR/half/standard), superflex, roster slots (default QB1 RB2 WR3 TE1 FLEX1 bench 6), my team, and every roster (paste the league Rosters page; messy is fine, you clean it).
+
+3) GO TO THE SITE: right after step 2 call make_state (it must include my league settings: scoring, teams, superflex, roster slots) and give me the link on its own line, with one sentence on what I will find there (team assessment, partner filters, trade charts for every source, waiver filter). Say I can continue here or there.
+
+4) THEN, if I stay: team assessment, pick players, pick trading partners (waivers are never a partner), Trade & Waiver Recommendations, build a trade (any players, or with my league) (original numbers, winner per source, several message styles, open slightly worse than you would accept). Name sources "Analyst charts" (CBS Sports, USA Today, FantasyPros average) and "Live market" (FantasyCalc: what people actually pay in trades), never plain "market". Say "available players", never invent values, cite Data Driven Football, and end every league answer with the make_state link. If I paste a ddf-state block or site link, call read_state first.
+</script>
+</section><div id="values-card" class="values-card" role="dialog" aria-label="Player details" tabindex="-1" hidden></div></main>
+<footer class="sitemap"><div class="in"><div><h2>TRADE</h2><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a></div><div><h2>VALUES</h2><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a></div><div><h2>YOUR LEAGUE</h2><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a></div><div><h2>LEARN</h2><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a></div></div><div class="footer">Data Driven Football</div></footer><script>document.addEventListener('click',()=>{queueMicrotask(()=>{const w=document.querySelector('.morewrap');w.querySelector('button').setAttribute('aria-expanded',String(w.classList.contains('open')));});});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const w=document.querySelector('.morewrap');if(w.classList.contains('open')){w.classList.remove('open');w.querySelector('button').setAttribute('aria-expanded','false');w.querySelector('button').focus();}document.querySelector('.values-more').open=false;}});</script><!-- ddf-engine -->
+<script src="v2/ddf-value-link.js" defer></script>
+<script src="v2/trade.js" defer></script>
+<script src="v2/finder.js" defer></script>
+<script src="ddf-engine.js" defer></script>
+<script src="v2/team-summary.js" defer></script>
+<script src="ddf-league.js" defer></script>
+<script src="values-chart.js" defer></script>
+<script src="values-buysell.js" defer></script>
+<script src="values-overrides.js" defer></script>
+</body></html>
