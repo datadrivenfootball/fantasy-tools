@@ -525,10 +525,58 @@
   }
   function weightText(wi, pos, role) {
     if (!wi) return '';
-    var n = wi.rows.length;
-    return 'DDF weight ' + pct2(wi.weight) + ' = the mean of the ' + n + ' included sources’ own ' + pos + ' ' + role + ' shares (held sources too): (' +
-      wi.rows.map(function (x) { return label(x.source) + ' ' + pct2(x.share); }).join(' + ') + ') ÷ ' + n + ' = ' + pct2(wi.mean) +
-      (Math.abs(wi.mean - wi.weight) > 5e-6 ? '; the engine then rescales the weights (for a 2-QB roster’s QB groups, or for position shares you saved), which gives ' + pct2(wi.weight) : '');
+    var n = wi.rows.length, q = wi.twoQb, sh = wi.shares;
+    var meanOf = function (rows) { return '(' + rows.map(function (x) { return label(x.source) + ' ' + pct2(x.share); }).join(' + ') + ') ÷ ' + rows.length; };
+    var plainMean = 'the mean of the ' + n + ' included sources’ own ' + pos + ' ' + role + ' shares (held sources too): ' + meanOf(wi.rows) + ' = ' + pct2(wi.mean);
+    var renorm = function () { return Math.abs(wi.total - 1) > 5e-6 ? ', ÷ ' + pct2(wi.total) + ' (the 8 groups’ means summed, so the weights add up to 100%)' : ''; };
+    if (!wi.verified) {
+      /* A setting the derivation below does not reproduce: name the gap instead of a reason. */
+      return 'DDF weight ' + pct2(wi.weight) + '; ' + plainMean + ', and the engine’s weight is ' + pct2(wi.weight);
+    }
+    var base;
+    if (q && pos === 'QB') {
+      /* R7-CX-01: 2-QB without superflex (value-model.js vpWeightsOver, JEG-1366). */
+      base = 'in a league with two or more QB slots and no superflex, the QB groups come from the included projections only (held ones too): the mean of their own QB ' + role + ' shares ' +
+        meanOf(q.projections) + ' = ' + pct2(wi.base);
+    } else if (q) {
+      base = 'in a league with two or more QB slots and no superflex, the QB groups come from the included projections only (QB starter ' + pct2(q.qbStarter) + ' + QB fill-in ' + pct2(q.qbBench) +
+        '), and RB, WR and TE keep their relative shares of the remaining ' + pct2(q.remainder) + ': ' + plainMean + ', × ' + pct2(q.remainder) + ' ÷ ' + pct2(q.restRaw) +
+        ' (the RB, WR and TE means summed) = ' + pct2(wi.base);
+    } else {
+      base = plainMean + renorm() + (Math.abs(wi.total - 1) > 5e-6 ? ' = ' + pct2(wi.base) : '');
+    }
+    if (sh) {
+      base += '; your saved position share for ' + pos + ' (' + pct2(sh.share) + ', starter and fill-in together) then keeps the starter-to-fill-in ratio: ' +
+        pct2(wi.base) + ' × ' + pct2(sh.share) + ' ÷ (' + pct2(sh.baseStarter) + ' + ' + pct2(sh.baseBench) + ') = ' + pct2(wi.computed);
+    }
+    var approx = wi.exact ? '' : '; the engine applies this in each league allocation and averages the results, which gives ' + pct2(wi.weight);
+    return 'DDF weight ' + pct2(wi.weight) + ' = ' + base + approx;
+  }
+  /* R7-OP-03: the league allocations behind the seat counts at the reader's setting. Allocations that give this
+     position the same seats are merged (their weights added); the other positions are what differ between them. */
+  function allocText(w, pos) {
+    var A = w.allocationParts;
+    if (!A || !A.list.length) return '';
+    var n = function (x) { return num(x) ? (Math.abs(x - Math.round(x)) < 1e-9 ? String(Math.round(x)) : x.toFixed(2)) : DASH; };
+    var seats = function (a) {
+      var parts = [n(a.dedicated) + ' dedicated'];
+      if (a.flex) parts.push(n(a.flex) + ' flex');
+      if (a.superflex) parts.push(n(a.superflex) + ' superflex');
+      return n(a.starters) + ' starters (' + parts.join(' + ') + ') + ' + n(a.bench) + ' bench = ' + n(a.rostered) + ' rostered';
+    };
+    var merged = [], bySig = {};
+    A.list.forEach(function (a) {
+      var sig = [a.dedicated, a.flex, a.superflex, a.bench].join('/');
+      if (bySig[sig]) { bySig[sig].weight += a.weight; return; }
+      bySig[sig] = Object.assign({}, a); merged.push(bySig[sig]);
+    });
+    merged.sort(function (a, b) { return b.weight - a.weight; });
+    var e = A.expected;
+    var lead = e && num(e.starters) ? 'Expected ' + pos + ' seats at these settings: ' + seats(e) + '. ' : '';
+    var how = 'Flex and bench seats are shared out by projected points, so expected counts can be fractional; the engine runs ' +
+      (A.list.length === 1 ? 'one whole-seat league allocation' : 'the ' + A.list.length + ' whole-seat league allocations they produce and averages every number by weight') + '. ';
+    if (merged.length === 1) return lead + how + (A.list.length === 1 ? 'It gives ' : 'All of them give ') + pos + ' ' + seats(merged[0]);
+    return lead + how + 'At ' + pos + ': ' + merged.map(function (a) { return seats(a) + ' in ' + pct(a.weight); }).join('; ');
   }
   /* R5-OP-05: how a filled-in player got his estimate. */
   var FILL_RULE = 'filled in (from the other charts or, when none is usable, from the chart’s own values against projected points)';
@@ -582,7 +630,7 @@
     var units = function (n) { return !num(n) ? DASH : !chart ? n.toFixed(2) + ' points a game' : src === 'fantasycalc' ? fInt(n) : n.toFixed(2); };
     var v = function (n, kind) {
       if (!num(n)) return DASH;
-      return kind === 'pct' ? (n * 100).toFixed(1) + '%' : kind === 'rate' ? fRate(n) : kind === 'units' ? units(n) : kind === 'f1' ? f1(n) : fPart(n);
+      return kind === 'count' ? String(n) : kind === 'pct' ? (n * 100).toFixed(1) + '%' : kind === 'rate' ? fRate(n) : kind === 'units' ? units(n) : kind === 'f1' ? f1(n) : fPart(n);
     };
     var row = function (labelText, n, kind, how, howHtml) {
       return '<tr><th scope="row">' + esc(labelText) + (how ? '<span class="nx-how">' + esc(how) + (howHtml || '') + '</span>' : '') + '</th><td class="nx-n">' + v(n, kind) + '</td></tr>';
@@ -596,6 +644,7 @@
       model.rows.map(function (x) { return '<option value="' + esc(x.key) + '"' + (x.key === r.key ? ' selected' : '') + '>' + esc(x.name + ' (' + x.pos + ')') + '</option>'; }).join('') + '</select></div>' +
       '<div class="nx-scroll"><table class="nx-table nx-worked"><caption class="nx-sr">' + esc(r.name) + ': ' + (chart ? 'published' : 'projection') + ' to adjusted value</caption><tbody>' +
       row(chart ? 'Published' + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') : 'Projected points', w.published, 'units') +
+      row(r.pos + ' league allocations', w.allocationParts ? w.allocationParts.list.length : null, 'count', allocText(w, r.pos)) +
       row(r.pos + ' waiver line', w.waiver, 'units', withNums('= ' + WAIVER_RULE[chart ? 'chart' : 'projection'].replace(chart ? 'this chart’s' : 'this projection’s', label(src) + '’s'), waiverText(w, r.pos, plain))) +
       row(r.pos + ' starter line', w.starterLine, 'units', withNums('= the midpoint of the last starter’s and the first non-starter’s values on ' + label(src) + '’s list at your league’s counts, never below the waiver line', lineText(w, r.pos, plain))) +
       row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units', withNums('= ' + (chart ? 'published' : 'projected points') + ' − waiver line', aboveText(w, plain))) +
@@ -646,6 +695,7 @@
     var items = [
       ['Availability ' + (num(w.availability) ? pct(w.availability) : DASH), availText(w, pos)],
       ['Spread rate', spreadText(w, pos)],
+      [pos + ' league allocations', allocText(w, pos)],
       [pos + ' starter group', weightText(w.starterWeightInputs, pos, 'starter')],
       [pos + ' fill-in group', weightText(w.fillInWeightInputs, pos, 'fill-in')]
     ].filter(function (x) { return x[1]; });
