@@ -71,9 +71,29 @@ READ_JS = r"""([give, get]) => {
     const e = window.DDFBuild.chartEval(k);
     return {k, pageGive: e.give, pageGet: e.get, engGive: pub(k, give), engGet: pub(k, get)};
   });
-  return {expected, page, verdict: big ? Number(big.dataset.tcCount) : null, cells, charts,
+  const labels = {};
+  document.querySelectorAll('#ref-chart option[value]').forEach(o => { if (o.value) labels[o.value] = o.textContent; });
+  return {expected, page, verdict: big ? Number(big.dataset.tcCount) : null, cells, charts, labels,
     settings: document.getElementById('settings-line').textContent, saved: localStorage.getItem('ddf.v2.league-settings')};
 }"""
+
+
+def label_errors(label: str, snap: dict) -> list[str]:
+    """JEG-1393 R3-CX-01: each picker label's percent, recomputed from the chart's published sums. "they get X% more"
+    is (receive - send) / send; "they give up X% more" is (send - receive) / receive (they receive = engGive)."""
+    import re
+    out = []
+    for ch in snap["charts"]:
+        recv, send, text = ch["engGive"], ch["engGet"], snap["labels"].get(ch["k"], "")
+        if recv is None or send is None or not (recv > 0 and send > 0):
+            continue
+        m = re.search(r"they (get|give up) (\d+)% more", text)
+        if not m:
+            continue
+        want = round((recv - send) / send * 100) if m.group(1) == "get" else round((send - recv) / recv * 100)
+        if int(m.group(2)) != want:
+            out.append(f"{label} chart {ch['k']} label {text!r}: want {want}% (receive {recv}, send {send})")
+    return out
 
 
 def _pw():
@@ -84,7 +104,7 @@ def _pw():
     return sync_playwright, PlaywrightError
 
 
-def run_parity(overrides=None, settings=SETTINGS):
+def run_parity(overrides=None, settings=SETTINGS, reverse=False):
     sync_playwright, PlaywrightError = _pw()
     errors = []
     with serve(DIST, overrides=overrides) as base, sync_playwright() as pw:
@@ -100,6 +120,8 @@ def run_parity(overrides=None, settings=SETTINGS):
             boot.close()
             mine, theirs = keys[0::2], keys[1::2]
             give, get = [mine[2], mine[5]], [theirs[3]]
+            if reverse:  # 1-for-2: they send two players for one, so some charts read "Works against you"
+                give, get = [mine[2]], [theirs[3], theirs[5]]
             for scoring, teams, sf in settings:
                 label = f"{scoring}/{teams}/{'SF' if sf else '1QB'}"
                 page = browser.new_page(viewport={"width": 1440, "height": 900})
@@ -107,7 +129,8 @@ def run_parity(overrides=None, settings=SETTINGS):
                 page.on("pageerror", lambda e: page_errors.append(str(e)))
                 page.add_init_script(f"({SEED_JS})({keys!r})".replace("'", '"'))
                 roster = f"QB1.RB2.WR3.TE1.FLEX1.SF{1 if sf else 0}.BN6"
-                url = (f"{base}/build.html?mode=league&give={give[0]}&give={give[1]}&get={get[0]}"
+                picks = "".join(f"&give={k}" for k in give) + "".join(f"&get={k}" for k in get)
+                url = (f"{base}/build.html?mode=league{picks}"
                        f"&scoring={scoring}&teams={teams}&roster={roster}")
                 page.goto(url, wait_until="load", timeout=60000)
                 try:
@@ -147,6 +170,9 @@ def run_parity(overrides=None, settings=SETTINGS):
                     errors.append(f"{label}: settings line {snap['settings']!r}, want {want!r}")
                 if snap["saved"] is not None:
                     errors.append(f"{label}: the link's league was saved: {snap['saved']}")
+                errors.extend(label_errors(label, snap))
+                if reverse and not any("give up" in t for t in snap["labels"].values()):
+                    errors.append(f"{label}: vacuous: no chart reads Works against you ({snap['labels']})")
                 errors.extend(f"{label} page error: {e}" for e in page_errors)
                 page.close()
         finally:
@@ -161,6 +187,10 @@ def setUpModule():
 class BuildPageEngineParityTest(unittest.TestCase):
     def test_all_12_settings_match_engine(self):
         errors = run_parity()
+        self.assertEqual(errors, [], "\n".join(errors[:20]))
+
+    def test_against_label_uses_receive_as_denominator(self):
+        errors = run_parity(settings=SETTINGS[:1], reverse=True)
         self.assertEqual(errors, [], "\n".join(errors[:20]))
 
     def test_guard_catches_a_wrong_number(self):
