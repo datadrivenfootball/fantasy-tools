@@ -203,6 +203,9 @@ class SettingsPage(unittest.TestCase):
                     self.assertGreaterEqual(box["height"], 43.5, name)
                     self.assertGreaterEqual(box["width"], 43.5, name)
                 self.assertEqual(page.locator("#superflex").count(), 0, "the yes/no select is replaced by the count")
+                self.assertEqual(page.evaluate("() => document.querySelector('details.sf-info').parentElement.id"), "sf-help",
+                                 "the SUPERFLEX (i) sits beside the 2-QB note")
+                self.assertEqual(page.evaluate("() => [...document.querySelectorAll('#editor p')].filter(p => !p.textContent.trim()).length"), 0)
                 self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
                 # the friend's league: QB 1, RB 2, WR 2, TE 1, FLEX 1, QWRT 1, bench 12
                 for k, v in (("qb", 1), ("rb", 2), ("wr", 2), ("te", 1), ("flex", 1), ("bench", 12)):
