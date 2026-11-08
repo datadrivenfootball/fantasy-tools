@@ -257,7 +257,7 @@ def worked_spread_errors(tag, s, pw, ew) -> list[str]:
         out.append(f"{tag}: build-up {s} has no spread row with its numbers: {sig!r}")
     else:
         rate, native, shown_sigma = (float(x.replace(",", "")) for x in m.groups())
-        if rate != round(ew["sigmaRel"], 3) or abs(native - ew["native"]) > 0.006 + 0.5 * (s == "fantasycalc") \
+        if rate != round(ew["sigmaRel"], 4) or abs(native - ew["native"]) > 0.006 + 0.5 * (s == "fantasycalc") \
                 or abs(shown_sigma - sigma) > 0.006 + 0.5 * (s == "fantasycalc"):
             out.append(f"{tag}: build-up {s} spread {m.group(0)!r}, engine {ew['sigmaRel']} × {ew['native']} = {sigma}")
     chance = (pw["rows"].get("Chance above the starter line") or {}).get("how", "")

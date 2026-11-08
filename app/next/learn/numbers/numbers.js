@@ -425,13 +425,13 @@
     /* R4-OP-09: what the value-pie factor is, with its own division. */
     if (num(w.vorpFactor) && num(w.surplusTotal) && w.surplusTotal > 0 && num(w.pie)) {
       var ratio = w.pie / w.surplusTotal;
-      var total = src === 'fantasycalc' ? fInt(w.surplusTotal) : Number(w.surplusTotal.toFixed(1)).toLocaleString('en-US', { minimumFractionDigits: 1 });
+      var total = src === 'fantasycalc' ? fInt(w.surplusTotal) : Number(w.surplusTotal.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 2 });
       out.pieFactor = 'Value-pie factor = value pie ÷ this source’s total value above the waiver line over its work list (' + fInt(w.pie) + ' ÷ ' + total + ' ≈ ' + fFactor(ratio) + ')' +
         (fFactor(ratio) !== fFactor(w.vorpFactor) ? '; the engine averages each allocation’s own factor over the ' + w.allocations + ' league allocations, which gives ' + fFactor(w.vorpFactor) : '') + '. It is not the Indexed factor';
     }
     /* R4-OP-04: the spread and the chance above the starter line, with its numbers. */
     if (num(w.sigmaRel) && num(w.published) && num(w.sigma)) {
-      out.sigma = w.sigmaRel.toFixed(3) + ' × ' + units(w.published) + ' = ' + units(w.sigmaRel * w.published) +
+      out.sigma = w.sigmaRel.toFixed(4) + ' × ' + units(w.published) + ' = ' + units(w.sigmaRel * w.published) +
         (w.sigmaFloor > 0 ? '; σ is never under the floor of ' + units(w.sigmaFloor) + (w.sigma > w.sigmaRel * w.published + 1e-9 ? ', so σ = ' + units(w.sigma) : '') : '');
     }
     if (num(w.sigma) && w.sigma > 0 && num(w.starterLine) && num(w.published)) {
@@ -449,9 +449,9 @@
   /* R4-OP-06: an engine hold reason in plain words; an unknown code is shown as it is. */
   var HOLD_WORDS = {
     'fidelity: scrape_validity': 'its latest scrape failed validation',
-    'fidelity: freshness': 'its latest data is out of date',
-    'fidelity: publisher_vs_stored': 'its stored copy did not match the publisher’s page',
-    'fidelity: stored_vs_chart': 'its chart did not match its stored copy',
+    'fidelity: freshness': 'the publisher has a newer week than the chart shows',
+    'fidelity: publisher_vs_stored': 'its stored values no longer match the publisher’s',
+    'fidelity: stored_vs_chart': 'the chart no longer matches its stored values',
     'did not pass source validation': 'it did not pass source validation'
   };
   function holdWords(status) { var code = String(status).replace(/^held:\s*/, ''); return HOLD_WORDS[code] || code; }
