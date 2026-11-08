@@ -93,7 +93,7 @@
   function chartMix() {
     var an = snap.charts.filter(function (s) { return s !== 'fantasycalc'; }), fc = snap.charts.indexOf('fantasycalc') >= 0;
     var words = ['no', 'one', 'two', 'three'];
-    var a = an.length === 3 ? 'three analyst charts' : an.length ? (words[an.length] || an.length) + ' analyst chart' + (an.length > 1 ? 's' : '') + ', ' + an.map(label).join(' and ') + ',' : '';
+    var a = an.length === 3 ? 'three analyst charts' : an.length ? (words[an.length] || an.length) + ' analyst chart' + (an.length > 1 ? 's' : '') + ', ' + an.map(label).join(' and ') + (fc ? ',' : '') : '';
     return [a, fc ? 'the live market, FantasyCalc' : ''].filter(Boolean).join(' and ');
   }
   function pieText() {
