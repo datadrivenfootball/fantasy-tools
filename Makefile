@@ -208,6 +208,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_weekly_fantasypros_contract
 	python3 -m unittest tests.test_source_probe
 	python3 -m unittest tests.test_source_lateness
+	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
+	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
 	python3 -m unittest tests.test_source_snapshot_match
 	python3 -m unittest tests.test_rebuild_chain_failclosed
 	python3 -m unittest tests.test_rebuild_chain_per_source_hold
