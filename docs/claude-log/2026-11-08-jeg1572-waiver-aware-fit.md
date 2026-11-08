@@ -25,7 +25,14 @@ already run by find.html for the pickup cards).
   without giving up Josh Jacobs and Jacoby Brissett. With them added, this trade still adds +14.0 to your starters." (or
   "... no longer makes your team better."). A demoted offer leads with it and never shows the "Natural fit" tag; a kept
   offer carries it as a smaller reason. The card shows the same line under the tags of a demoted offer.
-- The search signature includes the available players, so a new list on waivers.html re-runs the search.
+- The search signature includes the available players, so a new list on waivers.html re-runs the search. A typed list
+  is only matched against your roster, so the search also drops any listed player who is on either roster in the pairing.
+- Only the positions received are compared: a waiver WR who would fill FLEX when you receive an RB is not counted.
+
+Review of b35dfc95 (independent agent, CHANGES NEEDED): pool not filtered against the partner's roster (fixed, test case
+"stale list"); the line contradicted a demotion by the construction/value test ("no longer outweighs what you give up"
+now); a gain under 0.05 skipped the value-test demotion (fixed); the parity test now asserts some offer is demoted.
+Left as is: the check runs on every Natural and Partner neutral trade found (the parity run time did not change, 56 s).
 
 ## Partner tag
 

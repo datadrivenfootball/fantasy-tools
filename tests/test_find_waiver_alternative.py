@@ -39,7 +39,8 @@ SETUP = r"""(pool) => {
     R('t7', 'Wade One', 'WR', 32, [31, 32, 33]), R('t8', 'Wynn Two', 'WR', 28, [27, 28, 29]), R('t9', 'Wolf Three', 'WR', 22, [21, 22, 23]),
     R('t10', 'Wim Four', 'WR', 18, [17, 18, 19]), R('t11', 'Tom End', 'TE', 13, [12, 13, 14])];
   const free = {good: [R('w1', 'Gus Waiver', 'QB', 15, [14, 15, 16]), R('w2', 'Gil Waiver', 'QB', 13, [12, 13, 14])],
-    weak: [R('w3', 'Lou Waiver', 'QB', 2, [2, 2, 2])], wr: [R('w4', 'Wil Waiver', 'WR', 9, [8, 9, 10])], none: []};
+    weak: [R('w3', 'Lou Waiver', 'QB', 2, [2, 2, 2])], wr: [R('w4', 'Wil Waiver', 'WR', 9, [8, 9, 10])], none: [],
+    stale: [theirs[2], theirs[3]]};   // an out-of-date list from waivers.html naming players on their roster
   const by = k => mine.concat(theirs, ...Object.values(free)).find(r => r.player_key === k);
   const expected = {QB: {lo: 2, hi: 3}, RB: {lo: 5, hi: 6}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}};
   const shape = {QB: 2, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 6};
@@ -91,6 +92,7 @@ CASES = {
     "friend trade, only a weak waiver QB": FRIEND + ("weak", "natural", False),
     "friend trade, no QB available (a WR only)": FRIEND + ("wr", "natural", False),
     "friend trade, no available players": FRIEND + ("none", "natural", False),
+    "friend trade, stale list names rostered players": FRIEND + ("stale", "natural", False),
 }
 WAIVER_RE = re.compile(r"^The best available QBs, Gus Waiver and Gil Waiver, close (\d+)% of the gap this trade fills, without giving up "
                        r"Josh Jacobs and Jacoby Brissett\. With them added, this trade (still adds \+\d+\.\d to your starters|no longer makes your team better)\.$")
@@ -103,7 +105,7 @@ def case_errors(page) -> list[str]:
         r = page.evaluate(RUN, [give, receive, pool])
         if r["label"] != "natural" or r["clsWithout"] != "natural":
             errors.append(f"{name}: the trade must be a Natural fit before the waiver check (label {r['label']}, page class {r['clsWithout']})")
-        if r["got"] != r["want"]:
+        if r["got"] != r["want"] and pool != "stale":   # the stale list is filtered by searchPartner, not by the helper
             errors.append(f"{name}: engine {r['got']} vs recomputed {r['want']}")
         if r["clsWith"] != cls:
             errors.append(f"{name}: class {r['clsWith']}, expected {cls}")
@@ -114,7 +116,7 @@ def case_errors(page) -> list[str]:
             errors.append(f"{name}: Why does not lead with the waiver option: {r['kinds']} {r['texts'][:2]}")
         if first and "why-tag" in r["html"]:
             errors.append(f"{name}: demoted offer still tagged Natural fit")
-        if not first and pool in ("wr", "none") and has:
+        if not first and pool in ("wr", "none", "stale") and has:
             errors.append(f"{name}: a waiver line with no QB available: {r['texts']}")
         if pool == "weak" and not (r["want"] and r["want"]["covered"] < 0.5 and not r["want"]["demoted"]):
             errors.append(f"{name}: weak waiver QB should close under half the gap: {r['want']}")

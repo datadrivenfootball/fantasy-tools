@@ -81,6 +81,7 @@ ORACLE = r"""(o) => {
   // by the Waivers tab's starter gain), added to my roster; tradeFit again; demote a Natural fit when they get half the
   // trade's starter gain or more, or my side of the Natural fit test fails with them added.
   const pool = wres.results.filter(r => r.starterDelta !== null && g1(r) > 0);
+  let demotedN = 0;
   const waiverDemotes = (fit, give, recv, mineW, theirW, fitCtx) => {
     const picks = [];
     POS.forEach(p => {
@@ -91,8 +92,7 @@ ORACLE = r"""(o) => {
     if (!picks.length) return false;
     const f2 = F.tradeFit({mine: {roster: mineW.concat(picks), leaving: give, arriving: recv}, theirs: {roster: theirW, leaving: recv, arriving: give}}, fitCtx);
     const g = fit.us.starterDelta, a = f2.us.starterDelta;
-    if (!(g >= 0.05)) return false;
-    return Math.max(0, Math.min(1, (g - a) / g)) >= 0.5 || !f2.natural.us.ok;
+    return (g >= 0.05 && Math.max(0, Math.min(1, (g - a) / g)) >= 0.5) || !f2.natural.us.ok;
   };
   const groups = [];
   teams.filter(t => t.index !== league.me && t.rows.length).forEach(t => {
@@ -108,7 +108,7 @@ ORACLE = r"""(o) => {
     res.trades.forEach(tr => {
       const fit = F.tradeFit({mine: {roster: mineW, leaving: w(tr.give), arriving: w(tr.receive)}, theirs: {roster: theirW, leaving: w(tr.receive), arriving: w(tr.give)}}, fitCtx);
       let cls = fit.label === 'natural' ? 'natural' : fit.them.net >= -fit.them.tau ? 'neutral' : 'force';
-      if (cls === 'natural' && waiverDemotes(fit, w(tr.give), w(tr.receive), mineW, theirW, fitCtx)) cls = 'neutral';
+      if (cls === 'natural' && waiverDemotes(fit, w(tr.give), w(tr.receive), mineW, theirW, fitCtx)) { cls = 'neutral'; demotedN += 1; }
       (byCls[cls] = byCls[cls] || []).push({...tr, you: fit.us.starterDelta, them: fit.them.starterDelta});
     });
     Object.keys(byCls).forEach(cls => F.groupTrades(byCls[cls], {ourKey: yourKey}).forEach(g => groups.push({...g, cls, partner: t.name, id: t.index + '|' + cls + '|' + g.key})));
@@ -126,7 +126,7 @@ ORACLE = r"""(o) => {
   const picks = wres.results.filter(r => r.starterDelta !== null && g1(r) > 0 && g1(r) >= o.min)
     .sort((a, b) => b.starterDelta - a.starterDelta || (b.totalDelta || 0) - (a.totalDelta || 0) || String(a.name).localeCompare(String(b.name)))
     .map(r => ({add: String(r.candidate.player_key), drop: r.drop ? String(r.drop.player_key) : '', gain: shown(r.starterDelta)}));
-  return {natural: out.natural, neutral: out.neutral, picks, groups: groups.length};
+  return {natural: out.natural, neutral: out.neutral, picks, groups: groups.length, demoted: demotedN};
 }"""
 
 # waivers.html's best adds, as printed.
@@ -182,7 +182,7 @@ def _run(overrides=None, settings=None, extra=True):
                     page.evaluate(SET, ["minimum-gain", "0"])
                     got = page.evaluate(READ_PAGE)
                     want = page.evaluate(ORACLE, {"your": your, "their": their, "theirLabel": their_label, "min": 0, "pageSize": 10, "cap": 20})
-                    sizes.append((label, your, len(got["natural"]), len(got["neutral"]), len(got["picks"]), want["groups"]))
+                    sizes.append((label, your, len(got["natural"]), len(got["neutral"]), len(got["picks"]), want["groups"], want["demoted"]))
                     _diff(f"{label} [{your} / {their}]", got, want, errors)
                 if extra and i == 0:
                     wpage = ctx.new_page()
@@ -213,9 +213,11 @@ class FindPageEngineParityTest(unittest.TestCase):
         errors, sizes = _run()
         self.assertEqual(errors, [], errors)
         # Not vacuous: offers in both sections and pickups somewhere.
-        self.assertTrue(any(n for _, _, n, _, _, _ in sizes), sizes)
-        self.assertTrue(any(n for _, _, _, n, _, _ in sizes), sizes)
-        self.assertTrue(any(n for _, _, _, _, n, _ in sizes), sizes)
+        self.assertTrue(any(n for _, _, n, _, _, _, _ in sizes), sizes)
+        self.assertTrue(any(n for _, _, _, n, _, _, _ in sizes), sizes)
+        self.assertTrue(any(n for _, _, _, _, n, _, _ in sizes), sizes)
+        # JEG-1572: the waiver rule moves some Natural fits in this league (not vacuous).
+        self.assertTrue(any(n for *_, n in sizes), sizes)
 
     def test_guard_fails_on_a_small_drift(self):
         path = DIST / "find-engine.js"

@@ -215,10 +215,11 @@
       ? who + ", " + list(names) + ", " + (many ? "do" : "does") + " not close the gap this trade fills."
       : who + ", " + list(names) + ", " + (many ? "close " : "closes ") + share + "% of the gap this trade fills, without giving up " + (gave.length ? list(gave) : "anyone") + ".";
     if (!first) return "";
-    var beyond = w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR
-      ? " With " + (many ? "them" : names[0]) + " added, this trade still adds " + shown(w.gainAfter) + " to your starters."
-      : " With " + (many ? "them" : names[0]) + " added, this trade no longer makes your team better.";
-    return first + (share === 0 ? "" : beyond);
+    var added = " With " + (many ? "them" : names[0]) + " added, ";
+    var beyond = w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade still adds " + shown(w.gainAfter) + " to your starters."
+      : !w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade adds " + shown(w.gainAfter) + " to your starters, which no longer outweighs what you give up."
+      : added + "this trade no longer makes your team better.";
+    return share === 0 && w.ok ? first : first + beyond;
   }
 
   function explain(trade, ctx) {

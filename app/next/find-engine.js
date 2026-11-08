@@ -92,7 +92,9 @@
     var fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: your.key, marketKey: their.key,
       chartKeys: ctx.analyst || undefined, z: f.FIT_Z} : null;
     var mineW = widen(mine), theirW = widen(theirs);
-    var waiverPool = (opts.waivers || []).filter(function (w) { return w && w.row && finite(w.starterDelta); }).map(function (w) {
+    // A list typed on waivers.html is only checked against your roster: a player on either roster here is not available.
+    var onRoster = new Set(mine.concat(theirs).map(keyOf));
+    var waiverPool = (opts.waivers || []).filter(function (w) { return w && w.row && finite(w.starterDelta) && !onRoster.has(keyOf(w.row)); }).map(function (w) {
       return {row: widen([w.row])[0], pos: w.row.pos, starterDelta: w.starterDelta};
     });
     var byKey = new Map(mineW.concat(theirW).map(function (r) { return [keyOf(r), r]; }));
@@ -128,7 +130,7 @@
   //   gain       = your starters' change from the trade (the card's number, fit.us.starterDelta)
   //   gainAfter  = the same trade's starters' change once those pickups are on your roster
   //   covered    = (gain - gainAfter) / gain, clamped to 0..1: the share of the trade's gain a free pickup already gets
-  //   demoted    = covered >= WAIVER_SHARE, or your side of the Natural fit test fails once the pickups are in (the trade's
+  //   demoted    = covered >= WAIVER_SHARE (covered is null when the gain is under 0.05), or your side of the Natural fit test fails once the pickups are in (the trade's
   //                gain beyond the waiver option no longer beats what it costs you: the starters you send away)
   // A demoted Natural fit is listed under Partner neutral (its numbers are unchanged). Waivers are never a trade partner:
   // the pickups only change your own roster for the comparison.
@@ -153,7 +155,7 @@
     var covered = finite(gain) && finite(after) && gain >= 0.05 ? Math.max(0, Math.min(1, (gain - after) / gain)) : null;
     var ok = Boolean(fit2.natural && fit2.natural.us && fit2.natural.us.ok);
     return {players: picks.map(function (r) { return {key: keyOf(r), name: r.name, pos: r.pos}; }), gain: gain, gainAfter: after, netAfter: fit2.us.net,
-      covered: covered, ok: ok, demoted: covered !== null && (covered >= WAIVER_SHARE || !ok)};
+      covered: covered, ok: ok, demoted: (covered !== null && covered >= WAIVER_SHARE) || !ok};
   }
   // Natural fit is tradeFit's label (both sides, JEG-1324). Partner neutral: not natural, and the other team's side of the
   // fit is not worse than its noise floor (the live "neutral" / "favorable" reading of their side). The rest are force fits.
