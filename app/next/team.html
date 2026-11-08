@@ -145,6 +145,10 @@ body .sitemap .footer{max-width:1040px;margin:0 auto;padding:20px 28px 28px}
    settings and players; every value the engine does not price for it reads "Not priced" (JEG-1539). */
 body.league-pending .team-page{visibility:hidden}
 .team-page .np{color:#5c6a76;font-weight:500;font-family:"Archivo",system-ui,sans-serif;font-size:14px;white-space:nowrap}
+.team-page .opp-denom{display:block;margin:8px 0;font-style:normal}
+/* R4-CX-02: the best-move (i) carries the percent's arithmetic, so it opens centred in the viewport and scrolls inside
+   (with top:auto the fixed popover sat at a fixed viewport offset, below the fold, whatever the scroll). */
+.team-page #opp-title .info[open]>span{top:50%;transform:translate(-50%,-50%);z-index:60;max-height:min(70vh,480px);overflow-y:auto;overscroll-behavior:contain;font-family:system-ui,sans-serif;letter-spacing:0;line-height:1.45}
 .team-page .np .info{vertical-align:1px;margin-left:4px;white-space:normal}
 .team-page .np .info>span{white-space:normal}
 .team-page .np .info summary{min-height:0;display:inline-block;position:relative}
@@ -190,7 +194,7 @@ body.league-pending .team-page{visibility:hidden}
 <p class="team-context" id="team-context"></p>
 
 <section class="card opp" id="opportunity" aria-labelledby="opp-title">
-<h2 id="opp-title">Your best move right now <details class="info"><summary aria-label="How this is sized">ⓘ</summary><span>We look for the biggest gain from one waiver pickup or one trade of one or two players a side that fits both rosters. The gain is in DDF Value, with your starters in full and each bench player at the <a href="learn.html#numbers/glossary/bench-weight">bench weight</a> for his position (the share of that position’s DDF Value the league’s bench players hold), and it is shown as a share of your team's value. A gain inside the normal noise of the values counts as no move. Under 3% is no meaningful move, 3 to 6% a small edge, 6 to 10% a real opportunity, 10% or more a big one. One place in a league's value ranking is often about 4 to 6%. Teams you skip on Pick trading partners and players you hold are left out, as on Trade &amp; Waiver Recommendations. Where to look compares each of your starting slots with the typical player in that slot across your league on the analyst charts (CBS Sports, USA Today and FantasyPros), so it can point somewhere the DDF read does not. These lines were set from one week of three 12-team half-PPR leagues, so treat them as a guide, especially in superflex or full-PPR leagues. The other team always decides what it accepts.</span></details></h2>
+<h2 id="opp-title">Your best move right now <details class="info"><summary aria-label="How this is sized">ⓘ</summary><span>We look for the biggest gain from one waiver pickup or one trade of one or two players a side that fits both rosters. The gain is in DDF Value, with your starters in full and each bench player at the <a href="learn.html#numbers/glossary/bench-weight">bench weight</a> for his position (the share of that position’s DDF Value the league’s bench players hold), and it is shown as a share of your team’s value counted the same way, before the move.<em class="opp-denom" id="opp-denom">The team value it divides by shows here once your best move is sized.</em> A gain inside the normal noise of the values counts as no move. Under 3% is no meaningful move, 3 to 6% a small edge, 6 to 10% a real opportunity, 10% or more a big one. One place in a league's value ranking is often about 4 to 6%. Teams you skip on Pick trading partners and players you hold are left out, as on Trade &amp; Waiver Recommendations. Where to look compares each of your starting slots with the typical player in that slot across your league on the analyst charts (CBS Sports, USA Today and FantasyPros), so it can point somewhere the DDF read does not. These lines were set from one week of three 12-team half-PPR leagues, so treat them as a guide, especially in superflex or full-PPR leagues. The other team always decides what it accepts.</span></details></h2>
 <div class="opp-body" aria-live="polite"><p class="opp-tier" id="opp-tier">Sizing your best move…</p>
 <p class="opp-line" id="opp-line"></p>
 <p class="opp-look" id="opp-look" hidden></p>
@@ -326,15 +330,40 @@ body.league-pending .team-page{visibility:hidden}
     const slot = document.querySelector('[data-ddf-caveats="assessment"] .ddf-caveats__slot');
     if (slot) slot.textContent = on ? 'Best move size: a guide set from one week of three 12-team half-PPR leagues. The other team decides what it accepts.' : '';
   }
+  // R4-CX-02: the denominator of the best-move percent, read with the same finder calls ddf-opportunity.js worth()
+  // makes (starters in full + each bench player × his position's bench weight). Shown only when it equals o.worth.
+  const f2 = v => v.toFixed(2), pc2 = v => (v * 100).toFixed(2) + '%';
+  function denomText(o, mine) {
+    const F = window.TradeValueFinder, ctx = DDF.find.context();
+    if (!F || !ctx || !ctx.shape || typeof o.worth !== 'number' || !isFinite(o.worth)) return null;
+    const L = F.lineupValue(DDF.find.rowsOf(mine), ctx.shape, 'ddf_value'), weights = ctx.weights || {};
+    const byPos = {};
+    L.bench.forEach(r => {
+      const v = r.values ? r.values.ddf_value : null;
+      if (typeof v === 'number' && isFinite(v)) byPos[r.pos] = (byPos[r.pos] || 0) + v;
+    });
+    const parts = Object.keys(byPos).map(p => ({pos: p, value: byPos[p], weight: F.benchWeight(weights, p)}));
+    const bench = parts.reduce((t, x) => t + x.weight * x.value, 0), total = L.starterValue + bench;
+    if (Math.abs(total - o.worth) > 1e-6) return null;
+    const list = parts.filter(x => x.value > 0).map(x => `${x.pos} ${f2(x.value)} × ${pc2(x.weight)} = ${f2(x.weight * x.value)}`);
+    const wts = ['QB', 'RB', 'WR', 'TE'].map(p => p + ' ' + pc2(F.benchWeight(weights, p))).join(' · ');
+    const ratio = o.gain > 0 && o.pct !== null ? ` Gain ÷ that value: ${f2(o.gain)} ÷ ${f2(total)} × 100 = ${(100 * o.gain / total).toFixed(2)}%, shown as ${o.shown.toFixed(1)}% (cut, not rounded, to one decimal).` : '';
+    return `Your team value before the move, counted this way: ${f2(total)} = your starters ${f2(L.starterValue)} in full + your bench ${f2(bench)} at its bench weights` +
+      (list.length ? ` (${list.join(' · ')})` : '') + `. Bench weights at these settings: ${wts}. The “Your roster” total above (${$('val-roster').textContent}) counts every player in full, so it is not this number.` + ratio;
+  }
   function renderOpportunity(c, mine) {
     const run = ++oppRun, box = $('opportunity');
     const tier = $('opp-tier'), line = $('opp-line'), look = $('opp-look'), wv = $('opp-waivers');
     box.hidden = false;
     tier.removeAttribute('data-tier'); tier.textContent = 'Sizing your best move…'; line.textContent = ''; look.hidden = true; wv.hidden = true;
+    $('opp-denom').textContent = 'The team value it divides by shows here once your best move is sized.';
     if (!window.DDFOpportunity || !DDF.find) { tier.textContent = 'Your best move could not be sized here.'; return; }
     DDFOpportunity.computeTeam(c, mine, () => run !== oppRun).then(o => {
       if (run !== oppRun) return;
       if (!o) { tier.textContent = 'Your best move could not be sized yet.'; line.textContent = 'The values are still loading. Reload the page if this stays.'; return; }
+      let denom = null;
+      try { denom = denomText(o, mine); } catch (e) { denom = null; }   // the explanation never blocks the read
+      if (denom) $('opp-denom').textContent = denom;
       tier.dataset.tier = o.tier;
       oppCaveat(true);
       tier.textContent = o.headline;

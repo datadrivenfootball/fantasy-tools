@@ -8,7 +8,9 @@ league). At 3 settings the oracle recomputes, in the same browser and without dd
   available players, counted only above its tau;
 - the tier from the published rule (3 / 6 / 10% of worth), recomputed here in Python.
 The page must show that tier (data-tier), the percent truncated to one decimal, the waivers line exactly when no pickup
-beats its floor, and no banned reader text. Phone and desktop: no horizontal overflow, the block is visible.
+beats its floor, and no banned reader text. R4-CX-02: the "How this is sized" (i) prints the percent's denominator
+(starters in full + bench × bench weight), its per-position breakdown and the bench weights, all equal to the oracle, and
+gain ÷ denominator reproduces the percent. Phone and desktop: no horizontal overflow, the block is visible.
 Discrimination: test_guard_fails_on_shifted_threshold serves ddf-opportunity.js with the big line moved to 11%.
 """
 from __future__ import annotations
@@ -49,7 +51,10 @@ ORACLE = r"""() => {
     if (waiverRaw === null || r.totalDelta > waiverRaw) waiverRaw = r.totalDelta;
     if (r.totalDelta > r.tau && r.totalDelta > waiver) waiver = r.totalDelta;
   });
-  return {worth, trade, tradeRaw, waiver, waiverRaw, partnersChecked, candidates: cand.length, held: held.size};
+  const L = F.lineupValue(rows, ctx.shape, 'ddf_value');
+  const benchWeights = Object.fromEntries(['QB', 'RB', 'WR', 'TE'].map(p => [p, F.benchWeight(ctx.weights || {}, p)]));
+  return {worth, trade, tradeRaw, waiver, waiverRaw, partnersChecked, candidates: cand.length, held: held.size,
+    starters: L.starterValue, rosterShown: document.getElementById('val-roster').textContent, benchWeights};
 }"""
 
 READ = r"""async () => {
@@ -60,7 +65,7 @@ READ = r"""async () => {
     line: document.getElementById('opp-line').textContent, look: document.getElementById('opp-look').hidden ? null : document.getElementById('opp-look').textContent,
     waivers: document.getElementById('opp-waivers').hidden ? null : document.getElementById('opp-waivers').textContent,
     visible: !box.hidden && r.width > 0 && r.height > 0, overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
-    text: box.innerText, caveat: (document.querySelector('[data-ddf-caveats="assessment"] .ddf-caveats__slot') || {}).textContent || ''};
+    text: box.innerText, denom: document.getElementById('opp-denom').textContent, caveat: (document.querySelector('[data-ddf-caveats="assessment"] .ddf-caveats__slot') || {}).textContent || ''};
 }"""
 
 RESET = "() => { const t = document.getElementById('opp-tier'); t.removeAttribute('data-tier'); }"
@@ -74,6 +79,49 @@ def tier_of(pct: float) -> str:
 
 def shown(pct: float) -> str:
     return f"{math.floor(pct * 10 + 1e-9) / 10:.1f}%"
+
+
+NUM = r"(\d+\.\d+)"
+DENOM = re.compile(r"counted this way: " + NUM + r" = your starters " + NUM + r" in full \+ your bench " + NUM + r" at its bench weights")
+PART = re.compile(r"\b(QB|RB|WR|TE) " + NUM + r" × " + NUM + r"% = " + NUM)
+RATIO = re.compile(NUM + r" ÷ " + NUM + r" × 100 = " + NUM + r"%, shown as " + NUM + r"%")
+
+
+def denom_errors(text: str, want: dict, gain: float) -> list[str]:
+    """R4-CX-02: the (i) shows the percent's denominator, its breakdown and the bench weights, and they recompute."""
+    m = DENOM.search(text or "")
+    if not m:
+        return [f"best-move (i) lacks the denominator: {text[:160]!r}"]
+    total, starters, bench = map(float, m.groups())
+    out = []
+    if abs(total - want["worth"]) > 0.006 or abs(starters - want["starters"]) > 0.006:
+        out.append(f"denominator {total}/{starters} vs engine worth {want['worth']:.4f} / starters {want['starters']:.4f}")
+    if abs(starters + bench - total) > 0.011:
+        out.append(f"starters {starters} + bench {bench} != {total}")
+    parts = PART.findall(text.split("Bench weights at these settings")[0])
+    if abs(sum(float(x[3]) for x in parts) - bench) > 0.006 * max(1, len(parts)):
+        out.append(f"bench parts {parts} do not sum to {bench}")
+    for pos, value, weight, product in parts:
+        if abs(float(value) * float(weight) / 100 - float(product)) > 0.006 + float(value) * 0.00005:
+            out.append(f"{pos} {value} × {weight}% != {product}")
+        if abs(float(weight) / 100 - want["benchWeights"][pos]) > 0.00005:
+            out.append(f"{pos} bench weight {weight}% vs engine {want['benchWeights'][pos]:.5f}")
+    for pos, w in want["benchWeights"].items():
+        if f"{pos} {w * 100:.2f}%" not in text:
+            out.append(f"bench weight {pos} {w * 100:.2f}% not listed")
+    if f"“Your roster” total above ({want['rosterShown']}) counts every player in full" not in text:
+        out.append("the (i) does not say the Your roster total counts every player in full")
+    r = RATIO.search(text)
+    if gain > 0:
+        if not r:
+            out.append(f"no gain ÷ denominator line: {text[-160:]!r}")
+        else:
+            g, d, pct, shown_pct = map(float, r.groups())
+            if abs(100 * g / d - pct) > 0.006 or abs(g - gain) > 0.006 or shown(100 * gain / want["worth"]) != f"{shown_pct:.1f}%":
+                out.append(f"{g} ÷ {d} = {pct}% shown {shown_pct}% does not recompute")
+    elif r:
+        out.append("a ratio line with no counted gain")
+    return out
 
 
 def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False) -> list[str]:
@@ -129,6 +177,7 @@ def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False) -> l
                         errors.append(f"{label}: skipped teams / held players not disclosed")
                     if "one week of three" not in got["caveat"]:
                         errors.append(f"{label}: best-move caveat missing from the caveats note: {got['caveat']!r}")
+                    errors.extend(f"{label}: {e}" for e in denom_errors(got["denom"], want, gain))
                     if not got["visible"] or got["overflow"]:
                         errors.append(f"{label}: visible={got['visible']} overflow={got['overflow']}")
                     for rx in BANNED:

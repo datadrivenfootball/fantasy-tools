@@ -146,7 +146,8 @@ class Round2Test(unittest.TestCase):
         self.assertIn("after byes and missed games", TEMPLATE)
 
     def test_header_bench_share_one_decimal(self):
-        self.assertIn("bench share <b>${pct(BS, 1)}</b>", TEMPLATE)
+        # R4 (OP-01): named as the bench groups' share of the pie.
+        self.assertIn("bench groups' share of the pie <b>${pct(BS, 1)}</b>", TEMPLATE)
 
     def test_methodology_display_factor_uses_raw_surplus(self):
         self.assertNotIn("6. **VORP vs waivers (display)**: `V_i = v_i x Pie / G_s`", METHODOLOGY)
@@ -240,6 +241,91 @@ class Round3Test(unittest.TestCase):
     def test_methodology_live_links_use_the_current_host(self):
         self.assertNotIn("jb-barrel-droid.github.io", METHODOLOGY)
         self.assertIn("https://datadrivenfootball.github.io/fantasy-tools/modules/math-inspector.html", METHODOLOGY)
+
+
+class Round4Test(unittest.TestCase):
+    """JEG-1393 round 4, lane A: R4-OP-01, -03, -04/CX-01, -05, -06, -11."""
+
+    @staticmethod
+    def rate_bundle():
+        # Two allocations, one source, one position (RB): rate_a = pie x W_a / group_a.
+        pie = 100.0
+        runs = []
+        for w, wb, ws, gb, gs, parts in ((0.6, 0.1, 0.9, 20.0, 60.0, {"7": [4.0, 30.0]}),
+                                         (0.4, 0.2, 0.8, 25.0, 50.0, {"7": [6.0, 20.0]})):
+            groups = {"RB|bench": gb, "RB|starter": gs}
+            rates = {"RB|bench": pie * wb / gb, "RB|starter": pie * ws / gs}
+            runs.append({"weight": w, "pie": pie, "ddfWeights": {"RB|bench": wb, "RB|starter": ws},
+                         "sources": {"cbs": [1.0, 1.0, groups, rates, parts, [], []]}})
+        rate = {g: sum(r["weight"] * r["sources"]["cbs"][3][g] for r in runs) for g in ("RB|bench", "RB|starter")}
+        shown = [sum(r["weight"] * r["sources"]["cbs"][3][g] * r["sources"]["cbs"][4]["7"][j] for r in runs) / rate[g]
+                 for j, g in enumerate(("RB|bench", "RB|starter"))]
+        raw = bundle()
+        raw["inspection"]["valuePipeline"]["sources"] = {"cbs": {"rates": rate, "vorpFactor": 1.0}}
+        raw["inspection"]["players"] = {"cbs": {"7": {"benchSlice": shown[0], "starterSlice": shown[1]}}}
+        raw["inspection"]["rows"] = {"7": {"pos": "RB"}}
+        raw["extra"]["vorpRuns"] = runs
+        return raw
+
+    def test_rate_runs_reproduce_the_averaged_rate_and_parts(self):
+        rr = bve.rate_runs(self.rate_bundle())["cbs"]
+        rb = rr["groups"]["RB|bench"]
+        self.assertTrue(rb["budget"])
+        self.assertAlmostEqual(sum(w * ra for w, _, _, ra in rb["runs"]), 0.6 * 0.5 + 0.4 * 0.8)
+        # The averaged rate is not pie x averaged W / averaged group total.
+        self.assertNotAlmostEqual(100 * (0.6 * 0.1 + 0.4 * 0.2) / (0.6 * 20 + 0.4 * 25), 0.62)
+        self.assertEqual(rr["example"]["pk"], "7")
+        self.assertEqual(rr["example"]["runs"], [[0.6, 4.0, 30.0], [0.4, 6.0, 20.0]])
+
+    def test_rate_runs_drop_what_does_not_reproduce(self):
+        raw = self.rate_bundle()
+        raw["inspection"]["valuePipeline"]["sources"]["cbs"]["rates"]["RB|bench"] = 9.0
+        rr = bve.rate_runs(raw)["cbs"]
+        self.assertNotIn("RB|bench", rr["groups"])
+        self.assertNotIn("example", rr)
+        raw = self.rate_bundle()
+        raw["inspection"]["players"]["cbs"]["7"]["starterSlice"] += 1
+        self.assertNotIn("example", bve.rate_runs(raw)["cbs"])
+        raw = self.rate_bundle()
+        raw["extra"]["vorpRuns"] = raw["extra"]["vorpRuns"][:1]
+        self.assertEqual(bve.rate_runs(raw), {})
+        # Round-3 shaped runs (no groups or rates) give nothing, and vorp_runs still works.
+        raw = bundle()
+        self.assertEqual(bve.rate_runs(raw), {})
+        self.assertEqual(sorted(bve.vorp_runs(raw)), ["cbs", "espn"])
+
+    def test_three_bench_numbers_are_named_apart(self):
+        self.assertNotIn("Own bench weight</th>", TEMPLATE)
+        self.assertIn("Own bench group share</th>", TEMPLATE)
+        self.assertIn("DDF bench group share</th>", TEMPLATE)
+        self.assertIn('id="benchWeightTable"', TEMPLATE)
+        self.assertIn("Bench weight (glossary)", TEMPLATE)
+        self.assertNotIn("the Indexed basis and the bench-share readout", TEMPLATE)
+        self.assertIn("includes hidden sources", TEMPLATE)
+
+    def test_phi_and_chart_spread_are_defined(self):
+        self.assertIn("Φ(z) = standard normal cumulative probability", TEMPLATE)
+        self.assertIn("1 − Φ((L − x) ÷ σ)", TEMPLATE)
+        self.assertIn('id="phiExample"', TEMPLATE)
+        self.assertIn("Φ(0) = 0.5", TEMPLATE)
+        self.assertIn("CHART_SIGMA_TXT", TEMPLATE)
+        self.assertNotIn("(for a chart, the charts' own disagreement)", TEMPLATE)
+
+    def test_waiver_line_names_the_allocation_average(self):
+        self.assertIn("at the heaviest allocation; averaged over the ${MIX.length} allocations", TEMPLATE)
+
+    def test_held_reason_in_plain_words(self):
+        self.assertIn('"held: fidelity: scrape_validity": "its latest scrape failed validation"', TEMPLATE)
+        self.assertIn("(projections never feed DDF Value), but still counted in the league allocation and the DDF weights",
+                      TEMPLATE)
+        self.assertNotIn("hidden: ${esc(hiddenReason(src)", TEMPLATE)
+
+    def test_methodology_marks_vp4_fixed_share_and_phi(self):
+        self.assertIn("**VP-4.1 to 4.3: fixed-share mode only (not live).**", METHODOLOGY)
+        i = METHODOLOGY.index("### VP-4 DDF weights")
+        self.assertLess(METHODOLOGY.index("fixed-share mode only (not live)", i), METHODOLOGY.index("1. `Sraw[p]`", i))
+        self.assertIn("`P(lo < X <= hi) = Phi((hi - x) / s(x)) - Phi((lo - x) / s(x))`", METHODOLOGY)
+        self.assertIn("hidden sources left out (as the Indexed\n   basis, which it reads)", METHODOLOGY)
 
 
 if __name__ == "__main__":

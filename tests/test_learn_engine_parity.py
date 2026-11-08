@@ -25,6 +25,7 @@ snapshot files are not published (decisions D6 and D8, 2026-11-06).
 """
 from __future__ import annotations
 
+import math
 import re
 import unittest
 from pathlib import Path
@@ -119,7 +120,10 @@ ENGINE_WORKED = """(a) => { const C = window.TradeValueCurveControls, ins = C.ge
   const src = ins.valuePipeline.sources[a.s], pm = C.getPublishedMath(Number(a.k), a.s);
   return {adjusted: p.adjusted, parts: [p.starterSlice, src.rates[p.pos + '|starter'], p.benchSlice, src.rates[p.pos + '|bench']],
     vorpDisplay: p.vorpDisplay, rates: [src.rates[p.pos + '|starter'], src.rates[p.pos + '|bench']], native: p.native,
-    anchor: pm.anchorTotal, chart: pm.chartTotal, factor: pm.factor}; }"""
+    anchor: pm.anchorTotal, chart: pm.chartTotal, factor: pm.factor,
+    sigmaRel: ins.valuePipeline.chartSigma[p.pos].sigma_rel, pos: p.pos, startWorthy: p.startWorthy,
+    starterLine: src.positions[p.pos].starterLine, pie: ins.valuePipeline.pie, surplus: src.surplusTotal, vorpFactor: src.vorpFactor,
+    allocations: (ins.valuePipeline.allocationMix || []).length || 1}; }"""
 PAGE_WORKED = """() => ({eq: [...document.querySelectorAll('#bu-worked tbody tr')].pop().querySelector('td').textContent.trim(),
   explain: document.getElementById('bu-explain').textContent,
   rows: Object.fromEntries([...document.querySelectorAll('#bu-worked tbody tr')].map(tr => [tr.querySelector('th').firstChild.textContent.trim(),
@@ -223,9 +227,13 @@ def compare(page, combo) -> list[str]:
             # each allocation's rate; the page divides the averaged budget by the averaged total: 1.5% apart at half PPR/10/SF).
             for name, rate in (("Starter rate", ew["rates"][0]), ("Fill-in rate", ew["rates"][1])):
                 how = (pw["rows"].get(name) or {}).get("how", "")
-                mm = re.search(r"≈ ([\d.]+)$", how)
+                mm = re.search(r"≈ ([\d.]+)(?:\. |$)", how)
                 if rate and (not mm or abs(float(mm.group(1)) - rate) > 0.05 * rate):
                     errors.append(f"{tag}: build-up {s} {name} formula {how!r}, engine rate {rate}")
+                # R4-OP-03: the rate says why its formula is close to, not equal to, the averaged rate.
+                if ew["allocations"] > 1 and f"Averaged rate = Σ allocation weight × that allocation’s rate, over the {ew['allocations']} league allocations" not in how:
+                    errors.append(f"{tag}: build-up {s} {name} lacks the averaged-rate sentence: {how[-200:]!r}")
+            errors += worked_spread_errors(tag, s, pw, ew)
             # R2-OP-04: the Adjusted step starts from the published value, not the indexed one.
             if f"{fpub(s, ew['native'])} → " not in pw["explain"]:
                 errors.append(f"{tag}: build-up {s} Adjusted step does not start from published {fpub(s, ew['native'])}")
@@ -235,6 +243,42 @@ def compare(page, combo) -> list[str]:
             elif abs(float(f"{ew['anchor']:.2f}") / ew["chart"] - float(ffactor(ew["factor"]))) > 5e-6 * ew["factor"] + 1e-9:
                 errors.append(f"{tag}: build-up {s} shown totals do not divide to the shown factor")
     return errors
+
+
+def worked_spread_errors(tag, s, pw, ew) -> list[str]:
+    """R4-OP-04 / R4-OP-09: the spread σ row and the chance substitution recompute from the engine's chart spread rate,
+    and the value-pie factor's division is shown and is not the Indexed factor."""
+    out = []
+    num = r"([\d,]+(?:\.\d+)?)"
+    sig = pw["rows"].get("Spread σ") or {}
+    m = re.search(num + r" × " + num + r" = " + num, sig.get("how", ""))
+    sigma = ew["sigmaRel"] * ew["native"]
+    if not m:
+        out.append(f"{tag}: build-up {s} has no spread row with its numbers: {sig!r}")
+    else:
+        rate, native, shown_sigma = (float(x.replace(",", "")) for x in m.groups())
+        if rate != round(ew["sigmaRel"], 4) or abs(native - ew["native"]) > 0.006 + 0.5 * (s == "fantasycalc") \
+                or abs(shown_sigma - sigma) > 0.006 + 0.5 * (s == "fantasycalc"):
+            out.append(f"{tag}: build-up {s} spread {m.group(0)!r}, engine {ew['sigmaRel']} × {ew['native']} = {sigma}")
+    chance = (pw["rows"].get("Chance above the starter line") or {}).get("how", "")
+    m = re.search(r"1 − Φ\(\(" + num + r" − " + num + r"\) ÷ " + num + r"\) = 1 − Φ\(([−\d.]+)\) ≈ ([\d.]+)%", chance)
+    if "standard normal cumulative probability" not in chance or not m:
+        out.append(f"{tag}: build-up {s} chance row lacks Φ's definition or its substitution: {chance!r}")
+    else:
+        line, nat, sg, z, pct = m.groups()
+        z_want = (ew["starterLine"] - ew["native"]) / sigma
+        if abs(float(z.replace("−", "-")) - z_want) > 0.0015 or pct != f"{ew['startWorthy'] * 100:.1f}":
+            out.append(f"{tag}: build-up {s} chance z {z} (engine {z_want:.4f}), {pct}% (engine {ew['startWorthy']})")
+        # 1 − Φ(z) is the engine's chance up to the averaging of the lines over the allocations.
+        if abs(0.5 * math.erfc(z_want / math.sqrt(2)) - ew["startWorthy"]) > 0.01:
+            out.append(f"{tag}: build-up {s} 1 − Φ(z) = {0.5 * math.erfc(z_want / math.sqrt(2)):.4f} far from {ew['startWorthy']}")
+    vaw = (pw["rows"].get("Value above waivers (on the value pie)") or {}).get("how", "")
+    ratio = ew["pie"] / ew["surplus"]
+    m = re.search(r"over its work list \(" + num + r" ÷ " + num + r" ≈ ([\d.]+)\)", vaw)
+    if "It is not the Indexed factor" not in vaw or not m or float(m.group(1).replace(",", "")) != ew["pie"] \
+            or abs(float(m.group(2).replace(",", "")) - ew["surplus"]) > 0.051 + 0.5 * (s == "fantasycalc") or m.group(3) != ffactor(ratio):
+        out.append(f"{tag}: build-up {s} value-pie factor not defined with its division ({ew['pie']} ÷ {ew['surplus']} = {ratio}): {vaw!r}")
+    return out
 
 
 def manifesto_words(mirror: str) -> list[str]:
@@ -289,6 +333,39 @@ class LearnEngineParity(unittest.TestCase):
             errors = compare(page, ("ppr", 12, 0))
             browser.close()
         self.assertTrue(any("DDF Value" in e or "trace" in e for e in errors), errors[:5])
+
+    def test_round4_notes(self):
+        """R4-OP-03 (superflex: the trace says the ≈ rate is not the averaged rate and why), R4-OP-06 (a held source's
+        note in plain words, projections left out of DDF Value · projections) and R4-OP-01 (glossary Bench weight is
+        not the bench share of the pie)."""
+        q = "?scoring=ppr&teams=12&roster=" + ROSTER.format(sf=1)
+        with serve() as base, self.sync_playwright() as p:
+            browser, page, console = self._page(p, base, viewport=(390, 844))
+            go(page, "#numbers/pie" + q)
+            page.wait_for_function(SNAP_READY, arg={"scoring": "ppr", "teams": 12, "sf": True}, timeout=60000)
+            snap = page.evaluate("""() => { const s = DDFNumbers.snapshot(), a = s.players.find(p => p.name === 'Josh Allen');
+              return {key: a && a.player_key, mix: (s.inspection.valuePipeline.allocationMix || []).length,
+                held: (s.inspection.excluded || []).filter(e => /^held: fidelity: scrape_validity$/.test(e.reason)).map(e => e.key)}; }""")
+            self.assertTrue(snap["key"], "Josh Allen is not priced at this setting; pick another example")
+            go(page, f"#numbers/trace/{snap['key']}{q}")
+            trace = page.text_content("#tr-adj-body")
+            notes = {}
+            for src in snap["held"]:
+                go(page, f"#numbers/build-up/{src}{q}")
+                notes[src] = page.text_content("#bu-meta")
+            gloss = page.text_content("#g-bench-weight")
+            overflow = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
+            browser.close()
+        self.assertGreater(snap["mix"], 1, "superflex should average several allocations; the check proves nothing")
+        self.assertIn(f"the engine’s rate, the weight-average of each of the {snap['mix']} league allocations’ own rate", trace)
+        self.assertNotIn("averaged over the allocations:", trace)
+        for src, note in notes.items():
+            self.assertNotIn("held: fidelity", note, src)
+            self.assertIn("Held this week (its latest scrape failed validation): left out of DDF Value · projections, but still "
+                          "counted in the league allocation and the DDF weights.", note, src)
+        self.assertIn("It is not the bench share of the pie shown on Full value logic", gloss)
+        self.assertFalse(overflow, "horizontal overflow at 390 px")
+        self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
 
     def test_overrides_and_basis_not_applied(self):
         """Learn explains the model's own DDF Value: a stored override and a one-chart basis must not change it."""
