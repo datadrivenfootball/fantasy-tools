@@ -56,6 +56,12 @@ ORACLE = r"""(league) => {
   const rows = C.getAllRows().filter(r => POS.includes(r.pos));
   const byKey = new Map(rows.map(r => [String(r.player_key), r]));
   const shape = C.getRosterShape();
+  // JEG-1393 decision 4: a chart's fill-in estimate (row.estimated[k]) is left out of the Analyst charts and Live market.
+  const CH = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
+  const listed = got => got.map(r => { const est = r.estimated || {}; if (!CH.some(k => est[k])) return r;
+    const v = {...r.values}; CH.forEach(k => { if (est[k]) v[k] = null; }); return {...r, values: v}; });
+  // complete = every DDF starter has a value on that chart (a bench player without one adds nothing)
+  const onChart = (t, rows, key) => t.L.starters.every(r => { const x = rows[t.rows.indexOf(r)]; return typeof x.values[key] === 'number' && isFinite(x.values[key]); });
   const teams = league.teams.map((t, i) => {
     const got = [];
     t.players.forEach(e => {
@@ -64,9 +70,10 @@ ORACLE = r"""(league) => {
       if (r && !got.includes(r)) got.push(r);
     });
     const L = F.lineupValue(got, shape, 'ddf_value');
-    const A = F.lineupValue(F.withChartAverage(got, ['cbs', 'usatoday', 'fantasypros']), shape, F.MARKET_KEY);
-    const V = F.lineupValue(got, shape, 'fantasycalc');
-    return {i, name: t.name, rows: got, L, A, V};
+    const chart = F.withChartAverage(listed(got), ['cbs', 'usatoday', 'fantasypros']);
+    const A = F.lineupValue(chart, shape, F.MARKET_KEY);
+    const V = F.lineupValue(chart, shape, 'fantasycalc');
+    return {i, name: t.name, rows: got, chart, L, A, V};
   }).filter(t => t.rows.length);
   const med = vals => { const s = vals.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };
   const SLOTS = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX'];
@@ -97,7 +104,7 @@ ORACLE = r"""(league) => {
   teams.filter(t => t !== mine).forEach(t => {
     const d = t.L.starterValue, an = t.A.starterValue, lv = t.V.starterValue, tags = [];
     // An incomplete chart lineup (a starter the charts do not list) is not judged and shows no chart total.
-    const aOk = t.A.unvalued.length === 0, lOk = t.V.unvalued.length === 0;
+    const aOk = onChart(t, t.chart, F.MARKET_KEY), lOk = onChart(t, t.chart, 'fantasycalc');
     if (aOk && an > 0 && d / an >= 1.15) tags.push('DDF edge');
     if (aOk && an > 0 && d / an < 1) tags.push('Analyst premium');
     if (lOk && lv > 0 && d / lv < 1) tags.push('Live market premium');

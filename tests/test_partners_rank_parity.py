@@ -30,6 +30,12 @@ ORACLE = r"""(league) => {
   const rows = C.getAllRows().filter(r => POS.includes(r.pos));
   const byKey = new Map(rows.map(r => [String(r.player_key), r]));
   const shape = C.getRosterShape();
+  // JEG-1393 decision 4: a chart's fill-in estimate (row.estimated[k]) is left out of the Analyst charts and Live market.
+  const CH = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
+  const listed = got => got.map(r => { const est = r.estimated || {}; if (!CH.some(k => est[k])) return r;
+    const v = {...r.values}; CH.forEach(k => { if (est[k]) v[k] = null; }); return {...r, values: v}; });
+  // complete = every DDF starter has a value on that chart (a bench player without one adds nothing)
+  const onChart = (t, rows, key) => t.L.starters.every(r => { const x = rows[t.rows.indexOf(r)]; return typeof x.values[key] === 'number' && isFinite(x.values[key]); });
   const teams = league.teams.map((t, i) => {
     const got = [];
     t.players.forEach(e => {
@@ -38,8 +44,9 @@ ORACLE = r"""(league) => {
       if (r && !got.includes(r)) got.push(r);
     });
     const L = F.lineupValue(got, shape, 'ddf_value');
-    const A = F.lineupValue(F.withChartAverage(got, ['cbs', 'usatoday', 'fantasypros']), shape, F.MARKET_KEY);
-    return {i, name: t.name, rows: got, L, A};
+    const chart = F.withChartAverage(listed(got), ['cbs', 'usatoday', 'fantasypros']);
+    const A = F.lineupValue(chart, shape, F.MARKET_KEY);
+    return {i, name: t.name, rows: got, chart, L, A};
   }).filter(t => t.rows.length);
   const med = vals => { const s = vals.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };
   const medians = {};
@@ -62,7 +69,7 @@ ORACLE = r"""(league) => {
     });
     const big = (a, b) => b[1] - a[1] || POS.indexOf(a[0]) - POS.indexOf(b[0]);
     const an = t.A.starterValue, d = t.L.starterValue;
-    const ra = t.A.unvalued.length === 0 && an > 0 ? d / an : null;
+    const ra = onChart(t, t.chart, F.MARKET_KEY) && an > 0 ? d / an : null;
     return {i: t.i, name: t.name, score, ra, get: get.sort(big).map(x => x[0]), give: give.sort(big).map(x => x[0])};
   });
   out.sort((a, b) => (a.score !== b.score ? b.score - a.score : 0)

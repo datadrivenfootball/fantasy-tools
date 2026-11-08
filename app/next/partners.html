@@ -154,7 +154,7 @@ function details(t){
    '<div class="cmp"><dt>Their starters on DDF Value</dt><dd data-v="ddf">'+fx(p.ddf)+'</dd></div>'+
    '<div class="cmp"><dt>Same starters on the Analyst charts</dt><dd data-v="analyst">'+fx(a)+'</dd><p class="verdict '+ac+'">'+esc(at)+'</p></div>'+
    '<div class="cmp"><dt>Same starters on the Live market</dt><dd data-v="live">'+fx(l)+'</dd><p class="verdict '+lc+'">'+esc(lt)+'</p></div></dl>'+
-   '<details class="explain"><summary>What these compare</summary><p>We add up this team\'s starters three ways: DDF Value, the Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and the Live market (FantasyCalc). When DDF Value is higher, that source prices their starters lower than we do, which is good for you when you trade for them. When it is lower, their players cost more there. A starter a source does not list leaves that line not judged; it is never counted as 0.</p></details></details>';
+   '<details class="explain"><summary>What these compare</summary><p>We add up this team\'s starters three ways: DDF Value, the Analyst charts (the average of CBS Sports, USA Today and FantasyPros) and the Live market (FantasyCalc). When DDF Value is higher, that source prices their starters lower than we do, which is good for you when you trade for them. When it is lower, their players cost more there. A value the engine fills in for a chart that does not list a player is left out, as on the other pages. A starter a source does not list leaves that line not judged; it is never counted as 0, and a bench player it does not list adds nothing.</p></details></details>';
 }
 function row(t,i,haveMe){
   const top=haveMe&&t.rank<=TOP&&t.score>0;
