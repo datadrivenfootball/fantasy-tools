@@ -138,8 +138,11 @@ They were applied 2026-11-08; the record, verify and rollback are in
   `cron.job_run_details` shows status `succeeded` for `rebuild-chain-weekly-tue-evening`;
   `monitoring.dispatch_log` has a rebuild-chain.yml dispatch at ~02:00Z; and
   `gh run list -R datadrivenfootball/fantasy-tools -w rebuild-chain.yml --event workflow_dispatch --limit 5`
-  shows a run at ~02:00Z whose input source is `pg_cron-weekly-tue-2000ct`. Repeat for the
-  Wednesday 12:00Z job.
+  shows a run created within a minute or two of 02:00Z. Match it by time: the `source`
+  input (`pg_cron-weekly-tue-2000ct`) is not shown in the run list, its log, or dispatch_log
+  (adding a `run-name` to rebuild-chain.yml would make it visible; follow-up). A
+  vintage-check dispatch at the same minute looks the same; either one counts as the
+  forced run. Repeat for the Wednesday 12:00Z job.
 - **Re-time for CDT:** pg_cron runs in UTC. From 2027-03-14 (CDT, UTC-5) these fire at
   21:00 / 07:00 local. Before Week 1 of 2027, re-schedule to `0 1 * * 3` and `0 11 * * 3`
   (cron.schedule upserts by name), or back again in November.

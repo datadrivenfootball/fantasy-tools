@@ -40,8 +40,8 @@ select cron.schedule(
 --      order by d.start_time desc limit 4;
 --    expect status 'succeeded'. Also check the dispatch row in monitoring.dispatch_log for rebuild-chain.yml
 --    near that time, and run: gh run list -R datadrivenfootball/fantasy-tools -w rebuild-chain.yml
---    --event workflow_dispatch --limit 5 (a run starting ~02:00Z whose "Record workflow start time" step
---    names source pg_cron-weekly-tue-2000ct).
+--    --event workflow_dispatch --limit 5 (a run created at ~02:00Z; match by time, since the source input
+--    is not shown in the run list, the log or dispatch_log).
 --
 -- DOUBLE-FIRE ANALYSIS (cron.job as read 2026-11-08):
 -- - vintage-check-live '0 * * * *' also fires at 02:00 and 12:00 UTC and dispatches the chain only
