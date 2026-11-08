@@ -177,6 +177,15 @@
     });
   }
 
+  // JEG-1548: a connector link's ?src= tag rides along to the page the old link now opens (analytics.js reads it there).
+  // site.js may already have taken the tag off the address bar (window.DDF._srcTag).
+  function withSrc(url) {
+    var m = /[?&]src=([a-z0-9_-]{1,40})(?:&|$)/.exec(location.search);
+    var tag = m ? m[1] : (window.DDF && typeof window.DDF._srcTag === "string" && /^[a-z0-9_-]{1,40}$/.test(window.DDF._srcTag) ? window.DDF._srcTag : null);
+    if (!tag) return url;
+    try { var u = new URL(url, location.href); u.searchParams.set("src", tag); return u.href; } catch (e) { return url; }
+  }
+
   window.DDFLegacyRoutes = {resolve: resolve, ROUTES: ROUTES, stateLink: stateLink, translate: translate};
   if (document.documentElement.hasAttribute("data-legacy-routes-off")) return;
   var atRoot = !document.documentElement.hasAttribute("data-legacy-stub");
@@ -191,12 +200,15 @@
     // Hidden until the link is read, so the front door does not flash; any failure falls back to the plain route.
     var html = document.documentElement;
     html.style.visibility = "hidden";
+    window.DDFLegacyRoutes.redirecting = true;   // JEG-1548: this page is a stop on the way; the counter skips it
     var done = false;   // the first redirect wins (a late translate() after the timeout does not redirect again)
     var fallback = function () {
       if (done) return;
       done = true;
       html.style.visibility = "";
+      window.DDFLegacyRoutes.redirecting = false;
       var plain = resolve(location.hash, {atRoot: atRoot, root: root});
+      if (plain) plain = withSrc(plain);
       if (plain && plain !== location.href) { try { location.replace(plain); } catch (e) { /* stays */ } }
     };
     var timer = setTimeout(fallback, 15000);
@@ -205,11 +217,12 @@
       if (!url) return fallback();
       if (done) return;
       done = true;
-      location.replace(url);
+      location.replace(withSrc(url));
     }, function (e) { clearTimeout(timer); console.warn(e); fallback(); });
     return;
   }
   var target = resolve(location.hash, {atRoot: atRoot, root: root});
+  if (target) target = withSrc(target);
   if (target && target !== location.href) {
     try { location.replace(target); } catch (e) { /* the page stays; its links still work */ }
   }

@@ -97,6 +97,8 @@
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
+    /* JEG-1548: the method only (paste, sleeper, manual); analytics.js drops anything not on its list */
+    if (DDF.track && record && typeof record.source === "string") DDF.track("league-added/" + record.source);
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
   }
   function drop() {

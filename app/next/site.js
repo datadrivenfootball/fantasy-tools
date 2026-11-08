@@ -1,3 +1,30 @@
+/* ===== Visit counter (JEG-1548): load the local wrapper analytics.js, which sends nothing unless its one setting (the
+   GoatCounter site code) is set. Until it loads, DDF.track(name) queues fixed event names (at most 20, in memory).
+   A connector link's ?src= tag is taken off the address bar here, right away and even when analytics.js is blocked, so
+   it never rides into a Bookmark link; only the src pair is removed (the rest of the query and the #s= hash stay
+   byte-for-byte). analytics.js checks the kept value against its allow-list. ===== */
+(function(){
+  window.DDF = window.DDF || {};
+  if(window.DDF.track) return;
+  try{
+    var raw = location.search.replace(/^\?/, ''), parts = raw ? raw.split('&') : [], kept = [], tag = null;
+    parts.forEach(function(x){ if(/^src=/.test(x)){ if(tag === null) tag = x.slice(4); } else kept.push(x); });
+    if(tag !== null){
+      try{ tag = decodeURIComponent(tag); }catch(e){ tag = ''; }
+      window.DDF._srcTag = tag.slice(0, 80);
+      history.replaceState(history.state, '', location.pathname + (kept.length ? '?' + kept.join('&') : '') + location.hash);
+    }
+  }catch(e){}
+  var queue = window.DDF._trackQueue = [];
+  window.DDF.track = function(name){ if(typeof name === 'string' && queue.length < 20) queue.push(name); };
+  try{
+    var me = document.currentScript, s = document.createElement('script');
+    s.src = me && /site\.js(\?|$)/.test(me.src) ? me.src.replace(/site\.js(\?|$)/, 'analytics.js$1') : 'analytics.js';
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
+  }catch(e){}
+})();
+
 document.addEventListener('click', function(e){
   var wrap = document.querySelector('.morewrap');
   if(!wrap) return;
@@ -684,6 +711,8 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   function pageFor(view){ return VIEW_PAGES[view] || 'team.html'; }
   function livePage(view){ var p = pageFor(view); return p.indexOf('#') >= 0 ? 'values.html' : p; }
+  /* JEG-1548: a connector link's ?src= tag rides along when connect.html forwards a link to its view's page */
+  function srcParam(){ var t = DDF._srcTag; return typeof t === 'string' && /^[a-z0-9_-]{1,40}$/.test(t) ? '?src=' + t : ''; }
   function isConnectPage(){ return /(^|\/)connect\.html$/.test(location.pathname) || document.body.classList.contains('connect'); }
 
   /* Pretty JSON with primitive arrays on one line, so a 12-team block stays readable in a chat. */
@@ -722,7 +751,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       var p = fence ? Promise.resolve(decodeJsonState(fence[1]))
         : /^[{]/.test(t) ? Promise.resolve(decodeJsonState(t))
         : decodeToken(fragmentToken((/#(.*)$/.exec(t) || [])[1] || '') || t.replace(/^s=/, ''));
-      return p.then(function(r){ if(r.error){ lastError = r.error; return r; } applyContext(r); return accept(r); });
+      return p.then(function(r){ if(r.error){ lastError = r.error; return r; } applyContext(r); if(DDF.track) DDF.track('league-added/link'); return accept(r); });
     },
     /* Adds the reader's overrides, basis and position weights unless state carries them (opts.context === false: as given). */
     encode: function(state, opts){
@@ -757,7 +786,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     applyRouting: function(){
       var s = current;
       if(!s || !fromLink || !isConnectPage()) return false;
-      location.replace(livePage(s.view) + location.hash);
+      location.replace(livePage(s.view) + srcParam() + location.hash);
       return true;
     },
     registerTable: function(version, rows){
@@ -1039,7 +1068,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   window.DDF.overrides = {
     get: read,
     value: function(name, fallback){ var o = read(); return Object.prototype.hasOwnProperty.call(o, name) ? o[name] : fallback; },
-    set: function(name, v){ var o = read(); o[name] = Number(v); write(o); },
+    set: function(name, v){ var o = read(); o[name] = Number(v); write(o); if(DDF.track) DDF.track('value-override-set'); },
     remove: function(name){ var o = read(); delete o[name]; write(o); },
     clear: function(){ write({}); },
     count: function(){ return Object.keys(read()).length; },
@@ -1126,6 +1155,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     dlg.querySelector('#ddf-sf-what').textContent = CLEARS;
     dlg.querySelector('.ddf-sf-keep').addEventListener('click', close);
     dlg.querySelector('.ddf-sf-go').addEventListener('click', function(){
+      if(DDF.track) DDF.track('start-fresh');
       wipe({overrides: dlg.querySelector('#ddf-sf-ov').checked});
       close(true);
       var onConnect = /(^|\/)connect\.html$/.test(location.pathname);
@@ -1532,6 +1562,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   function onClick(){
     if(!linkState()) return;
+    if(DDF.track) DDF.track(changed ? 'bookmark-again' : 'bookmark-clicked');   /* JEG-1548: a fixed event name, nothing else */
     markWantDone();
     freshUrl().then(function(url){
       try{ history.replaceState(history.state, '', url); }catch(e){}
@@ -1583,6 +1614,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       else { DDF.state.set('league', Object.assign({v:1}, cur || {}, {settings:merged})); DDF.state.set('link', {source:'manual', at:Date.now()}); }
     }catch(e){}
     sset(OK_KEY, '1');
+    if(DDF.track) DDF.track('settings-confirmed');
     if(DDF.leagueMeta) DDF.leagueMeta.want('settings', JSON.stringify(form));
     soon();
   }
