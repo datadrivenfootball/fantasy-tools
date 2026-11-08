@@ -264,9 +264,10 @@ class League:
     # JEG-1335: projection noise of the fractional flex and bench seats, in
     # mean points per game. None = SEAT_SIGMA; 0 = the hard cutoffs.
     seat_sigma: float | None = None
-    # JEG-1569 (prototype, default off): which sources set the DDF weights
-    # (VP-4). "all" = every source in I (live); "charts" = the trade charts in
-    # I only. Default from the DDF_VALUE_SPLIT environment variable.
+    # JEG-1569 (VP-4.6): which sources set the DDF weights. "all" = every
+    # source in I (live); "charts" = the trade charts in I (and the projections
+    # their own split). Setting resolves it (argument, then the DDF_VALUE_SPLIT
+    # environment variable); a League built directly takes this default.
     ddf_split: str = "all"
 
     @property
@@ -1075,6 +1076,18 @@ def _mixes(groups: dict, bench_share: float | None) -> dict:
                 ws, wb = 0.0, beta[p]
             weights[f"{p}|starter"], weights[f"{p}|bench"] = ws, wb
     return {"total_vorp": total, "starter_mix": sig, "bench_mix": beta, "weights": weights}
+
+
+DDF_VALUE_SPLITS = ("all", "charts")  # value-model.js DDF_VALUE_SPLITS
+
+
+def resolve_ddf_split(asked: str | None = None) -> str:
+    """JEG-1569: value-model.js vpDdfSplit. The asked split when known, else
+    the DDF_VALUE_SPLIT environment variable when known, else League's default."""
+    if asked in DDF_VALUE_SPLITS:
+        return asked
+    env = os.environ.get("DDF_VALUE_SPLIT")
+    return env if env in DDF_VALUE_SPLITS else League.ddf_split
 
 
 def uses_two_qb_native_share(shape: dict) -> bool:
@@ -1992,7 +2005,7 @@ class Setting:
             position_shares=position_shares, bench_share_override=bench_share_override,
             league_rostered=tuple(league_rostered) if league_rostered is not None else None,
             bench_level=bench_level, league_reserve=tuple(league_reserve or ()),
-            ddf_split=ddf_split or os.environ.get("DDF_VALUE_SPLIT", "all"))
+            ddf_split=resolve_ddf_split(ddf_split))
         self.pos_of = {k: p["pos"] for k, p in inp.players.items()}
         self._current = None
         self._prior = None
@@ -2267,7 +2280,8 @@ class Setting:
                 "included": res["included"],
                 "excluded": [{"key": k, "reason": v} for k, v in st["excluded"].items()],
                 "ddfWeights": res["ddf_weights"], "allocation": res["slot_fill"],
-                **({"ddfWeightsProjections": res["ddf_weights_projections"]} if "ddf_split" in res else {}),
+                **({"ddfSplit": res["ddf_split"], "ddfWeightsProjections": res["ddf_weights_projections"]}
+                   if "ddf_split" in res else {}),
                 "fillSets": res["fill_sets"], "sources": srcs}
 
 
