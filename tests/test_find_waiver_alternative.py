@@ -95,7 +95,7 @@ CASES = {
     "friend trade, stale list names rostered players": FRIEND + ("stale", "natural", False),
 }
 WAIVER_RE = re.compile(r"^The best available QBs, Gus Waiver and Gil Waiver, close (\d+)% of the gap this trade fills, without giving up "
-                       r"Josh Jacobs and Jacoby Brissett\. With them added, this trade (still adds \+\d+\.\d to your starters|no longer makes your team better)\.$")
+                       r"Josh Jacobs and Jacoby Brissett\. With them added, this trade (still adds \+\d+\.\d to your starters|adds \+\d+\.\d to your starters, which no longer outweighs what you give up|no longer makes your team better)\.$")
 
 
 def case_errors(page) -> list[str]:
@@ -149,6 +149,28 @@ class FindWaiverAlternativeTest(unittest.TestCase):
         found, errors = self._cases()
         self.assertEqual(found, [], "\n".join(found))
         self.assertEqual(errors, [])
+
+    def test_waiver_line_every_branch(self):
+        # Each outcome of DDF.find.waiverAlternative gets a non-empty line (a demoted offer is never left unexplained).
+        with serve(DIST) as base, self.sync_playwright() as pw:
+            browser = _launch(pw)
+            try:
+                page, errors = _find_page(browser, base, 1440, 900, _league())
+                lines = page.evaluate(r"""() => {
+                  const P = [{name: 'Gus Waiver', pos: 'QB'}], give = [{name: 'Josh Jacobs'}];
+                  const L = w => DDFWhy.waiverLine(Object.assign({players: P}, w), give);
+                  return {small: L({covered: null, ok: false, gainAfter: 0, demoted: true}),
+                    fails: L({covered: 0.1, ok: false, gainAfter: 3, demoted: true}),
+                    none: L({covered: 0, ok: true, gainAfter: 9, demoted: false}),
+                    most: L({covered: 0.75, ok: true, gainAfter: 2, demoted: true})};
+                }""")
+                self.assertEqual(lines["small"], "The best available QB, Gus Waiver, is a pickup at the same position, with nothing given up. With Gus Waiver added, this trade no longer makes your team better.")
+                self.assertEqual(lines["fails"], "The best available QB, Gus Waiver, closes 10% of the gap this trade fills, without giving up Josh Jacobs. With Gus Waiver added, this trade adds +3.0 to your starters, which no longer outweighs what you give up.")
+                self.assertEqual(lines["none"], "The best available QB, Gus Waiver, does not close the gap this trade fills.")
+                self.assertEqual(lines["most"], "The best available QB, Gus Waiver, closes 75% of the gap this trade fills, without giving up Josh Jacobs. With Gus Waiver added, this trade still adds +2.0 to your starters.")
+                self.assertEqual(errors, [])
+            finally:
+                browser.close()
 
     def test_guard_fails_on_drift(self):
         src = (DIST / "find-engine.js").read_text()

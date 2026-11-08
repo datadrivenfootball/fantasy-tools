@@ -211,10 +211,10 @@
     var who = pos.length === 1 ? "The best available " + pos[0] + (many ? "s" : "") : "The best available players at " + list(pos);
     var gave = (give || []).map(function (r) { return r.name; });
     var share = finite(w.covered) ? Math.round(w.covered * 100) : null;
-    var first = share === null ? "" : share === 0
+    var first = share === null ? who + ", " + list(names) + ", " + (many ? "are" : "is") + " a pickup at the same position, with nothing given up."
+      : share === 0
       ? who + ", " + list(names) + ", " + (many ? "do" : "does") + " not close the gap this trade fills."
       : who + ", " + list(names) + ", " + (many ? "close " : "closes ") + share + "% of the gap this trade fills, without giving up " + (gave.length ? list(gave) : "anyone") + ".";
-    if (!first) return "";
     var added = " With " + (many ? "them" : names[0]) + " added, ";
     var beyond = w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade still adds " + shown(w.gainAfter) + " to your starters."
       : !w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade adds " + shown(w.gainAfter) + " to your starters, which no longer outweighs what you give up."

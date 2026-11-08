@@ -284,7 +284,10 @@
   var gainOf = function (r) { return Math.round(r.starterDelta * 10) / 10; };
   // JEG-1572: the pickups that improve your starters (the cards below), handed to the trade search as the waiver alternative.
   function waiverPool() {
-    return (S.pickups ? S.pickups.results : []).filter(function (r) { return r.starterDelta !== null && gainOf(r) > 0; })
+    // A list typed on waivers.html is only checked against your roster: a player on any team here is not available.
+    var rostered = new Set();
+    ((S.cur && S.cur.teams) || []).forEach(function (t) { DDF.find.rowsOf(t).forEach(function (r) { rostered.add(keyOf(r)); }); });
+    return (S.pickups ? S.pickups.results : []).filter(function (r) { return r.starterDelta !== null && gainOf(r) > 0 && !rostered.has(keyOf(r.candidate)); })
       .map(function (r) { return {row: r.candidate, starterDelta: r.starterDelta}; });
   }
   function renderPickups() {

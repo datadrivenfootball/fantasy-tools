@@ -32,6 +32,8 @@ already run by find.html for the pickup cards).
 Review of b35dfc95 (independent agent, CHANGES NEEDED): pool not filtered against the partner's roster (fixed, test case
 "stale list"); the line contradicted a demotion by the construction/value test ("no longer outweighs what you give up"
 now); a gain under 0.05 skipped the value-test demotion (fixed); the parity test now asserts some offer is demoted.
+Re-review of 96f68745: a small-gain demotion left an empty line (now "X is a pickup at the same position, with nothing
+given up", every branch tested); the available list is also filtered against every roster in the league (find-page).
 Left as is: the check runs on every Natural and Partner neutral trade found (the parity run time did not change, 56 s).
 
 ## Partner tag
