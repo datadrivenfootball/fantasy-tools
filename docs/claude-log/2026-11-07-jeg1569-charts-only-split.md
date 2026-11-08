@@ -41,5 +41,12 @@ The flip is a separate PR that stays unmerged until Jeremy says go.
 ### Claimed, not confirmed
 - The get-values `split` parameter is not deployed and not run under Deno here. Deploying the edge function needs
   Jeremy's separate yes.
-- The spec reference (`pipelines/spec_reference/`) has no `"charts"` mode yet. It only has to follow at the flip
-  (the worked example), which is listed in the flip PR.
+- The get-values top-level `split` 400 path (index.ts) is not run under Deno here; `league.split` is covered through
+  `tests/_edge_pipeline_runner.cjs`.
+
+### Follow-up (Codex P1 on #1366): spec reference paired
+- `pipelines/spec_reference/value_pipeline.py` now has `Setting.ddf_split`, with the same rule.
+- `SpecReferenceEqualsReferenceOnTheChartsSplit`: the spec equals the Python reference on both weight sets, DDF Value
+  and DDF Projections at 3 settings, in both modes.
+- On identical inputs, the spec's live output (`pipeline_live.build`, 13 settings) hashes the same as main's
+  (`80a628a4...`).

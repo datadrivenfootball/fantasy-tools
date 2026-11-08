@@ -85,6 +85,10 @@ class Setting:
     # JEG-1335: projection noise of the fractional flex and bench seats, in
     # mean points per game. None = SEAT_SIGMA; 0 = the hard cutoffs.
     seat_sigma: float | None = None
+    # JEG-1569 (VP-4.6): "all" = DDF weights over every source in I (live);
+    # "charts" = over the charts in I, no JEG-1366 rule, and the projections
+    # priced on their own split over the projections in I.
+    ddf_split: str = "all"
 
     @classmethod
     def from_fixture(cls, s: dict) -> "Setting":
@@ -1093,10 +1097,20 @@ def run_week(setting: Setting, pos_of: dict, sources: dict, included: list,
                                  league_rostered=setting.league_rostered)
         priced[s]["status"] = "included" if s in inc else sources[s].get("status", "excluded")
         priced[s]["allocation"] = a
-    S_raw, B_raw, bs_star, W = ddf_weights(priced, inc, bs, setting.position_shares,
-                                           two_qb_native_share(setting.slots, setting.superflex))
+    # JEG-1569 (VP-4.6): on the "charts" split the charts set W and the
+    # projections their own W_proj; no chart with weights = "all".
+    split_charts = [s for s in inc if setting.ddf_split == "charts" and family[s] == CHART
+                    and priced.get(s) and priced[s]["has_weights"]]
+    split_projs = [s for s in inc if split_charts and family[s] == PROJECTION
+                   and priced.get(s) and priced[s]["has_weights"]]
+    if split_charts:
+        S_raw, B_raw, bs_star, W = ddf_weights(priced, split_charts, bs, setting.position_shares, False)
+    else:
+        S_raw, B_raw, bs_star, W = ddf_weights(priced, inc, bs, setting.position_shares,
+                                               two_qb_native_share(setting.slots, setting.superflex))
+    W_proj = ddf_weights(priced, split_projs, bs, setting.position_shares, False)[3] if split_projs else None
     for s in sources:
-        adjust_source(priced[s], pie, W)
+        adjust_source(priced[s], pie, W_proj if W_proj is not None and family[s] == PROJECTION else W)
 
     # rows: every player any source lists (VP-6.1)
     row_keys = sorted({k for s in sources for k in natives[s]})
@@ -1218,7 +1232,7 @@ def run_week(setting: Setting, pos_of: dict, sources: dict, included: list,
                                         "indexed_factor") if k in r}
         if degenerate:
             src_out[s]["allocation"] = r["allocation"]
-    return {
+    out = {
         "included": inc,
         "basis": basis_out,
         "hidden": [s for s in inc if s in hidden_set],
@@ -1240,6 +1254,11 @@ def run_week(setting: Setting, pos_of: dict, sources: dict, included: list,
         "default_ranking": ranking,
         "rows": rows,
     }
+    if setting.ddf_split == "charts":  # JEG-1569: absent on the live split
+        out["ddf_split"] = "charts" if split_charts else "all"
+        out["ddf_weights_projections"] = W_proj
+        out["group_budgets_projections"] = {g: pie * W_proj[g] for g in GROUP_KEYS} if W_proj else None
+    return out
 
 
 def assign_tiers(rows: dict, pos_of: dict, slot_fill: dict, m: dict) -> None:
