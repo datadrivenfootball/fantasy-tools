@@ -365,7 +365,7 @@
     linkMsg("Loading your league from Sleeper...", "loading");
     return whenRows().then(function (rows) {
       return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
-        if (!current()) return null;
+        if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
         sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
         sleeperLast = id;
