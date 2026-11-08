@@ -321,12 +321,76 @@
     var line = $("replacing-line");
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }
+  /* ---------- Sleeper (JEG-1570): the league ID loads every roster; no copy and paste ---------- */
+  var SLEEPER = {h3: "Sleeper league link or ID", p: "Paste your league link or league ID. Sleeper rosters are public, so we load every team for you.",
+    label: "Sleeper league link or ID", btn: "Get my league", ph: "A Sleeper league link or ID", title: "Add your Sleeper league",
+    intro: "Paste your Sleeper league link or ID. We load every team for you, no copying needed."};
+  var original = null, sleeperBusy = false, sleeperLast = null;
+  function provider() { var b = document.querySelector("[data-provider][aria-pressed='true']"); return b ? b.getAttribute("data-provider") : "espn"; }
+  function wayEls() {
+    var way = document.querySelector(".way-link");
+    return way && {h3: way.querySelector("h3"), p: way.querySelector("h3 + p"), label: way.querySelector("label[for='league-ref']"),
+      btn: $("get-link"), input: $("league-ref"), title: $("step1-title"), intro: $("connect-intro")};
+  }
+  function applyProvider() {
+    var el = wayEls(); if (!el) return;
+    var sl = provider() === "sleeper";
+    document.body.setAttribute("data-entry-provider", provider());
+    var titleText = el.title.lastChild;
+    if (!original) original = {h3: el.h3.textContent, p: el.p ? el.p.textContent : "", label: el.label.textContent, btn: el.btn.textContent,
+      ph: el.input.getAttribute("placeholder") || "", title: titleText ? titleText.textContent : "", intro: el.intro ? el.intro.textContent : ""};
+    var src = sl ? SLEEPER : original;
+    el.h3.textContent = src.h3; if (el.p) el.p.textContent = src.p; el.label.textContent = src.label; el.btn.textContent = src.btn;
+    el.input.setAttribute("placeholder", src.ph); if (titleText) titleText.textContent = src.title;
+    if (el.intro) el.intro.textContent = src.intro;
+    $("sleeper-paste").hidden = !sl;
+    if (!sl) document.body.classList.remove("show-paste");
+    var out = $("link-result"); if (out) { out.textContent = ""; out.className = ""; }
+  }
+  function linkMsg(text, kind) { var out = $("link-result"); if (!out) return; out.textContent = text; out.className = kind ? "is-" + kind : ""; }
+  function sleeperGo() {
+    var el = wayEls(), id = DDF.sleeper && DDF.sleeper.parseId(el.input.value);
+    if (!id) { linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Paste your Sleeper league link or ID first.", "error"); return Promise.resolve(null); }
+    if (sleeperBusy || sleeperLast === id) return Promise.resolve(null);
+    sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
+    linkMsg("Loading your league from Sleeper...", "loading");
+    return whenRows().then(function (rows) { return DDF.sleeper.load(id, {rows: rows, table: table()}); })
+      .then(function (out) {
+        sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy");
+        if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
+        sleeperLast = id;
+        var res = out.result;
+        if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
+        hideEditNames();
+        showResult(res);
+        save(DDF.leaguePaste.record(res, "sleeper"));
+        askBookmark(res);
+        var lg = res.league || {};
+        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then confirm your team.", "ok");
+        status("", "");
+        return out;
+      }, function () { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); return null; });
+  }
+  function initSleeper() {
+    var el = wayEls(); if (!el || !DDF.sleeper) return;
+    document.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest("button[data-provider]")) applyProvider();   /* after the toggle's own handler */
+    });
+    el.btn.addEventListener("click", function () { if (provider() === "sleeper") sleeperGo(); });
+    el.input.addEventListener("keydown", function (e) { if (e.key === "Enter" && provider() === "sleeper") { e.preventDefault(); sleeperGo(); } });
+    el.input.addEventListener("paste", function () { if (provider() === "sleeper") setTimeout(sleeperGo, 0); });
+    el.input.addEventListener("change", function () { if (provider() === "sleeper") sleeperGo(); });
+    el.input.addEventListener("input", function () { sleeperLast = null; });
+    $("sleeper-paste-instead").addEventListener("click", function () { document.body.classList.add("show-paste"); $("rosters").focus(); });
+    applyProvider();
+  }
   function init() {
     var form = $("roster-form");
     if (!form || !DDF.leaguePaste) return;
     form.addEventListener("submit", function (e) { e.preventDefault(); check(true, true); });
     var ta = $("rosters");
     ta.addEventListener("paste", function () { setTimeout(function () { check(false, true); }, 0); });
+    initSleeper();
     editing = startEditing();
     if (!editing) DDF.state.remove("editprev");
     showEditing();
@@ -363,5 +427,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo};
 })();
