@@ -373,6 +373,65 @@ class ValuesPageEngineParityTest(unittest.TestCase):
         errors = _run_parity()
         self.assertEqual(errors, [], errors)
 
+    def test_card_gap_label_names_its_charts(self):
+        """R6-CX-02: the player card's gap label names the charts the gap used (both, CBS only or FantasyCalc only), and
+        the number is DDF Value minus those, read from the engine (TradeValueCurveControls), not the page model."""
+        try:
+            from playwright.sync_api import sync_playwright
+        except Exception as exc:
+            raise _render_env.unavailable(f'Playwright not available: {exc}') from exc
+        eng_js = """(name) => { const C = TradeValueCurveControls, ins = C.getInspection();
+          const r = C.getAllRows().find(r => r.name === name); if (!r) return null; const ir = ins.rows[String(r.player_key)] || {};
+          const n = v => (typeof v === 'number' && isFinite(v) ? v : null);
+          /* An estimate is not the chart's own number, so the page shows a dash for it (Sources & methodology). */
+          const own = s => { const p = ins.players[s] && ins.players[s][String(r.player_key)]; return p && p.estimated ? null : n(ir.indexed && ir.indexed[s]); };
+          return {ddf: r.ddfByVersion.blended.value, cbs: own('cbs'), fc: own('fantasycalc')}; }"""
+        card_js = """() => { const c = document.getElementById('values-card'); if (!c || c.hidden) return null;
+          return Object.fromEntries([...c.querySelectorAll('dt')].map(dt => [dt.textContent.trim(), dt.nextElementSibling.textContent.trim()])); }"""
+        got = {}
+        with _serve() as base_url, sync_playwright() as pw:
+            browser = pw.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=_render_env.chromium_executable())
+            page = browser.new_page(viewport={'width': 1280, 'height': 900})
+            errs = []
+            page.on('pageerror', lambda e: errs.append(str(e)))
+            page.route(lambda u: not (u.startswith('http://127.0.0.1') or u.startswith('http://localhost')), lambda route: route.abort())
+            page.add_init_script('(function(){ try { localStorage.clear(); sessionStorage.clear(); } catch(_){} })()')
+            page.goto(f'{base_url}/values.html', wait_until='networkidle', timeout=60000)
+            page.wait_for_function(READY_EXPR, timeout=20000)
+            for name in ('Rico Dowdle', 'Jahmyr Gibbs'):
+                page.fill('#search', name)
+                page.dispatch_event('#search', 'input')
+                page.wait_for_timeout(300)
+                page.click('#rows tr[data-i]')
+                page.wait_for_timeout(200)
+                got[name] = (page.evaluate(eng_js, name), page.evaluate(card_js))
+            browser.close()
+        self.assertEqual(errs, [])
+        kinds = set()
+        for name, (eng, card) in got.items():
+            self.assertIsNotNone(eng, f'{name} is not priced; pick another example')
+            self.assertIsNotNone(card, f'{name}: no player card')
+            used = [v for v in (eng['cbs'], eng['fc']) if v is not None]
+            label = ('DDF minus CBS/FantasyCalc average' if len(used) == 2 else
+                     'DDF minus CBS' if eng['cbs'] is not None else 'DDF minus FantasyCalc')
+            kinds.add(label)
+            self.assertIn(label, card, f'{name}: card labels {list(card)}')
+            gap = eng['ddf'] - sum(used) / len(used)
+            self.assertEqual(card[label], ('+' if gap >= 0 else '−') + f'{abs(gap):.1f}', name)
+        self.assertEqual(len(kinds), 2, f'the examples no longer cover one chart and two charts: {kinds}')
+
+    def test_round6_copy(self):
+        """R6-OP-08 (Buy / Sell says how it ranks and filters, as values-buysell.js gapOf / byGap / buyList / sellList do),
+        R6-OP-09 (both ways an estimate is made) and R6-CX-02 (the card's one-chart rule)."""
+        html = (DIST / 'values.html').read_text(encoding='utf-8')
+        js = (DIST / 'values-buysell.js').read_text(encoding='utf-8')
+        self.assertIn('Each list is ranked by the largest gap to any one chart (the Largest gap column); a player is listed in Buy '
+                      'when his DDF Value is above the Charts average, and in Sell when it is below.', html)
+        for code in ('const byGap=(a,b)=>Math.abs(b.g.g)-Math.abs(a.g.g);', 'p.yours&&p.mkt>p.ddf', '!p.yours&&p.ddf>p.mkt'):
+            self.assertIn(code, js, 'Buy / Sell ranking or filter changed; update its note in values.html')
+        self.assertIn('a dash (—) if the engine filled him in (from the other charts or from the chart’s own curve)', html)
+        self.assertIn('when only one of the two has an indexed value for the player, it is DDF Value minus that one', html)
+
     def test_guard_fails_on_stale_value(self):
         """Serve a modified values-chart.js that adds 0.1 to every loaded ddf,
         then confirm the parity check catches it (the guard is not vacuous)."""

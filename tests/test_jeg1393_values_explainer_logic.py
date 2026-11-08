@@ -327,6 +327,25 @@ class Round4Test(unittest.TestCase):
         self.assertIn("`P(lo < X <= hi) = Phi((hi - x) / s(x)) - Phi((lo - x) / s(x))`", METHODOLOGY)
         self.assertIn("hidden sources left out (as the Indexed\n   basis, which it reads)", METHODOLOGY)
 
+    # Round 6.
+    def test_weight_sets_are_per_allocation(self):
+        self.assertNotIn("One weight set per setting and week, shared by all three DDF Value versions.`", TEMPLATE)
+        self.assertIn("One weight set per allocation, shared by all three DDF Value versions.", TEMPLATE)
+        self.assertIn("The DDF weights shown are their allocation-weighted average", TEMPLATE)
+        self.assertEqual(TEMPLATE.count("${WEIGHT_SETS}${SPLIT_NOTE}"), 2)
+        self.assertIn("A charts-only split (JEG-1569", TEMPLATE)
+
+    def test_bench_weight_users_are_the_verified_ones(self):
+        self.assertNotIn("Team, Build a Trade and Buy / Sell's natural fit", TEMPLATE)
+        self.assertIn("Team's best-move size and the Natural fit check", TEMPLATE)
+        self.assertIn("Team's \"Your roster\" and ROSTER DDF totals count every player in full", TEMPLATE)
+
+    def test_methodology_expected_starts_is_fractional_and_dated(self):
+        self.assertNotIn("greedy flex (OC-4 A)", METHODOLOGY)
+        self.assertIn("fractional flex seats\n(VP-2.2g, JEG-1335", METHODOLOGY)
+        self.assertNotIn("this week", METHODOLOGY[METHODOLOGY.index("**ES-1"):METHODOLOGY.index("**ES-5")])
+        self.assertIn("At adoption (JEG-536, 2026-10-12) the rates were QB 58%", METHODOLOGY)
+
 
 if __name__ == "__main__":
     unittest.main()
