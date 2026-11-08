@@ -37,11 +37,11 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4, 5, 6]
     runs-on: ubuntu-latest
-    continue-on-error: true
     # JEG-1547: one job ran out of its 120-minute bound every night since 2026-10-31 (391 commands, about
     # 150 minutes in sequence; run 42489313245 reached command 191 at 110 minutes). Six round-robin shards
     # come to about 19-29 minutes each by that run's per-command times, so 60 minutes leaves 2x headroom and
     # a hung shard is cut off sooner.
+    continue-on-error: true
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
