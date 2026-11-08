@@ -264,18 +264,11 @@ class League:
     # JEG-1335: projection noise of the fractional flex and bench seats, in
     # mean points per game. None = SEAT_SIGMA; 0 = the hard cutoffs.
     seat_sigma: float | None = None
-<<<<<<< HEAD
-    # JEG-1569 (prototype, default off): which sources set the DDF weights
-    # (VP-4). "all" = every source in I (live); "charts" = the trade charts in
-    # I only. Default from the DDF_VALUE_SPLIT environment variable.
-    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: <date>)
-=======
     # JEG-1569 (VP-4.6): which sources set the DDF weights. "all" = every
-    # source in I (live); "charts" = the trade charts in I (and the projections
-    # their own split). Setting resolves it (argument, then the DDF_VALUE_SPLIT
+    # source in I (the old split); "charts" = the trade charts in I (and the
+    # projections their own split; live since the flip). Setting resolves it (argument, then the DDF_VALUE_SPLIT
     # environment variable); a League built directly takes this default.
-    ddf_split: str = "all"
->>>>>>> origin/claude/JEG-1569-split-flag
+    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: <date>)
 
     @property
     def starting_slots(self) -> int:
@@ -2012,11 +2005,7 @@ class Setting:
             position_shares=position_shares, bench_share_override=bench_share_override,
             league_rostered=tuple(league_rostered) if league_rostered is not None else None,
             bench_level=bench_level, league_reserve=tuple(league_reserve or ()),
-<<<<<<< HEAD
-            ddf_split=ddf_split or os.environ.get("DDF_VALUE_SPLIT", "charts"))
-=======
             ddf_split=resolve_ddf_split(ddf_split))
->>>>>>> origin/claude/JEG-1569-split-flag
         self.pos_of = {k: p["pos"] for k, p in inp.players.items()}
         self._current = None
         self._prior = None

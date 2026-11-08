@@ -70,13 +70,10 @@ class ChartsOnlySplit(unittest.TestCase):
         for sf in (0, 1):
             _default, live, charts = self._pair(sf)
             self.assertNotIn("ddfWeightsProjections", live)
-<<<<<<< HEAD
             self.assertIn("ddfWeightsProjections", _default)
-=======
             live_res = vr.Setting(self.inp, "half_ppr", 12, sf, ddf_split="all").result()
             for key in ("ddf_split", "ddf_weights_projections", "group_budgets_projections"):
                 self.assertNotIn(key, live_res)
->>>>>>> origin/claude/JEG-1569-split-flag
             proj = self._mean(charts, "projection")
             for g, w in charts["ddfWeightsProjections"].items():
                 self.assertAlmostEqual(w, proj[g], places=12, msg=f"sf={sf} {g}")
