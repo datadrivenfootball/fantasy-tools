@@ -9,7 +9,8 @@
    opts.players: optional array of known player names (lowercase ok). Defaults to the site's player table.
    DDF.rosterParse.league(text, {teams}) -> {leagueName, leagueId, platform, confidence} from the page header (below). */
 (function(){
-  var SLOT = 'QB|RB|WR|TE|FLEX|SUPERFLEX|SFLX|W\\/R\\/T|W\\/R|W\\/T|R\\/W\\/T|OP|K|PK|DEF|D\\/ST|DST|BN|BE|BENCH|IR|TAXI|RES|NA';
+  /* JEG-1571: QB-eligible flex labels first (Q/W/R/T, W/R/T/Q, QWRT, SUPER_FLEX) so they read as slots, not names */
+  var SLOT = 'Q\\/W\\/R\\/T|W\\/R\\/T\\/Q|QWRT|SUPER_FLEX|QB|RB|WR|TE|FLEX|SUPERFLEX|SFLX|W\\/R\\/T|W\\/R|W\\/T|R\\/W\\/T|OP|K|PK|DEF|D\\/ST|DST|BN|BE|BENCH|IR|TAXI|RES|NA';
   var POS = new RegExp('(^|[\\s\\-·|,(])(' + SLOT + ')([\\s\\-·|,)]|$)');
   var SLOT_ONLY = new RegExp('^\\|?\\s*(' + SLOT + ')\\s*(\\||$)', 'i');
   var STOP = /^((team )?rosters?( list)?|team list|starting rosters?|league|team|teams|pos(ition)?|player|players|starters?|bench|reserve|taxi( squad)?|ir|total|proj(ected)?|opp|week \d+|bye|status|slot|name|rank|record|standings|matchup|schedule|scoreboard|home|sleeper|espn|yahoo( sports)?|cbs( sports)?|nfl|fantasy( football)?|my team|all teams|view|edit|trade|add|drop|waivers?|free agents?|transactions?|settings|owners?|managers?|fpts|avg|last|next|rost|%|stats|news|overview|draft|research|stattracker|league chat|email league|trading list|record book|dues|search|menu|log ?in|sign ?in|more|share|print|notes?|videos?|forecast|injuries|points|projected points|actual|rk|ros|pts|bye week|depth chart)$/i;

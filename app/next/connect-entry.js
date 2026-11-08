@@ -83,8 +83,15 @@
     if (!st || !DDF.engine || !DDF.engine.apply || !Array.isArray(st.slots)) return;
     try {
       DDF.engine.apply({scoring: st.scoring, teams: st.teams, superflex: !!st.superflex,
+        superflexSlots: DDF.link && DDF.link.superflexSlots ? DDF.link.superflexSlots(st) : (st.superflex ? 1 : 0),
         roster: {QB: st.slots[0], RB: st.slots[1], WR: st.slots[2], TE: st.slots[3], FLEX: st.slots[4], BENCH: st.slots[5]}});
     } catch (e) { /* settings.html asks again */ }
+  }
+  // JEG-1571: a paste that prints QB-eligible flex slot labels (Q/W/R/T, OP, SUPERFLEX...) sets that count; settings.html
+  // shows it for the reader to confirm. A paste without those labels leaves the setting alone.
+  function pastedSettings(res) {
+    if (!res || !Number.isInteger(res.superflexSlots) || !DDF.engine || !DDF.engine.apply) return;
+    try { DDF.engine.apply({superflexSlots: res.superflexSlots}); } catch (e) { /* settings.html asks */ }
   }
   function save(record) {
     if (editing && editing.source === "link") keepChatSettings();
@@ -190,6 +197,7 @@
         hideEditNames();
         showResult(res);
         save(DDF.leaguePaste.record(res, "paste"));
+        pastedSettings(res);
         askBookmark(res);
         status("Check the list below, then confirm your team.", "ok");
         if (scroll) $("recognized").scrollIntoView({block: "start"});
@@ -227,6 +235,7 @@
       hideEditNames();
       showResult(res);
       save(DDF.leaguePaste.record(res, "paste"));
+      pastedSettings(res);
       askBookmark(res);
       status("Check the list below, then confirm your team.", "ok");
       $("recognized").scrollIntoView({block: "start"});

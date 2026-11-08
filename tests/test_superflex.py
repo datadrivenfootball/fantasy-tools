@@ -24,7 +24,8 @@ Checks, each proved against a broken state:
    it the Python == JS roster comparison and the slot-weighted mutation of
    that port.)
 3. The live page accepts the control. setRosterSpot('SUPERFLEX', n) and the
-   classic page's Superflex input change the roster, clamp to 0..1, and the
+   classic page's Superflex input change the roster, clamp to 0..2 (JEG-1571: up to two QB-eligible flex
+   slots; was 0..1), and the
    published charts plot their superflex-overlay natives times one factor
    (VP-6.4; before JEG-508, the anchor-matched derivation).
    Broken state: a widget without the SUPERFLEX roster key (origin/main
@@ -272,8 +273,8 @@ def collect_page(widget_override=None, data_overrides=None):
 
 def page_problems(got, fixture=None):
     problems = [f"page error: {e[:200]}" for e in got["errors"]]
-    if got["clamp"] != 1:
-        problems.append(f"setRosterSpot('SUPERFLEX', 5) left SUPERFLEX={got['clamp']}, want 1 (clamped)")
+    if got["clamp"] != 2:
+        problems.append(f"setRosterSpot('SUPERFLEX', 5) left SUPERFLEX={got['clamp']}, want 2 (clamped)")
     if got["zero"] != 0:
         problems.append(f"setRosterSpot('SUPERFLEX', 0) left SUPERFLEX={got['zero']}")
     if got["has_input"] is not True:
@@ -316,7 +317,7 @@ class SuperflexPageGuard(unittest.TestCase):
                 "native": {"a": 10, "b": 5}, "native_superflex": {"a": 20},
                 "reindexed": {"a": 40, "b": 10},
             }}} for source in SOURCES}}
-        self.got = {"errors": [], "clamp": 1, "zero": 0, "has_input": True,
+        self.got = {"errors": [], "clamp": 2, "zero": 0, "has_input": True,
                     "sf1": {"fixedPie": True, "maps": {
                         source: {"1": 40, "2": 10} for source in SOURCES}}}
         positions = patch(__name__ + ".browser_players", return_value={1: "QB", 2: "RB"})
