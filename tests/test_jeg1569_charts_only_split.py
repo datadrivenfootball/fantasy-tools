@@ -97,6 +97,36 @@ class ChartsOnlySplit(unittest.TestCase):
         self.assertNotAlmostEqual(qb(live), qb(charts), places=3)
 
 
+class SpecReferenceEqualsReferenceOnTheChartsSplit(unittest.TestCase):
+    """The clean-room spec reference (pipelines/spec_reference) on the live snapshot equals the Python
+    reference on the "charts" split: both weight sets, DDF Value and DDF Projections. The "all" run is
+    the control (it must agree too)."""
+
+    def test_spec_equals_reference(self):
+        from spec_reference import pipeline_live as pl
+        from spec_reference import value_pipeline as sp
+        data = pl.load(pl.default_paths())
+        cfg = pl.lineup_config()
+        lineup = sp.resolve_lineup(cfg) if cfg else None
+        inp = vr.Inputs.load(today=date(2026, 11, 7))
+        for split in ("all", "charts"):
+            for sc, t, sf in (("ppr", 12, 0), ("half_ppr", 12, 1), ("standard", 10, 0)):
+                with self.subTest(split=split, setting=(sc, t, sf)):
+                    spec = pl.run_setting(data, sc, t, sf, {}, lineup, setting_extra={"ddf_split": split})
+                    st = vr.Setting(inp, sc, t, sf, ddf_split=split)
+                    res = st.result()
+                    self.assertEqual(sorted(spec["included"]), sorted(res["included"]))
+                    for g, w in res["ddf_weights"].items():
+                        self.assertAlmostEqual(spec["ddf_weights"][g], w, places=12, msg=g)
+                    rows = st.rows("adj")
+                    for key in ("ddf_value", "ddf_value_projections"):
+                        got = spec["values"]["adjusted"][key]
+                        bad = [k for k, v in rows.items()
+                               if (v.get(key) is None) != (got.get(str(k)) is None)
+                               or (v.get(key) is not None and abs(v[key] - got[str(k)]) > TOL)]
+                        self.assertEqual(bad[:10], [], f"{key}: {len(bad)} players differ")
+
+
 class EngineEqualsReferenceOnTheChartsSplit(unittest.TestCase):
     """The engine (built dist, through get-values' own league mapping, league.split) equals the
     Python reference on the "charts" split: weights, both splits' bench share, DDF Value. A

@@ -518,7 +518,7 @@ that day). JEG-1393 R4 (OP-01, OP-11).
    the live rule; `"all"` (1-5 as written, 3a included) is the old split. A run
    picks `"charts"` with `setting.ddf_split` (engine), the engine-local global
    `DDF_VALUE_SPLIT`, the `DDF_VALUE_SPLIT` environment variable (Python
-   reference, and the engine under Node), or get-values' `split` parameter.
+   reference, and the engine under Node), or get-values' `split` parameter; the spec reference takes `Setting.ddf_split`.
    With `"charts"`:
    - `W` = 1-3 over the charts in `I` only, with no 3a projection rule (the
      charts' superflex / 2-QB lists set the QB share). It prices the charts,
