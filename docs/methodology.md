@@ -1598,7 +1598,7 @@ values. Aligning each position's top to ESPN's applies only to the fitted
 ### Inspecting the math
 
 Internal page: `modules/math-inspector.html` (live:
-https://jb-barrel-droid.github.io/fantasy-tools/modules/math-inspector.html).
+https://datadrivenfootball.github.io/fantasy-tools/modules/math-inspector.html).
 Noindex, linked from no public page. It runs the chart engine off-screen and
 shows, for any scoring, team count, roster and bench share: each source's saved
 inputs and provenance (content week, URL, bake, identity rows not resolved to a
