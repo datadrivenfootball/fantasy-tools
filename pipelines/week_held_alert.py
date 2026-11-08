@@ -18,12 +18,13 @@ generic 12-hour ops-alert sat among ~20 fidelity alerts. Jeremy, 2026-11-05:
 A source is *week-held* when this run's chain status shows Supabase holding a
 newer content week for it than the week the committed (published) history
 index serves, and the source is not held for its own fidelity problem (that is
-source-late's job, docs/source-lateness.md). When any source is week-held:
+fidelity alerts' job, the ops-alert issues). When any source is week-held:
 
 - chain mode (end of rebuild-chain.yml on main): alert in the same run;
 - tripwire mode (hourly, own schedule): alert when the committed chain status
-  that shows the hold is TRIPWIRE_HOURS old (the chain has not cleared it, or
-  the in-run alert did not fire).
+  that shows the hold is TRIPWIRE_HOURS old, i.e. the chain has stopped running
+  or stopped committing its status while a week is held. (A failed in-run alert
+  while the chain keeps running shows as an ::error annotation on every run.)
 
 The alert is one GitHub issue labelled `week-held` (GitHub emails the owner)
 and one Linear sub-issue of JEG-1512 per season-week (LINEAR_API_KEY, the
@@ -86,7 +87,7 @@ def week_ahead(status: dict, published: dict) -> dict[str, tuple[int, int]]:
             continue
         reason = str((detail.get(src) or {}).get("reason") or "") if isinstance(detail.get(src), dict) else ""
         if reason.startswith("fidelity"):
-            continue  # the source's own data problem: source-late owns it
+            continue  # the source's own data problem: the fidelity ops-alert owns it
         out[src] = (cand, live)
     return out
 
@@ -274,32 +275,50 @@ def main(argv=None) -> int:
     ap.add_argument("--chain-outcome", default="")
     ap.add_argument("--published", default="false")
     ap.add_argument("--status", default=str(STATUS))
-    ap.add_argument("--history", default="", help="history index file (default: committed HEAD copy)")
+    ap.add_argument("--history", default="", help="history index file (default: committed copy at --history-rev)")
+    ap.add_argument("--history-rev", default="HEAD",
+                    help="commit whose history index is the published one; the chain passes its checkout SHA "
+                         "when it did not push, because HEAD is then the unpublished candidate commit")
     args = ap.parse_args(argv)
     now = datetime.now(timezone.utc)
     repo, gh_token = os.environ.get("GITHUB_REPOSITORY"), os.environ.get("GITHUB_TOKEN")
     lin_token = os.environ.get("LINEAR_API_KEY", "").strip() or None
     drill = args.mode == "drill"
+    done, ahead, action, ttl, text = [], {}, "none", "", ""
     try:
         if drill:
             status, history = DRILL_STATUS, DRILL_HISTORY
         else:
             status = _read(Path(args.status))
-            history = _read(Path(args.history)) if args.history else committed_history()
+            history = _read(Path(args.history)) if args.history else committed_history(args.history_rev)
         ahead = week_ahead(status, history)
         action = "open" if drill else decide(args.mode, ahead, status, now, args.chain_outcome, args.published == "true")
         ttl = title(ahead, drill) if ahead else ""
         text = body(ahead, status, args.mode, now) if ahead else ""
-        label = DRILL_LABEL if drill else LABEL
-        done = [github(action, ttl, text, repo, gh_token, now, label=label)]
-        if (action == "open" and ahead) or action == "close":
-            week = max(c for c, _ in ahead.values()) if ahead else 0
-            done.append(linear(action, linear_key(history.get("season"), week, drill), ttl, text, lin_token, drill=drill))
-        if drill and gh_token and repo:
-            done.append(github("close", ttl, "", repo, gh_token, now, label=DRILL_LABEL))
     except Exception as e:  # noqa: BLE001 -- an alert never fails the chain job
-        print(f"::error title=week-held alert::alert not delivered ({type(e).__name__}: {e})")
+        print(f"::error title=week-held alert::not checked ({type(e).__name__}: {e})")
         return 0
+    label = DRILL_LABEL if drill else LABEL
+    try:
+        done.append(github(action, ttl, text, repo, gh_token, now, label=label))
+    except Exception as e:  # noqa: BLE001 -- GitHub down must not stop the Linear alert
+        done.append(f"github: NOT DELIVERED ({type(e).__name__}: {e})")
+    # Linear: every open, but a close only once per incident (when GitHub
+    # actually closed the issue), so publishing runs do not re-comment.
+    if (action == "open" and ahead) or (action == "close" and done[0].startswith("github: closed")):
+        try:
+            week = max(c for c, _ in ahead.values()) if ahead else 0
+            done.append(linear(action, linear_key(history.get("season"), week, drill), ttl, text, lin_token,
+                               drill=drill))
+        except Exception as e:  # noqa: BLE001
+            done.append(f"linear: NOT DELIVERED ({type(e).__name__}: {e})")
+    if drill and gh_token and repo:
+        try:
+            done.append(github("close", ttl, "", repo, gh_token, now, label=DRILL_LABEL))
+        except Exception as e:  # noqa: BLE001
+            done.append(f"github: drill close NOT DELIVERED ({type(e).__name__}: {e})")
+    if any("NOT DELIVERED" in d for d in done):
+        print("::error title=week-held alert::" + "; ".join(done))
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if drill:
         print("::notice title=week-held drill::" + "; ".join(done))

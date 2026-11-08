@@ -102,6 +102,8 @@ jobs:
       - name: Record workflow start time (JEG-137 R10)
         run: |
           echo "WORKFLOW_STARTED_AT=$(date -u +%FT%TZ)" >> $GITHUB_ENV
+          # JEG-1512: the published commit, for the week-held alert when this run does not push.
+          echo "CHECKOUT_SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
           echo 'Concurrency policy: same-ref pending runs may be replaced by a newer dispatch; running runs are not cancelled. Branch proofs have a separate slot. Job timeout: 120 minutes.' | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:
@@ -852,12 +854,19 @@ jobs:
       # this run did not publish it, open the `week-held` GitHub issue and a
       # Linear sub-issue of JEG-1512 in this run (no 6 h wait). Runbook:
       # docs/week-held-runbook.md. Never fails the job.
+      # Unpushed run: HEAD may be this run's own unpublished commit, so compare
+      # with the checkout commit (what main served when the run started).
       - name: Escalate a held new week (JEG-1512)
         if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
-        run: python3 pipelines/week_held_alert.py --mode chain --chain-outcome "${{ steps.chain.outcome }}" --published "${{ steps.push.outputs.pushed }}"
+          PUSHED: ${{ steps.push.outputs.pushed }}
+        run: |
+          rev=HEAD
+          [ "$PUSHED" = "true" ] || rev="${CHECKOUT_SHA:-HEAD}"
+          python3 pipelines/week_held_alert.py --mode chain --chain-outcome "${{ steps.chain.outcome }}" --published "$PUSHED" --history-rev "$rev"
 
       - name: Fail the job if the chain failed
         if: steps.chain.outcome == 'failure'

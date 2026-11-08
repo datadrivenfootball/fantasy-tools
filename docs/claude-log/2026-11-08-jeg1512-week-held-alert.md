@@ -38,12 +38,25 @@ said 2026-11-08T21:00Z. Run 41952295990 (11-05 02:08Z, 4 days red) logged
 - Runbook `docs/week-held-runbook.md`. Tests in test-unit-modules (non-blocking).
 
 ### Verified (check named)
-- `python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert`: 46 OK.
+- `python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert`: 49 OK.
 - Discrimination: with the old working-tree read, `ChainStuckReadsCommittedHistory`
   fails ('none' != 'open').
 - `tests.test_validate_shards`, `tests.test_run_suite` OK; actionlint finding count
   unchanged (40, all pre-existing shellcheck notes).
 
+### Independent review (Opus, PR #1381 comment) and fixes
+- Medium: a successful run that does not push had HEAD = its unpublished candidate,
+  so nothing looked held. Fixed: the chain records `CHECKOUT_SHA` and passes it as
+  `--history-rev` when `pushed != true`.
+- Medium: Linear close comments on every publishing run. Fixed: only when GitHub
+  actually closed an issue (once per incident).
+- Low: GitHub and Linear in separate try blocks (one failing still sends the other,
+  with an `::error` NOT DELIVERED annotation); `continue-on-error` on the new steps;
+  tripwire wording corrected (it catches a chain that stopped running or committing).
+- Reviewer replay: `week_ahead()` over 464 chain-status commits since 10-20 never
+  flagged a successful publish and caught the Week 7 and Week 9 holds.
+- Live drill run 42524624905: GitHub #1382 opened and closed, Linear JEG-1579 opened
+  (Urgent, owner:claude, child of JEG-1512) and archived.
+
 ### Claimed, not confirmed
-- Live drill (dispatch of source-lateness.yml with week_held_drill=true): see PR.
 - First real chain run on main after merge prints "week-held alert: github: nothing to do".

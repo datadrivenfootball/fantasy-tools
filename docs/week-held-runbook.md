@@ -20,12 +20,18 @@ can not let data go late ever again."
 | Path | When | File |
 |---|---|---|
 | Chain | end of every main `rebuild-chain.yml` run that leaves a newer week unpublished (no wait) | `pipelines/week_held_alert.py --mode chain` |
-| Tripwire | hourly at :50 (`source-lateness.yml`, its own schedule) when the committed chain status showing the hold is 2 h old | `--mode tripwire` |
+| Tripwire | hourly at :50 (`source-lateness.yml`, its own schedule) when the committed chain status showing the hold is 2 h old: the chain stopped running or stopped committing its status | `--mode tripwire` |
 | Drill | `source-lateness.yml` dispatched with `week_held_drill=true`: opens a `[drill]` issue and Linear sub-issue, then closes and archives both | `--mode drill` |
+
+A run that succeeds but does not push (push failed, release guard paused it,
+conflict handoff) compares with its checkout commit, so it alerts too; a
+handoff's next run normally publishes and closes the GitHub issue. If the
+GitHub or Linear call fails, the step prints an `::error` annotation naming
+which one was NOT DELIVERED, on every run until it works.
 
 Not week-held (other alerts own these): a source whose own publisher is late
 (`source-late`, docs/source-lateness.md); a source held for its own fidelity
-problem (`ops-alert` fidelity issues); a chain red with no new week
+problem (the fidelity `ops-alert` issues); a chain red with no new week
 (`chain-stuck` after 6 h, JEG-1194).
 
 ## Who and how fast
@@ -57,6 +63,8 @@ Owner: the Claude lane (coordinator). Response: same hour in waking hours
 
 ## Testing the alert
 
-Dispatch `Source lateness check` with `week_held_drill=true` once (any branch).
+Dispatch `Source lateness check` with `week_held_drill=true` once (any branch),
+not within a few minutes of :50 (the hourly run cancels it and could leave the
+`[drill]` issue open; close it by hand if so).
 The run log shows `github: opened #N`, `linear: opened and archived drill JEG-…`
 and `github: closed #N`. Unit tests: `python3 -m unittest tests.test_week_held_alert`.

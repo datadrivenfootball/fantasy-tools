@@ -205,6 +205,44 @@ class Cli(unittest.TestCase):
         self.assertIn("[drill] Week 2 is held", str(out.call_args_list))
 
 
+class Delivery(unittest.TestCase):
+    """Review of PR #1381: unpushed runs, GitHub failures, close comments."""
+
+    def _main(self, *args, gh=None, lin=None, history=PUBLISHED, status=WEEK9_STATUS):
+        with tempfile.TemporaryDirectory() as d:
+            st = Path(d, "s.json")
+            st.write_text(json.dumps(status))
+            with patch.dict("os.environ", {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "LINEAR_API_KEY": "k"}), \
+                    patch.object(wh, "committed_history", return_value=history) as hist, \
+                    patch.object(wh, "github", side_effect=gh or (lambda *a, **k: "github: opened #1")), \
+                    patch.object(wh, "linear", side_effect=lin or (lambda *a, **k: "linear: opened JEG-1")) as li, \
+                    patch("builtins.print") as out:
+                self.assertEqual(wh.main(["--status", str(st), *args]), 0)
+            return hist, li, " ".join(str(c.args[0]) for c in out.call_args_list)
+
+    def test_an_unpushed_run_compares_with_the_checkout_commit(self):
+        hist, _, _ = self._main("--mode", "chain", "--chain-outcome", "success", "--published", "false",
+                                "--history-rev", "abc123")
+        hist.assert_called_once_with("abc123")
+
+    def test_a_github_failure_still_files_linear_and_says_so(self):
+        def boom(*a, **k):
+            raise OSError("api down")
+        _, li, out = self._main("--mode", "chain", "--chain-outcome", "failure", gh=boom)
+        li.assert_called_once()
+        self.assertIn("github: NOT DELIVERED", out)
+        self.assertIn("::error title=week-held alert::", out)
+
+    def test_linear_close_comment_only_when_github_closed_an_issue(self):
+        done = dict(status=dict(WEEK9_STATUS, source_vintages={s: {"content_week": 8} for s in SOURCES}))
+        _, li, _ = self._main("--mode", "chain", "--chain-outcome", "success", "--published", "true",
+                              gh=lambda *a, **k: "github: published; no open issue", **done)
+        li.assert_not_called()
+        _, li, _ = self._main("--mode", "chain", "--chain-outcome", "success", "--published", "true",
+                              gh=lambda *a, **k: "github: closed #5", **done)
+        self.assertEqual(li.call_args.args[0], "close")
+
+
 class ChainStuckReadsCommittedHistory(unittest.TestCase):
     """JEG-1194's alert read the in-run index, which make sync stamps with the
     unpublished candidate's built_at, so it never opened. It must read HEAD."""
@@ -229,8 +267,11 @@ class Workflows(unittest.TestCase):
     def test_chain_escalates_on_main_with_both_tokens(self):
         wf = (ROOT / ".github" / "workflows" / "rebuild-chain.yml").read_text(encoding="utf-8")
         step = wf.split("pipelines/week_held_alert.py --mode chain")[0].rsplit("- name:", 1)[1]
-        for needle in ("always()", "refs/heads/main", "secrets.GITHUB_TOKEN", "secrets.LINEAR_API_KEY"):
+        for needle in ("always()", "refs/heads/main", "secrets.GITHUB_TOKEN", "secrets.LINEAR_API_KEY",
+                       "continue-on-error: true", "CHECKOUT_SHA"):
             self.assertIn(needle, step)
+        self.assertIn('--history-rev "$rev"', wf)
+        self.assertIn("CHECKOUT_SHA=$(git rev-parse HEAD)", wf)
         self.assertLess(wf.index("week_held_alert.py"), wf.index("Fail the job if the chain failed"))
 
     def test_tripwire_and_drill_run_on_the_hourly_schedule_workflow(self):
