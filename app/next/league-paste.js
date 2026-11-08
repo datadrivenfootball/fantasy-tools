@@ -128,14 +128,15 @@
 
   /* JEG-1571: QB-eligible flex (superflex) slots per team, from the slot labels a rosters page prints on their own line
      (Yahoo Q/W/R/T, ESPN OP, SUPERFLEX, SFLX, QWRT, W/R/T/Q). Each team lists its own, so the count is the labels over the
-     teams read, 0-2. null when the paste shows none: the reader's own setting stays (a missing label is not a 0). */
+     teams read, 1-2 (the paste's count replaces the reader's). null when the paste shows fewer than one label per two
+     teams: the reader's own setting stays (a missing label is not a 0, and a stray label is not a slot). */
   var QB_FLEX_LINE = /^\s*(?:\|\s*)?(Q\/W\/R\/T|W\/R\/T\/Q|QWRT|SUPER[ _-]?FLEX|SFLX|OP)\d?\s*(?:[\t|].*)?$/i;
   function qbFlexSlots(text, teamCount) {
     var n = 0, teams = Number(teamCount) || 0;
     if (teams < 1) return null;
     String(text || "").split(/\r?\n/).forEach(function (l) { if (QB_FLEX_LINE.test(l)) n++; });
-    if (!n) return null;
-    return Math.max(1, Math.min(2, Math.round(n / teams)));
+    if (n / teams < 0.5) return null;
+    return Math.min(2, Math.round(n / teams));
   }
   function read(text, rows, opts) {
     opts = opts || {};

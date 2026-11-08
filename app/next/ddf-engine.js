@@ -172,7 +172,7 @@
   // boolean (true = 1 slot, as before); null = the partial does not say.
   function superflexOf(partial) {
     var n = Number(partial.superflexSlots);
-    if (partial.superflexSlots !== undefined && Number.isInteger(n) && n >= 0) return Math.min(SF_SLOTS_MAX, n);
+    if (partial.superflexSlots !== undefined && partial.superflexSlots !== null && Number.isInteger(n) && n >= 0) return Math.min(SF_SLOTS_MAX, n);
     if (typeof partial.superflex === "boolean") return partial.superflex ? 1 : 0;
     return null;
   }

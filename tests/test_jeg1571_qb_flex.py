@@ -122,13 +122,14 @@ const out = {
   md: LP.qbFlexSlots('| Q/W/R/T | Josh Allen | QB |\\n| QWRT | Joe Burrow |', 2),
   none: LP.qbFlexSlots('QB\\nJosh Allen\\nW/R/T\\nBN', 1),
   sfTeam: LP.qbFlexSlots('SF\\nBrock Purdy', 1),
+  stray: LP.qbFlexSlots('OP\\n' + Array.from({length: 12}, () => 'QB\\nA\\nBN').join('\\n'), 12),
 };
 process.stdout.write(JSON.stringify(out));
 """
         out = subprocess.run(["node", "-e", script, str(ROOT / "app" / "next" / "league-paste.js")],
                              capture_output=True, text=True, timeout=30, cwd=str(ROOT))
         self.assertEqual(out.returncode, 0, out.stderr[-500:])
-        self.assertEqual(json.loads(out.stdout), {"yahoo12": 1, "two": 2, "md": 1, "none": None, "sfTeam": None})
+        self.assertEqual(json.loads(out.stdout), {"yahoo12": 1, "two": 2, "md": 1, "none": None, "sfTeam": None, "stray": None})
 
 
 class SettingsPage(unittest.TestCase):
