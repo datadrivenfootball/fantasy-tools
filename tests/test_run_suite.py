@@ -147,7 +147,8 @@ class NightlyShardingTest(unittest.TestCase):
         self.assertIn("shard: [1, 2, 3, 4, 5, 6]", text)
         self.assertIn("fail-fast: false", text)
         self.assertIn("continue-on-error: true", text)
-        self.assertIn("timeout-minutes: 120", text)
+        # JEG-1547: six shards of about 19-29 minutes each; 60 is 2x headroom (was one 120-minute job).
+        self.assertIn("timeout-minutes: 60", text)
         self.assertIn("RUN_SUITE_SHARD_INDEX: ${{ matrix.shard }}", text)
         self.assertIn("RUN_SUITE_SHARD_COUNT: 6", text)
         self.assertIn("          make test-unit\n", text)
