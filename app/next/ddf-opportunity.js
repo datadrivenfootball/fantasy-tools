@@ -160,7 +160,9 @@
   function whereToLook(teams, meIndex, shape, chartKeys, weights) {
     var f = F(), keys = chartKeys || ANALYST;
     var slotVals = teams.map(function (t) {
-      var L = f.lineupValue(f.withChartAverage(t.rows, keys), shape, MARKET_KEY), out = {};
+      // Jeremy 2026-11-08: no price is an implied 0, so a chart's fill-in estimate counts as 0 here too (DDF.league.chartRows).
+      var root = typeof globalThis !== 'undefined' ? globalThis : window, lg = root.DDF && root.DDF.league, chartRows = lg && lg.chartRows ? lg.chartRows(t.rows) : t.rows;
+      var L = f.lineupValue(f.withChartAverage(chartRows, keys), shape, MARKET_KEY), out = {};
       SLOTS.forEach(function (s) {
         for (var i = 0; i < (shape[s] || 0); i++) {
           var r = (L.slots[s] || [])[i];

@@ -10,7 +10,9 @@
  *   explain(trade, ctx) -> {headline, pct:{sender, partner}|null, natural, needs:{you, them, youSurplus, themSurplus}, table:{give, get, net}, reasons:[{kind, text, amount}],
  *                           you:view, them:view, fit} or null when the inputs are missing or the trade is not judged
  *                           (no depth context, or an Analyst charts valuation without the charts: find-engine's `judged`)
- *     trade: {mine:[row], theirs:[row], give:[row], receive:[row]}  (whole rosters; give leaves mine, receive leaves theirs)
+ *     trade: {mine:[row], theirs:[row], give:[row], receive:[row], waiver?}  (whole rosters; give leaves mine, receive leaves
+ *            theirs; waiver = find-engine's DDF.find.waiverAlternative result, JEG-1572: a demoted offer is never Natural)
+ *   waiverLine(waiver, give) -> the plain-words waiver alternative ("The best available QB, X, closes N% of ...")
  *     ctx:   DDF.find.context() ({shape, expected, weights, analyst, ...}); optional ourKey (default ddf_value) and
  *            marketKey (default chart_avg when the analyst charts are available, else ourKey)
  *     view:  {key, starterDelta, benchDelta, net, posDelta:{QB,RB,WR,TE}, slots:{QB:{before, after, delta, from:[pos], to:[pos]}..},
@@ -199,6 +201,27 @@
     } catch (e) { console.error(e); return null; }
   }
 
+  // JEG-1572: the waiver alternative find-engine.js computed (DDF.find.waiverAlternative): the best available players at
+  // the positions this trade brings you, and how much of the trade's starter gain they already get with nothing given up.
+  // Words only; the numbers are find-engine's (two tradeFit calls). Waivers are never a trade partner.
+  function waiverLine(w, give) {
+    if (!w || !w.players || !w.players.length) return "";
+    var names = w.players.map(function (p) { return p.name; }), pos = positionsOf(w.players);
+    var many = names.length > 1;
+    var who = pos.length === 1 ? "The best available " + pos[0] + (many ? "s" : "") : "The best available players at " + list(pos);
+    var gave = (give || []).map(function (r) { return r.name; });
+    var share = finite(w.covered) ? Math.round(w.covered * 100) : null;
+    var first = share === null ? who + ", " + list(names) + ", " + (many ? "are" : "is") + " a pickup at the same position, with nothing given up."
+      : share === 0
+      ? who + ", " + list(names) + ", " + (many ? "do" : "does") + " not close the gap this trade fills."
+      : who + ", " + list(names) + ", " + (many ? "close " : "closes ") + share + "% of the gap this trade fills, without giving up " + (gave.length ? list(gave) : "anyone") + ".";
+    var added = " With " + (many ? "them" : names[0]) + " added, ";
+    var beyond = w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade still adds " + shown(w.gainAfter) + " to your starters."
+      : !w.ok && finite(w.gainAfter) && w.gainAfter >= FLOOR ? added + "this trade adds " + shown(w.gainAfter) + " to your starters, which no longer outweighs what you give up."
+      : added + "this trade no longer makes your team better.";
+    return share === 0 && w.ok ? first : first + beyond;
+  }
+
   function explain(trade, ctx) {
     var f = F();
     if (!f || !trade || !ctx || !ctx.shape || !Array.isArray(trade.mine) || !Array.isArray(trade.theirs)) return null;
@@ -220,10 +243,16 @@
     var needs = {you: depthNeeds(fit.us, rp), them: depthNeeds(fit.them, gp), youSurplus: depthSurplus(fit.us, gp), themSurplus: depthSurplus(fit.them, rp)};
     // "Natural fit" only when tradeFit's predicate holds AND, for both teams, the side received is a need and the side
     // given is a surplus (tradeFit's depth readout).
-    var natural = Boolean(fit.label === "natural" && needs.you.length && needs.youSurplus.length && needs.them.length && needs.themSurplus.length);
+    // JEG-1572: never "Natural fit" when a free pickup mostly matches the trade (find-engine moved the offer to neutral).
+    var waiver = trade.waiver || null, demoted = Boolean(waiver && waiver.demoted);
+    var natural = Boolean(!demoted && fit.label === "natural" && needs.you.length && needs.youSurplus.length && needs.them.length && needs.themSurplus.length);
     var rs = reasons(you, them, {give: give, receive: recv}, needs);
+    var wl = waiverLine(waiver, give);
+    // A demoted offer leads with the waiver option; otherwise it follows the biggest reasons (amount: the gain it matches).
+    if (wl) rs.push({kind: "waiver", amount: demoted ? Infinity : Math.max(0, (waiver.gain || 0) * (waiver.covered || 0)), text: wl});
+    rs.sort(function (a, b) { return (b.kind === "unvalued") - (a.kind === "unvalued") || b.amount - a.amount; });
     var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx, k);
-    return {headline: headline(you, them, natural, needs), pct: p, natural: natural, needs: needs,
+    return {headline: headline(you, them, natural, needs), pct: p, natural: natural, needs: needs, waiver: waiver ? {line: wl, demoted: demoted} : null,
       table: {give: you.leaving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: roleBefore(x)}; }),
         get: you.arriving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: role(x)}; }),
         net: netWords(you)},
@@ -293,5 +322,5 @@
   }
 
   if (typeof document !== "undefined" && document.head) injectCss();
-  window.DDFWhy = {explain: explain, text: text, html: html, body: body, FLOOR: FLOOR};
+  window.DDFWhy = {explain: explain, text: text, html: html, body: body, waiverLine: waiverLine, FLOOR: FLOOR};
 })();
