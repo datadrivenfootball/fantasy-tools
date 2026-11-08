@@ -29,7 +29,7 @@
   - Until Jeremy decides, exactly that one message (`KNOWN_RESULTS_BELOW_FOLD`) is tolerated. All other checks
     still run, the mutation guard ignores the known message, and the test goes red once the results are back on
     the first screen.
-  - It is bounded: a message is tolerated only while the results are at most 400px past the 80% line (2026-11-08: 138-298px).
+  - It is bounded: a message is tolerated only while the results are at most 400px past the 80% line (2026-11-08: 130-311px), and never above it.
   - **This is a deliberate, narrow loosening, recorded here.**
 - **test_render_sweep_shards** (nightly): JEG-1403 put test_uso_site_journey_render in test-render-extra but in
   no shard. It is now in shard 3; its 18 tests pass in 3 minutes.
