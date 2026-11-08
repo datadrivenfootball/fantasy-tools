@@ -846,6 +846,19 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 pipelines/chain_stuck_alert.py --chain-outcome "${{ steps.chain.outcome }}" --published "${{ steps.push.outputs.pushed }}"
 
+      # JEG-1512 (never-late guardrail): Week 9 had every source in Supabase by
+      # 2026-11-04 00:38Z and the site served Week 8 until 2026-11-05 17:54Z.
+      # When Supabase holds a newer week than the committed history serves and
+      # this run did not publish it, open the `week-held` GitHub issue and a
+      # Linear sub-issue of JEG-1512 in this run (no 6 h wait). Runbook:
+      # docs/week-held-runbook.md. Never fails the job.
+      - name: Escalate a held new week (JEG-1512)
+        if: always() && github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: python3 pipelines/week_held_alert.py --mode chain --chain-outcome "${{ steps.chain.outcome }}" --published "${{ steps.push.outputs.pushed }}"
+
       - name: Fail the job if the chain failed
         if: steps.chain.outcome == 'failure'
         run: |
