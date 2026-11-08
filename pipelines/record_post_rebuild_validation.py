@@ -49,8 +49,8 @@ def summarize(log_text: str) -> dict:
         if m:
             make_targets.append(m.group(1))
     detail = "\n".join([*(render(b) for b in breaches), *failed_tests, *assertions]) or (
-        f"make validate failed at {', '.join(make_targets)}" if make_targets
-        else "make validate failed (see the workflow log)")
+        f"make validate-data failed at {', '.join(make_targets)}" if make_targets
+        else "make validate-data failed (see the workflow log)")
     return {
         "status": "failed",
         "command": "make validate-data",

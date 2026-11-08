@@ -687,12 +687,12 @@ data-gate:
 	python3 -m unittest tests.test_razzball_refresh
 	python3 -m unittest tests.test_bake_on_change
 	python3 -m unittest tests.test_razzball_one_save
-	python3 -m unittest tests.test_market_bench
 	python3 -m unittest tests.test_player_scenario_matrix
 	python3 -m unittest tests.test_published_surfaces
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_page_load_no_404
 	python3 -m unittest tests.test_lineup_content_week_advance
+	python3 -m unittest tests.test_week_history
 
 value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json

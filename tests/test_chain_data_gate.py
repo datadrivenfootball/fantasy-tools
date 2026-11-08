@@ -4,9 +4,8 @@ Week 6, 8 and 9 of 2026 went live 16 to 54 hours after every source had
 landed because the chain's gate was the whole of test-core: a code test that
 failed on new data (or a merge that broke one) held the week. Since then the
 rebuild chain runs `make validate-data` (validate-base + data-gate) and the
-Pages deploy needs only its build job, which runs the same two. test-core keeps
-gating PRs (preview.yml shards) and runs on every main push, reported, not
-required. These guards pin that split so it cannot drift either way.
+Pages build runs the same two. test-core keeps gating PRs (preview.yml
+shards) and every deploy except an automated data commit ("Automated ..."). These guards pin that split so it cannot drift either way.
 """
 import re
 import unittest
@@ -50,6 +49,16 @@ class DataGateDefinition(unittest.TestCase):
             self.assertIn(line, core, f"{line} is in data-gate but not test-core")
         self.assertEqual(len(lines), len(set(lines)), "data-gate runs a line twice")
 
+    def test_the_data_gate_is_exactly_the_reviewed_list(self):
+        # A deliberate change to the list updates this set and the runbook together.
+        self.assertEqual(set(gate_modules()), {f"tests.{m}" for m in (
+            "test_site_noindex", "test_static_export", "test_seeded_hold_build", "test_rank_guard",
+            "test_view_invariants", "test_games_remaining", "test_ppg_tie_parity", "test_kdst_removed",
+            "test_comparison_source_integrity", "test_cbsros_bake_identity", "test_suffix_identity",
+            "test_player_aliases", "test_razzball_refresh", "test_bake_on_change", "test_razzball_one_save",
+            "test_player_scenario_matrix", "test_published_surfaces", "test_verify_live",
+            "test_page_load_no_404", "test_lineup_content_week_advance", "test_week_history")})
+
     def test_the_export_and_published_number_guards_stay_in_the_data_gate(self):
         for module in ("tests.test_static_export", "tests.test_seeded_hold_build", "tests.test_rank_guard",
                        "tests.test_view_invariants", "tests.test_comparison_source_integrity",
@@ -74,13 +83,14 @@ class PublicationUsesTheDataGate(unittest.TestCase):
         self.assertEqual(CHAIN.count("--kind validation -- make validate-data > output/post-rebuild-validate"), 2)
         self.assertNotRegex(CHAIN, r"-- make validate >")
 
-    def test_pages_build_runs_the_data_gate_blocking_and_deploy_needs_only_build(self):
+    def test_pages_build_runs_the_data_gate_and_only_data_commits_skip_test_core(self):
         self.assertIn("      - run: make validate-base\n", PAGES)
         self.assertRegex(PAGES, r"      - run: make data-gate\n(?!        continue-on-error)")
         deploy = PAGES[PAGES.index("\n  deploy:\n"):]
-        self.assertIn("    needs: [build]\n", deploy)
+        self.assertIn("    needs: [build, validate-shard]\n", deploy)
         self.assertIn('[ "$BUILD_RESULT" = "success" ]', deploy)
-        self.assertNotIn("SHARD_RESULT", deploy)
+        self.assertIn('"Automated "*)', deploy)
+        self.assertIn('*) [ "$SHARD_RESULT" = "success" ] ;;', deploy)
 
     def test_test_core_still_runs_on_main_and_gates_prs(self):
         self.assertIn("make test-core-shard-${{ matrix.shard }}", PAGES)

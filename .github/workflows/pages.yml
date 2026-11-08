@@ -156,7 +156,7 @@ jobs:
       - run: make test-core-shard-${{ matrix.shard }}
 
   deploy:
-    needs: [build]
+    needs: [build, validate-shard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -165,15 +165,26 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       # A skipped, cancelled or failed build (validate-base + data-gate) must
-      # never publish. JEG-1485 decision A: the test-core matrix (validate-shard)
-      # still runs on every push and shows red on the commit, but the deploy does
-      # not wait for it; code tests gate PRs (preview.yml) and the nightly suite.
+      # never publish. JEG-1485 decision A (Jeremy, 2026-11-08): an automated
+      # data commit (message "Automated ...", written by the chain and the other
+      # data writers) deploys on its data checks alone; every other commit, and
+      # a dispatched deploy, also needs the test-core matrix, so a code change
+      # cannot reach the site with red code tests.
       - name: The build and its data checks passed
         env:
           BUILD_RESULT: ${{ needs.build.result }}
+          SHARD_RESULT: ${{ needs.validate-shard.result }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          echo "build (validate-base + data-gate): $BUILD_RESULT"
+          echo "build (validate-base + data-gate): $BUILD_RESULT; validate-shard (test-core): $SHARD_RESULT"
           [ "$BUILD_RESULT" = "success" ]
+          case "$HEAD_MESSAGE" in
+            "Automated "*)
+              if [ "$SHARD_RESULT" != "success" ]; then
+                echo "::warning title=test-core red on main::code tests failed; this automated data commit deploys on its data checks (JEG-1485 decision A). Fix main."
+              fi ;;
+            *) [ "$SHARD_RESULT" = "success" ] ;;
+          esac
       - id: deployment
         uses: actions/deploy-pages@v4
         with:

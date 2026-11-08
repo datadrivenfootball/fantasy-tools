@@ -69,9 +69,11 @@ tests keep gating PRs and run nightly; a held week still alerts within 2 hours.
 - The rebuild chain runs `make validate-data` = `validate-base` + `data-gate`,
   before it commits anything. It fails closed: if any data check fails, only the
   status is published and the week-held alert fires.
-- `pages.yml` deploys when its build job passes `validate-base` + `data-gate`.
-  The test-core matrix still runs on every main push and shows red on the commit,
-  but the deploy no longer waits for it.
+- `pages.yml` needs its build job (`validate-base` + `data-gate`) for every
+  deploy. An automated data commit (message `Automated ...`, from the chain and
+  the other data writers) deploys on that alone; every other commit, and a
+  dispatched deploy, also needs the test-core matrix. So data is never held by
+  a code test, and code never reaches the site with red code tests.
 - `preview.yml` (PRs) runs `validate-base`, `data-gate` and all of test-core.
   That is the code gate.
 
@@ -91,9 +93,10 @@ site would be wrong. It covers:
 - **Source coverage and identity joins**: `test_comparison_source_integrity`,
   `test_cbsros_bake_identity`, `test_suffix_identity`, `test_player_aliases`.
 - **Bake-to-section consistency**: `test_games_remaining`, `test_ppg_tie_parity`,
-  `test_bake_on_change`, `test_razzball_refresh`, `test_razzball_one_save`,
-  `test_market_bench`.
-- **Week label and freshness**: `test_lineup_content_week_advance`.
+  `test_bake_on_change`, `test_razzball_refresh`, `test_razzball_one_save`.
+- **Week label, freshness and history**: `test_lineup_content_week_advance`,
+  `test_week_history` (the engine-side check of the prior-week values and the
+  week-over-week change the site shows).
 - **The built site**: `test_published_surfaces`, `test_verify_live`,
   `test_page_load_no_404`, `test_site_noindex`.
 
@@ -103,16 +106,21 @@ page and render parity (`test_team_opportunity_render`, `test_learn_engine_parit
 `test_*_engine_parity`, phone layouts), worked examples (`test_value_pipeline_engine`,
 `test_spec_reference_value_pipeline`), and property or perturbation tests that
 search the live data for a scenario (`test_fractional_seats_stability`; the
-waiver-band perturbation tests are already non-blocking). Engine-vs-reference
+waiver-band perturbation tests are already non-blocking). Left out on purpose
+(reviewed 2026-11-08): `test_superflex` and `test_two_qb_direction` read
+published numbers in a browser but have often failed on new data for code
+reasons; `test_market_bench` checks config, not build output; and
+`test_spec_reference_value_pipeline` is a worked example. Engine-vs-reference
 agreement on the data is not lost when these move out of the gate: it is
 `value-check-compare --strict`.
 
 Rules for the list: every `data-gate` line is also in test-core, and
-`tests/test_chain_data_gate.py` fails when they drift. Move a test into
+`tests/test_chain_data_gate.py` pins the exact list (change the test, this
+section and the Makefile together). Move a test into
 `data-gate` only if it reads the build's artifacts and its failure means
 published numbers or the site would be wrong. If a code test is red on main,
-the site keeps publishing data, so fix main the same day: the next data deploy
-ships the code at the tip of main.
+data commits keep deploying and they ship the code at the tip of main, so fix
+main the same day.
 
 ## Testing the alert
 
