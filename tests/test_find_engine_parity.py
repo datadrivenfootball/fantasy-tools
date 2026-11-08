@@ -65,6 +65,35 @@ ORACLE = r"""(o) => {
   const weights = {overall: readout && finite(readout.overall) ? readout.overall : (C.getBenchShare ? C.getBenchShare() : 0)};
   F.DEPTH_POS.forEach(p => { if (readout && finite(readout[p])) weights[p] = readout[p]; });
   const widen = rs => analyst ? F.withChartAverage(rs, analyst) : rs;
+  // Waivers: my roster (with its kicker) against every priced player on no roster, judged in your valuation's view.
+  const rostered = new Set([].concat(...teams.map(t => t.rows.map(r => String(r.player_key)))));
+  const entries = me.rows.map(r => ({key: String(r.player_key), name: r.name, pos: r.pos, team: r.team || ''}))
+    .concat(me.specials.map(p => ({key: 'x:' + p.pos + ':' + p.name, name: p.name, pos: p.pos, team: ''})));
+  const cands = rows.filter(r => finite(r.values.ddf_value) && !rostered.has(String(r.player_key)))
+    .sort((a, b) => b.values.ddf_value - a.values.ddf_value || String(a.player_key).localeCompare(String(b.player_key)))
+    .map(r => ({key: String(r.player_key), name: r.name, pos: r.pos, team: r.team || ''}));
+  const all = new Map(C.getAllRows().map(r => [String(r.player_key), r]));
+  const view = W.viewFor({'DDF': 'ddf', 'DDF (Projection based)': 'projections', 'Market': 'market', 'FantasyCalc': 'src:fantasycalc'}[o.your], null);
+  const wres = W.evaluateAll({shape, weights, expected, chartKeys: analyst, rosterSize: W.rosterSizeOf(shape), byes: window.TradeValueByes ? window.TradeValueByes.byes : null,
+    status: W.statusFreshness(window.TradeValueStatus || null, Date.now()), view}, W.rowsFor(entries, all).rows, W.rowsFor(W.dedupe(cands, entries).kept, all).rows);
+  const g1 = r => Math.round(r.starterDelta * 10) / 10;
+  // JEG-1572 rule, recomputed here: the best available players at the positions received (top one per player received,
+  // by the Waivers tab's starter gain), added to my roster; tradeFit again; demote a Natural fit when they get half the
+  // trade's starter gain or more, or my side of the Natural fit test fails with them added.
+  const pool = wres.results.filter(r => r.starterDelta !== null && g1(r) > 0);
+  const waiverDemotes = (fit, give, recv, mineW, theirW, fitCtx) => {
+    const picks = [];
+    POS.forEach(p => {
+      const n = recv.filter(r => r.pos === p).length;
+      pool.filter(r => r.candidate.pos === p && r.starterDelta > 0).sort((a, b) => b.starterDelta - a.starterDelta || String(a.candidate.player_key).localeCompare(String(b.candidate.player_key)))
+        .slice(0, n).forEach(r => picks.push(widen([r.candidate])[0]));
+    });
+    if (!picks.length) return false;
+    const f2 = F.tradeFit({mine: {roster: mineW.concat(picks), leaving: give, arriving: recv}, theirs: {roster: theirW, leaving: recv, arriving: give}}, fitCtx);
+    const g = fit.us.starterDelta, a = f2.us.starterDelta;
+    if (!(g >= 0.05)) return false;
+    return Math.max(0, Math.min(1, (g - a) / g)) >= 0.5 || !f2.natural.us.ok;
+  };
   const groups = [];
   teams.filter(t => t.index !== league.me && t.rows.length).forEach(t => {
     const mine = yourKey === 'chart_avg' ? widen(me.rows) : me.rows, theirs = yourKey === 'chart_avg' ? widen(t.rows) : t.rows;
@@ -78,7 +107,8 @@ ORACLE = r"""(o) => {
     const byCls = {};
     res.trades.forEach(tr => {
       const fit = F.tradeFit({mine: {roster: mineW, leaving: w(tr.give), arriving: w(tr.receive)}, theirs: {roster: theirW, leaving: w(tr.receive), arriving: w(tr.give)}}, fitCtx);
-      const cls = fit.label === 'natural' ? 'natural' : fit.them.net >= -fit.them.tau ? 'neutral' : 'force';
+      let cls = fit.label === 'natural' ? 'natural' : fit.them.net >= -fit.them.tau ? 'neutral' : 'force';
+      if (cls === 'natural' && waiverDemotes(fit, w(tr.give), w(tr.receive), mineW, theirW, fitCtx)) cls = 'neutral';
       (byCls[cls] = byCls[cls] || []).push({...tr, you: fit.us.starterDelta, them: fit.them.starterDelta});
     });
     Object.keys(byCls).forEach(cls => F.groupTrades(byCls[cls], {ourKey: yourKey}).forEach(g => groups.push({...g, cls, partner: t.name, id: t.index + '|' + cls + '|' + g.key})));
@@ -93,18 +123,6 @@ ORACLE = r"""(o) => {
     if (++per[g.cls] <= o.pageSize) out[g.cls].push({partner: g.partner, give: g.best.give.map(r => String(r.player_key)).join(','), receive: g.best.receive.map(r => String(r.player_key)).join(','),
       you: shown(g.best.you), them: 'Them ' + shown(g.best.them) + ' ' + o.theirLabel});
   });
-  // Waivers: my roster (with its kicker) against every priced player on no roster, judged in your valuation's view.
-  const rostered = new Set([].concat(...teams.map(t => t.rows.map(r => String(r.player_key)))));
-  const entries = me.rows.map(r => ({key: String(r.player_key), name: r.name, pos: r.pos, team: r.team || ''}))
-    .concat(me.specials.map(p => ({key: 'x:' + p.pos + ':' + p.name, name: p.name, pos: p.pos, team: ''})));
-  const cands = rows.filter(r => finite(r.values.ddf_value) && !rostered.has(String(r.player_key)))
-    .sort((a, b) => b.values.ddf_value - a.values.ddf_value || String(a.player_key).localeCompare(String(b.player_key)))
-    .map(r => ({key: String(r.player_key), name: r.name, pos: r.pos, team: r.team || ''}));
-  const all = new Map(C.getAllRows().map(r => [String(r.player_key), r]));
-  const view = W.viewFor({'DDF': 'ddf', 'DDF (Projection based)': 'projections', 'Market': 'market', 'FantasyCalc': 'src:fantasycalc'}[o.your], null);
-  const wres = W.evaluateAll({shape, weights, expected, chartKeys: analyst, rosterSize: W.rosterSizeOf(shape), byes: window.TradeValueByes ? window.TradeValueByes.byes : null,
-    status: W.statusFreshness(window.TradeValueStatus || null, Date.now()), view}, W.rowsFor(entries, all).rows, W.rowsFor(W.dedupe(cands, entries).kept, all).rows);
-  const g1 = r => Math.round(r.starterDelta * 10) / 10;
   const picks = wres.results.filter(r => r.starterDelta !== null && g1(r) > 0 && g1(r) >= o.min)
     .sort((a, b) => b.starterDelta - a.starterDelta || (b.totalDelta || 0) - (a.totalDelta || 0) || String(a.name).localeCompare(String(b.name)))
     .map(r => ({add: String(r.candidate.player_key), drop: r.drop ? String(r.drop.player_key) : '', gain: shown(r.starterDelta)}));
