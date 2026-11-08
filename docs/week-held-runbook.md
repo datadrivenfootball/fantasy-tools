@@ -70,10 +70,14 @@ tests keep gating PRs and run nightly; a held week still alerts within 2 hours.
   before it commits anything. It fails closed: if any data check fails, only the
   status is published and the week-held alert fires.
 - `pages.yml` needs its build job (`validate-base` + `data-gate`) for every
-  deploy. An automated data commit (message `Automated ...`, from the chain and
-  the other data writers) deploys on that alone; every other commit, and a
-  dispatched deploy, also needs the test-core matrix. So data is never held by
-  a code test, and code never reaches the site with red code tests.
+  deploy. An automated data commit (author `github-actions[bot]`, message
+  `Automated ...`, from the chain and the other data writers, including the
+  status-only "chain failed" commits) deploys on that alone. Every other commit,
+  and a dispatched deploy, also needs the test-core matrix. Data is never held
+  by a code test. Known limit: a data deploy ships the tip of main, so code
+  merged while its tests were red reaches the site with the next data commit.
+  main's ruleset requires a PR but no status checks, so make the preview checks
+  required to close this (Jeremy's call).
 - `preview.yml` (PRs) runs `validate-base`, `data-gate` and all of test-core.
   That is the code gate.
 

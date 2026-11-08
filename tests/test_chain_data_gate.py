@@ -89,7 +89,7 @@ class PublicationUsesTheDataGate(unittest.TestCase):
         deploy = PAGES[PAGES.index("\n  deploy:\n"):]
         self.assertIn("    needs: [build, validate-shard]\n", deploy)
         self.assertIn('[ "$BUILD_RESULT" = "success" ]', deploy)
-        self.assertIn('"Automated "*)', deploy)
+        self.assertIn('"github-actions[bot]|Automated "*)', deploy)
         self.assertIn('*) [ "$SHARD_RESULT" = "success" ] ;;', deploy)
 
     def test_test_core_still_runs_on_main_and_gates_prs(self):

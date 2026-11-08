@@ -128,7 +128,8 @@ def pages_problems(text):
         guard, publish = deploy_blocks
         for binding in ("BUILD_RESULT: ${{ needs.build.result }}",
                         "SHARD_RESULT: ${{ needs.validate-shard.result }}",
-                        "HEAD_MESSAGE: ${{ github.event.head_commit.message }}"):
+                        "HEAD_MESSAGE: ${{ github.event.head_commit.message }}",
+                        "HEAD_AUTHOR: ${{ github.event.head_commit.author.name }}"):
             if binding not in guard:
                 problems.append("deploy must check the actual build and matrix results")
         if "uses: actions/deploy-pages@v4" not in publish:
@@ -214,11 +215,13 @@ class PagesParallelValidationTest(unittest.TestCase):
         for build in ("success", "failure", "cancelled", "skipped"):
             for shard in ("success", "failure", "cancelled", "skipped"):
                 for message in messages:
-                    with self.subTest(build=build, shard=shard, message=message):
+                  for author in ("github-actions[bot]", "Jeremy Burstyn", "", "github-actions[bot] x"):
+                    with self.subTest(build=build, shard=shard, message=message, author=author):
                         result = subprocess.run(["bash", "-e", "-c", script], capture_output=True,
                                                 env={**os.environ, "BUILD_RESULT": build, "SHARD_RESULT": shard,
-                                                     "HEAD_MESSAGE": message})
-                        data_commit = message.startswith("Automated ")
+                                                     "HEAD_MESSAGE": message, "HEAD_AUTHOR": author})
+                        # A squash or rebase of a human PR titled "Automated ..." has a human author.
+                        data_commit = message.startswith("Automated ") and author == "github-actions[bot]"
                         self.assertEqual(result.returncode == 0,
                                          build == "success" and (shard == "success" or data_commit))
 
