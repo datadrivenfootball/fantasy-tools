@@ -33,6 +33,7 @@ import functools
 import hashlib
 import http.server
 import json
+import math
 import os
 import re
 import socketserver
@@ -119,7 +120,33 @@ EXTRA_JS = """() => {
       });
     }
   } catch (e) { runs = null; }
-  return {compositeByVersion: versions, vorpRuns: runs};
+  // JEG-1393 R3 (OP-02): the heaviest allocation's own run, per source and
+  // position: the lines, n and q, the bench bands and each player's parts, so
+  // the page can rebuild one player's fill-in part for one allocation.
+  let heavy = null;
+  try {
+    const pl = H && H.pipeline && H.pipeline();
+    const mix = (pl && pl.allocationMix) || [];
+    let hi = 0;
+    mix.forEach((m, j) => { if (m.weight > mix[hi].weight) hi = j; });
+    const res = mix.length > 1 ? H.runPipelineWith({seatAllocation: mix[hi].allocation}) : pl;
+    const sources = {};
+    Object.entries((res && res.sources) || {}).forEach(([k, s]) => {
+      const positions = {};
+      Object.entries(s.positions || {}).forEach(([p, x]) => {
+        const l = x.lineup || null;
+        positions[p] = {starters: x.starters, rostered: x.rostered, waiver: x.waiver, starterLine: x.starterLine,
+          avail: x.avail, lineup: l && {m: l.m, unavailable: l.unavailable, nPerTeam: l.nPerTeam,
+                                        sigmaRel: l.sigmaRel, sigmaFloor: l.sigmaFloor},
+          bands: (x.bands || []).map(b => [b.depth, b.lo, b.hi, b.fill])};
+      });
+      const players = {};
+      Object.entries(s.players || {}).forEach(([pk, q]) => { players[pk] = [q.native, q.benchSlice, q.starterSlice]; });
+      sources[k] = {positions, players};
+    });
+    heavy = {weight: mix.length ? mix[hi].weight : 1, sources};
+  } catch (e) { heavy = null; }
+  return {compositeByVersion: versions, vorpRuns: runs, heavyRun: heavy};
 }"""
 VERSION_OF = {"ddf_value": "blended", "ddf_value_charts": "charts", "ddf_value_projections": "projections"}
 RUN_TOL = 1e-6  # relative: the weighted per-allocation factors must give the engine's factor
@@ -144,6 +171,69 @@ def vorp_runs(raw: dict) -> dict:
         if target and abs(blended - target) <= RUN_TOL * abs(target):
             out[k] = [[r(w / tot, 6), r(st, 6), r(f, 9)] for w, st, f in rows]
     return out
+
+
+def _phi(z: float) -> float:
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def band_fill(x: float, s: float, waiver: float, avail: float, bands: list) -> float:
+    """The fill-in part of one player in one allocation (value-model.js
+    esPositionParts): avail x v x sum over bands of P(>= depth of the team's
+    starters out) x P(level in band). Used only to check the page's worked
+    example against the engine's own number."""
+    v = max(0.0, x - waiver)
+    tot = 0.0
+    for _depth, lo, hi, fill in bands:
+        if hi <= lo:
+            continue
+        if s <= 0:
+            p = 1.0 if lo < x <= hi else 0.0
+        else:
+            p = _phi((hi - x) / s) - _phi((lo - x) / s)
+        tot += fill * p
+    return avail * v * tot
+
+
+def heavy_run(raw: dict) -> dict | None:
+    """The heaviest allocation's run for one example trade chart (FantasyCalc
+    when it is included and not hidden, else the first such chart): per
+    position its lines, n, q and bands, and each player's [native, fill-in,
+    start-worthy]. `check` is the worst gap between the band arithmetic and
+    the engine's fill-in part over that chart's players."""
+    hr = (raw.get("extra") or {}).get("heavyRun") or {}
+    vp = raw["inspection"]["valuePipeline"]
+    srcs = hr.get("sources") or {}
+    hidden = {h["key"] for h in hidden_sources(raw)}
+    charts = [k for k, s in (vp.get("sources") or {}).items()
+              if s.get("family") == "chart" and s.get("included") and k not in hidden and k in srcs]
+    if not charts:
+        return None
+    key = "fantasycalc" if "fantasycalc" in charts else charts[0]
+    s = srcs[key]
+    positions, worst = {}, 0.0
+    for p, x in (s.get("positions") or {}).items():
+        l = x.get("lineup") or {}
+        bands = [b for b in (x.get("bands") or []) if isinstance(b, list) and len(b) == 4]
+        positions[p] = {"starters": x.get("starters"), "rostered": x.get("rostered"), "waiver": x.get("waiver"),
+                        "starterLine": x.get("starterLine"), "avail": x.get("avail"),
+                        "n": l.get("nPerTeam"), "q": l.get("unavailable"), "sigmaRel": l.get("sigmaRel"),
+                        "sigmaFloor": l.get("sigmaFloor"), "bands": bands}
+    players = {}
+    for pk, row in (s.get("players") or {}).items():
+        nat, fill, start = (list(row) + [None, None, None])[:3]
+        if not all(isinstance(v, (int, float)) for v in (nat, fill, start)):
+            continue
+        players[pk] = [r(nat, 4), r(fill, 4), r(start, 4)]
+    pos_of = {pk: (raw["inspection"]["rows"].get(pk) or {}).get("pos") for pk in players}
+    for pk, (nat, fill, _start) in players.items():
+        x = positions.get(pos_of.get(pk)) or {}
+        if not x.get("bands") or not all(isinstance(x.get(f), (int, float)) for f in ("waiver", "avail", "sigmaRel")):
+            continue
+        sd = max(x["sigmaRel"] * nat, x.get("sigmaFloor") or 0) if nat > 0 else (x.get("sigmaFloor") or 0)
+        worst = max(worst, abs(band_fill(nat, sd, x["waiver"], x["avail"], x["bands"]) - fill))
+    return {"source": key, "weight": hr.get("weight"), "positions": positions, "players": players,
+            "check": r(worst, 4)}
 
 
 def hidden_sources(raw: dict) -> list[dict]:
@@ -340,6 +430,7 @@ def trim(raw: dict) -> dict:
         "sensitivity": raw["sensitivity"], "restored": raw["restored"],
         "benchDiscount": bench_discount(),
         "hidden": hidden_sources(raw), "versionSources": version_sources(raw), "vorpRuns": vorp_runs(raw),
+        "heavyRun": heavy_run(raw),
         "reconstruction": {"tolerance": CHECK_TOL, "worst": {k: r(v, 6) for k, v in worst.items()}, "off": off},
     }
 

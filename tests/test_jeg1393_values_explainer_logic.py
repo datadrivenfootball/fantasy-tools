@@ -163,5 +163,84 @@ class Round2Test(unittest.TestCase):
         self.assertIn("(OC-4)\n  *Partly superseded:*", METHODOLOGY)
 
 
+class Round3Test(unittest.TestCase):
+    """JEG-1393 round 3, lane A: R3-OP-02, R3-OP-03, R3-OP-05, R3-CX-04."""
+
+    @staticmethod
+    def heavy_bundle():
+        # One WR position: 2 teams x 1 starter each (n = 1), q = 0.2, three
+        # players; the band and parts follow value-model.js esPositionParts.
+        bands = [[1, 10.0, 50.0, 0.2]]
+        players = {"1": [80.0, 0.0, 0.0], "2": [40.0, 0.0, 0.0]}
+        avail = 0.75
+        for pk, row in players.items():
+            row[1] = bve.band_fill(row[0], 0.5 * row[0], 10.0, avail, bands)
+        players["3"] = [30.0, 999.0, 0.0]  # off: the check reports it
+        raw = bundle()
+        raw["inspection"]["valuePipeline"]["sources"] = {
+            "fantasycalc": {"family": "chart", "included": True}, "ktc": {"family": "chart", "included": True}}
+        raw["inspection"]["rows"] = {k: {"pos": "WR"} for k in players}
+        raw["diagnostics"]["excluded"] = []
+        raw["extra"]["heavyRun"] = {"weight": 0.49, "sources": {
+            "fantasycalc": {"positions": {"WR": {"starters": 2, "rostered": 4, "waiver": 10.0, "starterLine": 50.0,
+                                                  "avail": avail, "bands": bands,
+                                                  "lineup": {"nPerTeam": 1, "unavailable": 0.2, "sigmaRel": 0.5,
+                                                             "sigmaFloor": 0}}},
+                            "players": players}}}
+        return raw
+
+    def test_band_fill_matches_the_engine_formula(self):
+        # avail x v x P(>= 1 out) x P(10 < X <= 50), X ~ N(40, 20)
+        phi = bve._phi
+        want = 0.75 * 30 * 0.2 * (phi((50 - 40) / 20) - phi((10 - 40) / 20))
+        self.assertAlmostEqual(bve.band_fill(40.0, 20.0, 10.0, 0.75, [[1, 10.0, 50.0, 0.2]]), want)
+        self.assertEqual(bve.band_fill(5.0, 2.0, 10.0, 0.75, [[1, 10.0, 50.0, 0.2]]), 0.0)
+
+    def test_heavy_run_exports_n_q_bands_and_checks_them(self):
+        hr = bve.heavy_run(self.heavy_bundle())
+        self.assertEqual(hr["source"], "fantasycalc")
+        wr = hr["positions"]["WR"]
+        self.assertEqual((wr["n"], wr["q"], wr["bands"]), (1, 0.2, [[1, 10.0, 50.0, 0.2]]))
+        self.assertGreater(hr["check"], 900)  # player 3's 999 is caught
+        raw = self.heavy_bundle()
+        del raw["extra"]["heavyRun"]["sources"]["fantasycalc"]["players"]["3"]
+        self.assertEqual(bve.heavy_run(raw)["check"], 0.0)
+
+    def test_heavy_run_skips_hidden_and_null_guards(self):
+        raw = self.heavy_bundle()
+        raw["diagnostics"]["excluded"] = [{"key": "fantasycalc", "hidden": True, "holdLevel": "red"}]
+        self.assertIsNone(bve.heavy_run(raw))  # ktc has no heavy-run entry
+        raw = self.heavy_bundle()
+        raw["extra"]["heavyRun"] = None
+        self.assertIsNone(bve.heavy_run(raw))
+        raw = self.heavy_bundle()
+        raw["extra"]["heavyRun"]["sources"]["fantasycalc"]["players"]["1"] = [None, 1, 2]
+        raw["extra"]["heavyRun"]["sources"]["fantasycalc"]["positions"]["WR"]["lineup"] = None
+        hr = bve.heavy_run(raw)
+        self.assertNotIn("1", hr["players"])
+        self.assertIsNone(hr["positions"]["WR"]["n"])
+
+    def test_bands_and_binomial_are_defined(self):
+        self.assertIn("band 1 runs from the starter line down to the value at rank starters + teams + 1", TEMPLATE)
+        self.assertIn("q = bye share + (1 − bye share) × missed-game rate", TEMPLATE)
+        self.assertIn("P(≥ k out) = Σ j ≥ k: C(n, j) × q^j × (1 − q)^(n − j)", TEMPLATE)
+        self.assertIn('id="bandExample"', TEMPLATE)
+        self.assertIn("D.heavyRun", TEMPLATE)
+
+    def test_cutoff_and_decomposition_are_defined(self):
+        self.assertIn("The <b>cutoff</b> is the PPG level τ at which the candidates' shares add up to exactly", TEMPLATE)
+        self.assertIn("systematic rounding</i> (value-model.js vpDecompose)", TEMPLATE)
+        self.assertIn('id="allocMixTable"', TEMPLATE)
+        self.assertNotIn("(mean PPG − cutoff)", TEMPLATE)
+
+    def test_two_rate_sets_are_explained(self):
+        self.assertIn("These are <i>fixed</i> constants: a full-season bye rate (1/17)", TEMPLATE)
+        self.assertIn("this window's own bye share", TEMPLATE)
+
+    def test_methodology_live_links_use_the_current_host(self):
+        self.assertNotIn("jb-barrel-droid.github.io", METHODOLOGY)
+        self.assertIn("https://datadrivenfootball.github.io/fantasy-tools/modules/math-inspector.html", METHODOLOGY)
+
+
 if __name__ == "__main__":
     unittest.main()

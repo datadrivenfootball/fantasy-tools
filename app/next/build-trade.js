@@ -618,7 +618,9 @@
      Each chart's own published numbers (CBS Sports, USA Today, FantasyPros points; FantasyCalc trade value) from the
      engine's inspection, not indexed or adjusted to the league; a filled-in estimate is not published, so it reads
      "Not on this chart". Charts use different scales, so every comparison is a percentage:
-     pct = (value they RECEIVE - value they SEND) / value they SEND x 100. "Even" band: |pct| <= 1%. Ranked by pct. */
+     pct = (value they RECEIVE - value they SEND) / value they SEND x 100. "Even" band: |pct| <= 1%. Ranked by pct.
+     "Works against you (they give up X% more)" states the other direction, so X = upPct = (SEND - RECEIVE) / RECEIVE x 100
+     (CBS 58 sent for 47 received: 19% less than they send, 23% more than they receive; JEG-1393 R3-CX-01). */
   const CHARTS = [['cbs', 'CBS Sports'], ['usatoday', 'USA Today'], ['fantasypros', 'FantasyPros'], ['fantasycalc', 'FantasyCalc']];
   const chartName = k => (CHARTS.find(c => c[0] === k) || [])[1] || '';
   const chartGroup = k => k === 'fantasycalc' ? 'live' : 'analyst', CHART_GROUPS = [['analyst', 'Analyst charts'], ['live', 'Live market']];
@@ -642,16 +644,17 @@
     if (!(e.get > 0)) return e;
     e.diff = +(e.give - e.get).toFixed(4); e.pct = e.diff / e.get * 100; e.tol = 1;
     e.status = e.pct > e.tol ? 'helps' : e.pct >= -e.tol ? 'even' : 'against';
+    e.upPct = e.give > 0 ? (e.get - e.give) / e.give * 100 : Infinity;
     return e;
   }
   /* Plain words above the cap (Jeremy, 2026-11-06: "Cap with plain words"): the exact percent up to 25%, "a lot more" above. */
   const PCT_CAP = 25;
   const pctWords = p => Math.round(p) <= PCT_CAP ? Math.round(p) + '% more' : 'a lot more';
-  const pctExact = e => e.diff === null ? '' : e.status === 'even' ? 'Within 1% (exact ' + (Math.round(e.pct * 10) / 10) + '%)' : Math.round(Math.abs(e.pct)) + '%';
+  const pctExact = e => e.diff === null ? '' : e.status === 'even' ? 'Within 1% (exact ' + (Math.round(e.pct * 10) / 10) + '%)' : e.status === 'against' ? (isFinite(e.upPct) ? Math.round(e.upPct) + '% more sent' : '') : Math.round(e.pct) + '%';
   function chartLabel(e) {
     if (e.status === 'helps') return `Helps your pitch (they get ${pctWords(e.pct)})`;
     if (e.status === 'even') return 'Even (within 1%)';
-    if (e.status === 'against') return `Works against you (they give up ${pctWords(-e.pct)})`;
+    if (e.status === 'against') return `Works against you (they give up ${pctWords(e.upPct)})`;
     if (e.status === 'giveonly') return `Lists your player${picked('give').length > 1 ? 's' : ''} at ${cfmt(e.k, e.give)}`;
     return 'Not on this chart';
   }

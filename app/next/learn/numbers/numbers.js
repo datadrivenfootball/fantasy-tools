@@ -89,6 +89,13 @@
   }
   var ROUNDING_NOTE = 'The adjusted values are shown rounded to one decimal; DDF Value averages the unrounded values.';
   function chartWord() { return snap.charts.length === 4 ? 'four' : String(snap.charts.length); }
+  /* "three analyst charts and the live market, FantasyCalc" (R3-OP-07): FantasyCalc is the live market, not a published chart. */
+  function chartMix() {
+    var an = snap.charts.filter(function (s) { return s !== 'fantasycalc'; }), fc = snap.charts.indexOf('fantasycalc') >= 0;
+    var words = ['no', 'one', 'two', 'three'];
+    var a = an.length === 3 ? 'three analyst charts' : an.length ? (words[an.length] || an.length) + ' analyst chart' + (an.length > 1 ? 's' : '') + ', ' + an.map(label).join(' and ') + (fc ? ',' : '') : '';
+    return [a, fc ? 'the live market, FantasyCalc' : ''].filter(Boolean).join(' and ');
+  }
   function pieText() {
     return fInt(snap.pie) + (num(snap.perSlot) && Number.isInteger(snap.perSlot)
       ? ' = ' + snap.perSlot + ' × ' + snap.settings.teams + ' teams × ' + snap.startSlots + ' starting slots' : '');
@@ -450,7 +457,7 @@
       row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units') +
       row('Value above waivers (on the value pie)', w.aboveWaiversPie, 'f1', fx.pieVaw ? withNums('= above the waiver line × this source’s value-pie factor', fx.pieVaw) : '') +
       row('Availability', w.availability, 'pct') + row('Chance above the starter line', w.startWorthy, 'pct') + row('Expected lineup share', w.lineupShare, 'pct') +
-      row('Chance he fills in from the bench', w.fillInChance, 'pct', '= expected lineup share ÷ availability − chance above the starter line') +
+      row('Chance he fills in from the bench', w.fillInChance, 'pct', '= Σ over bench bands of P(his level is in the band) × P(enough of a team’s starters are out for that band to play); see Full value logic. Check: expected lineup share ÷ availability − chance above the starter line gives the same number') +
       row('Start-worthy part', w.starterPart, null, withNums('= availability × above the waiver line × chance above the starter line', fx.starterPart)) +
       row('Fill-in part', w.fillInPart, null, withNums('= availability × above the waiver line × chance he fills in', fx.fillInPart)) +
       row('Starter rate', w.starterRate, 'rate', withNums('= ' + r.pos + ' starter budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' start-worthy parts', fx.starterRate)) +
@@ -537,9 +544,20 @@
   }
 
   /* ---------- (e) Full value logic (the engine-built explainer, framed) ---------- */
-  function showLogic() {
+  /* R3-CX-03: the framed page is a fixed example, so name its setting (read from its own header strip, which it renders
+     from its data) and link back to the Trace at the settings chosen here. */
+  function logicSetting() {
+    try {
+      var doc = $('logic-frame').contentDocument, span = doc && doc.querySelector('#strip span');
+      var m = span && span.textContent.match(/^\s*(\d+) teams · ([^·]+?) · (.+?)\s*$/);
+      if (m) $('logic-setting').textContent = m[1] + '-team ' + m[2] + ' with the roster ' + m[3];
+    } catch (e) { /* keep the default wording */ }
+  }
+  function showLogic(query) {
     var frame = $('logic-frame');
-    if (!frame.getAttribute('src')) frame.setAttribute('src', frame.getAttribute('data-src'));
+    $('logic-back').href = '#numbers/trace' + (state.player ? '/' + state.player : '') + (query || state.query);
+    if (!frame.getAttribute('src')) { frame.addEventListener('load', logicSetting); frame.setAttribute('src', frame.getAttribute('data-src')); }
+    else logicSetting();
   }
   window.addEventListener('message', function (e) {
     var d = e.data;
@@ -601,7 +619,7 @@
     state.query = settingsQuery(st);
     $('nx-snapshot').textContent = snapshotLine();
     $('nx-settings').textContent = settingsLine(st) + ' · ' + overridesLine();
-    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' published trade charts (' + snap.charts.map(label).join(', ') + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, valued at starter or bench level by where he ranks across the league.';
+    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' trade charts (' + chartMix() + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, split into a start-worthy part and a fill-in part against your league’s starter line, each paid at its group’s rate.';
     $('nx-sources').textContent = 'The analyst charts are CBS Sports, USA Today and FantasyPros; the live market is FantasyCalc. A chart that is held this week is left out of the average, never counted as zero.';
     $('set-scoring').value = st.scoring;
     $('set-teams').value = String(st.teams);
@@ -619,7 +637,7 @@
     var r = parse();
     state.view = r.view;
     if (r.view === 'glossary') { syncSubTabs(); showGlossary(r.arg); return; }
-    if (r.view === 'logic') { syncSubTabs(); showLogic(); $('nx-live').textContent = 'Full value logic selected.'; return; }
+    if (r.view === 'logic') { syncSubTabs(); showLogic(r.query); $('nx-live').textContent = 'Full value logic selected.'; return; }
     syncSubTabs();
     ensureLoaded(r.query).then(function () { if (parse().view === r.view) render(r); }, function () {});
   }
