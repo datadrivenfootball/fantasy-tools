@@ -83,8 +83,9 @@ def static_problems(text, espn_text=ESPN_WORKFLOW):
     if restore is None or "if: steps.bake.outcome == 'failure'" not in restore:
         problems.append("a failed bake must restore the committed anchor")
     chain = find_step(text, CHAIN) or ""
-    if "make validate" not in (script_of(chain) or ""):
-        problems.append("chain step no longer runs make validate before the commit")
+    # JEG-1485 decision A: the chain's gate is the data gate, make validate-data.
+    if "make validate-data" not in (script_of(chain) or ""):
+        problems.append("chain step no longer runs make validate-data before the commit")
     order = [text.find(f"name: {n}") for n in (IMPORT, DECIDE, BAKE, RESTORE, CHAIN, COMMIT)]
     if -1 in order or order != sorted(order):
         problems.append("steps are not in the order import, decide, bake, restore, chain, commit")
@@ -206,9 +207,7 @@ class RebuildChainBakeTest(unittest.TestCase):
         self.assertTrue(any("order" in p for p in static_problems(moved)))
 
     def test_catches_validate_removed_from_the_chain(self):
-        broken = WORKFLOW.replace(
-            "env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY make validate",
-            "env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY true", 1)
+        broken = WORKFLOW.replace("--kind validation -- make validate-data", "--kind validation -- true")
         self.assertNotEqual(broken, WORKFLOW)
         self.assertTrue(any("make validate" in p for p in static_problems(broken)))
 

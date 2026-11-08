@@ -110,6 +110,8 @@ jobs:
       - run: make sync
       # JEG-1170: test-core runs in the preview-shard jobs.
       - run: make validate-base
+      # JEG-1485 decision A: the data checks pages.yml deploys on (parity with production).
+      - run: make data-gate
       # Monitor signals refreshed on every deploy (warnings, never deploy
       # blocks; Jeremy 2026-10-08). GAP-E2E-FIDELITY: the JEG-77 card's only
       # producer. GAP-031: the ESPN-zeroed staleness signal (exits 1 when it

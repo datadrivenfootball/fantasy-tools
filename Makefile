@@ -210,6 +210,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_source_lateness
 	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
 	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
+	# JEG-1485 decision A: the chain and the deploy gate on data-gate; it stays inside test-core.
+	python3 -m unittest tests.test_chain_data_gate
 	python3 -m unittest tests.test_source_snapshot_match
 	python3 -m unittest tests.test_rebuild_chain_failclosed
 	python3 -m unittest tests.test_rebuild_chain_per_source_hold
@@ -658,6 +660,39 @@ validate: reference sync guard-harness test-core value-check-compare test-integr
 # tests/test_validate_shards.py fails unless the shards together run exactly
 # test-core's lines (none missing, none twice) and validate == validate-base + test-core.
 validate-base: reference sync guard-harness value-check-compare test-integration
+
+# JEG-1485 decision A (Jeremy, 2026-11-08): the rebuild chain and the Pages
+# deploy check DATA only before publishing; code tests (test-core) keep gating
+# PRs (preview.yml) and run nightly. A data check asserts something about the
+# build's own artifacts (fixture, players.json, history index, dist/): shape,
+# coverage, identity joins, week labels, bake-to-section consistency, published
+# order and invariants, the built site's surfaces. Engine vs reference on the
+# data is value-check-compare (strict) in validate-base. Every data-gate line is
+# also in test-core. Definitions and the list's rules: docs/week-held-runbook.md.
+validate-data: validate-base data-gate
+
+data-gate:
+	python3 -m unittest tests.test_site_noindex
+	python3 -m unittest tests.test_static_export
+	python3 -m unittest tests.test_seeded_hold_build
+	python3 -m unittest tests.test_rank_guard
+	python3 -m unittest tests.test_view_invariants
+	python3 -m unittest tests.test_games_remaining
+	python3 -m unittest tests.test_ppg_tie_parity
+	python3 -m unittest tests.test_kdst_removed
+	python3 -m unittest tests.test_comparison_source_integrity
+	python3 -m unittest tests.test_cbsros_bake_identity
+	python3 -m unittest tests.test_suffix_identity
+	python3 -m unittest tests.test_player_aliases
+	python3 -m unittest tests.test_razzball_refresh
+	python3 -m unittest tests.test_bake_on_change
+	python3 -m unittest tests.test_razzball_one_save
+	python3 -m unittest tests.test_player_scenario_matrix
+	python3 -m unittest tests.test_published_surfaces
+	python3 -m unittest tests.test_verify_live
+	python3 -m unittest tests.test_page_load_no_404
+	python3 -m unittest tests.test_lineup_content_week_advance
+	python3 -m unittest tests.test_week_history
 
 value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json

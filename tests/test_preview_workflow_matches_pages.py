@@ -241,6 +241,8 @@ class PreviewMatchesPagesTest(unittest.TestCase):
         # but uses a multi-line run block and is excluded by run_command.
         self.assertEqual(
             [(WORKFLOW_GUARDS, False), ("make sync", False), ("make validate-base", False),
+             # JEG-1485 decision A: the data checks the deploy is gated on.
+             ("make data-gate", False),
              # GAP-E2E-FIDELITY / GAP-031 (2026-10-08): monitor signals
              # produced on every deploy, never blocking it.
              ("python3 pipelines/build_e2e_fidelity.py", True),
