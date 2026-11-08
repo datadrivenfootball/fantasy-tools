@@ -370,7 +370,9 @@ class Round4Test(unittest.TestCase):
         self.assertIn("v, restated surplus averaged over the allocations", TEMPLATE)
         self.assertIn("each allocation computes its own surplus and factor; an absent player contributes 0; "
                       "v is the averaged pie-scaled value ÷ the averaged factor", TEMPLATE)
-        self.assertEqual(TEMPLATE.count('op("=") + step("v", fmtN(v))'), 1)
+        self.assertEqual(TEMPLATE.count(': op("=")) + step("v", fmtN(v))'), 1)
+        # R8-CX-01: below the waiver line the chain shows the zero floor, max(0, native − waiver).
+        self.assertIn('nat - x.waiver < 0 ? op(`= max(0, ${fmtN(nat - x.waiver)}) =`)', TEMPLATE)
 
 
 if __name__ == "__main__":
