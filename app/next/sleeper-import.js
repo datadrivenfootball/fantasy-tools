@@ -11,7 +11,8 @@
  * DDF.sleeper.parseId(text)        -> league ID string or null (sleeper.com / sleeper.app links, bare ID, query strings)
  * DDF.sleeper.load(id, opts)       -> Promise<{ok, result, settings} | {ok:false, code, season?}>
  *     result: a DDF.leaguePaste result (teams, league {leagueName, leagueId, platform:'sleeper'}, ...)
- *     settings: {scoring, teams, superflex, roster:{QB,RB,WR,TE,FLEX,BENCH}} read from the league, or null
+ *     settings: {scoring, teams, superflex, superflexSlots?, roster:{QB,RB,WR,TE,FLEX,BENCH}} read from the league, or null
+ *       (superflexSlots: 2 when the league has 2+ SUPER_FLEX spots; DDF.engine.apply reads it)
  *     code: 'invalid' | 'notfound' | 'oldseason' | 'empty' | 'network'
  *     opts: {fetch, rows, table, playersUrl} (fetch is injectable for tests)
  * DDF.sleeper.MESSAGES[code](info)  -> the plain-words message for an error
@@ -60,7 +61,9 @@
     var roster = {QB: count(["QB"]), RB: count(["RB"]), WR: count(["WR"]), TE: count(["TE"]),
       FLEX: count(["FLEX", "WRRB_FLEX", "REC_FLEX", "WRTE_FLEX", "RBTE_FLEX"]), BENCH: count(["BN"])};
     Object.keys(roster).forEach(function (k) { roster[k] = Math.min(20, roster[k]); });
-    var out = {scoring: scoring, superflex: count(["SUPER_FLEX"]) > 0};
+    var sf = count(["SUPER_FLEX"]);
+    var out = {scoring: scoring, superflex: sf > 0};
+    if (sf >= 2) out.superflexSlots = 2;   /* JEG-1571: two QB-eligible flex slots (the site's most) */
     if (roster.QB >= 1) out.roster = roster;   /* a superflex-only lineup is left for settings.html to confirm */
     var n = Number(lg.total_rosters);
     if ([8, 10, 12, 14].indexOf(n) >= 0) out.teams = n;

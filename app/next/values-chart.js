@@ -183,7 +183,7 @@ function syncVaw(){const on=$('vaw-on').checked,sel=$('rank');let opt=sel.queryS
  if(on&&!opt){opt=document.createElement('option');opt.value='vaw';opt.textContent='Value above waivers';sel.appendChild(opt)}
  if(!on&&opt){if(sel.value==='vaw')sel.value='ddf';opt.remove()}
  const ch=$('vaw-chart');ch.disabled=!on;if(!on)ch.checked=false;$('vaw-legend').hidden=!(on&&ch.checked);
- $('vaw-note').textContent=on?'Shown as a column, in the player card and in Rank by. The average of the four trade charts’ values above waivers at your league settings, as DDF Value averages their adjusted values. Your overrides change DDF Value, not this.':'Off. Turn it on to add a Value above waivers column and a Rank by option.';
+ $('vaw-note').textContent=on?'Shown as a column, in the player card and in Rank by. The average of the four trade charts’ values above waivers at your league settings, as DDF Value by default averages their adjusted values. Your overrides change DDF Value, not this.':'Off. Turn it on to add a Value above waivers column and a Rank by option.';
  hideCard(true);render()}
 $('vaw-on').addEventListener('change',syncVaw);$('vaw-chart').addEventListener('change',syncVaw);
 /* Esc closes an open (i) first, leaving Customize open */
@@ -206,12 +206,22 @@ $('copy-prompt').addEventListener('click',function(){var phone=window.matchMedia
 syncVaw();
 
 window.DDFValues={D,render,applyOverrides,hideCard:()=>hideCard(true),setYours:set=>{yours=new Set([...set].map(String));D.forEach(p=>p.star=yours.has(p.key));render()}};
+/* R7-CX-03: Sources & methodology names the reader's value basis (Values > Overrides) when it is not the default; read
+   the way the Overrides tab reads it (engine basisInfo). No computation. */
+function basisNoteText(){const b=E()&&E().basisInfo?E().basisInfo():null;
+ if(!b||b.isDefault)return'';
+ if(b.fellBackToDefault)return' None of the sources in your current basis is available this week, so the DDF Value shown uses the default.';
+ const names={cbs:'CBS Sports',usatoday:'USA Today',fantasypros:'FantasyPros',fantasycalc:'FantasyCalc'};(b.sourceStates||[]).forEach(s=>{if(!names[s.key])names[s.key]=s.label});const nm=k=>names[k]||k;
+ if(b.mode==='single')return' Your current basis is '+nm(b.source)+' only, so the DDF Value shown is '+nm(b.source)+'’s adjusted value at your league settings.';
+ const pc=b.percents||{},keys=Object.keys(pc).filter(k=>pc[k]>0).sort((x,y)=>pc[y]-pc[x]);
+ return' Your current basis is a blend ('+keys.map(k=>pc[k]+'% '+nm(k)).join(' + ')+'), so the DDF Value shown is that weighted average of their adjusted values at your league settings.'}
+function syncBasisNote(){const t=basisNoteText();document.querySelectorAll('.basis-now').forEach(el=>{el.textContent=t})}
 /* start: wait for the engine, then render; re-read after every rebuild (settings, basis, overrides) */
 const V0=window.DDFValues;
 V0.ready=(E()?E().ready:Promise.reject(new Error('no engine'))).then(()=>{
  const lg=E().league();if(lg&&lg.mine){const t=lg.teams.find(t=>t.id===lg.mine);if(t)yours=new Set(t.keys)}
- load();syncChips();resetZoom();render();renderRisers();document.body.classList.add('values-live');
- E().on(()=>{load();syncChips();render();renderRisers();document.dispatchEvent(new CustomEvent('ddf:values-change'))});
+ load();syncChips();resetZoom();render();renderRisers();syncBasisNote();document.body.classList.add('values-live');
+ E().on(()=>{load();syncChips();render();renderRisers();syncBasisNote();document.dispatchEvent(new CustomEvent('ddf:values-change'))});
  const pw=()=>{priorState='loading';E().priorWeek().then(r=>{prior=r;priorState='ok'},()=>{prior=null;priorState='failed'}).then(()=>{load();renderRisers();render()})};
  pw();E().on(()=>{clearTimeout(V0._pw);V0._pw=setTimeout(pw,250)});
  return V0;

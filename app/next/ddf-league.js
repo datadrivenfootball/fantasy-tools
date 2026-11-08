@@ -19,13 +19,13 @@
  *
  * API: window.DDF.league
  *   ready            Promise<current()>, after DDF.engine.ready and DDF.link.ready (link decode); a link's settings applied
- *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, slots:[qb,rb,wr,te,flex,bench]},
+ *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench]},
  *                     me:index|null, teams:[{index, name, players:[record | {name, key:null, pos, unpriced:true}],
  *                     unmatched:[{line|name, reason}], count}], waivers:[record], waiversFromLink:boolean} or null
  *                     (record = DDF.engine record; waivers = state.waivers when the link has them, else every priced
  *                     player on no roster, "available players", best DDF Value first)
  *   applySettings()  the league's settings -> DDF.engine.apply (only a link league carries settings); true when changed
- *   setSettings(s)   {scoring, teams, superflex, slots} -> DDF.engine.apply, and DDF.link.update on a link league
+ *   setSettings(s)   {scoring, teams, superflex, superflexSlots?, slots} -> DDF.engine.apply, and DDF.link.update on a link league
  *   myTeam()         current().teams[me] or null
  *   opponents()      every other team that has players (waivers are never a team here)
  *   lineup(team)     {starters, bench, slots:{QB,RB,WR,TE,FLEX,SUPERFLEX}, empty, unpriced, starterValue, benchValue, total,
@@ -137,8 +137,12 @@
   // The league's settings in the link format; a pasted or saved league has none of its own, so they are the engine's.
   function engineSettings() {
     var s = DDF.engine.settings(), r = s.roster || {};
-    return {scoring: s.scoring, teams: s.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: SLOT_KEYS.map(function (k) { return r[k] || 0; })};
+    var out = {scoring: s.scoring, teams: s.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: SLOT_KEYS.map(function (k) { return r[k] || 0; })};
+    if ((r.SUPERFLEX || 0) >= 2) out.superflexSlots = r.SUPERFLEX;   // JEG-1571: absent = 1 slot when superflex
+    return out;
   }
+  // JEG-1571: QB-eligible flex (superflex) slots in link-format settings: superflexSlots when 2, else the boolean.
+  function superflexSlots(s) { return !s || !s.superflex ? 0 : (Number(s.superflexSlots) === 2 ? 2 : 1); }
   // Roster moves from waivers.html ("Confirm roster move", sessionStorage ddf:moves, in order): a local layer over the
   // league, never written into ddf:league / ddf:pasted. add joins my team (skipped if rostered anywhere), drop leaves it.
   function readMoves() {
@@ -202,7 +206,7 @@
     var out = {};
     if (s.scoring) out.scoring = s.scoring;
     if (Number.isInteger(Number(s.teams)) && Number(s.teams) > 0) out.teams = Number(s.teams);
-    if (typeof s.superflex === "boolean") out.superflex = s.superflex;
+    if (typeof s.superflex === "boolean") { out.superflex = s.superflex; out.superflexSlots = superflexSlots(s); }
     if (Array.isArray(s.slots)) {
       out.roster = {};
       SLOT_KEYS.forEach(function (k, i) { if (Number.isInteger(s.slots[i])) out.roster[k] = s.slots[i]; });
@@ -213,7 +217,7 @@
     var cur = DDF.engine.settings(), r = cur.roster || {};
     if (want.scoring && want.scoring !== cur.scoring) return true;
     if (want.teams && want.teams !== cur.teams) return true;
-    if (typeof want.superflex === "boolean" && want.superflex !== ((r.SUPERFLEX || 0) > 0)) return true;
+    if (Number.isInteger(want.superflexSlots) && want.superflexSlots !== (r.SUPERFLEX || 0)) return true;
     return Object.keys(want.roster || {}).some(function (k) { return want.roster[k] !== r[k]; });
   }
   function applySettings() {
@@ -230,7 +234,9 @@
     var want = toEngine(s || {});
     var cur = build();
     if (cur && cur.source === "link" && DDF.link && DDF.link.update) {
-      DDF.link.update({settings: Object.assign({}, DDF.link.current().settings, {scoring: s.scoring, teams: Number(s.teams), superflex: !!s.superflex, slots: s.slots.slice()})});
+      var next = Object.assign({}, DDF.link.current().settings, {scoring: s.scoring, teams: Number(s.teams), superflex: !!s.superflex, slots: s.slots.slice()});
+      if (superflexSlots(s) === 2) next.superflexSlots = 2; else delete next.superflexSlots;
+      DDF.link.update({settings: next});
     }
     var out = DDF.engine.apply(want);
     changed();

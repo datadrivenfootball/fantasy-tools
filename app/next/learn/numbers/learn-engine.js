@@ -189,6 +189,7 @@
       starterLineParts: starterLineParts(ins, source, p.pos, posInfo),
       waiverLineParts: waiverLineParts(snap, source, p.pos, posInfo), leagueRostered: finite(posInfo.rostered),
       starterWeightInputs: weightInputs(vp, sg, p.pos), fillInWeightInputs: weightInputs(vp, bg, p.pos),
+      allocationParts: allocationParts(vp, p.pos),
       fillPath: est ? est.path || null : null,
       sigmaRel: sigmaRel, sigmaFloor: sigmaFloor, sigma: sigma,
       /* R4-OP-03 / R4-OP-09: how many league allocations the engine averages, and the averaged total value above
@@ -290,16 +291,93 @@
   }
   /* One group's DDF weight and the included sources' own shares it averages (value-model.js VP-4, ES-15.1: each source
      counts where it has weights and players at the position; held sources are in the included set). */
-  function weightInputs(vp, group, pos) {
+  /* R7-OP-03: the league allocations at the reader's setting for one position (value-model.js vpAllocate with fractional
+     flex and bench seats: allocationMix, each a whole split of the seats with a weight, and allocationExpected, their
+     weighted mean). Heaviest first. */
+  function allocationParts(vp, pos) {
+    var mix = Array.isArray(vp.allocationMix) && vp.allocationMix.length ? vp.allocationMix : vp.allocation ? [{ weight: 1, allocation: vp.allocation }] : null;
+    if (!mix) return null;
+    var F = ['dedicated', 'superflex', 'flex', 'bench', 'starters', 'rostered'];
+    var list = mix.map(function (m) {
+      var a = m.allocation && m.allocation[pos];
+      if (!a) return null;
+      var o = { weight: finite(m.weight) };
+      F.forEach(function (f) { o[f] = finite(a[f]); });
+      return o.weight === null || o.starters === null || o.rostered === null ? null : o;
+    }).filter(Boolean).sort(function (a, b) { return b.weight - a.weight; });
+    if (!list.length) return null;
+    var e = vp.allocationExpected && vp.allocationExpected[pos], expected = null;
+    if (e) { expected = {}; F.forEach(function (f) { expected[f] = finite(e[f]); }); }
+    return { list: list, expected: expected };
+  }
+  function groupMean(vp, group, pos) {
     var srcs = vp.sources || {};
     var rows = (vp.included || []).filter(function (s) {
       var o = srcs[s];
       return o && o.weights && finite(o.weights[group]) !== null && !(o.positions && o.positions[pos] && o.positions[pos].method === 'no_players');
     }).map(function (s) { return { source: s, label: LABELS[s] || s, share: srcs[s].weights[group] }; });
+    return rows.length ? { rows: rows, mean: rows.reduce(function (t, r) { return t + r.share; }, 0) / rows.length } : null;
+  }
+  var ROLES = ['starter', 'bench'];
+  var POS4 = ['QB', 'RB', 'WR', 'TE'];
+  /* R7-CX-01: each DDF weight's derivation, read back from the engine's own inputs (value-model.js vpWeightsOver, ES-15.1
+     and JEG-1366, then VP-4 saved position shares). Default: each group's weight is the mean of the included sources' own
+     shares, renormalized over the 8 groups. In a league with two or more QB slots and no superflex, the QB groups are the
+     mean of the included projections' own QB shares (held ones too) and RB, WR and TE keep their relative shares of the
+     rest. Saved position shares then scale each position's starter and bench weights to its share, in their own ratio.
+     The page prints the derivation only when it reproduces the engine's weight (verified); otherwise it names the gap. */
+  function twoQbRule(vp) {
+    var st = vp.setting || {}, slots = st.slots || {};
+    return Math.floor(Number(slots.QB) || 0) >= 2 && !(Number(st.superflex) > 0) && vp.ddfSplit !== 'charts';
+  }
+  function weightModel(vp) {
+    var srcs = vp.sources || {}, means = {}, total = 0;
+    POS4.forEach(function (p) { ROLES.forEach(function (role) { var g = p + '|' + role, m = groupMean(vp, g, p); means[g] = m; total += m ? m.mean : 0; }); });
+    var base = {}, two = null;
+    POS4.forEach(function (p) { ROLES.forEach(function (role) { var g = p + '|' + role; base[g] = means[g] && total > 0 ? means[g].mean / total : 0; }); });
+    if (twoQbRule(vp)) {
+      var projs = (vp.included || []).filter(function (s) {
+        var o = srcs[s];
+        return o && o.family === 'projection' && o.weights && finite(o.weights['QB|starter']) !== null && !(o.positions && o.positions.QB && o.positions.QB.method === 'no_players');
+      });
+      if (projs.length) {
+        var q = {};
+        ROLES.forEach(function (role) { q[role] = projs.reduce(function (t, s) { return t + srcs[s].weights['QB|' + role]; }, 0) / projs.length; });
+        var restRaw = 0;
+        ['RB', 'WR', 'TE'].forEach(function (p) { ROLES.forEach(function (role) { restRaw += means[p + '|' + role] ? means[p + '|' + role].mean : 0; }); });
+        var remainder = 1 - q.starter - q.bench;
+        two = { projections: projs, qbStarter: q.starter, qbBench: q.bench, remainder: remainder, restRaw: restRaw };
+        POS4.forEach(function (p) { ROLES.forEach(function (role) {
+          var g = p + '|' + role;
+          base[g] = p === 'QB' ? q[role] : means[g] && restRaw > 0 ? means[g].mean * remainder / restRaw : 0;
+        }); });
+      }
+    }
+    var shares = vp.setting && vp.setting.position_shares && typeof vp.setting.position_shares === 'object' ? vp.setting.position_shares : null;
+    var final = {};
+    POS4.forEach(function (p) {
+      var sh = shares ? finite(shares[p]) : null, bt = base[p + '|starter'] + base[p + '|bench'];
+      ROLES.forEach(function (role) { var g = p + '|' + role; final[g] = sh !== null && bt > 0 ? base[g] * sh / bt : base[g]; });
+    });
+    return { means: means, total: total, base: base, two: two, shares: shares, final: final };
+  }
+  function weightInputs(vp, group, pos) {
+    var m = groupMean(vp, group, pos);
     var W = vp.ddfWeights ? finite(vp.ddfWeights[group]) : null;
-    if (!rows.length || W === null) return null;
-    var mean = rows.reduce(function (t, r) { return t + r.share; }, 0) / rows.length;
-    return { rows: rows, mean: mean, weight: W };
+    if (!m || W === null) return null;
+    var M = weightModel(vp), srcs = vp.sources || {}, role = group.split('|')[1];
+    var sh = M.shares ? finite(M.shares[pos]) : null;
+    /* The 2-QB rescale and saved shares are ratios, applied in each league allocation and then averaged, so the
+       derivation from the averaged source shares lands close to the engine's weight, not on it (about 1e-5 here). */
+    var gap = Math.abs(M.final[group] - W);
+    var out = { rows: m.rows, mean: m.mean, weight: W, total: M.total, base: M.base[group], computed: M.final[group],
+      verified: gap <= 5e-4, exact: gap <= 5e-6 };
+    if (M.two) {
+      out.twoQb = { projections: M.two.projections.map(function (s) { return { source: s, label: LABELS[s] || s, share: srcs[s].weights['QB|' + role] }; }),
+        qbStarter: M.two.qbStarter, qbBench: M.two.qbBench, remainder: M.two.remainder, restRaw: M.two.restRaw };
+    }
+    if (sh !== null) out.shares = { share: sh, baseStarter: M.base[pos + '|starter'], baseBench: M.base[pos + '|bench'] };
+    return out;
   }
   /* How each filled-in player at a source got his estimate (value-model.js estimateFor: "peers" = scaled from the other
      charts, "curve" = the chart's own values against projected points), counted over the given positions. */
