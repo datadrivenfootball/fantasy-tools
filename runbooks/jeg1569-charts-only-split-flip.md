@@ -10,8 +10,8 @@ Do not merge it without that go.
 ## Before merge
 1. Jeremy's go, quoted with the date on JEG-1569. Replace `<date>` in `value-model.js`, `value_reference.py` and
    `docs/methodology.md` VP-4.6.
-2. Spec reference: add the `"charts"` split to `pipelines/spec_reference/value_pipeline.py`, using the same rule
-   as VP-4.6. Then regenerate `tests/fixtures/value_pipeline_worked_example.json`, schema /2, with
+2. Spec reference: the `"charts"` split is in `pipelines/spec_reference/value_pipeline.py` (#1366) and this PR flips
+   its `Setting.ddf_split` default. Regenerate `tests/fixtures/value_pipeline_worked_example.json`, schema /2, with
    `tools/methodology_worked_example.py` and its expected values. Three implementations must agree to 1e-6
    (`test_spec_reference_value_pipeline`, `test_value_reference_worked_example`, `test_methodology_worked_example`).
 3. Regenerate the pinned numbers. Run the 35-module reference sweep with this branch's defaults and compare it
