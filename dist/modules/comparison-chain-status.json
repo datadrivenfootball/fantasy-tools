@@ -1,12 +1,12 @@
 {
-  "run_at": "2026-11-08T13:00:32.270771+00:00",
+  "run_at": "2026-11-08T15:55:00.417686+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
-    "fantasycalc": "promoted 3/3 (WARNING list changed, filled in from other charts: fantasycalc-full-12-qb1-section full_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich | fantasycalc-half-12-qb1-section half_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich | fantasycalc-standard-12-qb1-section standard_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich)",
+    "fantasycalc": "promoted 3/3 (WARNING list changed, filled in from other charts: fantasycalc-full-12-qb1-section full_12_qb1/WR list 74 -> 74: dropped chris bell, jahan dotson, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq | fantasycalc-half-12-qb1-section half_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq | fantasycalc-standard-12-qb1-section standard_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq)",
     "fantasypros": "promoted 3/3",
     "espn": "promoted 1/1",
-    "cbs": "HELD at stage 'post_validate' (amber, post-validate source failure): kept last promoted section (Week 9); candidate not promoted: make validate failed: AssertionError: Lists differ: ['standard/10/sf0: build-up cbs shown totals do not divide to the shown factor'] != []",
+    "cbs": "promoted 3/3",
     "cbsros": "promoted 1/1",
     "razzball": "promoted 1/1"
   },
@@ -16,20 +16,17 @@
   "success": false,
   "outcome": "failed",
   "held": [
-    "cbs",
-    "espn",
-    "razzball",
     "usatoday"
   ],
-  "hold_severity": "red",
+  "hold_severity": "amber",
   "list_changes": {
     "fantasycalc": [
-      "fantasycalc-full-12-qb1-section full_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-      "fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich",
-      "fantasycalc-half-12-qb1-section half_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-      "fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich",
-      "fantasycalc-standard-12-qb1-section standard_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-      "fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich"
+      "fantasycalc-full-12-qb1-section full_12_qb1/WR list 74 -> 74: dropped chris bell, jahan dotson, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+      "fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq",
+      "fantasycalc-half-12-qb1-section half_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+      "fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq",
+      "fantasycalc-standard-12-qb1-section standard_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+      "fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq"
     ]
   },
   "held_detail": {
@@ -44,44 +41,6 @@
       "detail": "927/927 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
       "week": 9
-    },
-    "espn": {
-      "reason": "fidelity: scrape_validity",
-      "held_series": [
-        "espn",
-        "espn_vorp"
-      ],
-      "sections": [
-        "espn"
-      ],
-      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 16 to 30)",
-      "hold_severity": "red",
-      "week": 9
-    },
-    "razzball": {
-      "reason": "fidelity: stored_vs_chart",
-      "held_series": [
-        "razzball",
-        "razzball_vorp"
-      ],
-      "sections": [
-        "razzball"
-      ],
-      "detail": "891/1515 chart values equal stored snapshot 2026-11-07 (per game, 1 decimals); 26 stored players are left off the chart by its own rule (missed-games guard, JEG-555): Alec Pierce, Bam Knight, Bryce Lance, Chris Bell, Christian Kirk, Corey Kiner, Devin Singletary, Dohnte Meyers, Drew Lock, Elic Ayoma",
-      "hold_severity": "red",
-      "week": 9
-    },
-    "cbs": {
-      "reason": "chain hold: post-validate source failure",
-      "stage": "post_validate",
-      "kept_section": {
-        "present": true,
-        "week_designated": "Week 9",
-        "content_vintage": "Week 9",
-        "content_week": 9
-      },
-      "weeks_behind": 0,
-      "hold_severity": "amber"
     }
   },
   "runner": "github-actions",
@@ -99,16 +58,16 @@
       "source": "fantasycalc",
       "status": "ok",
       "stage": "complete",
-      "detail": "promoted 3/3; WARNING list changed, filled in from other charts (OC-5): fantasycalc-full-12-qb1-section full_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich | fantasycalc-half-12-qb1-section half_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich | fantasycalc-standard-12-qb1-section standard_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears | fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich",
+      "detail": "promoted 3/3; WARNING list changed, filled in from other charts (OC-5): fantasycalc-full-12-qb1-section full_12_qb1/WR list 74 -> 74: dropped chris bell, jahan dotson, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq | fantasycalc-half-12-qb1-section half_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq | fantasycalc-standard-12-qb1-section standard_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks | fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq",
       "promoted": 3,
       "sections": 3,
       "list_change_warnings": [
-        "fantasycalc-full-12-qb1-section full_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-        "fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich",
-        "fantasycalc-half-12-qb1-section half_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-        "fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich",
-        "fantasycalc-standard-12-qb1-section standard_12_qb1/RB list 61 -> 61: dropped emanuel wilson, keaton mitchell, marshawn lloyd; added austin ekeler, jonathon brooks, tyjae spears",
-        "fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added darren waller, greg dulcich"
+        "fantasycalc-full-12-qb1-section full_12_qb1/WR list 74 -> 74: dropped chris bell, jahan dotson, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+        "fantasycalc-full-12-qb1-section full_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq",
+        "fantasycalc-half-12-qb1-section half_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+        "fantasycalc-half-12-qb1-section half_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq",
+        "fantasycalc-standard-12-qb1-section standard_12_qb1/WR list 73 -> 74: dropped chris bell, kalif raymond; added demarcus robinson, quentin johnston, treylon burks",
+        "fantasycalc-standard-12-qb1-section standard_12_qb1/TE list 26 -> 28: dropped none; added greg dulcich, kenyon sadiq"
       ]
     },
     "fantasypros": {
@@ -130,26 +89,12 @@
     },
     "cbs": {
       "source": "cbs",
-      "status": "held",
+      "status": "ok",
       "stage": "complete",
-      "detail": "make validate failed: AssertionError: Lists differ: ['standard/10/sf0: build-up cbs shown totals do not divide to the shown factor'] != []",
-      "promoted": 0,
+      "detail": "promoted 3/3",
+      "promoted": 3,
       "sections": 3,
-      "list_change_warnings": [],
-      "held_reason": "post-validate source failure",
-      "failed_stage": "post_validate",
-      "rolled_back": 3,
-      "hold_severity": "amber",
-      "weeks_behind": 0,
-      "rolled_back_records": [
-        "cbs-2026-11-08-promotion.rolled-back.json"
-      ],
-      "kept_section": {
-        "present": true,
-        "week_designated": "Week 9",
-        "content_vintage": "Week 9",
-        "content_week": 9
-      }
+      "list_change_warnings": []
     },
     "cbsros": {
       "source": "cbsros",
@@ -163,7 +108,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-07 -> 12 DDF legs -> section; review passed (6432 values)",
+      "detail": "snapshot 2026-11-08 -> 12 DDF legs -> section; review passed (6444 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -192,7 +137,7 @@
       "lagging_one_week": false
     },
     "espn": {
-      "content_vintage": "2026-11-07",
+      "content_vintage": "2026-11-08",
       "content_week": 9,
       "health_status": "ok",
       "lagging_one_week": false
@@ -210,7 +155,7 @@
       "lagging_one_week": false
     },
     "razzball": {
-      "content_vintage": "2026-11-07",
+      "content_vintage": "2026-11-08",
       "content_week": 9,
       "health_status": "ok",
       "lagging_one_week": false
@@ -221,82 +166,103 @@
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-04T00:35:42+00:00",
-      "basis": "history_index"
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "cbsros": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-08",
-      "basis": "history_index"
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "espn": {
       "served_week": 9,
       "label_week": 9,
-      "published_at": "2026-11-07",
-      "basis": "history_index"
+      "published_at": "2026-11-08",
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "fantasycalc": {
       "served_week": 9,
       "label_week": 9,
-      "published_at": "2026-11-08T07:05:24+00:00",
-      "basis": "history_index"
+      "published_at": "2026-11-08T14:05:25+00:00",
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "fantasypros": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-03",
-      "basis": "history_index"
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "razzball": {
       "served_week": 9,
       "label_week": 9,
-      "published_at": "2026-11-07",
-      "basis": "history_index"
+      "published_at": "2026-11-08",
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     },
     "usatoday": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-03",
-      "basis": "history_index"
+      "basis": "section_label",
+      "expected_week": 9,
+      "weeks_behind": 0,
+      "state": "current",
+      "stale": false,
+      "stale_after": null
     }
   },
   "stale_sources": [],
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored",
-    "espn": "fidelity: scrape_validity",
-    "razzball": "fidelity: stored_vs_chart"
-  },
-  "post_validate_isolation": {
-    "root": "cbs",
-    "stage": "retry_pending",
-    "attributed_assertion": "AssertionError: Lists differ: ['standard/10/sf0: build-up cbs shown totals do not divide to the shown factor'] != []",
-    "recorded_at": "2026-11-08T14:11:41.431962+00:00",
-    "expected_section_sha256": "25904435f64100feca5d8ebcb8b086f530ef40c22e60a3c79f66ec9780cad5f6",
-    "expected_validation_present": true,
-    "expected_validation_sha256": "844546be553b9dcbf71ae16326983127739feae905c1551d89e328690e57b0ed",
-    "expected_legs_sha256": {},
-    "promotion_record": "cbs-2026-11-08-promotion.json",
-    "rolled_back_record": "cbs-2026-11-08-promotion.rolled-back.json"
+    "usatoday": "fidelity: publisher_vs_stored"
   },
   "post_rebuild_validation": {
     "status": "failed",
     "command": "make validate",
     "failed_tests": [
-      "FAIL tests.test_seeded_hold_build.SeededHoldBuildTest.test_static_export_passes_on_the_held_build",
-      "FAIL tests.test_static_export.StaticExportTest.test_published_indexed_is_one_factor_on_the_anchor_pie"
+      "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone"
     ],
     "assertions": [
-      "AssertionError: 1 != 0 : test_static_export fails on a held build:",
-      "AssertionError: 2421.3999999999996 != 2424.1000000000004 within 0.05 delta (2.7000000000007276 difference) : cbs full_12: Indexed pie != anchor pie over the same players"
+      "Exception occurred during processing of request from ('127.0.0.1', 47824)",
+      "BrokenPipeError: [Errno 32] Broken pipe",
+      "AssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []"
     ],
     "breaches": [],
     "make_targets": [
-      "Makefile:675: test-core"
+      "Makefile:781: test-core"
     ],
-    "detail": "FAIL tests.test_seeded_hold_build.SeededHoldBuildTest.test_static_export_passes_on_the_held_build\nFAIL tests.test_static_export.StaticExportTest.test_published_indexed_is_one_factor_on_the_anchor_pie\nAssertionError: 1 != 0 : test_static_export fails on a held build:\nAssertionError: 2421.3999999999996 != 2424.1000000000004 within 0.05 delta (2.7000000000007276 difference) : cbs full_12: Indexed pie != anchor pie over the same players",
-    "recorded_at": "2026-11-08T14:27:19.686448+00:00",
+    "detail": "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone\nException occurred during processing of request from ('127.0.0.1', 47824)\nBrokenPipeError: [Errno 32] Broken pipe\nAssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []",
+    "recorded_at": "2026-11-08T16:45:03.913876+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
