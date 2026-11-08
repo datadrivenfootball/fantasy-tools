@@ -251,7 +251,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         page.goto(f"{self.base}/next/setup.html", wait_until="networkidle")
         self.assertTrue(page.url.endswith("/setup.html") and "/next/" not in page.url, page.url)
         # a chat link for Build a Trade (view check, live since JEG-1537): build.html with the token and its overrides
-        page.goto(f"{self.base}/index.html#s={VECTOR_61}", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/index.html#s={VECTOR_61}", wait_until="domcontentloaded", timeout=90000)   # the redirect chain ends on an engine page; the waits below are the real checks
         page.wait_for_function("() => /build\\.html#s=/.test(location.href)", timeout=20000)
         league = json.loads(page.evaluate("sessionStorage.getItem('ddf:league')"))
         self.assertEqual(league["trade"], VECTOR_6_STATE["trade"])
@@ -262,7 +262,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         token = page.evaluate("""() => DDF.link.encodeToken({v: 1, view: 'team', settings: {scoring: 'ppr', teams: 10, superflex: false,
             slots: [1, 2, 2, 1, 1, 6]}, teams: [{name: 'A', players: ['Josh Allen']}, {name: 'B', players: ['Jordan Love']}],
             overrides: {'Josh Allen': 80}})""")
-        page.goto(f"{self.base}/index.html#s={token}", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/index.html#s={token}", wait_until="domcontentloaded", timeout=90000)   # the redirect chain ends on an engine page; the waits below are the real checks
         page.wait_for_function("() => /team\\.html#s=/.test(location.href)", timeout=20000)
         page.wait_for_function("() => DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.engine.overrides.count() > 0", timeout=60000)
         self.assertEqual(page.evaluate("DDF.engine.overrides.count()"), 1)
