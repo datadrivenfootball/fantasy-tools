@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-08T16:48:40.516716+00:00",
+  "run_at": "2026-11-08T17:41:49.189452+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -253,17 +253,16 @@
       "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone"
     ],
     "assertions": [
-      "Exception occurred during processing of request from ('127.0.0.1', 45400)",
+      "Exception occurred during processing of request from ('127.0.0.1', 48288)",
       "BrokenPipeError: [Errno 32] Broken pipe",
-      "Exception occurred during processing of request from ('127.0.0.1', 52898)",
       "AssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []"
     ],
     "breaches": [],
     "make_targets": [
       "Makefile:783: test-core"
     ],
-    "detail": "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone\nException occurred during processing of request from ('127.0.0.1', 45400)\nBrokenPipeError: [Errno 32] Broken pipe\nException occurred during processing of request from ('127.0.0.1', 52898)\nAssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []",
-    "recorded_at": "2026-11-08T17:39:14.531231+00:00",
+    "detail": "FAIL tests.test_team_opportunity_render.TeamOpportunityRenderTest.test_matches_engine_at_desktop_and_phone\nException occurred during processing of request from ('127.0.0.1', 48288)\nBrokenPipeError: [Errno 32] Broken pipe\nAssertionError: Lists differ: ['1440 half_ppr/12/no-sf: 16.82 \u00f7 178.44 =[112 chars]ute'] != []",
+    "recorded_at": "2026-11-08T18:31:52.507739+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
