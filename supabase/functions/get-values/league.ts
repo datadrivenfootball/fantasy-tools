@@ -60,7 +60,7 @@ export interface LeagueInputs {
   custom: string[];
 }
 
-// JEG-1569: value-model.js DDF_VALUE_SPLITS.
+// JEG-1569: value-model.js DDF_VALUE_SPLITS (published default "charts" since the flip).
 export const DDF_SPLITS = ["all", "charts"];
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));

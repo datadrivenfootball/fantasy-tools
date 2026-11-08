@@ -41,6 +41,25 @@ TWO_QB = {"scoring": "ppr", "teams": 12, "roster": {"QB": 2}}
 TOL = 0.06  # value_check's tolerance
 
 
+# JEG-1569 (flip): the live split is "charts", where the 2-QB rule is the charts' mean
+# (tests/test_jeg1569_charts_only_split.py). These tests keep the JEG-1366 rule covered on the
+# "all" split it still runs on; the env var reaches the Python reference and the engine under Node.
+_SPLIT_BEFORE = None
+
+
+def setUpModule():
+    global _SPLIT_BEFORE
+    _SPLIT_BEFORE = os.environ.get("DDF_VALUE_SPLIT")
+    os.environ["DDF_VALUE_SPLIT"] = "all"
+
+
+def tearDownModule():
+    if _SPLIT_BEFORE is None:
+        os.environ.pop("DDF_VALUE_SPLIT", None)
+    else:
+        os.environ["DDF_VALUE_SPLIT"] = _SPLIT_BEFORE
+
+
 def data_today() -> str:
     from tests.test_week_history import _fixture_today
     return _fixture_today()

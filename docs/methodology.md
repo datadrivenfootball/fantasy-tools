@@ -502,19 +502,20 @@ that day). JEG-1393 R4 (OP-01, OP-11).
    `W[p, r] = W[p, r] x share_p / (W[p, starter] + W[p, bench])`, skipped
    where that sum is 0. Applied after 3, so with position shares set the
    bench total follows the shares.
-5. Every source in `I` counts once (four charts and three projections, so 7
-   at full strength). There is one weight set per league setting and week,
+5. On the old `"all"` split (see 6 for the live rule): every source in `I`
+   counts once (four charts and three projections, so 7 at full strength). There is one weight set per league setting and week,
    shared by all three DDF versions (OC-6). The projections' mixes are in it,
    held ones too, so this is the main route by which projection inputs move
    the chart DDF Value (VP-6.3, "How projections price the chart DDF
    Value").
-6. **Charts-only split (JEG-1569; built, default off).** Jeremy, 2026-11-07
+6. **Charts-only split (JEG-1569; live since <date of Jeremy's go>).** Jeremy, 2026-11-07
    (multiple choice on the JEG-1569 report): option A, "charts-only becomes the
    new default for DDF Value's position split", shipped with the trade value
    audit article and flipped only on his explicit go; DDF Projections gets its
    own projections-only split; the 2-QB rule (3a) uses the charts only.
-   `DDF_VALUE_SPLIT_DEFAULT = "all"` in `value-model.js` and the `"all"`
-   default of `League.ddf_split` in `value_reference.py` keep 1-5 live. A run
+   `DDF_VALUE_SPLIT_DEFAULT = "charts"` in `value-model.js` and the
+   `"charts"` default of `League.ddf_split` in `value_reference.py` make this
+   the live rule; `"all"` (1-5 as written, 3a included) is the old split. A run
    picks `"charts"` with `setting.ddf_split` (engine), the engine-local global
    `DDF_VALUE_SPLIT`, the `DDF_VALUE_SPLIT` environment variable (Python
    reference, and the engine under Node), or get-values' `split` parameter.
@@ -664,7 +665,8 @@ that day). JEG-1393 R4 (OP-01, OP-11).
      `I` set the starters and bench seats (`allocate`, VP-2.2), and with
      them each chart's starter and waiver lines. They also set the fill-in
      set and the curve estimates (VP-2.4).
-   - **DDF weights.** The weights average every included source's own mix
+   - **DDF weights** (old `"all"` split only; since JEG-1569 the charts'
+     split averages the charts alone, so this route is closed). The weights average every included source's own mix
      (VP-3, VP-4), held sources included. A projection change shifts that
      source's mix, and every chart is then repriced on the new weights
      (VP-5).

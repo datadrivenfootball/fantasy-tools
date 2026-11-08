@@ -67,7 +67,7 @@
   // option A; the default flips only on his go). A run picks it with
   // setting.ddf_split, or engine-locally with the global DDF_VALUE_SPLIT
   // (Node: the DDF_VALUE_SPLIT environment variable, as the Python reference).
-  var DDF_VALUE_SPLIT_DEFAULT = "all";
+  var DDF_VALUE_SPLIT_DEFAULT = "charts";  // JEG-1569 flip (Jeremy's go: <date>)
   var DDF_VALUE_SPLITS = ["all", "charts"];
   function vpDdfSplit(setting) {
     var asked = setting && setting.ddf_split;

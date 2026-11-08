@@ -20,6 +20,9 @@
  * 10% or more big. One place in a league's value ranking was 3.6 to 6.1% of worth in the data.
  * CAVEAT: these thresholds come from ONE week (week 9, 2026-11-07) of THREE Yahoo half-PPR 12-team leagues. Re-check them
  * on superflex and full-PPR leagues before relying on them there (follow-up JEG-1562).
+ * JEG-1569: the data predates the charts-only position split. On the week-9 sample leagues the split moves team worth by a
+ * median 1.3% at half PPR 12 teams 1QB (up to 4.8%) and more in superflex, so re-run the 36-roster calibration on the
+ * charts-only numbers before trusting the 3/6/10% edges (JEG-1562).
  *
  * PARTNER BANDS (Jeremy 2026-11-07): the partner's signed percent in their valuation (default Analyst charts, the find
  * page's "their valuation"). On the best natural trade of each of the 36 rosters the partner's change was between

@@ -267,7 +267,7 @@ class League:
     # JEG-1569 (prototype, default off): which sources set the DDF weights
     # (VP-4). "all" = every source in I (live); "charts" = the trade charts in
     # I only. Default from the DDF_VALUE_SPLIT environment variable.
-    ddf_split: str = "all"
+    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: <date>)
 
     @property
     def starting_slots(self) -> int:
@@ -1992,7 +1992,7 @@ class Setting:
             position_shares=position_shares, bench_share_override=bench_share_override,
             league_rostered=tuple(league_rostered) if league_rostered is not None else None,
             bench_level=bench_level, league_reserve=tuple(league_reserve or ()),
-            ddf_split=ddf_split or os.environ.get("DDF_VALUE_SPLIT", "all"))
+            ddf_split=ddf_split or os.environ.get("DDF_VALUE_SPLIT", "charts"))
         self.pos_of = {k: p["pos"] for k, p in inp.players.items()}
         self._current = None
         self._prior = None

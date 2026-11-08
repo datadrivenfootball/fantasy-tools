@@ -1,9 +1,9 @@
 """JEG-1569: DDF_VALUE_SPLIT=charts builds DDF Value's position split (VP-4) from
 the trade charts in I only, and DDF Projections' from the projections in I only.
-Default off (DDF_VALUE_SPLIT_DEFAULT "all"); the flip waits for Jeremy's go.
+Live since the flip (DDF_VALUE_SPLIT_DEFAULT "charts"); "all" is the old split.
 
 Checks, on the week-9 fixture at half PPR 12 teams, 1QB and superflex:
-- the default (no flag) equals ddf_split="all" exactly;
+- the default (no flag) equals ddf_split="charts" exactly (the flip);
 - with the flag the weights equal the mean of the included charts' own
   ES-15.1 weights (the projections contribute nothing to the split);
 - the flag moves nothing else upstream: allocation and waiver lines are equal;
@@ -38,7 +38,7 @@ class ChartsOnlySplit(unittest.TestCase):
     def test_split(self):
         for sf in (0, 1):
             default, live, charts = self._pair(sf)
-            self.assertEqual(default["ddfWeights"], live["ddfWeights"])
+            self.assertEqual(default["ddfWeights"], charts["ddfWeights"])  # the flip: default is "charts"
             inc = [k for k in charts["included"]
                    if vr.FAMILY[k] == "chart" and charts["sources"][k]["weights"] is not None]
             self.assertGreaterEqual(len(inc), 1)
@@ -65,6 +65,7 @@ class ChartsOnlySplit(unittest.TestCase):
         for sf in (0, 1):
             _default, live, charts = self._pair(sf)
             self.assertNotIn("ddfWeightsProjections", live)
+            self.assertIn("ddfWeightsProjections", _default)
             proj = self._mean(charts, "projection")
             for g, w in charts["ddfWeightsProjections"].items():
                 self.assertAlmostEqual(w, proj[g], places=12, msg=f"sf={sf} {g}")
