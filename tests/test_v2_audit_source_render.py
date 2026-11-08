@@ -43,12 +43,18 @@ ORACLE = """(src) => {
     const key = String(r.player_key);
     if (!(key in insp.players[src])) return;
     const fin = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    // JEG-1546: since JEG-1335 (fractional allocations) the engine marks a source's estimates as the union over the
+    // allocations (inspection players[src][key].estimated, counted in nEstimated), while a row's estimated label is
+    // the heaviest allocation's only. This source-level view shows the union, so the oracle reads it there; the row
+    // label must still be a subset of it (rowEstimated, checked in check_source).
+    const est = Boolean(insp.players[src][key].estimated);
     out[key] = {
       // A listed player's published number is the chart's own; an estimated one has none, only the engine's fill-in.
-      published: chart ? ((r.estimated || {})[src] ? fin(insp.players[src][key].native) : fin((C.getPublishedMath(r.player_key, src) || {}).native)) : fin(insp.natives[src][key]),
+      published: chart ? (est ? fin(insp.players[src][key].native) : fin((C.getPublishedMath(r.player_key, src) || {}).native)) : fin(insp.natives[src][key]),
       indexed: chart ? fin(r.values[src]) : null,
       adjusted: chart ? fin(r.values[src + '_adjusted']) : fin(r.values[src]),
-      estimated: Boolean((r.estimated || {})[src])
+      estimated: est,
+      rowEstimated: Boolean((r.estimated || {})[src])
     };
   });
   return {oracle: out, listed: Object.keys(insp.players[src]).length};
@@ -121,6 +127,8 @@ def check_source(page, src) -> list[str]:
                 break
         if r["estimated"] != o["estimated"]:
             errors.append(f"{src}/{r['key']}: estimated {r['estimated']} but the engine says {o['estimated']}")
+        if o["rowEstimated"] and not r["estimated"]:
+            errors.append(f"{src}/{r['key']}: the engine row marks him estimated but the view does not")
     # The drawn series carry the same numbers, and never a zero for a missing value.
     for stage in ("published", "indexed", "adjusted"):
         want = [[r["key"], oracle[r["key"]][stage]] for r in got["rows"] if r["key"] in oracle and oracle[r["key"]][stage] is not None]

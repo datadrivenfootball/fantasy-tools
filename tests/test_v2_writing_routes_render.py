@@ -188,7 +188,10 @@ def check_in_page_links(page, v2_js=None) -> list[str]:
                   "#writing/how-values", "#writing/research", "#writing/research/bench-share", "#values-auditing"):
         page.evaluate("h => { location.hash = h; }", hash_)
         page.wait_for_timeout(250)
-        for href in page.evaluate("() => [...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'))"):
+        # JEG-1546: the Fieldnotes primary nav (JEG-1137, #v2FnPrimary) ships hidden unless ?design=fieldnotes, and its
+        # Home route (#home) exists only with that flag, so its links are skipped while that nav is hidden. Links in
+        # every other place, hidden views included, are still checked.
+        for href in page.evaluate("() => [...document.querySelectorAll('a[href]')].filter(a => !a.closest('#v2FnPrimary[hidden]')).map(a => a.getAttribute('href'))"):
             if href.startswith("#") or href.startswith("v2/#"):
                 links.setdefault(href, hash_)
     defined = page.evaluate("""() => [...document.querySelectorAll('.v2-tab[data-view], .v2-subtab, #v2Research .v2-rs-link')]

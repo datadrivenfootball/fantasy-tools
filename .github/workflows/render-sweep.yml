@@ -55,7 +55,8 @@ jobs:
         run: |
           set -o pipefail
           rc=0
-          make test-render-sweep-${{ matrix.shard }} 2>&1 | tee "$RUNNER_TEMP/shard.log" || rc=$?
+          # JEG-1546: through run_suite.py, so a red module does not stop the rest of the shard.
+          make test-render-sweep-shard SHARD=${{ matrix.shard }} 2>&1 | tee "$RUNNER_TEMP/shard.log" || rc=$?
           {
             echo "### Render sweep shard ${{ matrix.shard }} of 3"
             ran=$(grep -c '^python3 -m unittest ' "$RUNNER_TEMP/shard.log" || true)
