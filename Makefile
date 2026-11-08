@@ -805,6 +805,8 @@ test-core:
 	python3 -m unittest tests.test_bookmark_freshness
 	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
 	python3 -m unittest tests.test_edit_league
+	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
+	python3 -m unittest tests.test_entry_sticky_bar
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -1028,6 +1030,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_bookmark_freshness
 	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
 	python3 -m unittest tests.test_edit_league
+	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
+	python3 -m unittest tests.test_entry_sticky_bar
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe

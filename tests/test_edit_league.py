@@ -131,7 +131,7 @@ class EditLeagueRenderTest(unittest.TestCase):
         page.fill("#rosters", (FIXTURES / "01-yahoo-iphone.txt").read_text(encoding="utf-8"))   # no league name; has "Hail Marys"
         page.click("#recognize-button")
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
-        page.click("#connect-next")
+        page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         self.assertEqual(page.input_value("#league-name"), "USO Season XVIII")
         self.assertIn("current league", page.text_content("#league-name-note"))
@@ -165,7 +165,7 @@ class EditLeagueRenderTest(unittest.TestCase):
         page = self.page(seed=seed_script(2))
         self.open(page, "connect.html?edit=1")
         self.assertIsNotNone(page.evaluate("sessionStorage.getItem('ddf:editprev')"))
-        page.click("#connect-next")
+        page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         page.locator("#continue-btn").evaluate("b => b.click()")   # the end button (the sticky bar repeats it on desktop)
         page.wait_for_load_state("networkidle")
