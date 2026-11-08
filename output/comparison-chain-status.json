@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-08T08:44:31.066946+00:00",
+  "run_at": "2026-11-08T10:16:38.731311+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -59,7 +59,7 @@
       "week": 9
     },
     "razzball": {
-      "reason": "fidelity: stored_vs_chart",
+      "reason": "fidelity: scrape_validity",
       "held_series": [
         "razzball",
         "razzball_vorp"
@@ -67,7 +67,7 @@
       "sections": [
         "razzball"
       ],
-      "detail": "894/1515 chart values equal stored snapshot 2026-11-07 (per game, 1 decimals); 26 stored players are left off the chart by its own rule (missed-games guard, JEG-555): Alec Pierce, Bam Knight, Bryce Lance, Chris Bell, Christian Kirk, Corey Kiner, Devin Singletary, Dohnte Meyers, Drew Lock, Elic Ayoma",
+      "detail": "player count dropped vs week 8: stored QB 101->88 (the publisher's own list dropped too (88)), stored TE 141->129, chart QB 101->83 (the publisher's own list dropped too (88)), chart RB 149->135, chart WR 206->169, chart TE 141->125",
       "hold_severity": "red",
       "week": 9
     },
@@ -266,13 +266,13 @@
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
     "espn": "fidelity: scrape_validity",
-    "razzball": "fidelity: stored_vs_chart"
+    "razzball": "fidelity: scrape_validity"
   },
   "post_validate_isolation": {
     "root": "cbs",
     "stage": "retry_pending",
     "attributed_assertion": "AssertionError: Lists differ: ['standard/10/sf0: build-up cbs shown totals do not divide to the shown factor'] != []",
-    "recorded_at": "2026-11-08T09:57:31.490207+00:00",
+    "recorded_at": "2026-11-08T11:27:03.836006+00:00",
     "expected_section_sha256": "25904435f64100feca5d8ebcb8b086f530ef40c22e60a3c79f66ec9780cad5f6",
     "expected_validation_present": true,
     "expected_validation_sha256": "844546be553b9dcbf71ae16326983127739feae905c1551d89e328690e57b0ed",
@@ -296,7 +296,7 @@
       "Makefile:675: test-core"
     ],
     "detail": "FAIL tests.test_seeded_hold_build.SeededHoldBuildTest.test_static_export_passes_on_the_held_build\nFAIL tests.test_static_export.StaticExportTest.test_published_indexed_is_one_factor_on_the_anchor_pie\nAssertionError: 1 != 0 : test_static_export fails on a held build:\nAssertionError: 2421.3999999999996 != 2424.1000000000004 within 0.05 delta (2.7000000000007276 difference) : cbs full_12: Indexed pie != anchor pie over the same players",
-    "recorded_at": "2026-11-08T10:13:11.484339+00:00",
+    "recorded_at": "2026-11-08T11:42:21.343101+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }

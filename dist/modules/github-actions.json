@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08T10:13:24.799412+00:00",
+  "generated_at": "2026-11-08T11:42:33.587428+00:00",
   "repo": "datadrivenfootball/fantasy-tools",
   "workflows": [
     {
@@ -1871,17 +1871,35 @@
         "schedule": "On push to main",
         "key_task": "Production deployment"
       },
-      "health": "ok",
+      "health": "running",
       "last_run": {
-        "created_at": "2026-11-08T09:41:05Z",
-        "updated_at": "2026-11-08T10:05:40Z",
-        "status": "completed",
-        "conclusion": "success",
-        "event": "push",
-        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42468219262",
-        "duration_s": 1475
+        "created_at": "2026-11-08T11:30:01Z",
+        "updated_at": "2026-11-08T11:30:05Z",
+        "status": "in_progress",
+        "conclusion": null,
+        "event": "workflow_dispatch",
+        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42476002560",
+        "duration_s": 4
       },
       "recent_runs": [
+        {
+          "created_at": "2026-11-08T11:30:01Z",
+          "updated_at": "2026-11-08T11:30:05Z",
+          "status": "in_progress",
+          "conclusion": null,
+          "event": "workflow_dispatch",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42476002560",
+          "duration_s": 4
+        },
+        {
+          "created_at": "2026-11-08T10:13:30Z",
+          "updated_at": "2026-11-08T10:38:15Z",
+          "status": "completed",
+          "conclusion": "success",
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42470512753",
+          "duration_s": 1485
+        },
         {
           "created_at": "2026-11-08T09:41:05Z",
           "updated_at": "2026-11-08T10:05:40Z",
@@ -1908,29 +1926,11 @@
           "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42461069655",
           "duration_s": 2366
-        },
-        {
-          "created_at": "2026-11-08T07:41:19Z",
-          "updated_at": "2026-11-08T08:10:40Z",
-          "status": "completed",
-          "conclusion": "success",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42459805870",
-          "duration_s": 1761
-        },
-        {
-          "created_at": "2026-11-08T07:16:27Z",
-          "updated_at": "2026-11-08T07:39:54Z",
-          "status": "completed",
-          "conclusion": "success",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42458111572",
-          "duration_s": 1407
         }
       ],
       "recent_failures": 0,
       "consecutive_failures": 0,
-      "last_success_at": "2026-11-08T09:41:05Z",
+      "last_success_at": "2026-11-08T10:13:30Z",
       "failing_streak": false,
       "alert_needed": false
     },
@@ -2117,10 +2117,10 @@
   "summary": {
     "total_workflows": 30,
     "active": 29,
-    "healthy": 24,
+    "healthy": 23,
     "warn": 2,
     "failing": 4,
-    "running": 0,
+    "running": 1,
     "failing_streak_count": 2,
     "alert_needed_count": 2,
     "max_consecutive_failures": 5,
