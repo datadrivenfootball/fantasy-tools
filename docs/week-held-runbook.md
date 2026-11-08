@@ -126,6 +126,26 @@ published numbers or the site would be wrong. If a code test is red on main,
 data commits keep deploying and they ship the code at the tip of main, so fix
 main the same day.
 
+## Forced weekly chain runs (JEG-1485 decision B)
+
+pg_cron jobs `rebuild-chain-weekly-tue-evening` (`0 2 * * 3` UTC = Tue 20:00 CST) and
+`rebuild-chain-weekly-wed-morning` (`0 12 * * 3` UTC = Wed 06:00 CST) dispatch
+rebuild-chain.yml with source `pg_cron-weekly-tue-2000ct` / `pg_cron-weekly-wed-0600ct`.
+They were applied 2026-11-08; the record, verify and rollback are in
+`supabase/migrations/rebuild_chain_weekly_forced_20261108.sql`.
+
+- **First-fire check (Tue 2026-11-10 20:00 CST = 11-11 02:00Z):**
+  `cron.job_run_details` shows status `succeeded` for `rebuild-chain-weekly-tue-evening`;
+  `monitoring.dispatch_log` has a rebuild-chain.yml dispatch at ~02:00Z; and
+  `gh run list -R datadrivenfootball/fantasy-tools -w rebuild-chain.yml --event workflow_dispatch --limit 5`
+  shows a run at ~02:00Z whose input source is `pg_cron-weekly-tue-2000ct`. Repeat for the
+  Wednesday 12:00Z job.
+- **Re-time for CDT:** pg_cron runs in UTC. From 2027-03-14 (CDT, UTC-5) these fire at
+  21:00 / 07:00 local. Before Week 1 of 2027, re-schedule to `0 1 * * 3` and `0 11 * * 3`
+  (cron.schedule upserts by name), or back again in November.
+- An overlap with the hourly vintage check or the 05:45 CST safety run adds at most one
+  queued run; an unchanged run commits nothing.
+
 ## Testing the alert
 
 Dispatch `Source lateness check` with `week_held_drill=true` once (any branch),
