@@ -8,6 +8,9 @@
 --
 -- Idempotent. Apply BEFORE (or with) the merge of the PR that adds the manifest entry: until the row exists the audit in
 -- health-artifacts.yml reports the check as having no check_config row. Pinned by tests/test_monitoring_coverage.py.
+--
+-- Rollback:
+--   delete from monitoring.check_config where check_id = 'source_lateness';
 insert into monitoring.check_config
     (check_id, check_type, cadence_seconds, grace_override_seconds,
      scheduler_owner_type, scheduler_owner_id, alert_policy)
