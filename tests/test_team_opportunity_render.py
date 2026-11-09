@@ -81,6 +81,16 @@ def shown(pct: float) -> str:
     return f"{math.floor(pct * 10 + 1e-9) / 10:.1f}%"
 
 
+def ratio_rounding_bound(gain: float, total: float) -> float:
+    """Most that 100 x gain ÷ total, both shown to 2 dp, can differ from the shown percent (2 dp).
+
+    JEG-1583: the old bar, 0.006, was below this, so an exact percent failed on some data
+    (2026-11-08, half PPR/12: 16.82 ÷ 178.44 x 100 = 9.4261 against a shown 9.42%).
+    """
+    low = total - 0.005
+    return 0.005 + 100 * 0.005 * (1 / low + (gain + 0.005) / (low * low)) + 1e-9
+
+
 NUM = r"(\d+\.\d+)"
 DENOM = re.compile(r"counted this way: " + NUM + r" = your starters " + NUM + r" in full \+ your bench " + NUM + r" at its bench weights")
 PART = re.compile(r"\b(QB|RB|WR|TE) " + NUM + r" × " + NUM + r"% = " + NUM)
@@ -117,7 +127,7 @@ def denom_errors(text: str, want: dict, gain: float) -> list[str]:
             out.append(f"no gain ÷ denominator line: {text[-160:]!r}")
         else:
             g, d, pct, shown_pct = map(float, r.groups())
-            if abs(100 * g / d - pct) > 0.006 or abs(g - gain) > 0.006 or shown(100 * gain / want["worth"]) != f"{shown_pct:.1f}%":
+            if abs(100 * g / d - pct) > ratio_rounding_bound(g, d) or abs(g - gain) > 0.006 or shown(100 * gain / want["worth"]) != f"{shown_pct:.1f}%":
                 out.append(f"{g} ÷ {d} = {pct}% shown {shown_pct}% does not recompute")
     elif r:
         out.append("a ratio line with no counted gain")

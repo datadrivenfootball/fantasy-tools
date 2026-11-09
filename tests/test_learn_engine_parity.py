@@ -71,6 +71,17 @@ def ffactor(v):
     return text[:-2] if text.endswith(".0") else text
 
 
+def factor_rounding_bound(ew):
+    """Most that (DDF total to 2 dp) ÷ published total can differ from the factor to 6 significant figures.
+
+    JEG-1583: the old bar, 5e-6 x factor, was below this, so an exact factor failed on some data
+    (2026-11-08, CBS half PPR/10: 1932.56 ÷ 1705.5 = 1.133134 against a shown 1.13314).
+    """
+    total_rounding = 0.005 / ew["chart"]
+    factor_rounding = 0.5 * 10 ** (math.floor(math.log10(abs(ew["factor"]))) - 5)
+    return total_rounding + factor_rounding + 1e-9
+
+
 # The engine, read straight from TradeValueCurveControls (not from the page's model).
 ENGINE = """() => {
   const C = window.TradeValueCurveControls, ins = C.getInspection(), st = C.getState(), shape = C.getRosterShape();
@@ -253,7 +264,7 @@ def compare(page, combo) -> list[str]:
             # The factor's two totals sit beside it and divide to it (R1-CX-04).
             if f"({ew['anchor']:.2f})" not in pw["explain"] or ffactor(ew["factor"]) not in pw["explain"]:
                 errors.append(f"{tag}: build-up {s} factor text lacks DDF total {ew['anchor']:.2f} or factor {ffactor(ew['factor'])}")
-            elif abs(float(f"{ew['anchor']:.2f}") / ew["chart"] - float(ffactor(ew["factor"]))) > 5e-6 * ew["factor"] + 1e-9:
+            elif abs(float(f"{ew['anchor']:.2f}") / ew["chart"] - float(ffactor(ew["factor"]))) > factor_rounding_bound(ew):
                 errors.append(f"{tag}: build-up {s} shown totals do not divide to the shown factor")
     return errors
 
@@ -464,11 +475,18 @@ class LearnEngineParity(unittest.TestCase):
         here from TradeValueCurveHarness.runPipelineWith (never the page model): the player at the first seat past the
         heaviest allocation's rostered count, and the weight-average of every allocation's line equals the engine's.
         R6-OP-02: the spread band's end is the D'Hondt N′, not the league's rostered count. R6-OP-03: the intro.
-        R6-OP-07: superflex Josh Allen on USA Today states the engine's restatement when the subtraction differs."""
+        R6-OP-07: a superflex USA Today QB (Josh Allen when his subtraction differs) states the engine's restatement when the subtraction differs."""
         cases = [(("ppr", 12, 0), "cbs", None), (("half_ppr", 10, 1), "usatoday", "Josh Allen")]
         engine_js = """(a) => { const H = TradeValueCurveHarness, ins = TradeValueCurveControls.getInspection(), vp = ins.valuePipeline;
           const s = DDFNumbers.snapshot(); let key = null, pos = 'RB';
-          if (a.name) { const p = s.players.find(p => p.name === a.name); key = String(p.player_key); pos = p.pos; }
+          if (a.name) { const p = s.players.find(p => p.name === a.name); key = String(p.player_key); pos = p.pos;
+            /* JEG-1583: R6-OP-07 needs a player above the waiver line whose subtraction differs at 2 dp. Which players do
+               moves with the data, so when the named player's matches, take the highest-DDF player (any position) whose does. */
+            const row = k => ins.players[a.s][k], line = q => (vp.sources[a.s].positions[q.pos] || {}).waiver;
+            const differs = q => { const r = row(String(q.player_key)), w = line(q);
+              return r && isFinite(r.native) && isFinite(r.vorp) && isFinite(w) && r.native > w && (r.native - w).toFixed(2) !== r.vorp.toFixed(2); };
+            if (!differs(p)) { const alt = s.players.filter(differs).sort((x, y) => y.ddf - x.ddf)[0];
+              if (alt) { key = String(alt.player_key); pos = alt.pos; } } }
           else key = String(s.players.filter(p => p.pos === 'RB' && ins.players[a.s][String(p.player_key)]).sort((x, y) => y.ddf - x.ddf)[0].player_key);
           const mix = vp.allocationMix && vp.allocationMix.length > 1 ? vp.allocationMix : [{weight: 1, allocation: (vp.allocationMix && vp.allocationMix[0] || {}).allocation || vp.allocation}];
           const reads = mix.map(m => { const r = mix.length > 1 ? H.runPipelineWith({seatAllocation: m.allocation}) : {sources: {[a.s]: {players: ins.players[a.s], positions: vp.sources[a.s].positions}}};
@@ -515,8 +533,10 @@ class LearnEngineParity(unittest.TestCase):
             self.assertIn(want, how, src)
             self.assertIn(want, trace, src)
             if eng["n"] > 1:
-                ns = [r["W"] for r in reads]
-                self.assertIn(f"weighted over the {eng['n']} league allocations ({min(ns)} to {max(ns)} rostered, read at {pos}{min(ns) + 1} to {pos}{max(ns) + 1}", how, src)
+                lo, hi = min(r["W"] for r in reads), max(r["W"] for r in reads)
+                # JEG-1583: the page names one count when every allocation rosters the same number (numbers.js).
+                span = f"{lo} rostered, read at {pos}{lo + 1}" if lo == hi else f"{lo} to {hi} rostered, read at {pos}{lo + 1} to {pos}{hi + 1}"
+                self.assertIn(f"weighted over the {eng['n']} league allocations ({span}", how, src)
                 self.assertIn(f") = {u(line, src)}", how, src)
             self.assertNotIn("the engine’s line is", how, src)
             # R6-OP-02: N′ = the starters plus the D'Hondt bench seats.
@@ -539,7 +559,7 @@ class LearnEngineParity(unittest.TestCase):
                 self.assertIn(f"{u(eng['native'], src)} − {u(eng['waiver'], src)} = {u(sub, src)}", worked[[k for k in worked if k.startswith("Above the waiver line")][0]]["how"], src)
             self.assertFalse(overflow, f"{src}: horizontal overflow at 390 px")
         self.assertNotEqual(u(got["usatoday"][0]["native"] - got["usatoday"][0]["waiver"], "usatoday"), u(got["usatoday"][0]["vorp"], "usatoday"),
-                            "Josh Allen's subtraction matches at this setting; the R6-OP-07 check proves nothing")
+                            "no USA Today player's subtraction differs at this setting; the R6-OP-07 check proves nothing")
         self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
 
     def test_round6_bench_weight_scope(self):
