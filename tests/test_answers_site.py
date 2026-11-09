@@ -106,6 +106,26 @@ class CheckerTest(unittest.TestCase):
             self.assertTrue(any("not an answers file" in f for f in ap.check_tree(root)))
 
 
+class CacheKeyTest(unittest.TestCase):
+    def test_any_input_change_rebuilds(self):
+        import tempfile
+        from build_answers_pages import TABLE_INPUTS, cache_key
+        with tempfile.TemporaryDirectory() as d:
+            dist = Path(d)
+            (dist / "assets" / "history").mkdir(parents=True)
+            for f in TABLE_INPUTS:
+                (dist / f).write_text("x")
+            (dist / "assets" / "history" / "week-9.json").write_text("{}")
+            base = cache_key(dist, "t1", None)
+            self.assertEqual(base, cache_key(dist, "t1", None))
+            self.assertNotEqual(base, cache_key(dist, "t2", None))
+            self.assertNotEqual(base, cache_key(dist, "t1", ["ppr-12-sf0-q1w2f1-b7"]))
+            for f in TABLE_INPUTS + ("assets/history/week-9.json",):
+                (dist / f).write_text("changed")
+                self.assertNotEqual(base, cache_key(dist, "t1", None), f)
+                (dist / f).write_text("{}" if f.endswith("week-9.json") else "x")
+
+
 class BuiltTreeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

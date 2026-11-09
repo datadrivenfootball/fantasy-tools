@@ -121,7 +121,7 @@ def fingerprint_findings(name: str, doc, columns: dict[str, dict[int, float]], s
 
 def check_tree(root: Path, bundle: dict | None = None, fingerprint_every: int = 1) -> list[str]:
     """All findings for a built answers tree (dist/answers). bundle = the same build's source bundle, for the
-    fingerprints; fingerprint_every = N checks every Nth table (the build samples, the test checks all)."""
+    fingerprints; fingerprint_every = N checks every Nth table, 0 none (tables reused from a checked cache)."""
     findings: list[str] = []
     columns = source_columns(bundle) if bundle else {}
     tables = 0
@@ -143,7 +143,7 @@ def check_tree(root: Path, bundle: dict | None = None, fingerprint_every: int = 
                 findings.append(f"{rel}: grid keys != {GRID_KEYS}")
         elif CELL_ID.match(base):
             findings += table_findings(rel, doc)
-            if columns and tables % fingerprint_every == 0 and isinstance(doc, dict):
+            if columns and fingerprint_every and tables % fingerprint_every == 0 and isinstance(doc, dict):
                 findings += fingerprint_findings(rel, doc, columns)
             tables += 1
         else:

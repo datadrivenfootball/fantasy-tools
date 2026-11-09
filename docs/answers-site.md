@@ -14,7 +14,9 @@ server; connector answers mode by default plus a full URL for Jeremy; full site 
 - `pipelines/answer_tables.cjs` runs get-values' own pipeline (`supabase/functions/get-values/league.ts`,
   `pipeline.ts` over `dist/assets/value-model.js`) for every grid cell and writes `dist/answers/data/<cell>.json`
   (`[key, ddf, sd, low]`, players above 0 only), `players.json` (every QB/RB/WR/TE player: name, position, team) and `grid.json`. Cell id
-  `<scoring>-<teams>-sf<n>-q<n>w<n>f<n>-b<n>`; RB 2 and TE 1 fixed; 1,728 cells, about 47 s on 8 workers locally.
+  `<scoring>-<teams>-sf<n>-q<n>w<n>f<n>-b<n>`; RB 2 and TE 1 fixed; 1,728 cells, about 47 s on 8 workers locally and about 210 s on a 4-core CI runner. Checked tables are cached in
+  `build/answers-cache/` keyed on the build tag and every input file, so repeat syncs in one checkout (CI test shards run
+  one per test module) reuse them instead of rebuilding.
   `sd` = |charts version - projections version| / 2 (the finder's DDF-side noise). A player in `players.json` absent
   from a cell is priced at 0 there.
 - `pipelines/build_answers_pages.py` copies `app/answers/` (pages, `answers-engine.js`, `answers.css`), stamps the
