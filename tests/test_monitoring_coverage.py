@@ -139,6 +139,18 @@ class CoverageManifestTest(unittest.TestCase):
         self.assertEqual([], coverage_problems(MANIFEST, load_workflows(), migrations_sql=all_migrations_sql(),
                                                migration_texts=all_migration_texts()))
 
+    def test_source_lateness_heartbeat_ignores_the_drill_and_non_main(self):
+        # JEG-1586 (E2): the GitHub-scheduled watchdog (it also runs the week-held tripwire) is recorded, so a silent stop is
+        # flagged `missed`; the week-held drill and branch runs must not count as a heartbeat.
+        entry = [p for p in MANIFEST["pipelines"] if p["workflow"] == "source-lateness.yml"]
+        self.assertEqual(["github_schedule"], [p["scheduler"] for p in entry])
+        self.assertNotIn("source-lateness.yml", MANIFEST["unmonitored_workflows"])
+        block = step_block((WORKFLOWS / "source-lateness.yml").read_text(encoding="utf-8"), STEP_NAME)
+        self.assertIsNotNone(block)
+        self.assertIn("always()", block)
+        self.assertIn("github.ref == 'refs/heads/main'", block)
+        self.assertIn("inputs.week_held_drill != 'true'", block)
+
     def test_retired_pg_cron_job_in_the_manifest_is_caught(self):
         stale = json.loads(json.dumps(MANIFEST))
         stale["pipelines"].append({"workflow": "cbsros-supabase-sync.yml", "scheduler": "pg_cron",
