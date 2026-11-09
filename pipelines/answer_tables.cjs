@@ -112,11 +112,13 @@ function table(loaded, c, today) {
 }
 const weekOf = (plan) => (Number.isInteger(plan.week) ? plan.week : null);
 
-function playersFile(loaded, keys) {
+// Every QB/RB/WR/TE player the site knows (name, position, team only), not just the ones a table lists: an override on
+// a player priced at 0 everywhere still applies, as on the full site (review of #1396).
+function playersFile(loaded) {
   const rows = [];
   for (const p of loaded.bundle.players) {
     const key = Number(p.player_key);
-    if (!keys.has(key) || !POSITIONS.has(p.pos)) continue;
+    if (!Number.isInteger(key) || !POSITIONS.has(p.pos)) continue;
     rows.push([key, String(p.name || ""), p.pos, String(p.team || "")]);
   }
   rows.sort((a, b) => a[0] - b[0]);
@@ -185,9 +187,12 @@ async function main() {
     w.once("error", fail);
     w.once("exit", (code) => { if (code !== 0) fail(new Error(`answer_tables worker exited ${code}`)); });
   })));
-  const keys = new Set(parts.flat());
+  const listed = new Set(parts.flat());
   const loaded = loadBundle(distDir);
-  const p = playersFile(loaded, keys);
+  const p = playersFile(loaded);
+  const known = new Set(p.rows.map((r) => r[0]));
+  const missing = [...listed].filter((k) => !known.has(k));
+  if (missing.length) throw new Error(`tables list players with no name: ${missing.slice(0, 5)}`);
   checkPlayers(p);
   writeFileSync(join(outDir, "players.json"), JSON.stringify(p));
   writeFileSync(join(outDir, "grid.json"), JSON.stringify({ v: SCHEMA, build: loaded.build, grid: GRID, cells: cells.length }));

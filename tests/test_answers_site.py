@@ -45,8 +45,8 @@ ON_GRID = {"v": 1, "scoring": "half_ppr", "teams": 10, "roster": {"QB": 1, "RB":
 OFF_GRID = {"v": 1, "scoring": "ppr", "teams": 12, "roster": {"QB": 1, "RB": 3, "WR": 2, "TE": 1, "FLEX": 1,
             "SUPERFLEX": 0, "BENCH": 7}}
 STATES = {"no-league": {}, "on-grid": {LEAGUE_KEY: ON_GRID}, "off-grid": {LEAGUE_KEY: OFF_GRID},
-          "overrides": {LEAGUE_KEY: ON_GRID, OV_KEY: {"v": 2, "basis": {"mode": "single", "source": "x"},
-                        "values": {"2227": 10, "3247": {"type": "adjustment", "delta": 5}}, "names": {}}}}
+          "overrides": {LEAGUE_KEY: ON_GRID, OV_KEY: {"v": 2, "basis": {"mode": "single", "source": "fantasycalc"},
+                        "values": {"2227": 10, "3247": {"type": "adjustment", "delta": 5}, "1541": 30}, "names": {}}}}
 PAGES = ["index.html", "values.html"]
 WIDTHS = [1280, 390, 320]
 
@@ -251,7 +251,8 @@ class RenderedTest(unittest.TestCase):
             g = page.evaluate(GLOBALS)
             findings += [f"{page_name}: global {k} present" for k, v in g.items() if v]
             facts = {"overflow": page.evaluate(OVERFLOW), "writes": page.evaluate("() => window.__writes"),
-                     "players": page.evaluate("() => DDF.answers.players().slice(0, 40).map(p => [p.key, p.ddf])"),
+                     "players": page.evaluate("() => DDF.answers.players().map(p => [p.key, p.ddf])"),
+                     "basis": page.evaluate("() => { const n = document.getElementById('n-basis'); return Boolean(n && !n.hidden); }"),
                      "cell": page.evaluate("() => DDF.answers.cell()"),
                      "notice": page.evaluate("() => { const n = document.getElementById('n-offgrid'); return n && !n.hidden ? n.textContent : ''; }"),
                      "rows": page.evaluate("() => document.querySelectorAll('#rows tr').length"),
@@ -286,23 +287,30 @@ class RenderedTest(unittest.TestCase):
                                 self.assertGreater(facts["rows"], 50)
                             if state == "overrides":
                                 ov = dict(facts["players"])
-                                self.assertNotIn("2227", ov)   # 10.0 is below the first 40
+                                self.assertEqual(10, ov["2227"])
+                                self.assertEqual(30, ov["1541"])   # a player priced at 0 in every table
                                 self.assertTrue(facts["ov"])
+                                self.assertTrue(facts["basis"])
 
     def test_same_ddf_value_as_full_site(self):
-        for settings in (ON_GRID, {**ON_GRID, "scoring": "ppr", "teams": 12,
-                                   "roster": {**ON_GRID["roster"], "SUPERFLEX": 2, "WR": 2, "BENCH": 7}}):
-            with self.subTest(settings=settings["scoring"] + str(settings["roster"]["SUPERFLEX"])):
-                _, facts = self.audit(self.base, "values.html", {LEAGUE_KEY: settings})
-                full = self.full_site_values(settings)
-                self.assertTrue(facts["players"])
-                for key, ddf in facts["players"]:
-                    self.assertAlmostEqual(full[key], ddf, delta=0.051, msg=f"player {key}")
+        ov = {"v": 2, "basis": {"mode": "default"}, "values": {"2227": 10, "1541": 30, "3247": {"type": "adjustment", "delta": 5}},
+              "names": {}}
+        for settings, store_ov in ((ON_GRID, None), ({**ON_GRID, "scoring": "ppr", "teams": 12,
+                                   "roster": {**ON_GRID["roster"], "SUPERFLEX": 2, "WR": 2, "BENCH": 7}}, ov)):
+            with self.subTest(settings=settings["scoring"] + str(settings["roster"]["SUPERFLEX"]), overrides=bool(store_ov)):
+                store = {LEAGUE_KEY: settings, **({OV_KEY: store_ov} if store_ov else {})}
+                _, facts = self.audit(self.base, "values.html", store)
+                full = self.full_site_values(store)
+                answers = dict(facts["players"])
+                self.assertGreater(len(answers), 100)
+                # Both directions: every player either page prices above 0 has the same value on the other.
+                for key in {k for k, v in answers.items() if v > 0} | {k for k, v in full.items() if v >= 0.05}:
+                    self.assertAlmostEqual(full.get(key, 0), answers.get(key, 0), delta=0.051, msg=f"player {key}")
 
-    def full_site_values(self, settings: dict) -> dict:
+    def full_site_values(self, store: dict) -> dict:
         context = self.browser.new_context()
-        context.add_init_script(f"localStorage.setItem({json.dumps(LEAGUE_KEY)}, {json.dumps(json.dumps(settings))});"
-                                + _render_env.pin_data_week_script())
+        seed = "".join(f"localStorage.setItem({json.dumps(k)}, {json.dumps(json.dumps(v))});" for k, v in store.items())
+        context.add_init_script(seed + _render_env.pin_data_week_script())
         page = context.new_page()
         try:
             page.goto(f"{self.base}/values.html", wait_until="load", timeout=90000)

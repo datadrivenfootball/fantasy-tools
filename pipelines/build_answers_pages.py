@@ -8,7 +8,8 @@ The build:
   pages; the pages never carry the value engine, the players-data island or any source file;
 - writes the answer tables with pipelines/answer_tables.cjs (get-values' own pipeline over this build's dist/),
   DDF outputs only;
-- runs the privacy check (answers_privacy.check_tree) on the whole tree and fails the sync on any finding.
+- runs the privacy check (answers_privacy.check_tree) on the whole tree; a finding raises AnswersBuildError, and the
+  sync then removes dist/answers (nothing unchecked is published) without stopping the full site.
 
 noindex comes from sync's last step (site_noindex), like every other page. The pages are linked from no public page.
 """
@@ -33,8 +34,9 @@ from build_next_preview import LOCAL_ASSET, data_version_script  # noqa: E402
 
 NODE = ["node", "--experimental-strip-types", "--no-warnings"]
 BUILD_META = '<meta name="trade-chart-build" content="{tag}">'
-# The build checks every Nth table's columns against the sources (the test checks all of them).
-FINGERPRINT_EVERY = 6
+# The build checks every table's columns against the sources (a stride over the sorted files would always land on the
+# same bench size; review of #1396).
+FINGERPRINT_EVERY = 1
 
 
 class AnswersBuildError(RuntimeError):
@@ -93,8 +95,9 @@ def node_ready() -> str | None:
     """None when node can run the edge function's .ts modules, else why not."""
     if shutil.which("node") is None:
         return "node is not installed"
-    proc = subprocess.run([*NODE, "-e", "1"], capture_output=True, text=True)
-    return None if proc.returncode == 0 else f"node cannot strip types: {proc.stderr.strip()[:200]}"
+    probe = f"require({json.dumps(str(ROOT / 'supabase/functions/get-values/league.ts'))})"
+    proc = subprocess.run([*NODE, "-e", probe], capture_output=True, text=True)
+    return None if proc.returncode == 0 else f"node cannot load the edge function's .ts modules: {proc.stderr.strip()[:200]}"
 
 
 if __name__ == "__main__":

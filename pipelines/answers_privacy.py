@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 
 BANNED = [
-    r"cbs", r"usa\s*today", r"usatoday", r"fantasy\s*pros", r"fantasy\s*calc", r"razzball", r"mike\s+clay",
+    r"cbs", r"usa\s*today", r"usatoday", r"fantasy\s*pros", r"fantasy\s*calc", r"razzball", r"mike\s+clay", r"dave\s+richard",
     r"espn",  # the answers pages have no league-platform picker yet; when they do, allow it there by selector
     r"analyst\s+charts?", r"live\s+market", r"trade\s+charts?", r"chart_values", r"chart_indexed",
     r"published\s+values?", r"players-data", r"methodology-data", r"comparison-sources", r"reindex",

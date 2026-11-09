@@ -57,7 +57,7 @@
     });
     body.appendChild(frag);
     var zero = all.length - shown.length;
-    $("more").textContent = shown.length ? (zero > 0 ? zero + " more players are priced at 0 here. Search finds them." : "")
+    $("more").textContent = shown.length ? (zero > 0 ? "Players not listed are priced at 0 here. Search finds them." : "")
       : "No player matches.";
   }
 
