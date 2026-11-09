@@ -26,3 +26,14 @@ Re-frozen 2026-10-28 (JEG-1142, PR #1044): switching off the promotion/demotion 
 deliberately changes default values at every league setting, so value-model.js and curve-widget.js were copied here
 byte for byte from the PR head, which is main's engine once it merges. The folder keeps its old name so the test's path
 does not move.
+
+Re-frozen 2026-11-08 (JEG-1588, Jeremy 2026-11-08: "re-freeze the baseline engine in test_basis_overrides_render from
+current main"): value-model.js and curve-widget.js copied byte for byte from origin/main at 1292e8fa (engine files last
+changed in e1bebdf8, JEG-1571). Deliberate engine changes since the JEG-1142 freeze, among them JEG-1335 fractional seats
+and JEG-1571 QB-eligible flex, had made 476 players differ at half_ppr/10.
+
+How to re-freeze (only after a merged, deliberate default-value change; never to make a red pass):
+  git show origin/main:app/trade-value-chart/assets/value-model.js > tests/fixtures/baseline_main_771c3422/value-model.js
+  git show origin/main:app/trade-value-chart/assets/curve-widget.js > tests/fixtures/baseline_main_771c3422/curve-widget.js
+then add a dated paragraph here (commit, reason, decision) and a docs/claude-log entry, and check that the Broken* tests
+in tests/test_basis_overrides_render.py still fail.

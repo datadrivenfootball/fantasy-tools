@@ -8,7 +8,9 @@ projection blend):
 1. DEFAULT PATH IS BYTE-IDENTICAL. Every value and DDF field of every row on
    the default basis equals what the engine on origin/main at 771c3422 (frozen
    in tests/fixtures/baseline_main_771c3422/; re-frozen from 61ecb39e after
-   JEG-1121's deliberate bench-seat value change, see its README) gives on the
+   JEG-1121's deliberate bench-seat value change, see its README; last
+   re-frozen 2026-11-08 from origin/main 1292e8fa, JEG-1588: how to re-freeze
+   is in that README and in docs/baseline-reds/README.md) gives on the
    same data, and so do
    setBasis(null), setBasis({mode: "default"}) and a blend of the four
    trade charts at equal weights (all our methodology since JEG-1073; the
