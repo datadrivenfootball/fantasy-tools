@@ -84,7 +84,7 @@ jobs:
           RUN_SUITE_SHARD_INDEX: ${{ matrix.shard }}
           RUN_SUITE_SHARD_COUNT: 6
         run: |
-          python3 -m pip install --quiet pytest
+          python3 -m pip install --quiet pytest pyyaml==6.0.2
           exec > >(tee full-suite.log) 2>&1
           make test-unit
       - name: Upload shard timings and output
