@@ -1,0 +1,38 @@
+<!doctype html><html lang="en" data-ddf-mode="answers"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>DDF · Values</title><link rel="stylesheet" href="answers.css"></head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header><div class="hin"><a class="brand" href="index.html">DDF</a>
+<nav aria-label="Main navigation"><a href="index.html">Home</a><a href="values.html" aria-current="page">Values</a></nav></div></header>
+<main id="main" tabindex="-1">
+<h1>DDF Values</h1>
+<p class="lede">What each player is worth in your league, on one scale. A player not listed is priced at 0 at these settings: below the waiver line.</p>
+<p class="ctx" id="ctx" aria-live="polite"><span>League: <strong id="ctx-league">Loading…</strong></span><span id="ctx-week"></span></p>
+<details class="change"><summary>Try other settings for this visit</summary>
+<div class="fields">
+<label>Scoring<select id="f-scoring"><option value="standard">Standard</option><option value="half_ppr">Half PPR</option><option value="ppr">Full PPR</option></select></label>
+<label>Teams<select id="f-teams"><option>8</option><option>10</option><option>12</option><option>14</option></select></label>
+<label>QB slots<select id="f-qb"><option>1</option><option>2</option></select></label>
+<label>WR slots<select id="f-wr"><option>2</option><option>3</option></select></label>
+<label>Flex slots<select id="f-flex"><option>1</option><option>2</option></select></label>
+<label>QB-eligible flex<select id="f-sf"><option>0</option><option>1</option><option>2</option></select></label>
+<label>Bench<select id="f-bench"><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select></label>
+</div>
+<p class="foot">Your saved league is not changed.</p>
+</details>
+<p class="notice warn" id="n-offgrid" hidden></p>
+<p class="notice warn" id="n-error" hidden></p>
+<p class="notice" id="n-basis" hidden>Your saved value basis is not used on this page. These are DDF Values.</p>
+<p class="notice" id="n-ov" hidden></p>
+<section class="card" id="list-card" aria-labelledby="list-h" hidden>
+<h2 id="list-h" class="skip">Player values</h2>
+<div class="tools" role="toolbar" aria-label="Filter players">
+<div class="seg" id="pos" role="group" aria-label="Position"><button type="button" data-pos="" aria-pressed="true">All</button><button type="button" data-pos="QB" aria-pressed="false">QB</button><button type="button" data-pos="RB" aria-pressed="false">RB</button><button type="button" data-pos="WR" aria-pressed="false">WR</button><button type="button" data-pos="TE" aria-pressed="false">TE</button></div>
+<label class="skip" for="q">Search players</label><input type="search" id="q" placeholder="Search players" autocomplete="off">
+</div>
+<table class="vals"><thead><tr><th scope="col" class="num">#</th><th scope="col">Player</th><th scope="col">Pos</th><th scope="col" class="team">Team</th><th scope="col" class="num">DDF Value</th></tr></thead><tbody id="rows"></tbody></table>
+<p class="foot" id="more"></p>
+</section>
+</main>
+<script src="answers-engine.js" defer></script>
+<script src="answers-values.js" defer></script>
+</body></html>
