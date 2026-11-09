@@ -153,6 +153,30 @@ def filter_problems(name, text):
     return out
 
 
+def docs_only_job_problems(name, text):
+    """JEG-1593: check that the docs-only detection job replaces the former paths filter.
+
+    The pull_request trigger must have no paths filter. The docs-only job must
+    exist and must classify BUILD_DOCS files as non-docs (they trigger the full
+    check). A catch-all case must mark every other non-docs file as non-docs so
+    tests-only PRs are never silently skipped.
+    """
+    out = []
+    if pr_paths(text):  # non-empty => paths filter still present
+        out.append(f"{name}: pull_request still has a paths filter; remove it (JEG-1593)")
+    if not re.search(r"^  docs-only:\n", text, re.M):
+        out.append(f"{name}: missing docs-only job")
+        return out
+    for path in BUILD_DOCS:
+        # Strip glob suffix to get a matchable string in the shell case statement.
+        probe = path.replace("/**", "").replace("**", "")
+        if probe not in text:
+            out.append(f"{name}: {path} not in docs-only job (would be mis-classified as docs)")
+    if "*) docs_only=false" not in text:
+        out.append(f"{name}: docs-only job has no catch-all for non-docs files (tests-only PRs would be skipped)")
+    return out
+
+
 class CiSpeedupTest(unittest.TestCase):
     def test_render_matrix_runs_the_complete_gate_once(self):
         self.assertEqual([], render_schedule_problems(read("v2-render-test.yml")))
@@ -190,8 +214,9 @@ class CiSpeedupTest(unittest.TestCase):
         self.assertIsNotNone(job_timeout(read("v2-render-test.yml"), "v2-render"))
 
     def test_real_docs_only_filter(self):
+        # JEG-1593: the paths filter is gone; the docs-only job replaces it.
         for name in PR_FILTERED:
-            self.assertEqual([], filter_problems(name, read(name)))
+            self.assertEqual([], docs_only_job_problems(name, read(name)))
 
     def test_pages_has_no_path_filter(self):
         self.assertIsNone(re.search(r"paths", read("pages.yml")))
@@ -220,12 +245,17 @@ class CiSpeedupTest(unittest.TestCase):
             self.assertIsNone(job_timeout(text, job), job)
 
     def test_filter_skipping_tests_is_caught(self):
-        text = read("preview.yml").replace('      - "!docs/**"\n', '      - "!docs/**"\n      - "!tests/**"\n', 1)
-        self.assertTrue(any("tests/test_example.py" in p for p in filter_problems("preview.yml", text)))
+        # JEG-1593: removing the catch-all case would silently skip tests-only PRs.
+        text = read("preview.yml").replace("*) docs_only=false", "*) : # catch-all removed")
+        self.assertNotEqual(read("preview.yml"), text)
+        self.assertTrue(any("catch-all" in p for p in docs_only_job_problems("preview.yml", text)))
 
     def test_filter_dropping_build_docs_is_caught(self):
-        text = read("v2-render-test.yml").replace('      - "docs/methodology.md"\n', "", 1)
-        self.assertTrue(any("docs/methodology.md" in p for p in filter_problems("v2-render-test.yml", text)))
+        # JEG-1593: removing a BUILD_DOCS path from the docs-only job would
+        # mis-classify that file as docs and skip the check on PRs that change it.
+        text = read("v2-render-test.yml").replace("docs/methodology.md", "docs/REMOVED.md")
+        self.assertNotEqual(read("v2-render-test.yml"), text)
+        self.assertTrue(any("docs/methodology.md" in p for p in docs_only_job_problems("v2-render-test.yml", text)))
 
     def test_matcher_semantics(self):
         self.assertTrue(matches("**/*.md", "README.md"))

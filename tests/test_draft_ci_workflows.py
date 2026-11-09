@@ -218,8 +218,11 @@ class WorkflowTest(unittest.TestCase):
                 self.assertIn("run_expensive: ${{ steps.gate.outputs.run_expensive }}", state)
                 for heavy_name in heavy:
                     body = job(text, heavy_name) or ""
-                    self.assertIn("needs: pr-state", body)
-                    self.assertIn("if: needs.pr-state.outputs.run_expensive == 'true'", body)
+                    # JEG-1593: heavy jobs now need [docs-only, pr-state].
+                    self.assertIsNotNone(re.search(r"^    needs:.*pr-state", body, re.M))
+                    self.assertIsNotNone(re.search(r"^    needs:.*docs-only", body, re.M))
+                    self.assertIn("needs.pr-state.outputs.run_expensive == 'true'", body)
+                    self.assertIn("needs.docs-only.outputs.docs_only != 'true'", body)
                     self.assertIsNone(re.search(r"^    continue-on-error: true$", body, re.M))
                     self.assertLess(body.index("Recheck PR state before expensive work"),
                                     body.index("actions/setup-python@v5"))
