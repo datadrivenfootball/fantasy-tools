@@ -72,6 +72,8 @@ class MobileMenuPanelTest(unittest.TestCase):
                     box = page.eval_on_selector(PANEL, "e => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.bottom, innerHeight]; }")
                     self.assertGreaterEqual(box[0], 0, f"panel left edge off screen: {box}")
                     self.assertLessEqual(box[1], width, f"panel right edge off screen: {box}")
+                    self.assertGreaterEqual(box[0], 8, f"panel flush with the left edge, no gutter: {box}")
+                    self.assertLessEqual(box[1], width - 8, f"panel flush with the right edge, no gutter: {box}")
                     self.assertLessEqual(box[2], box[3], f"panel runs below the viewport: {box}")
                     # Opening the panel must not widen the page (values.html has its own wide table at 320, unrelated to the Menu).
                     self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), closed_scroll_width, "panel widened the page")

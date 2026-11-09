@@ -38,10 +38,11 @@ document.addEventListener('click', function(e){
 (function(){
   function closeMore(refocus){
     var wrap = document.querySelector('.morewrap');
-    if(!wrap || !wrap.classList.contains('open')) return;
+    if(!wrap) return;
+    var wasOpen = wrap.classList.contains('open');
     wrap.classList.remove('open');
     var mb = wrap.querySelector(':scope > button');
-    if(mb){ mb.setAttribute('aria-expanded', 'false'); if(refocus) mb.focus(); }
+    if(mb){ mb.setAttribute('aria-expanded', 'false'); if(refocus && wasOpen) mb.focus(); }
   }
   document.addEventListener('pointerdown', function(e){ if(!e.target.closest('.morewrap')) closeMore(false); });
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMore(true); });
