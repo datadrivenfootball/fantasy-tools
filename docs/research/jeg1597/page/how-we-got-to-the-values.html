@@ -1,0 +1,134 @@
+<title>How We Got to the Values</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column, tables in their own scrollers, verdict chips carry the result. */
+:root {
+  --bg: #f6f7f4; --surface: #ffffff; --fg: #1d2420; --muted: #5a645e; --rule: #d7ddd8;
+  --accent: #1f6b4f; --accent-soft: #e2efe8;
+  --pass: #1f6b4f; --fail: #a33a2b; --null: #7a6a1f; --chip-fg: #ffffff;
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --body: "Source Sans 3", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121614; --surface: #1a201d; --fg: #e6ebe7; --muted: #a3ada7; --rule: #2e3732;
+  --accent: #6fc39e; --accent-soft: #1f2d26; --pass: #4f9d7b; --fail: #d0705f; --null: #b9a24a; --chip-fg: #101412;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121614; --surface: #1a201d; --fg: #e6ebe7; --muted: #a3ada7; --rule: #2e3732;
+  --accent: #6fc39e; --accent-soft: #1f2d26; --pass: #4f9d7b; --fail: #d0705f; --null: #b9a24a; --chip-fg: #101412;
+  color-scheme: dark; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 17px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 42rem; margin: 0 auto; padding-block: 2rem 4rem; display: flex; flex-direction: column; gap: 2.25rem; }
+section { display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+h1, h2 { font-family: var(--display); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2rem; }
+h2 { font-size: 1.35rem; }
+p, ul, ol { margin: 0; }
+ul, ol { padding-left: 1.2rem; display: flex; flex-direction: column; gap: .35rem; }
+.meta { font-family: var(--mono); font-size: .78rem; color: var(--muted); letter-spacing: .02em; }
+.lede { font-size: 1.1rem; }
+.box { background: var(--accent-soft); border-radius: 6px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: .5rem; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; font-family: var(--mono); font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: .1rem .45rem; border-radius: 4px; color: var(--chip-fg); white-space: nowrap; }
+.pass { background: var(--pass); } .fail { background: var(--fail); } .null { background: var(--null); }
+.small { font-size: .88rem; color: var(--muted); }
+a { color: var(--accent); }
+</style>
+
+<main>
+<header style="display:flex;flex-direction:column;gap:.6rem">
+  <p class="meta">HOW WE GOT TO THE VALUES · SCORING · WEEK 9, 2026</p>
+  <h1>How your scoring reaches DDF Value, and what we tested to make it better</h1>
+  <p class="lede">DDF Value is the average of four trade charts after each is turned into value above your league's waiver line. Two of the four do not change when you change scoring. We tried to fix that ourselves. This page shows how DDF Value handles scoring today, what we built, and what our tests found.</p>
+</header>
+
+<section>
+  <h2>In short</h2>
+  <ul>
+    <li>CBS Sports and USA Today publish a column for each scoring format. We use the one that matches your league.</li>
+    <li>FantasyPros publishes one Value column for every format. FantasyCalc publishes one list, for 12-team Full PPR leagues; its other scoring settings multiply each position by one number, so no two backs ever change places.</li>
+    <li>We built a way to rescore those two charts from projected stats, and tested it against points players actually scored.</li>
+    <li>It did not clearly beat today's DDF Value. The gains were small and inside the noise of four weeks of games. We are not switching to it yet.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>How each chart handles scoring</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Chart</th><th>What it publishes</th><th>Changes order with scoring?</th></tr></thead>
+    <tbody>
+      <tr><td>CBS Sports</td><td>Separate Standard, Half and Full PPR columns (quarterbacks: one column)</td><td>Yes: 32% of the top 36 change places, Standard to Full</td></tr>
+      <tr><td>USA Today</td><td>Separate columns per format (quarterbacks: one column)</td><td>Yes: 59%</td></tr>
+      <tr><td>FantasyPros</td><td>One Value column; no scoring stated</td><td>No: identical in every format, weeks 5 to 9</td></tr>
+      <tr><td>FantasyCalc</td><td>One live-market list for 12-team Full PPR. Its Standard and Half settings multiply each position by one number (backs about 0.994, receivers about 1.018)</td><td>No: 0 of its top 99 backs, receivers and tight ends</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">How we know FantasyCalc's base is 12-team Full PPR: in its public data, each player's value equals its redraft value only at that setting, for all 196 players. Every other scoring and team-count setting is that list times one number per position, to within rounding. Its 2-QB setting is a separate list.</p>
+</section>
+
+<section>
+  <h2>What DDF Value does with scoring today</h2>
+  <ol>
+    <li><strong>Each chart's list at your scoring.</strong> CBS Sports and USA Today change; FantasyPros and FantasyCalc do not.</li>
+    <li><strong>Projected points at your scoring.</strong> Three projection sets (ESPN, CBS Sports rest of season, Razzball) project points per game in each format. Those points decide how many players at each position start and sit on benches in your league, and so where each position's waiver line falls.</li>
+    <li><strong>The split of value between positions.</strong> It averages the four charts and the three projection sets, so the projections move it with your scoring.</li>
+  </ol>
+  <p>So a Full PPR league already gives receivers more of the value than a Standard league does, through steps 2 and 3. What no step does is reorder two backs inside FantasyPros or FantasyCalc when one catches 60 passes and the other does not.</p>
+</section>
+
+<section>
+  <h2>What we built</h2>
+  <ol>
+    <li><strong>Give each chart a scoring.</strong> We first tried to read a chart's scoring from its order and spacing. Tested on CBS Sports and USA Today, where the answer is known, it picked the right format in 3 of 20 cases, so we dropped it. We use what the publisher states instead: FantasyCalc at its 12-team Full PPR base, and FantasyPros, which states nothing, at Half PPR, the guess with the smallest worst-case error.</li>
+    <li><strong>Turn the chart into points.</strong> For each chart and position we fit its values against projected rest-of-season points at that scoring. That keeps the chart's own order and spacing and puts it in points.</li>
+    <li><strong>Split points into games and stats.</strong> Projected games left and each player's projected stat line per game (passing, rushing, receiving, receptions, turnovers) say how his points would change under another scoring. The chart supplies only the total; the games and the stat mix come from the projections.</li>
+    <li><strong>Rescore and convert back.</strong> Each player's points move by his projected change, for example a point per catch from Standard to Full PPR. Then the chart's values go through the same value-above-waivers steps as today.</li>
+  </ol>
+  <p>On DDF Value the change would be labelled: "Includes 2 charts adjusted to your scoring (FantasyCalc, FantasyPros)." Each adjusted column would say the publisher did not make it.</p>
+</section>
+
+<section>
+  <h2>What it would change</h2>
+  <p>In a 12-team Standard league, week 9: James Cook 66.7 to 71.1, Derrick Henry 39.2 to 43.7; Trey McBride 26.1 to 20.4, Puka Nacua 51.9 to 47.7, Chase Brown 31.8 to 28.1. Running backs' share of all value goes from 55.8% to 56.5%. In Half PPR the moves are about a point or two; in Full PPR, under a point, because only FantasyPros changes there.</p>
+</section>
+
+<section>
+  <h2>Did it work?</h2>
+  <p>We wrote the tests and what would count as failing before building anything. The yardstick is points players actually scored at each scoring, which no chart and no part of DDF controls: 2026 weeks 5 to 8, measured from each week's values. That is four short windows, so small differences cannot be told apart from luck.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Question</th><th>Result</th><th>Numbers</th></tr></thead>
+    <tbody>
+      <tr><td>Does the rescored DDF Value track actual points better than today's?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">Standard +0.010 [−0.003, +0.025]<br>Full −0.001</td></tr>
+      <tr><td>Does rescored FantasyCalc beat FantasyCalc as published, in Standard?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">+0.026 [−0.004, +0.058]</td></tr>
+      <tr><td>Rescored FantasyCalc alone, or rescored DDF Value?</td><td>DDF Value</td><td class="num">closer at every scoring</td></tr>
+      <tr><td>Does FantasyCalc's flat response hold market sense that rescoring throws away?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">rescoring moved values toward actual points</td></tr>
+      <tr><td>Do rescored charts move pass catchers up in Full PPR?</td><td><span class="chip pass">PASS</span></td><td class="num">97% of swaps</td></tr>
+      <tr><td>Rescoring CBS Sports' and USA Today's Standard column: does it land closer to their own Full column?</td><td><span class="chip fail">FAIL</span></td><td class="num">1 of 5 weeks</td></tr>
+      <tr><td>2015 to 2025: does rescoring a player's recent rate by his catches predict Standard points better?</td><td><span class="chip fail">FAIL</span></td><td class="num">−0.071, 0 of 11 seasons</td></tr>
+    </tbody>
+  </table></div>
+  <p class="small">Numbers are the change in rank correlation with actual points (within each position), with a 95% range from resampling players. "Not shown" means the range includes zero. Full results: <code>docs/research/jeg1597/step4-results.md</code>.</p>
+  <p>Two of the failures teach something. The chart makers with a column per format move their values about a third as far as projected stats imply (0.3 on CBS Sports, 0.4 on USA Today). And over eleven seasons, a player's past Full PPR points, catches included, predicted his future Standard points better than his past Standard points did: catches mean he gets the ball, and that predicts yards and touchdowns too. Rescoring by catches at full strength ignores both.</p>
+</section>
+
+<section>
+  <h2>What happens next</h2>
+  <div class="box">
+    <p>DDF Value stays as it is. FantasyPros and FantasyCalc are still averaged at their published numbers.</p>
+    <p>The version we would test next moves a rescored chart about a third of the way, as the publishers with format columns do, and is judged on weeks we have not looked at yet, with its tests written first.</p>
+  </div>
+</section>
+
+<footer class="small" style="border-top:1px solid var(--rule);padding-top:1rem">
+  Data: CBS Sports, USA Today, FantasyPros and FantasyCalc week 9 2026 trade values as saved by our pipeline; FantasyCalc public values read 2026-11-09; projections from ESPN, CBS Sports rest of season and Razzball; actual points 2015 to 2026. 12 teams, one QB, our default lineup.
+</footer>
+</main>
