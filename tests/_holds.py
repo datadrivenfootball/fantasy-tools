@@ -87,3 +87,27 @@ def pin_holds_in_dist(dist, extra_held: tuple = ()) -> None:
     path = Path(dist) / "assets" / "comparison-sources-data.json"
     path.write_text(json.dumps(with_pinned_holds(json.loads(path.read_text(encoding="utf-8")), extra_held),
                                separators=(",", ":")), encoding="utf-8")
+
+
+
+def without_holds(comparison: dict) -> dict:
+    """A copy of the fixture with no source held (sections kept), for a test whose premise is that every source,
+    CBS included, can be picked."""
+    out = copy.deepcopy(comparison)
+    for section in (out.get("sources") or {}).values():
+        if isinstance(section, dict):
+            for field in HOLD_FIELDS:
+                section.pop(field, None)
+    return out
+
+
+def pinned_holds_override(dist=None, extra_held: tuple = (), none_held: bool = False) -> dict:
+    """JEG-1578: the pinned-holds fixture (or, with none_held, no holds at all) as a tests._dist_server.serve()
+    override, for harnesses that serve the published dist directly (no temp copy, so no extra disk). The engine reads
+    holds only from this file."""
+    import json
+    from pathlib import Path
+    root = Path(dist) if dist is not None else Path(__file__).resolve().parents[1] / "dist"
+    data = json.loads((root / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
+    fixed = without_holds(data) if none_held else with_pinned_holds(data, extra_held)
+    return {"assets/comparison-sources-data.json": json.dumps(fixed, separators=(",", ":")).encode("utf-8")}
