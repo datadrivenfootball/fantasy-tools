@@ -18,6 +18,7 @@ Rendered checks (dist/, Chromium):
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -115,7 +116,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         return page
 
     def connect(self, page):
-        page.goto(f"{self.base}/connect.html", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/connect.html", wait_until="domcontentloaded", timeout=60000)
         page.wait_for_function(ENGINE_READY, timeout=60000)
 
     def paste(self, page, text):
@@ -186,7 +187,8 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.assertEqual(again["id"], live["id"])
         self.assertEqual(again["myTeamId"], ids[2])
         page.evaluate("sessionStorage.clear()")
-        page.reload(wait_until="networkidle")
+        page.reload(wait_until="domcontentloaded")
+        page.wait_for_selector("#setup-empty", state="visible", timeout=60000)   # readiness: the empty state is drawn
         self.assertTrue(page.is_visible("#setup-empty"))
         self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.length"), 0)
 
@@ -219,7 +221,8 @@ class EntryPagesRenderTest(unittest.TestCase):
                  "teams": [{"name": "Link A", "players": ["Josh Allen"]}, {"name": "Link B", "players": ["Jordan Love"]}]}
         page.evaluate("s => DDF.link.decodeBlock(JSON.stringify(s))", state)
         self.assertIsNone(page.evaluate("sessionStorage.getItem('ddf:pasted')"))
-        page.goto(f"{self.base}/setup.html", wait_until="networkidle")
+        page.goto(f"{self.base}/setup.html", wait_until="domcontentloaded")
+        page.wait_for_selector("input[name=team]", timeout=60000)   # readiness: the team choices are drawn
         self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.map(e => e.value)"), ["Link A", "Link B"])
 
     def test_link_codec_vectors_and_round_trip(self):
@@ -243,12 +246,18 @@ class EntryPagesRenderTest(unittest.TestCase):
 
     def test_routes_into_entry_pages(self):
         page = self.page()
-        page.goto(f"{self.base}/index.html#s=abc", wait_until="networkidle", timeout=60000)
+        # Navigation waits for DOMContentLoaded, then for the redirect to land and the page's own readiness signal, not
+        # 'networkidle' (JEG-1586, as PR #1358 did for the zero-override test): the engine pages are 1.3 MB and keep fetching.
+        page.goto(f"{self.base}/index.html#s=abc", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_url(re.compile(r"/connect\.html#s=abc$"), timeout=60000)
+        page.wait_for_selector("#paste-link", state="visible", timeout=60000)
         self.assertTrue(page.url.endswith("/connect.html#s=abc"), page.url)
         self.assertTrue(page.is_visible("#paste-link"), "a broken token shows the paste-your-block notice")
-        page.goto(f"{self.base}/next/connect.html?x=1#paste", wait_until="networkidle")
+        page.goto(f"{self.base}/next/connect.html?x=1#paste", wait_until="domcontentloaded")
+        page.wait_for_url(re.compile(r"/connect\.html\?x=1#paste$"), timeout=60000)
         self.assertTrue(page.url.endswith("/connect.html?x=1#paste") and "/next/" not in page.url, page.url)
-        page.goto(f"{self.base}/next/setup.html", wait_until="networkidle")
+        page.goto(f"{self.base}/next/setup.html", wait_until="domcontentloaded")
+        page.wait_for_url(re.compile(r"/setup\.html$"), timeout=60000)
         self.assertTrue(page.url.endswith("/setup.html") and "/next/" not in page.url, page.url)
         # a chat link for Build a Trade (view check, live since JEG-1537): build.html with the token and its overrides
         page.goto(f"{self.base}/index.html#s={VECTOR_61}", wait_until="domcontentloaded", timeout=90000)   # the redirect chain ends on an engine page; the waits below are the real checks
