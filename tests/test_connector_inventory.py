@@ -63,6 +63,10 @@ ROUTE_EXCEPTIONS = {
     "#value-overrides": "JEG-1224",  # value basis and overrides are not part of the DDF state yet
     "#writing": "by design: prose pages, nothing to compute",
     "#player-values": "unresolved: get_values links to Trade targets, not the value chart (JEG-1030 F2)",
+    # JEG-1586 (lead decision, 2026-11-09; Jeremy can reverse): the Simplified site (JEG-1263) is the Trade ideas
+    # output, rest-of-season only, drawn answer first. It computes nothing of its own; find_trades and
+    # find_trades_league return the same ideas, so a tool for this route would duplicate them.
+    "#simplified-site": "by design: the same trade ideas find_trades returns, shown answer first; no analysis of its own",
     "#waivers": "unresolved: no waiver analysis in the connector or in JEG-1029's proposal (JEG-1030 F3)",
 }
 EXCEPTION_FORM = re.compile(r"^(JEG-\d+|by design: .+|unresolved: .+)$")
