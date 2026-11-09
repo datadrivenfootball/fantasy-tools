@@ -21,8 +21,8 @@ Research only; nothing here is live. Read in this order:
 
 - Do not infer a chart's scoring from its list; use what the publisher states, and label
   assumptions (FantasyPros states none).
-- Publishers with real format columns move values about 0.3-0.4 of what projected stats imply,
-  and reorder few same-position pairs (week 9: CBS Sports 4, USA Today 21 of 1,260 top-36 RB/WR
+- A rescore at about 0.3-0.4 of full strength best matches the within-position order of the
+  publishers' own format columns (a ranking fit, not a measured size of their moves); they reorder few same-position pairs (week 9: CBS Sports 4, USA Today 21 of 1,260 top-36 RB/WR
   pairs). A full projection-ratio rescale overshoots them.
 - Over 2015-2025, trailing Full PPR points predict Standard rest-of-season points better than
   trailing Standard points: receptions carry usage signal beyond their scoring value. Rescoring
