@@ -574,6 +574,18 @@ def main() -> int:
         from build_values_explainer import main as build_values_explainer
         build_values_explainer(["--skip-sync", "--out", str(DIST / "value-logic" / "index.html")])
 
+    # JEG-1543: the answers version (/answers/, noindex, linked from no public page): DDF outputs only, from the
+    # pre-built grid of answer tables; the privacy check fails the sync on any source name or source number in it.
+    # It needs node that runs the edge function's .ts modules; without it, a skip locally and an error in CI.
+    from build_answers_pages import build as build_answers_pages, node_ready
+    reason = node_ready()
+    if reason is None:
+        build_answers_pages(DIST, tag)
+    elif os.environ.get("RENDER_TESTS_REQUIRED") == "1" or os.environ.get("CI"):
+        raise SystemExit(f"sync: answers version not built ({reason})")
+    else:
+        print(f"sync: skipping answers/ ({reason})")
+
     # JEG-1567: last step, after every page (including value-logic) is written.
     from site_noindex import apply_site_noindex
     noindexed = apply_site_noindex(DIST)

@@ -1,0 +1,104 @@
+"""JEG-1543: build the answers version of the site at dist/answers/ (no source names, no source data).
+
+Jeremy, 2026-11-08 (decisions D1-D6 on 06-audit/jeg1543-answers-site-design-2026-11-08.md): same repo at a separate
+path, the same engine, a pre-built grid of DDF Value tables for common settings and a server for the rest.
+
+The build:
+- copies the answers pages and scripts from app/answers/ (PAGE_FILES), stamped with the build tag like the root
+  pages; the pages never carry the value engine, the players-data island or any source file;
+- writes the answer tables with pipelines/answer_tables.cjs (get-values' own pipeline over this build's dist/),
+  DDF outputs only;
+- runs the privacy check (answers_privacy.check_tree) on the whole tree and fails the sync on any finding.
+
+noindex comes from sync's last step (site_noindex), like every other page. The pages are linked from no public page.
+"""
+from __future__ import annotations
+
+import html as html_lib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "app" / "answers"
+DIST = ROOT / "dist"
+TABLES = ROOT / "pipelines" / "answer_tables.cjs"
+sys.path.insert(0, str(ROOT / "pipelines"))
+from answers_privacy import PAGE_FILES, check_tree  # noqa: E402
+from build_next_preview import LOCAL_ASSET, data_version_script  # noqa: E402
+
+NODE = ["node", "--experimental-strip-types", "--no-warnings"]
+BUILD_META = '<meta name="trade-chart-build" content="{tag}">'
+# The build checks every Nth table's columns against the sources (the test checks all of them).
+FINGERPRINT_EVERY = 6
+
+
+class AnswersBuildError(RuntimeError):
+    pass
+
+
+def page_html(html: str, tag: str | None, name: str) -> str:
+    if not tag:
+        return html
+    html = LOCAL_ASSET.sub(lambda m: f"{m.group(1)}{m.group(2)}?v={tag}{m.group(3)}", html)
+    head = re.search(r'<meta charset="[^"]*">', html, re.I)
+    if not head:
+        raise AnswersBuildError(f"{name}: no <meta charset> to carry the build tag")
+    return html[:head.end()] + BUILD_META.format(tag=html_lib.escape(tag)) + data_version_script(tag) + html[head.end():]
+
+
+def build_tag(dist: Path) -> str | None:
+    index = dist / "index.html"
+    if not index.exists():
+        return None
+    m = re.search(r'<meta name="trade-chart-build" content="([^"]*)">', index.read_text(encoding="utf-8"))
+    return m.group(1) if m else None
+
+
+def write_tables(dist: Path, out: Path, cells: list[str] | None = None) -> None:
+    cmd = [*NODE, str(TABLES), "--dist", str(dist), "--out", str(out)]
+    if cells:
+        cmd += ["--cells", ",".join(cells)]
+    proc = subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=900)
+    if proc.returncode != 0:
+        raise AnswersBuildError(f"answer_tables failed (rc={proc.returncode}): {proc.stderr[-1500:]}")
+    print(proc.stderr.strip())
+
+
+def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cells: list[str] | None = None) -> Path:
+    out = dist / "answers"
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    tag = tag or build_tag(dist)
+    for name in sorted(PAGE_FILES):
+        src = source / name
+        if not src.exists():
+            raise AnswersBuildError(f"{name} is missing from {source}")
+        text = src.read_text(encoding="utf-8")
+        (out / name).write_text(page_html(text, tag, name) if name.endswith(".html") else text, encoding="utf-8")
+    write_tables(dist, out / "data", cells)
+    bundle = json.loads((dist / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
+    findings = check_tree(out, bundle, fingerprint_every=FINGERPRINT_EVERY)
+    if findings:
+        raise AnswersBuildError("answers privacy check failed:\n  " + "\n  ".join(findings[:40]))
+    return out
+
+
+def node_ready() -> str | None:
+    """None when node can run the edge function's .ts modules, else why not."""
+    if shutil.which("node") is None:
+        return "node is not installed"
+    proc = subprocess.run([*NODE, "-e", "1"], capture_output=True, text=True)
+    return None if proc.returncode == 0 else f"node cannot strip types: {proc.stderr.strip()[:200]}"
+
+
+if __name__ == "__main__":
+    reason = node_ready()
+    if reason:
+        raise SystemExit(f"build_answers_pages: {reason}")
+    print(f"Wrote {build(cells=os.environ.get('ANSWERS_CELLS', '').split(',') if os.environ.get('ANSWERS_CELLS') else None)}")
