@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-09T00:36:28.727769+00:00",
+  "run_at": "2026-11-09T01:41:19.245415+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -10,11 +10,9 @@
     "cbsros": "promoted 1/1",
     "razzball": "promoted 1/1"
   },
-  "failed": [
-    "post_rebuild_validation"
-  ],
-  "success": false,
-  "outcome": "failed",
+  "failed": [],
+  "success": true,
+  "outcome": "published_with_holds",
   "held": [
     "usatoday"
   ],
@@ -245,22 +243,5 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored"
-  },
-  "post_rebuild_validation": {
-    "status": "failed",
-    "command": "make validate-data",
-    "failed_tests": [
-      "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes"
-    ],
-    "assertions": [
-      "AssertionError: '56.00' == '56.00' : no USA Today player's subtraction differs at this setting; the R6-OP-07 check proves nothing"
-    ],
-    "breaches": [],
-    "make_targets": [
-      "Makefile:840: test-core"
-    ],
-    "detail": "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes\nAssertionError: '56.00' == '56.00' : no USA Today player's subtraction differs at this setting; the R6-OP-07 check proves nothing",
-    "recorded_at": "2026-11-09T01:38:36.048302+00:00",
-    "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
