@@ -5,14 +5,15 @@ position counts); "Edit rosters" opens it again. Checked at 1366x768, 390 and 32
 
   * before Find the input is open, no summary shows, and the Edit button says aria-expanded=true;
   * after Find the input is hidden, the summary shows the first three names, "+ N more" and the position counts for
-    both teams, the button says aria-expanded=false and names both player counts, and the results start inside the
-    first screen (desktop and phone);
+    both teams, and the button says aria-expanded=false and names both player counts;
   * Edit rosters (by keyboard) opens the input and moves focus into the first paste box; Escape folds it again and
     focus returns to the button; pressing Find again folds it again;
   * package size, the lineup boxes and Find trades stay visible while folded;
   * JEG-1237: the protected-position and bench-backup settings fold with the rosters and read back as one "Trade
     settings:" line in the summary (Edit rosters opens them again, by keyboard), Advanced trade minimums stays on the
-    page, and at 1366x768 the results start inside the first screen without enlarging the viewport;
+    page;
+  * JEG-1576 (Jeremy, 2026-11-08: "drop the Find a trade first-screen check (the v2 page isn't published any more; the
+    new Find page is judged by its own tests)"): the results-on-the-first-screen check is retired here;
   * no page errors, no sideways scroll.
 
 Discrimination: test_guard_fails_on_broken_builds serves finder.js without the fold after Find, with the button not
@@ -22,7 +23,6 @@ line in the summary, and requires each to fail.
 from __future__ import annotations
 
 import functools
-import re
 import unittest
 
 from tests import _render_env
@@ -37,7 +37,6 @@ def setUpModule():
 
 STATE = """() => {
   const vis = id => { const n = document.getElementById(id); return Boolean(n) && !n.hidden && n.getBoundingClientRect().height > 0; };
-  const out = document.getElementById('v2FindOut');
   return {input: vis('v2FindInput'), summary: vis('v2FindSummary'), rails: vis('v2FindGuardrails'),
     advanced: Boolean(document.querySelector('.v2-find-advanced')) && document.querySelector('.v2-find-advanced').getBoundingClientRect().height > 0,
     railsText: (document.getElementById('v2FindGuardrailSummary') || {}).innerText || '',
@@ -45,7 +44,7 @@ STATE = """() => {
     label: document.getElementById('v2FindEdit').getAttribute('aria-label'),
     mine: document.getElementById('v2FindMineSummary').innerText, theirs: document.getElementById('v2FindTheirsSummary').innerText,
     controls: ['v2FindSize', 'v2FindKeepMine', 'v2FindKeepTheirs', 'v2FindGo'].filter(id => !vis(id)),
-    resultsTop: out.getBoundingClientRect().top, viewport: innerHeight, focus: document.activeElement && document.activeElement.id,
+    focus: document.activeElement && document.activeElement.id,
     scrollX: document.documentElement.scrollWidth - innerWidth};
 }"""
 
@@ -89,8 +88,6 @@ def check(page, tag, width) -> list[str]:
         errors.append(tag + f"the folded summary does not read back the default trade settings: {s['railsText']!r}")
     if not s["advanced"]:
         errors.append(tag + "Advanced trade minimums is not on the page while folded")
-    if not -8 <= s["resultsTop"] < s["viewport"] * 0.8:
-        errors.append(tag + f"results start at {s['resultsTop']:.0f}px of a {s['viewport']}px screen after folding")
     if s["scrollX"] > 0:
         errors.append(tag + "horizontal overflow when folded")
     # Edit rosters, from the keyboard.
@@ -157,28 +154,9 @@ def run_checks(overrides=None, viewports=((1366, 768), (390, 844), (320, 640))) 
     return errors
 
 
-# JEG-1576 (open, Jeremy's decision): since JEG-890 added the Team value summary above the results (2026-10-29), the
-# results start below the first screen after Find, at every viewport. Until JEG-1576 is decided, exactly this message is
-# tolerated (JEG-1546); every other check still runs. When the results are back on the first screen the known-failure
-# assertion below goes red: remove this filter then.
-KNOWN_RESULTS_BELOW_FOLD = re.compile(r"\[\d+px\] results start at (-?\d+)px of a (\d+)px screen after folding")
-# Bounded: on 2026-11-08 the results sat 130-311 px past the 80% line (906/768, 805/844, 823/640); the summary is 338 px.
-# Anything further down is a new regression, not JEG-1576.
-KNOWN_MAX_PAST_LINE = 400
-
-
-def without_known(errors: list[str]) -> list[str]:
-    def known(e):
-        m = KNOWN_RESULTS_BELOW_FOLD.fullmatch(e)
-        return bool(m) and 0 <= int(m.group(1)) - 0.8 * int(m.group(2)) <= KNOWN_MAX_PAST_LINE
-    return [e for e in errors if not known(e)]
-
-
 class FinderCollapseRenderTest(unittest.TestCase):
     def test_collapsible_input(self):
-        errors = run_checks()
-        self.assertEqual(without_known(errors), [])
-        self.assertNotEqual(errors, [], "results are on the first screen again: drop KNOWN_RESULTS_BELOW_FOLD (JEG-1576)")
+        self.assertEqual(run_checks(), [])
 
     def test_guard_fails_on_broken_builds(self):
         js = FINDER_JS.read_text(encoding="utf-8")
@@ -196,7 +174,7 @@ class FinderCollapseRenderTest(unittest.TestCase):
                     errors = run_checks({"finder.js": body}, viewports=((1366, 768),))
                 except Exception as exc:   # the page is so broken a step cannot even run
                     errors = [str(exc)[:80]]
-                self.assertNotEqual(without_known(errors), [], f"not caught: {name}")
+                self.assertNotEqual(errors, [], f"not caught: {name}")
 
 
 if __name__ == "__main__":
