@@ -319,7 +319,10 @@ class WorkflowUrlInputTest(unittest.TestCase):
             fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
             env = {"PATH": f"{td / 'bin'}:/usr/bin:/bin", "HOME": str(td),
                    "GITHUB_OUTPUT": str(td / "out"),
-                   "INPUT_URL": inputs.get("url", ""), "INPUT_SOURCE": inputs.get("source", "")}
+                   "INPUT_URL": inputs.get("url", ""), "INPUT_SOURCE": inputs.get("source", ""),
+                   # JEG-1586: the week reaches the Ingest step through its env (EVENT_WEEK) since the workflow stopped
+                   # expanding the input into the script text.
+                   "EVENT_WEEK": inputs.get("week", "")}
             r = subprocess.run(["bash", "-e", "-c", render(script_of(find_step(self.WF, "Ingest")), ctx)],
                                cwd=td, env=env, capture_output=True, text=True)
             if r.returncode != 0:
