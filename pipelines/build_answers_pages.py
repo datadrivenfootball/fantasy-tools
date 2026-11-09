@@ -15,6 +15,7 @@ noindex comes from sync's last step (site_noindex), like every other page. The p
 """
 from __future__ import annotations
 
+import hashlib
 import html as html_lib
 import json
 import os
@@ -34,6 +35,16 @@ from build_next_preview import LOCAL_ASSET, data_version_script  # noqa: E402
 
 NODE = ["node", "--experimental-strip-types", "--no-warnings"]
 BUILD_META = '<meta name="trade-chart-build" content="{tag}">'
+# Tables are reused within a checkout when every input is unchanged (key = hash of the build tag and the files the
+# tables are made from, plus this builder, the table script and the checker). CI's test shards run the sync once per
+# test module; without the cache each run rebuilt the grid (about 3.5 min on a 4-core runner) and the shards passed
+# their 30-minute limit. A cached grid already passed the full check, fingerprints included.
+CACHE = ROOT / "build" / "answers-cache"
+TABLE_INPUTS = ("assets/value-model.js", "assets/comparison-sources-data.json", "assets/lineup-parameters.json",
+                "index.html")
+CODE_INPUTS = ("pipelines/answer_tables.cjs", "pipelines/answers_privacy.py", "pipelines/build_answers_pages.py",
+               "supabase/functions/get-values/league.ts", "supabase/functions/get-values/pipeline.ts")
+
 # The build checks every table's columns against the sources (a stride over the sorted files would always land on the
 # same bench size; review of #1396).
 FINGERPRINT_EVERY = 1
@@ -71,7 +82,17 @@ def write_tables(dist: Path, out: Path, cells: list[str] | None = None) -> None:
     print(proc.stderr.strip())
 
 
-def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cells: list[str] | None = None) -> Path:
+def cache_key(dist: Path, tag: str | None, cells: list[str] | None) -> str:
+    h = hashlib.sha256(f"{tag}|{','.join(cells or [])}".encode())
+    files = [dist / f for f in TABLE_INPUTS] + sorted((dist / "assets" / "history").glob("*.json")) + [ROOT / f for f in CODE_INPUTS]
+    for path in files:
+        h.update(path.name.encode())
+        h.update(path.read_bytes() if path.exists() else b"-")
+    return h.hexdigest()[:24]
+
+
+def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cells: list[str] | None = None,
+          cache: Path | None = CACHE) -> Path:
     out = dist / "answers"
     if out.exists():
         shutil.rmtree(out)
@@ -83,11 +104,22 @@ def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cell
             raise AnswersBuildError(f"{name} is missing from {source}")
         text = src.read_text(encoding="utf-8")
         (out / name).write_text(page_html(text, tag, name) if name.endswith(".html") else text, encoding="utf-8")
-    write_tables(dist, out / "data", cells)
+    key = cache_key(dist, tag, cells) if cache else None
+    hit = cache / key if key else None
+    if hit and (hit / "checked").exists():
+        shutil.copytree(hit / "data", out / "data")
+        print(f"answer_tables: reused the checked tables ({key})")
+    else:
+        write_tables(dist, out / "data", cells)
     bundle = json.loads((dist / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
-    findings = check_tree(out, bundle, fingerprint_every=FINGERPRINT_EVERY)
+    reused = bool(hit and (hit / "checked").exists())
+    findings = check_tree(out, bundle, fingerprint_every=0 if reused else FINGERPRINT_EVERY)
     if findings:
         raise AnswersBuildError("answers privacy check failed:\n  " + "\n  ".join(findings[:40]))
+    if hit and not reused:
+        shutil.rmtree(cache, ignore_errors=True)   # keep only the current grid
+        shutil.copytree(out / "data", hit / "data")
+        (hit / "checked").write_text("ok\n", encoding="utf-8")
     return out
 
 
