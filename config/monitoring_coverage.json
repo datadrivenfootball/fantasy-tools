@@ -29,6 +29,8 @@
      "records": [{"check_id": "cbsros_supabase_sync", "file": ".github/workflows/cbsros-supabase-sync.yml", "contains": "--check-id cbsros_supabase_sync --owner cbsros-supabase-sync.yml"}]},
     {"workflow": "fantasycalc-weekly-save.yml", "scheduler": "pg_cron", "pg_cron_job": "trigger-fantasycalc-weekly-save",
      "records": [{"check_id": "fantasycalc_weekly_save", "file": ".github/workflows/fantasycalc-weekly-save.yml", "contains": "\"p_check_id\": \"fantasycalc_weekly_save\""}]},
+    {"workflow": "source-lateness.yml", "scheduler": "github_schedule", "pg_cron_job": null,
+     "records": [{"check_id": "source_lateness", "file": ".github/workflows/source-lateness.yml", "contains": "--check-id source_lateness --owner source-lateness.yml"}]},
     {"workflow": "health-artifacts.yml", "scheduler": "pg_cron", "pg_cron_job": "health-artifacts-live",
      "records": [
        {"check_id": "health_artifacts_producer", "file": "pipelines/health_artifacts_watch.py", "contains": "\"health_artifacts_producer\""},
@@ -79,7 +81,6 @@
     "chain-run-feedback.yml": "event-driven workflow_run latency attribution for completed rebuild-chain runs; writes an Actions summary and artifact, not a scheduled producer or monitored-check recorder; no cadence to miss",
     "main-write-pause-switch.yml": "manual workflow_dispatch release-window control (JEG-1472); writes only the bounded pause control, no schedule or periodic observation to miss; the requesting operator checks the Actions result",
     "main-writer-checks.yml": "pull_request security-contract and workflow-lint checks; result is reported on the PR, no schedule or periodic observation to miss",
-    "source-lateness.yml": "hourly GitHub-scheduled watchdog for the pg_cron-driven probes and ingests (JEG-1200); it alerts through its own source-late GitHub issue, and a missed hour only delays a signal",
     "full-suite.yml": "informational nightly full test suite (JEG-1169); gates nothing, a missed night only delays a signal",
     "edge-drift-check.yml": "informational daily read-only check that deployed mcp/get-values match main (JEG-1049); gates nothing, a red run in Actions is the signal, a missed day only delays it",
     "espn-history-probe.yml": "manual one-off probe (JEG-521 G4 d); no schedule, nothing to miss",

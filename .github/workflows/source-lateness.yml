@@ -89,6 +89,18 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: python3 pipelines/week_held_alert.py --mode drill
 
+      # JEG-1586 heartbeat: this watchdog is scheduled by GitHub, not pg_cron, so nothing else notices if it stops, and
+      # since PR #1381 it also runs the week-held tripwire. Record each scheduled or dispatched run on main, red or
+      # green (the drill is not a heartbeat); the evaluator in health-artifacts.yml flags the check `missed` when an
+      # hour passes with no run. Never fails the job. Declared in config/monitoring_coverage.json.
+      - name: Record monitored check
+        if: always() && github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && inputs.week_held_drill != 'true'
+        env:
+          SUPABASE_BYTES_CALLER: source-lateness:record-monitored-check
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 pipelines/record_monitor_check.py --check-id source_lateness --owner source-lateness.yml --outcome "${{ job.status }}"
+
       - name: Retain Supabase byte counters (JEG-1458)
         if: always()
         continue-on-error: true
