@@ -50,3 +50,13 @@
 
 ### Also
 - docs/baseline-reds/flaky-vs-real.md: a runbook for telling flakes from real failures, plus the known-flakes list.
+
+### Follow-up after the dispatched sweep (run 42536442898, main cf8794e28)
+- Shard 1: 23/26 passed, shard 2: 20/23, both in about 44 minutes. Shard 3 was cancelled at its 60-minute timeout
+  at module 25 of 31. test_v2_league_tables_render alone took 16.9 minutes while red (JEG-1584).
+- The fix adds a fourth shard, `test-render-sweep-4`, holding shard 3's tail from test_v2_league_tables_render to
+  the end, about 30 minutes. Shard 3 drops to about 41 minutes. The matrix is now [1, 2, 3, 4], and
+  test_render_sweep_shards pins all four.
+- Registry: the 13 entries this run showed red gain `daily sweep`. Two reds appeared only in CI and passed on the
+  Mac: test_v2_league_render.test_team_list (JEG-1584) and the test_v2_plain_copy_render guard (JEG-1586 F).
+  They are not seeded, because test_baseline_reds requires every seed to include `local`. Their tickets track them.
