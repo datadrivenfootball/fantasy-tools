@@ -74,3 +74,39 @@ Rules:
   do; only a player's deviation from his position's ratio goes through the chart's curve). The
   literal variant is scored too, as `DDF_new_literal` / `FC_corr_literal`, under the same tests.
   Damping variants lambda 0.5 are reported as sensitivity; lambda 1 is primary.
+- 2026-11-09, JEG-1601 test runner, made after the prototype existed but before seeing any
+  test result (all choices below are coded in `tools/research/jeg1597/step4_tests.py` as first
+  run; none was changed after the output appeared). Where the text above is silent or not
+  implementable as written:
+  - Labels: the literal variant is `*_samefit` in the step 3 files, lambda 0.5 is `*_l05`, the
+    FantasyCalc Half anchor is `DDF_new_fchalf` / `FC_corr_half`.
+  - `N_p`: replacement index of `value_reference.allocate` (base allocation, no seat-sigma mix)
+    at the target scoring; band = 0-based ranks `N_p` .. `N_p + 6` by PROJ at the target scoring.
+  - M2: pairs tied on realized points above replacement are not scored; a method tie counts half.
+    M1 and M2 are averaged over snapshot weeks 5-8 with equal weight.
+  - Bootstrap unit: a player (union of the four weekly sets, 130 players); his resample count
+    applies to every week and scoring, so every comparison is paired.
+  - H1 verdict uses Standard only, as the "passes if" column says; Half is reported as information.
+  - H2 robustness: the sign of `DDF_new_fchalf - DDF_cur` and of `DDF_new_noFC - DDF_cur` is
+    compared with `DDF_new - DDF_cur` for M1 and M2 at Standard and Full.
+  - S: values and points are in different units, so all three quantities are ranks (share of
+    the set). Primary: ranks across the whole player set, realized as points above replacement
+    (the M2 target). Secondary: ranks within position against realized points. Supported needs
+    the interval below 0; positive with interval above 0 rejects; otherwise not shown.
+  - FP: charts FantasyCalc (anchor Full) and FantasyPros (anchor Half), rescaled to Standard and
+    to Full, weeks 5-9 pooled, RB / WR / TE (a QB has no receptions), top 36 by the chart's own
+    base list. Reception share = mean over the three projection sources of `(ppr - std) / ppr`
+    per game (the rescale's ratio uses only Razzball / CBS ROS, so this is not the same number).
+    Also reported: trailing 2026 realized reception share, and the rescale's own ratio (a
+    tautology check that must read 100%).
+  - L: within-position Spearman (RB / WR / TE, averaged) on the pre-registered player set,
+    restricted to players the chart lists in both columns; weeks 5-9; "most weeks" = at least
+    3 of 5. Lambda grid 0 to 2 in steps of 0.05, objective = mean over weeks. Whole-set Spearman
+    is reported as secondary (it depends on the mapping mode; within position it does not).
+  - M: per season 2015-2025, snapshot weeks 5-8; trailing = weeks 1 to `w - 1` per game played,
+    at least 2 games; player set = top 36 RB, 36 WR, 18 TE by trailing Half ppg; target =
+    Standard points weeks `w` to the last regular-season week, a missing week = 0. The rescale is
+    `decompose.rescale_chart` with the trailing Full rate as the "chart" and as its own points
+    (b = 1), which within position is the trailing Standard rate. Bootstrap unit = player id.
+  - `PROJ_VAR` (projected points minus the projected mean of the same band) is added beside
+    `PROJ` for M2 only, labelled not pre-registered: raw PROJ ranks every QB above every RB.
