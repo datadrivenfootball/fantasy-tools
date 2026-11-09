@@ -13,14 +13,15 @@ server; connector answers mode by default plus a full URL for Jeremy; full site 
 ## How it is built
 - `pipelines/answer_tables.cjs` runs get-values' own pipeline (`supabase/functions/get-values/league.ts`,
   `pipeline.ts` over `dist/assets/value-model.js`) for every grid cell and writes `dist/answers/data/<cell>.json`
-  (`[key, ddf, sd, low]`, players above 0 only), `players.json` and `grid.json`. Cell id
+  (`[key, ddf, sd, low]`, players above 0 only), `players.json` (every QB/RB/WR/TE player: name, position, team) and `grid.json`. Cell id
   `<scoring>-<teams>-sf<n>-q<n>w<n>f<n>-b<n>`; RB 2 and TE 1 fixed; 1,728 cells, about 47 s on 8 workers locally.
   `sd` = |charts version - projections version| / 2 (the finder's DDF-side noise). A player in `players.json` absent
   from a cell is priced at 0 there.
 - `pipelines/build_answers_pages.py` copies `app/answers/` (pages, `answers-engine.js`, `answers.css`), stamps the
-  build tag, writes the tables and runs `pipelines/answers_privacy.py` over the tree; any finding fails `make sync`.
-  noindex comes from sync's last step like every page. Needs node with `--experimental-strip-types`; without it the
-  sync skips answers locally and fails in CI.
+  build tag, writes the tables and runs `pipelines/answers_privacy.py` over every file and every table. On any
+  failure (a finding, or node that cannot load the edge function's .ts modules) the sync removes `dist/answers` and
+  warns, so nothing unchecked is published and the full site still deploys; `tests/test_answers_site.py` then fails
+  where the tree is required (CI). noindex comes from sync's last step and from the pages' own robots meta.
 - The pages read the full site's stores read-only (`ddf.v2.league-settings`, `ddf-v2-value-overrides`). Overrides
   follow `value-model.js` normalizeOverride / applyDdfOverride exactly (tested against ValueModel). A saved
   non-default basis is ignored with a notice. Settings off the grid (other counts, season weeks, advanced, position
