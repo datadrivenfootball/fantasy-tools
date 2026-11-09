@@ -678,7 +678,7 @@ export const REPLY_SPEC: Spec = { obj: {
 
 // pipelines/answers_privacy.py BANNED (tests/test_get_answers.py checks the two lists agree) and its 3+ decimals rule.
 export const BANNED = [
-  "cbs", "usa\\s*today", "usatoday", "fantasy\\s*pros", "fantasy\\s*calc", "razzball", "mike\\s+clay",
+  "cbs", "usa\\s*today", "usatoday", "fantasy\\s*pros", "fantasy\\s*calc", "razzball", "mike\\s+clay", "dave\\s+richard",
   "espn",
   "analyst\\s+charts?", "live\\s+market", "trade\\s+charts?", "chart_values", "chart_indexed",
   "published\\s+values?", "players-data", "methodology-data", "comparison-sources", "reindex",
