@@ -13,7 +13,7 @@ name: Preview build
 #   - the full test suite (make test-unit) no longer runs on PRs: it never
 #     finished inside its 45-minute timeout and held a runner, so it moved to
 #     full-suite.yml, nightly plus workflow_dispatch (JEG-1169; JEG-978 before);
-#   - pull requests that change only docs skip this check (JEG-1169);
+#   - docs-only pull requests pass the check immediately (JEG-1593);
 #   - checkout uses the PR head SHA, not the default merge ref, so the build tag
 #     (derived from HEAD's commit time and SHA) matches what production would build.
 
@@ -22,18 +22,9 @@ on:
     types: [checks_requested]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
-    # JEG-1169: skip docs-only PRs. A PR runs this check unless every changed
-    # file is Markdown or under docs/. Tests-only PRs still run it. The docs
-    # the build reads (sync_dashboard_artifacts -> build_values_explainer,
-    # build_llm_surfaces) stay included.
-    paths:
-      - "**"
-      - "!**/*.md"
-      - "!docs/**"
-      - "docs/methodology.md"
-      - "docs/math-review-agenda.md"
-      - "docs/use-ddf-in-claude-chatgpt.md"
-      - "app/llm/**"
+    # JEG-1593: paths filter removed. Docs-only detection now lives in the
+    # docs-only job, which applies the same include/exclude logic as the
+    # former filter and gates the heavy jobs.
   workflow_dispatch:
 
 permissions:
@@ -68,9 +59,51 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 -m pipelines.ci_pr_gate gate
 
+  # JEG-1593: detect docs-only PRs without a paths filter, so the required
+  # check still runs (and passes immediately) instead of being skipped.
+  # Non-PR events (merge_group, push, workflow_dispatch) always get docs_only=false.
+  docs-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.check.outputs.docs_only }}
+    steps:
+      - name: Detect docs-only PR
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(gh pr diff "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --name-only 2>/dev/null) || changed=""
+          if [ -z "$changed" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Same include/exclude rules as the former pull_request paths filter
+          # (JEG-1169). docs_only=true when every changed file is Markdown or
+          # under docs/, except the files the build reads
+          # (docs/methodology.md, docs/math-review-agenda.md,
+          # docs/use-ddf-in-claude-chatgpt.md, app/llm/**).
+          docs_only=true
+          while IFS= read -r f; do
+            case "$f" in
+              docs/methodology.md|docs/math-review-agenda.md|docs/use-ddf-in-claude-chatgpt.md)
+                docs_only=false; break ;;
+              app/llm/*) docs_only=false; break ;;
+              *.md) ;;
+              docs/*) ;;
+              *) docs_only=false; break ;;
+            esac
+          done <<< "$changed"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
   preview-build:
-    needs: pr-state
-    if: needs.pr-state.outputs.run_expensive == 'true'
+    needs: [docs-only, pr-state]
+    if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
     runs-on: ubuntu-latest
     # JEG-1169: the default is 6 hours. A normal run is ~45 minutes.
     timeout-minutes: 60
@@ -208,8 +241,8 @@ jobs:
   # tests/test_preview_workflow_matches_pages.py). Each shard builds its own dist first,
   # as `make validate` does (reference, then sync).
   preview-shard:
-    needs: pr-state
-    if: needs.pr-state.outputs.run_expensive == 'true'
+    needs: [docs-only, pr-state]
+    if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -253,14 +286,15 @@ jobs:
 
   # JEG-1170: the required check. Named `preview` so the check name is unchanged; it passes
   # only when the live PR is ready at the same head and all heavy jobs succeeded.
-  # A draft gets a visibly red required check, never a skipped-success check.
+  # JEG-1593: docs-only PRs fast-path to success without the heavy jobs.
+  # A non-docs-only draft gets a visibly red required check, never a skipped-success check.
   # JEG-1292: the PR state read is retried (3 reads over ~30 s). If a ready PR still shows
   # this check red with "PR state verification failed", use Re-run failed jobs, or push,
   # or toggle draft and back to ready.
   preview:
     # A manual run on a draft branch must not mint the required PR check.
     name: ${{ github.event_name == 'workflow_dispatch' && 'preview-manual' || 'preview' }}
-    needs: [pr-state, preview-build, preview-shard]
+    needs: [docs-only, pr-state, preview-build, preview-shard]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -271,12 +305,17 @@ jobs:
       - name: Full verification completed at the current PR head
         env:
           GH_TOKEN: ${{ github.token }}
+          DOCS_ONLY: ${{ needs.docs-only.outputs.docs_only }}
           STATE_RESULT: ${{ needs.pr-state.result }}
           RUN_EXPENSIVE: ${{ needs.pr-state.outputs.run_expensive }}
           BUILD_RESULT: ${{ needs.preview-build.result }}
           SHARD_RESULT: ${{ needs.preview-shard.result }}
         run: |
-          echo "state: $STATE_RESULT, build: $BUILD_RESULT, shards: $SHARD_RESULT"
+          echo "docs_only: $DOCS_ONLY, state: $STATE_RESULT, build: $BUILD_RESULT, shards: $SHARD_RESULT"
+          if [ "$DOCS_ONLY" = "true" ]; then
+            echo "Docs-only PR: preview check passes without build." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$STATE_RESULT" != "success" ] || [ "$RUN_EXPENSIVE" != "true" ] || \
              [ "$BUILD_RESULT" != "success" ] || [ "$SHARD_RESULT" != "success" ]; then
             echo "Full preview verification deferred or incomplete; required preview check cannot pass" | tee -a "$GITHUB_STEP_SUMMARY"

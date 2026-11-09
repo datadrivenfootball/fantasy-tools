@@ -164,8 +164,12 @@ def shard_problems(preview_text, name="preview-shard"):
         problems.append(f"{name} must be blocking (no continue-on-error)")
     condition = re.search(r"^    if: (.*)$", shard, re.M)
     if name == "preview-shard":
-        if not re.search(r"^    needs: pr-state$", shard, re.M) or not condition or \
-                condition.group(1) != "needs.pr-state.outputs.run_expensive == 'true'":
+        # JEG-1593: needs both docs-only and pr-state; condition gates on both.
+        needs_m = re.search(r"^    needs: (.+)$", shard, re.M)
+        needs_vals = set(re.sub(r"[\[\] ]", "", needs_m.group(1) if needs_m else "").split(","))
+        if not {"docs-only", "pr-state"}.issubset(needs_vals) or not condition or \
+                "needs.pr-state.outputs.run_expensive == 'true'" not in condition.group(1) or \
+                "needs.docs-only.outputs.docs_only != 'true'" not in condition.group(1):
             problems.append("preview-shard must run only after the PR-state gate allows full verification")
     elif condition:
         problems.append(f"{name} must run unconditionally (no job-level if:)")
@@ -189,8 +193,9 @@ def aggregate_problems(preview_text):
     problems = []
     needs = re.search(r"^    needs:\s*\[([^\]]*)\]", agg, re.M)
     needs = {n.strip() for n in needs.group(1).split(",")} if needs else set()
-    if needs != {"pr-state", "preview-build", "preview-shard"}:
-        problems.append(f"the preview job must need exactly pr-state, preview-build and preview-shard, got {sorted(needs)}")
+    # JEG-1593: docs-only is now required so the aggregate can fast-path it.
+    if needs != {"docs-only", "pr-state", "preview-build", "preview-shard"}:
+        problems.append(f"the preview job must need exactly docs-only, pr-state, preview-build and preview-shard, got {sorted(needs)}")
     if not re.search(r"^    if: always\(\)$", agg, re.M):
         problems.append("the preview job must run if: always() so a failed or skipped job fails it")
     if "continue-on-error" in agg:
@@ -198,7 +203,9 @@ def aggregate_problems(preview_text):
     for n in ("pr-state", "preview-build", "preview-shard"):
         if f"needs.{n}.result" not in agg:
             problems.append(f"the preview job must check needs.{n}.result")
-    for marker in ("RUN_EXPENSIVE", "STATE_RESULT", "BUILD_RESULT", "SHARD_RESULT",
+    if "needs.docs-only.outputs.docs_only" not in agg:
+        problems.append("the preview job must check needs.docs-only.outputs.docs_only (JEG-1593)")
+    for marker in ("DOCS_ONLY", "RUN_EXPENSIVE", "STATE_RESULT", "BUILD_RESULT", "SHARD_RESULT",
                    'python3 -m pipelines.ci_pr_gate verify', 'exit 1'):
         if marker not in agg:
             problems.append(f"the preview job must fail unless every result is success ({marker})")
@@ -345,8 +352,8 @@ class PreviewMatchesPagesTest(unittest.TestCase):
         self.assertCaught(mutated, "must have a preview-shard job")
 
     def test_non_blocking_shard_job_is_caught(self):
-        mutated = PREVIEW.replace("  preview-shard:\n    needs: pr-state\n",
-                                  "  preview-shard:\n    continue-on-error: true\n    needs: pr-state\n")
+        mutated = PREVIEW.replace("  preview-shard:\n    needs: [docs-only, pr-state]\n",
+                                  "  preview-shard:\n    continue-on-error: true\n    needs: [docs-only, pr-state]\n")
         self.assertNotEqual(PREVIEW, mutated)
         self.assertCaught(mutated, "preview-shard must be blocking")
 
@@ -373,7 +380,8 @@ class PreviewMatchesPagesTest(unittest.TestCase):
         self.assertCaught(mutated, "aggregate `preview` job")
 
     def test_aggregate_not_needing_the_shards_is_caught(self):
-        mutated = PREVIEW.replace("needs: [pr-state, preview-build, preview-shard]", "needs: [pr-state, preview-build]")
+        mutated = PREVIEW.replace("needs: [docs-only, pr-state, preview-build, preview-shard]",
+                                  "needs: [docs-only, pr-state, preview-build]")
         self.assertNotEqual(PREVIEW, mutated)
         self.assertCaught(mutated, "must need exactly")
 

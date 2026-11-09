@@ -19,18 +19,9 @@ on:
     types: [checks_requested]
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
-    # JEG-1169: skip docs-only PRs. A PR runs this check unless every changed
-    # file is Markdown or under docs/. Tests-only PRs still run it. The docs
-    # the build reads (sync_dashboard_artifacts -> build_values_explainer,
-    # build_llm_surfaces) stay included.
-    paths:
-      - "**"
-      - "!**/*.md"
-      - "!docs/**"
-      - "docs/methodology.md"
-      - "docs/math-review-agenda.md"
-      - "docs/use-ddf-in-claude-chatgpt.md"
-      - "app/llm/**"
+    # JEG-1593: paths filter removed. Docs-only detection now lives in the
+    # docs-only job, which applies the same include/exclude logic as the
+    # former filter and gates the heavy jobs.
   push:
     branches: [main]
     paths:
@@ -70,9 +61,50 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 -m pipelines.ci_pr_gate gate
 
+  # JEG-1593: detect docs-only PRs without a paths filter.
+  # Non-PR events (merge_group, push, workflow_dispatch) always get docs_only=false.
+  docs-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.check.outputs.docs_only }}
+    steps:
+      - name: Detect docs-only PR
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$(gh pr diff "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --name-only 2>/dev/null) || changed=""
+          if [ -z "$changed" ]; then
+            echo "docs_only=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Same include/exclude rules as the former pull_request paths filter
+          # (JEG-1169). docs_only=true when every changed file is Markdown or
+          # under docs/, except the files the build reads
+          # (docs/methodology.md, docs/math-review-agenda.md,
+          # docs/use-ddf-in-claude-chatgpt.md, app/llm/**).
+          docs_only=true
+          while IFS= read -r f; do
+            case "$f" in
+              docs/methodology.md|docs/math-review-agenda.md|docs/use-ddf-in-claude-chatgpt.md)
+                docs_only=false; break ;;
+              app/llm/*) docs_only=false; break ;;
+              *.md) ;;
+              docs/*) ;;
+              *) docs_only=false; break ;;
+            esac
+          done <<< "$changed"
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
   render-tests:
-    needs: pr-state
-    if: needs.pr-state.outputs.run_expensive == 'true'
+    needs: [docs-only, pr-state]
+    if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
     runs-on: ubuntu-latest
     # JEG-1403: measured sequential runtime exceeded 45m; the league group alone
     # used 16m45s. Preserve every command and failure while scheduling independent
@@ -168,14 +200,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  # Keep the existing required check name. Drafts and stale events fail this
-  # lightweight finalizer even though the expensive job is skipped.
+  # Keep the existing required check name. Non-docs-only drafts and stale events
+  # fail this lightweight finalizer even though the expensive job is skipped.
+  # JEG-1593: docs-only PRs fast-path to success without render work.
   # JEG-1292: if a ready PR shows this check red with "PR state verification failed",
   # use Re-run failed jobs, or push, or toggle draft and back to ready.
   v2-render:
     # Manual dispatches keep full verification but cannot satisfy a draft PR's required check.
     name: ${{ github.event_name == 'workflow_dispatch' && 'v2-render-manual' || 'v2-render' }}
-    needs: [pr-state, render-tests]
+    needs: [docs-only, pr-state, render-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -186,11 +219,16 @@ jobs:
       - name: Full render verification completed at the current PR head
         env:
           GH_TOKEN: ${{ github.token }}
+          DOCS_ONLY: ${{ needs.docs-only.outputs.docs_only }}
           STATE_RESULT: ${{ needs.pr-state.result }}
           RUN_EXPENSIVE: ${{ needs.pr-state.outputs.run_expensive }}
           RENDER_RESULT: ${{ needs.render-tests.result }}
         run: |
-          echo "state: $STATE_RESULT, render: $RENDER_RESULT"
+          echo "docs_only: $DOCS_ONLY, state: $STATE_RESULT, render: $RENDER_RESULT"
+          if [ "$DOCS_ONLY" = "true" ]; then
+            echo "Docs-only PR: v2-render check passes without render tests." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           if [ "$STATE_RESULT" != "success" ] || [ "$RUN_EXPENSIVE" != "true" ] || \
              [ "$RENDER_RESULT" != "success" ]; then
             echo "Full render verification deferred or incomplete; required v2-render check cannot pass" | tee -a "$GITHUB_STEP_SUMMARY"
