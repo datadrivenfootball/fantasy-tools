@@ -173,11 +173,12 @@ body:has(.ctx-strip) :is(.explore main,main.find-page) :is(td,th){padding-inline
   body:not(.home2) .morewrap>button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);white-space:nowrap}
   .ddf-lbl-more{display:none}
   .ddf-lbl-menu{display:inline}
-  .morewrap{position:static}
+  .morewrap,body.home2 .morewrap{position:static}
   header{position:sticky}
   header .header-inner,header .h2in{position:relative}
-  .morewrap .menu{right:16px;left:auto;top:calc(100% - 4px);width:min(340px,calc(100vw - 32px));min-width:0;max-height:calc(100vh - 90px);box-sizing:border-box}
-  .home2 .morewrap .menu{right:18px}
+  /* JEG-1595: the panel spans the header's width (inside the viewport and the iPhone safe areas), whatever the button's position. */
+  .morewrap .menu,body.home2 .morewrap .menu{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));top:calc(100% + 4px);width:auto;min-width:0;max-width:none;max-height:calc(100vh - 90px);max-height:calc(100dvh - 90px);box-sizing:border-box;-webkit-overflow-scrolling:touch}
+  .morewrap .menu a{touch-action:manipulation;min-height:44px;display:flex;align-items:center;box-sizing:border-box;overflow-wrap:anywhere}
 }
 
 /* Global overflow safety net (no desktop change: all rules only bite when content is too wide) */
