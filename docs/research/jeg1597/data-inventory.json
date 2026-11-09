@@ -1,0 +1,221 @@
+{
+  "meta": {
+    "authored": "2026-11-09",
+    "ticket": "JEG-1597",
+    "chart_ref": "app/trade-value-chart/assets/comparison-sources-data.json",
+    "chart_week": 9,
+    "chart_scoring": "ppr",
+    "chart_teams": 12,
+    "chart_player_count": 1163,
+    "note": "join_pct is fraction of chart's 1,163 players that appear in this dataset"
+  },
+  "scoring_weights": {
+    "source_file": "pipelines/lib/scoring.py",
+    "formats": {
+      "ppr": {
+        "passing_yards": 0.04, "passing_tds": 4.0, "interceptions": -2.0,
+        "rushing_yards": 0.10, "rushing_tds": 6.0,
+        "receptions": 1.0, "receiving_yards": 0.10, "receiving_tds": 6.0,
+        "fumbles_lost": -2.0
+      },
+      "half_ppr": {
+        "passing_yards": 0.04, "passing_tds": 4.0, "interceptions": -2.0,
+        "rushing_yards": 0.10, "rushing_tds": 6.0,
+        "receptions": 0.5, "receiving_yards": 0.10, "receiving_tds": 6.0,
+        "fumbles_lost": -2.0
+      },
+      "standard": {
+        "passing_yards": 0.04, "passing_tds": 4.0, "interceptions": -2.0,
+        "rushing_yards": 0.10, "rushing_tds": 6.0,
+        "receptions": 0.0, "receiving_yards": 0.10, "receiving_tds": 6.0,
+        "fumbles_lost": -2.0
+      }
+    },
+    "note": "receptions is the only difference across Standard/Half/Full PPR. TE premium (+0.5 per TE reception) is not a named format but is derivable."
+  },
+  "datasets": [
+    {
+      "id": "espn_projections_csv",
+      "label": "ESPN ROS projections CSV",
+      "path": "data/inputs/espn_projections.csv",
+      "supabase_table": "espn_season_projections",
+      "source": "ESPN scrape",
+      "has_stat_lines": true,
+      "stat_columns": ["r_pass_yds", "r_pass_tds", "r_rush_yds", "r_rush_tds", "r_receptions", "r_rec_yds", "r_rec_tds"],
+      "stat_granularity": "ROS totals",
+      "missing_stats": ["interceptions", "fumbles_lost", "targets"],
+      "games_field": "espn_projected_games",
+      "games_field_reliable": true,
+      "seasons": [2026],
+      "weeks_covered": "single ROS snapshot (wk 2 vintage in CSV; Supabase has wks 2-3 only)",
+      "row_count": {"csv": 606, "supabase_total": 993, "supabase_wk2": 606, "supabase_wk3": 387},
+      "identity_key": {"csv": "player_norm", "supabase": "player_key"},
+      "join_pct_to_chart": 0.51,
+      "per_week_snapshots": false
+    },
+    {
+      "id": "cbs_ros_projections",
+      "label": "CBS ROS projections",
+      "path": "data/raw/sources/cbsros/<date>/snapshot.json",
+      "supabase_table": "cbs_ros_projections",
+      "source": "CBS Sports scrape",
+      "has_stat_lines": true,
+      "stat_columns_qb": ["pass_att", "pass_cmp", "pass_yds", "pass_td", "int", "rush_att", "rush_yds", "rush_td", "fl", "gp"],
+      "stat_columns_rb": ["rush_att", "rush_yds", "rush_avg", "rush_td", "tgt", "rec", "rec_yds", "rec_td", "fl", "gp"],
+      "stat_columns_wr_te": ["tgt", "rec", "rec_yds", "rec_td", "rush_att", "fl", "gp"],
+      "stat_location": "raw_stats JSONB — ROS totals (divide by gp for per-game)",
+      "missing_stats": ["sacks", "snaps", "share_rush", "share_tgt"],
+      "games_field": "gp",
+      "games_field_reliable": true,
+      "games_field_note": "ROS projected games at snapshot date",
+      "seasons": [2026],
+      "weeks_covered": "wks 4-9 with daily snapshots",
+      "row_count": {"supabase_total": 12091, "unique_players_per_snapshot": "363-392"},
+      "identity_key": "player_key",
+      "join_pct_to_chart": 0.32,
+      "join_pct_note": "Covers starter-tier only; smaller universe than chart",
+      "per_week_snapshots": true
+    },
+    {
+      "id": "razzball_projections",
+      "label": "Razzball ROS projections",
+      "path": "data/inputs/razzball_projections.csv",
+      "supabase_table": "razzball_projections",
+      "source": "Razzball scrape",
+      "has_stat_lines": true,
+      "stat_columns": ["pg_pass_yds", "pg_pass_td", "pg_int", "pg_rush_att", "pg_rush_yds", "pg_rush_td", "pg_tgt", "pg_rec", "pg_rec_yds", "pg_rec_td", "pg_fum", "pg_sacks", "pg_snaps", "pg_cmp", "pg_att", "share_rush", "share_tgt"],
+      "stat_granularity": "per-game (pg_*)",
+      "stat_location": "raw_stats JSONB",
+      "missing_stats": ["games_remaining_reliable"],
+      "games_field": "games_reported",
+      "games_field_reliable": false,
+      "games_field_note": "CBS doubling quirk — stored as reported, never used for pricing. Use pg_* columns directly without multiplying by games.",
+      "seasons": [2026],
+      "weeks_covered": "wks 4-9 with daily snapshots",
+      "row_count": {"supabase_total": 18990, "unique_players_per_snapshot": "560-691"},
+      "identity_key": "player_key",
+      "join_pct_to_chart": 0.44,
+      "per_week_snapshots": true
+    },
+    {
+      "id": "espn_weekly_projections_csv",
+      "label": "ESPN weekly projections CSV (2026)",
+      "path": "data/inputs/espn_weekly_projections_2026.csv",
+      "has_stat_lines": false,
+      "stat_columns": ["std", "half_ppr", "ppr"],
+      "seasons": [2026],
+      "weeks_covered": "wks 1-9",
+      "row_count": 4637,
+      "identity_key": "player_key",
+      "join_pct_to_chart": null
+    },
+    {
+      "id": "sleeper_weekly_projections",
+      "label": "Sleeper weekly projections",
+      "path": "data/inputs/weekly_projections_sleeper.csv.gz",
+      "has_stat_lines": false,
+      "stat_columns": ["pts_std", "pts_half_ppr", "pts_ppr"],
+      "seasons": "2018-2026",
+      "weeks_covered": "all weeks",
+      "row_count": 52462,
+      "identity_key": "sleeper_id + gsis_id",
+      "join_pct_to_chart": 0.66,
+      "join_mechanism": "sleeper_projection_idmap.csv: sleeper_id -> gsis_id -> player_key"
+    },
+    {
+      "id": "source_projection_captures",
+      "label": "Source projection captures (Supabase)",
+      "supabase_table": "source_projection_captures",
+      "has_stat_lines": false,
+      "stat_columns": ["points", "ppg", "games"],
+      "sources": ["espn", "cbs", "razzball"],
+      "seasons": [2026],
+      "weeks_covered": "ESPN wks 2-9; CBS wks 4-9; Razzball wks 3-9",
+      "row_count": 169236,
+      "identity_key": "player_key"
+    },
+    {
+      "id": "player_game_stats",
+      "label": "Per-stat actuals (Supabase player_game_stats)",
+      "supabase_table": "player_game_stats",
+      "is_actuals": true,
+      "has_stat_lines": true,
+      "stat_columns": ["passing_yards", "passing_tds", "interceptions", "rushing_yards", "rushing_tds", "targets", "receptions", "receiving_yards", "receiving_tds"],
+      "missing_stats": ["fumbles_lost"],
+      "seasons": "2024-2026",
+      "weeks_covered": "2024-2025 all weeks (complete); 2026 wks 1-4 complete (~1,100/wk); 2026 wks 5-8 partial (258-294/wk); 2026 wk 9 sparse (36 rows, in-progress)",
+      "row_count": 42204,
+      "identity_key": "players UUID -> player_key (JOIN players table)",
+      "join_pct_to_chart": null,
+      "join_note": "1,518 unique player_keys for 2026 wks 1-4"
+    },
+    {
+      "id": "weekly_actuals_2024_2026",
+      "label": "Weekly actuals 2024-2026 CSV",
+      "path": "data/inputs/weekly_actuals_2024_2026.csv",
+      "is_actuals": true,
+      "has_stat_lines": false,
+      "stat_columns": ["std", "half_ppr", "ppr"],
+      "seasons": "2024-2026",
+      "weeks_covered": "wks 1-9",
+      "row_count": 14656,
+      "identity_key": "player_key",
+      "join_pct_to_chart": 0.675
+    },
+    {
+      "id": "nflverse_actuals",
+      "label": "NFLverse weekly actuals 2015-2025",
+      "path": "data/inputs/weekly_actuals_nflverse_2015_2025.csv.gz",
+      "supabase_table": "nflverse_player_week_actuals",
+      "is_actuals": true,
+      "has_stat_lines": false,
+      "stat_columns": ["std", "half_ppr", "ppr"],
+      "seasons": "2015-2025",
+      "weeks_covered": "all regular-season weeks",
+      "row_count": 61977,
+      "identity_key": "player_id (gsis_id) in file; gsis_id in Supabase (no player_key column)",
+      "join_pct_to_chart": 0.594,
+      "join_mechanism": "sleeper_projection_idmap.csv: gsis_id -> player_key (820 mapped)"
+    }
+  ],
+  "gaps": [
+    {
+      "id": "espn_weeks_missing",
+      "description": "ESPN per-stat projections only in Supabase for weeks 2-3 of 2026 (upsert model); no stat lines for weeks 4-9."
+    },
+    {
+      "id": "espn_missing_int_fumbles_targets",
+      "description": "ESPN scraper omits interceptions, fumbles_lost, and targets. Only 7 stat columns."
+    },
+    {
+      "id": "razzball_games_unreliable",
+      "description": "Razzball games_reported has CBS doubling quirk. Use pg_* per-game columns directly."
+    },
+    {
+      "id": "no_per_stat_actuals_2015_2023",
+      "description": "No per-stat actuals before 2024. For format rescoring backtest, derive receptions = ppr - std from points totals."
+    },
+    {
+      "id": "player_game_stats_partial_wks_5_8",
+      "description": "player_game_stats has only 258-294 rows/wk for 2026 wks 5-8 vs ~1,100 for wks 1-4. Source feed coverage issue."
+    },
+    {
+      "id": "numberfire_empty",
+      "description": "numberfire_ros_projections Supabase table: 0 rows. Pull script exists but no data ingested."
+    }
+  ],
+  "recommendations": {
+    "weeks_5_9_decomposition": {
+      "primary": "razzball_projections (Supabase, latest snapshot per week)",
+      "rationale": "Most complete per-game stat lines (12 stat fields), largest player set (560-691), player_key identity, all weeks 5-9 available.",
+      "fallback": "cbs_ros_projections for cross-validation; reliable gp field.",
+      "games_remaining": "CBS gp for CBS rows; for Razzball do not use games_reported — use nfl_schedule_2024_2026.json + player_status.json to compute remaining games per player."
+    },
+    "backtest_2015_2025": {
+      "actuals_source": "nflverse_player_week_actuals (Supabase) or weekly_actuals_nflverse_2015_2025.csv.gz",
+      "format_rescoring": "Derivable: receptions = ppr - std; half_ppr = std + 0.5*(ppr-std); TE_premium_ppr = ppr + 0.5*(ppr-std) for TE.",
+      "full_stat_decomposition": "Not available for 2015-2023; would require external nflverse weekly_player_stats.csv not currently in repo.",
+      "identity": "gsis_id -> player_key via sleeper_projection_idmap.csv (820 mapped, 59% chart coverage)."
+    }
+  }
+}
