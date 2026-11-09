@@ -180,4 +180,53 @@ default allocation at each scoring (constant across seasons; an approximation, l
 
 ## Changes after this commit
 
-(none yet)
+**2026-11-09, implementation readings, all decided and coded before any L, estimator or
+descriptive result was looked at** (`tools/research/jeg1605/roundtrip.py`, `l_gate.py`). No
+pre-registered choice is changed; each entry is the most literal reading where the text did not
+pin the code down.
+
+1. *Rank matching (stage 2).* Per position: the chart's listed players (`x > 0`) that have a
+   projected VORP; their top `FIT_TOP_N` by value; the k-th largest value against the k-th
+   largest VORP among those same players (v1's convention); pairs with `V <= 0` dropped after
+   matching. Pooled OLS of `log x` on `log V`.
+2. *Residual SD (estimator).* `sqrt(SSE / (n - 2))` of that pooled fit. Ties (never expected)
+   break Standard, Half, Full in that order.
+3. *"Sources that list him" (stage 4 mix).* A valid triplet with Full points `> 0`, so the mix
+   does not depend on `s0` and a pure receiver is listed. `P_i` keeps v1's `ppg(s0) > 0` rule.
+4. *Uniform split with no anchor points.* When a player's own mix line has `ppg(s0) <= 0` (a pure
+   receiver anchored at Standard), `k_i` is undefined; he takes the position median line,
+   counted separately from the no-source fallback (`zero_anchor_line`).
+5. *Position median line.* Median `std` and median `rec`, taken separately, over the chart's
+   priced players at the position that have a mix (in that variant's sources).
+6. *Delta form.* Stages 5-6 are coded as `Pc(s) = Pc(s0) + [change]` and stage 8 as
+   `x_i (Vc_i(s) / Vc_i)^b`, algebraically identical to `e^a Vc_i(s)^b` (since `x_i = e^a Vc_i^b`)
+   but exact in floating point at `s = s0`; the closed form misses the 1e-9 bar on values near
+   10,000.
+7. *Pure-receiver property test.* Under the uniform split a pure receiver anchored at Standard
+   has no points to scale (entry 4), so the "1 point per projected reception per game times
+   games" test runs under the additive split (exact), plus a uniform-split test that every
+   player gains `G x` (the chart line's receptions, `k_i x rec_i`) Standard to Full.
+8. *Per-position curves (L-split).* A position with fewer than 8 pairs or `b <= 0` uses the
+   pooled curve (flagged).
+9. *L player list.* "Listed by the chart in both columns" = value `> 0` in both (USA Today lists
+   some players at 0, which section 1 treats as no price). "Chain higher" is strict.
+10. *L-mix.* Thirds = `floor(n / 3)` of the L players at RB (and at TE) by the all-source mix's
+    `rec / (std + rec)`; mixed pairs = top third x bottom third. Pairs tied on the target are not
+    scored; method ties count half. The "mix-aware helps" label uses RB and TE pairs pooled; RB
+    and TE are also reported separately. Mix-aware vs position-level = chain vs unchanged (equal
+    within position, as the spec says).
+11. *L-source.* Each single-source run changes only the mix (stage 4); `P`, VORP and the curve
+    keep all three sources. A player that source does not list takes that source's position
+    median line (counted as fallback).
+12. *L-anchor.* The Standard column anchored at Half is rescored to Full (vs published Full) and
+    to Standard (vs published Standard), each beside the correctly anchored chain.
+13. *Full stat lines (stage 4 display).* Not pulled: no display is built in this step and the TE
+    premium example reduces exactly to the reception term. `N_p` at TE premium = Full's.
+14. *Captures.* FantasyCalc 2026-09-29 (week 4 cache) uses the week-4 history projections and
+    allocation (the nearest, captured 2026-10-01..03); 2026-11-07 and 2026-11-09 use week 9.
+    2026-11-09 = the 12-team 1QB `value` columns at ppr 0, 0.5, 1. Descriptive: the ppr 1 column
+    through the chain (primary anchor Full) compared with FantasyCalc's own ppr 0 / 0.5 columns.
+15. *Estimated-mix variant.* Run only if the 20-list calibration passes (section 2).
+16. *Python.* The brief's venv (`/private/tmp/claude-501/venv1586`) has no numpy; the v1 metric
+    code needs it, so tests and runs use `/usr/bin/python3` 3.9.6 (numpy 2.0.2, scipy). The
+    round-trip module itself is standard library only.
