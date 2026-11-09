@@ -30,3 +30,6 @@ Research only; nothing here is live. Read in this order:
 - FantasyCalc's cached settings can serve different data refreshes in one pull (JEG-1602).
 - A literal inverse through a convex chart curve (`native x ratio^b`, b 2-5) exaggerates
   position moves about 3.5x; scale position levels by projected points instead.
+- v2 round trip (JEG-1605, `docs/research/jeg1605/`): value is about linear in VORP (fit against
+  VORP, not points); re-deriving replacement and the allocation per scoring moves position levels
+  further from the publishers' own columns, and the chain fails the labelled gate L.
