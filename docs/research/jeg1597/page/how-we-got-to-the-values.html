@@ -57,7 +57,7 @@ a { color: var(--accent); }
     <li>CBS Sports and USA Today publish a column for each scoring format. We use the one that matches your league.</li>
     <li>FantasyPros publishes one Value column for every format. FantasyCalc publishes its numbers at a 12-team Full PPR setting; its other scoring settings change values slightly by multiplying each position by one number, so no two backs ever change places.</li>
     <li>We built a way to rescore those two charts from projected stats, and tested it against points players actually scored.</li>
-    <li>It did not clearly beat today's DDF Value. The gains were small and inside the noise of four weeks of games. We are not switching to it yet.</li>
+    <li>It did not clearly beat today's DDF Value. The changes were small and inside the noise of four weeks of games. We are not switching to it yet.</li>
   </ul>
 </section>
 
@@ -100,7 +100,7 @@ a { color: var(--accent); }
 <section>
   <h2>What it would change</h2>
   <p>In a 12-team Standard league, week 9: James Cook 66.7 to 71.1, Derrick Henry 39.2 to 43.7; Trey McBride 26.1 to 20.4, Puka Nacua 51.9 to 47.7, Chase Brown 31.8 to 28.1. Running backs' share of all value goes from 55.8% to 56.5%. In Half PPR the moves are about a point or two; in Full PPR, under a point, because only FantasyPros changes there.</p>
-  <p>The rescoring reorders more than the publishers do. Between our rescored Standard and Full PPR lists it swaps 65 of those 1,260 pairs on FantasyCalc and 68 on FantasyPros, where CBS Sports' own Standard and Full columns differ by 4 and USA Today's by 21. Those counts leave out pairs a column ties (CBS Sports 70, USA Today 42; our rescored lists almost none); counting each tie as half a swap still gives about 39 and 42.</p>
+  <p>The rescoring reorders more than the publishers do. Between our rescored Standard and Full PPR lists it swaps 65 of those 1,260 pairs on FantasyCalc and 68 on FantasyPros, where CBS Sports' own Standard and Full columns differ by 4 and USA Today's by 21. Those counts leave out pairs a column ties (CBS Sports 68, USA Today 41; our rescored lists almost none); counting each tie as half a swap still gives 38 and about 42.</p>
 </section>
 
 <section>
@@ -112,17 +112,26 @@ a { color: var(--accent); }
     <tbody>
       <tr><td>Does the rescored DDF Value track actual points better than today's?</td><td><span class="chip null">NOT SHOWN</span><br><span class="chip fail">NOT ROBUST</span></td><td class="num">Standard +0.010 [−0.003, +0.025]<br>trades +0.003 [−0.001, +0.008]<br>Full −0.001 [−0.010, +0.004]</td></tr>
       <tr><td>Does rescored FantasyCalc beat FantasyCalc as published, in Standard?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">+0.026 [−0.004, +0.058]</td></tr>
-      <tr><td>Rescored FantasyCalc alone, or rescored DDF Value?</td><td>DDF Value, narrowly</td><td class="num">trades, Standard: 0.010 closer [0.000, 0.021]<br>other scorings: range includes 0</td></tr>
-      <tr><td>Does rescoring FantasyCalc move it away from actual points (a sign its flat response knew something)?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">+0.087 [−0.049, +0.222]<br>within each position, Standard: +0.193 [+0.041, +0.332], toward actual points</td></tr>
+      <tr><td>Rescored FantasyCalc alone, or rescored DDF Value?</td><td>DDF Value, narrowly</td><td class="num">trades, Standard: 0.010 closer [0.0003, 0.021]<br>other scorings: range includes 0</td></tr>
+      <tr><td>Does rescoring FantasyCalc move it away from actual points (a sign its flat response knew something)?</td><td><span class="chip null">NOT SHOWN</span></td><td class="num">+0.087 [−0.049, +0.222]<br>within each position, Standard: +0.193 [+0.041, +0.332], toward actual points; this version meets our rule for rejecting the market-sense idea, the main one does not</td></tr>
       <tr><td>Do rescored charts move pass catchers up in Full PPR?</td><td><span class="chip pass">PASS</span></td><td class="num">97% of swaps</td></tr>
       <tr><td>Projected points alone, against DDF Value (today's and rescored) and FantasyCalc</td><td>Ahead within each position, behind on trades; neither significant</td><td class="num">vs rescored DDF Value, Standard:<br>within 0.386 vs 0.335, +0.051 [−0.042, +0.141]<br>trades 0.603 vs 0.633, −0.030 [−0.085, +0.021]</td></tr>
       <tr><td>Rescoring CBS Sports' and USA Today's Standard column: does it land closer to their own Full column?</td><td><span class="chip fail">FAIL</span></td><td class="num">1 of 5 weeks</td></tr>
       <tr><td>2015 to 2025: does rescoring a player's recent rate by his catches predict Standard points better?</td><td><span class="chip fail">FAIL</span></td><td class="num">−0.071, 0 of 11 seasons</td></tr>
     </tbody>
   </table></div>
-  <p class="small">Unless marked, numbers are the change in rank correlation with actual points within each position, with a 95% range from resampling players. The FantasyCalc market-sense row is a different number: the correlation between how far rescoring moved each player and how far FantasyCalc as published missed his actual points; above zero means rescoring moved him toward his actual points. "Not shown" means the range includes zero. "Trades" is the share of player pairs, any positions, that a value orders the same way as actual points above the waiver line. "Not robust": leaving FantasyCalc out turns the Full PPR results from negative to positive. The Standard gain comes from the one- and two-week windows; the four-week window shows none. The pass-catcher test is close to automatic, since the rescoring moves players by projected catches; against the catches players actually made it is 88.9%, just under our 90% bar. Full results: <code>docs/research/jeg1597/step4-results.md</code>.</p>
-  <p>Within each position, projected points alone were ahead of DDF Value and FantasyCalc on actual points, though not by a margin four weeks can confirm; FantasyPros as published matched them in Half PPR and edged them in Full PPR. On trades across positions projections trailed, and moved ahead only after we converted them to value above the waiver line, a version we had not written into the tests, and still not significantly. Over one to four weeks that is what projections are built for; it does not make them better trade values.</p>
-  <p>Two of the failures teach something. The publishers' own Standard columns were matched best by a rescoring that goes only about a third of the way (0.3 on CBS Sports, 0.4 on USA Today); that test looks at order within a position, so it does not measure how far their values move, only which strength of rescoring best fits their rankings. And over eleven seasons, a player's past Full PPR points, catches included, predicted his future Standard points better than his past Standard points did: catches mean he gets the ball, and that predicts yards and touchdowns too. Rescoring by catches at full strength ignores both.</p>
+  <ul class="small">
+    <li><strong>Score</strong>: how well a list's order within a position matches who actually scored more (a rank correlation). 1 is a perfect match, 0 is no better than chance. Today's DDF Value scores 0.33 in Standard; projections 0.39. Numbers in the table are the change in that score.</li>
+    <li><strong>Range</strong> in brackets: where the change could plausibly be, from re-drawing the players 2,000 times. "Not shown" means the range includes zero.</li>
+    <li><strong>Trades</strong>: the share of player pairs, any positions, that a list orders the same way as actual points above the waiver line.</li>
+    <li><strong>Not robust</strong>: leaving FantasyCalc out turns the Full PPR results from negative to positive.</li>
+    <li><strong>Market-sense row</strong>: a different number, the correlation between how far rescoring moved each player and how far FantasyCalc as published missed his actual points. Above zero means rescoring moved him toward his actual points.</li>
+    <li>The Standard gain comes from the one- and two-week windows; the four-week window shows none.</li>
+    <li>The pass-catcher test is close to automatic, since the rescoring moves players by projected catches; against the catches players actually made it is 88.9%, just under our 90% bar.</li>
+    <li>Full results: <code>docs/research/jeg1597/step4-results.md</code>.</li>
+  </ul>
+  <p>Within each position, projected points alone were ahead of DDF Value and FantasyCalc on actual points, though not by a margin four weeks can confirm; FantasyPros as published matched them in Half PPR and edged them in Full PPR. FantasyPros alone, unadjusted, was also ahead of DDF Value within each position at every scoring (0.365 vs 0.325 in Standard), a comparison we did not plan in advance and have no range for: which charts go into the average may matter more than how each handles scoring. On trades across positions projections trailed, and moved ahead only after we converted them to value above the waiver line, a version we had not written into the tests, and still not significantly. Over one to four weeks that is what projections are built for; it does not make them better trade values.</p>
+  <p>Two of the failures teach something. Rescoring the publishers' own Standard columns toward their own Full columns matched best at only about a third of full strength (0.3 on CBS Sports, 0.4 on USA Today); that test looks at order within a position, so it does not measure how far their values move, only which strength of rescoring best fits their rankings. And over eleven seasons, a player's past Full PPR points, catches included, predicted his future Standard points better than his past Standard points did: catches mean he gets the ball, and that predicts yards and touchdowns too. Rescoring by catches at full strength ignores both.</p>
 </section>
 
 <section>
