@@ -2,7 +2,8 @@
 
 The no-sources version of Data Driven Football (JEG-1543): the same engine and saved league, DDF numbers only. No
 source name, per-source value, chart comparison or source-naming methodology reaches the browser on this path.
-Status: phase 1 (page skeleton, static grid, privacy check). Owner JEG-1543. Last verified 2026-11-08.
+Status: phase 1 (page skeleton, static grid, privacy check) built; phase 2 `get-answers` source and tests written, not
+deployed (`docs/get-answers-deploy.md`). Owner JEG-1543. Last verified 2026-11-08.
 
 Decisions (Jeremy, 2026-11-08, design in the handoff folder `06-audit/jeg1543-answers-site-design-2026-11-08.md`):
 same repo at `/answers/`, built from the same engine; hybrid static tables plus a `get-answers` edge function (grid for
@@ -33,7 +34,40 @@ source bundle, and a file allowlist. `tests/test_answers_site.py` adds the brows
 DDF Value equals the full site's for the same saved settings, nothing is written to storage, and three broken
 variants (fetches the source file, loads the engine, hidden source name) fail.
 
+## Recommendations endpoint (`supabase/functions/get-answers`, phase 2)
+POST `{league, me:{keys, index?, others?}, opponents:[{id, name, keys}], skipped?, sizes?, held?, ov?, min_bench?,
+alternatives?, why?}` returns find.html's recommendations with no source data: per group (partner, fit class, players
+received) the alternatives in the card's order (give/receive keys, DDF edge, your starters' change, your % roster better,
+the other side as a band word and percent (D3), the waiver alternative's players, covered share and note); the
+opportunity tier (team.html); the partner order (partners.html, ties on the server, D4). `why:{team, give, receive}` returns
+one trade's Why panel (DDF-only slots), as the page fills it on first open. `alternatives` (default 10) caps each
+group's list; `alternatives` in the reply is the full count. Refused: `include`, `basis`, per-source fields, `split`,
+sizes other than 1-2, unknown fields. Contract and allowlist: `core.ts` `REPLY_SPEC` / `WHY_REPLY_SPEC`.
+
+How it stays the page's answer (no value math of its own):
+- Values: get-values' modules (`league.ts`, `pipeline.ts`, `value-context.ts` for `ov=`) over the published
+  `value-model.js`, bundle and `players-data` island, read from `DDF_SITE_ORIGIN` like get-values.
+- Rows: `core.ts` `buildRows` mirrors curve-widget.js `buildRow` / `setCompositeFields` in the default "indexed" view
+  (`seriesField`: charts Indexed, projections and `*_adjusted` Adjusted, `*_vorp` VORP; DDF versions from
+  `ddfByVersion`, the override on `ddf_value` only). Every row has a pipeline row (`getAllRows` = pipeline rows), so the
+  VP-6.2 implied 0 never applies to finder rows; it is only for `getPlayer` on unpriced players, which no module here
+  prices with.
+- `makeControls` is a read-only TradeValueCurveControls (rows, source availability, roster shape with K/DST, slot fill
+  as `adjustmentAllocationRows`, `benchShareReadout`). The site's own page modules (`PAGE_SCRIPTS`) then run in a fresh
+  window-like sandbox per request (`new Function` with its own `window`, `document` stub with `readyState` "loading" so no
+  page `start()` runs, in-memory storage seeded with `ddf:pasted`, `ddf:skip`, `ddf:hold`, site.js's `DDF.state`).
+  find-page.js is DOM-bound, so its `run()` / `visible()` order is replayed in `core.ts` (`pageOrder`); the tests guard it.
+- Parity (`tests/test_get_answers.py`, Playwright vs the real find.html, 11 partners, 3 settings incl. superflex,
+  held, skipped, overrides, sizes 1 only): every group and alternative, order, fit class, waiver alternative, Why panel,
+  partner order and tier match exactly. Measured locally: 0.9 s warm, 1.1-1.3 s cold per request (sizes 1-2, 11
+  partners); about a third of it is `DDFOpportunity.computeTeam`, which repeats the partner searches as team.html does.
+
+Learnings: page modules that publish `root.X` from `typeof window !== "undefined" ? window : globalThis` run unchanged in a
+sandbox when `window` is a `new Function` parameter; `Object.create(globalThis)` needs `defineProperty` for names that
+are getter-only on the real global (`navigator`). Error text from the site's link reader lists source keys, so the
+function words its own `ov` refusal.
+
 ## Next phases
-2. `get-answers` edge function (Recommendations, opportunity tier, partner order, other side as a word and percent)
-   and answers-mode get-values for off-grid settings; deploy by the lead after Jeremy's yes.
-3. Connector answers mode (`DDF_LINK_BASE`, no per-source tool output) plus the full URL for Jeremy.
+2b. Answers-mode get-values for off-grid settings; deploy get-answers by the lead after Jeremy's yes.
+3. The answers pages call get-answers; connector answers mode (`DDF_LINK_BASE`, no per-source tool output) plus the
+   full URL for Jeremy.

@@ -16,7 +16,7 @@ class EdgeFunctionParseTests(unittest.TestCase):
 
     @unittest.skipIf(shutil.which("deno") is None, "deno not installed")
     def test_entrypoints_parse(self):
-        for entry in ("get-values/index.ts", "mcp/index.ts"):
+        for entry in ("get-values/index.ts", "mcp/index.ts", "get-answers/index.ts"):
             out = subprocess.run(["deno", "cache", "--no-check", str(FUNCTIONS / entry)],
                                  capture_output=True, text=True, timeout=120)
             self.assertEqual(out.returncode, 0, entry + "\n" + out.stderr)
