@@ -666,6 +666,23 @@ SOURCE_LINKS = [
 ]
 
 
+def replacement_qb(inp) -> dict:
+    """The first quarterback past the league's rostered count, by projected Half PPR
+    points per game (players.json blend_ppg, the model's projection input), in a
+    one-QB and a superflex 12-team league."""
+    players = json.loads((REPO / "data" / "fixtures" / "current" / "players.json").read_text(encoding="utf-8"))["players"]
+    qbs = sorted((p for p in players if p.get("pos") == "QB" and (p.get("blend_ppg") or {}).get("half_ppr")),
+                 key=lambda p: (-p["blend_ppg"]["half_ppr"], p["player_key"]))
+    out = {}
+    for label, sf in (("one_qb", 0), ("superflex", 1)):
+        diag = setting(inp, "half_ppr", 12, sf).diagnostics()
+        ros = diag["sources"]["cbs"]["positions"]["QB"]["rostered"]
+        rep = qbs[ros]
+        out[label] = {"rostered": ros, "rank": ros + 1, "name": rep["name"], "ppg": r(rep["blend_ppg"]["half_ppr"], 1),
+                      "nfl_depth": rep.get("depth_chart_order")}
+    return out
+
+
 def headline(d: dict) -> dict:
     """The numbers the article quotes in its text, gathered in one place.
     The yardstick everywhere is DDF Value (the reference), never a participant."""
@@ -753,6 +770,7 @@ def build() -> dict:
     data["cbs_four_points_pct"] = r(100 * 4 / cbs_top, 1)
     data["source_links"] = {"read": LINKS_READ, "links": SOURCE_LINKS}
     data["should_be"] = should_be(inp, data)
+    data["replacement_qb"] = replacement_qb(inp)
     data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)
     return data
 
