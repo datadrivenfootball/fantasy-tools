@@ -36,6 +36,7 @@ import unittest
 from pathlib import Path
 
 from tests._dist_server import DIST, ENGINE_PAGE, serve
+from tests._holds import pinned_holds_override
 from tests import _render_env
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,7 +135,8 @@ def browser_run(script, arg, overrides=None):
             raise _render_env.unavailable("no Chromium available")
         browser = p.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=exe)
         try:
-            with serve(DIST, overrides) as base:
+            # JEG-1578: pinned held-proof fixture (tests/_holds); caller overrides still win.
+            with serve(DIST, {**pinned_holds_override(DIST), **(overrides or {})}) as base:
                 page = browser.new_page(viewport={"width": 1280, "height": 900})
                 page.goto(base + "/classic/", wait_until="networkidle")
                 page.wait_for_function("() => window.TradeValueCurveControls && window.TradeValueCurveControls.isReady()", timeout=90000)
