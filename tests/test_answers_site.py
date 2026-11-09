@@ -126,6 +126,22 @@ class CacheKeyTest(unittest.TestCase):
                 (dist / f).write_text("{}" if f.endswith("week-9.json") else "x")
 
 
+class PartialCacheTest(unittest.TestCase):
+    def test_partial_grid_is_not_complete(self):
+        import tempfile
+        from build_answers_pages import complete
+        with tempfile.TemporaryDirectory() as d:
+            data = Path(d)
+            (data / "grid.json").write_text(json.dumps({"cells": 2}))
+            (data / "players.json").write_text("{}")
+            (data / "ppr-12-sf0-q1w2f1-b7.json").write_text("{}")
+            self.assertFalse(complete(data))
+            (data / "ppr-12-sf0-q1w2f1-b8.json").write_text("{}")
+            self.assertTrue(complete(data))
+            (data / "players.json").unlink()
+            self.assertFalse(complete(data))
+
+
 class BuiltTreeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
