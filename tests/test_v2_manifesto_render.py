@@ -8,8 +8,8 @@ Builds dist/v2 into a temp copy of the built dist/ and loads it headless at
     section, the Manifesto page shows and every other page is hidden, as are the
     league bar and the Showing bar); the old route #manifesto redirects there
     and rewrites the address (JEG-855);
-  * the landing tab is still Trade targets: /v2/ with no hash shows Trade
-    targets, not the Manifesto (Jeremy, 2026-10-08 / 2026-10-09);
+  * the landing tab is the Value chart (JEG-1106): /v2/ with no hash shows the Value chart,
+    not the Manifesto (Jeremy, 2026-10-25; was Trade targets 2026-10-08);
   * the h1 is the doc's title with the "Data Driven Football" eyebrow, and all
     12 numbered section headings are present as h2s, in order;
   * plain text only (Jeremy, 2026-10-09): no buttons, links or form controls
@@ -53,7 +53,8 @@ def setUpModule():
 
 V2_JS = ROOT / "app" / "v2" / "v2.js"
 SHELL = ROOT / "app" / "v2" / "shell.html"
-LANDING = 'const currentView = () => viewFor(hashBase()) || "targets";'
+# JEG-1586: the landing is the Value chart since JEG-1106 (Jeremy, 2026-10-25; was Trade targets); the anchor follows v2.js.
+LANDING = 'const currentView = () => viewFor(hashBase()) || (fieldnotes() && !hashBase() ? "home" : "values");'
 
 TITLE = "Fantasy Football Manifesto"
 SECTIONS = [
@@ -129,10 +130,10 @@ def _built_dist(shell_html=None):
 def check_landing(snap) -> list[str]:
     errors = []
     current = [t["view"] for t in snap["tabs"] if t["current"]]
-    if current != ["targets"]:
-        errors.append(f"landing (no hash): current tab {current}, want Trade targets")
-    if not snap["pages"]["v2Targets"] or snap["pages"]["v2Manifesto"]:
-        errors.append(f"landing (no hash) should show Trade targets only: {snap['pages']}")
+    if current != ["values"]:
+        errors.append(f"landing (no hash): current tab {current}, want Value chart")
+    if not snap["pages"]["v2Main"] or snap["pages"]["v2Manifesto"]:
+        errors.append(f"landing (no hash) should show the Value chart only: {snap['pages']}")
     return errors
 
 
@@ -140,8 +141,11 @@ def check_manifesto(snap, width, old=False) -> list[str]:
     tag = f"[{width}px{' old #manifesto' if old else ''}] "
     errors = []
     writing = [t for t in snap["tabs"] if t["view"] == "writing"]
-    if len(writing) != 1 or writing[0]["label"] != "Writing" or not str(writing[0]["href"]).endswith("#writing"):
-        errors.append(f"{tag}want one Writing tab at #writing, got {writing}")
+    # JEG-1106: the grouped menu links straight to the Writing sections (Methodology, Research, Manifesto), all one view;
+    # there is no single "Writing" tab. Manifesto is one of them, at #writing/manifesto.
+    manifesto_tabs = [t for t in writing if str(t["href"]).endswith("#writing/manifesto") and t["label"] == "Manifesto"]
+    if len(manifesto_tabs) != 1 or any("#writing" not in str(t["href"]) for t in writing):
+        errors.append(f"{tag}want one Manifesto entry at #writing/manifesto among the Writing entries, got {writing}")
     if any(t["view"] == "manifesto" for t in snap["tabs"]):
         errors.append(f"{tag}Manifesto is still a top-level tab")
     first = snap["sections"][0] if snap["sections"] else {}
@@ -228,7 +232,7 @@ class ManifestoRenderTest(unittest.TestCase):
             "section 7 dropped": {"shell_html": shell.replace(section7, "", 1)},
             "Manifesto not first section": {"shell_html": shell.replace(tab + how_tab, how_tab + tab, 1)},
             "link added to the text": {"shell_html": shell.replace(section7, with_link, 1)},
-            "Writing is the landing tab": {"v2_js": js.replace(LANDING, LANDING.replace('"targets"', '"writing"'), 1)},
+            "Writing is the landing tab": {"v2_js": js.replace(LANDING, LANDING.replace('"values"', '"writing"'), 1)},
             "old #manifesto route removed": {"v2_js": js.replace('"#manifesto": "#writing/manifesto", ', "", 1)},
         }
         for name, kwargs in broken.items():

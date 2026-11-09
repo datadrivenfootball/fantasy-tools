@@ -18,6 +18,7 @@ import unittest
 from pathlib import Path
 
 from tests import _render_env
+from tests._dist_server import V2_URL, serve
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -39,16 +40,9 @@ def setUpModule():
 
 @contextlib.contextmanager
 def _served():
-    class Quiet(http.server.SimpleHTTPRequestHandler):
-        def log_message(self, *args):
-            pass
-    with socketserver.ThreadingTCPServer(("127.0.0.1", 0), functools.partial(Quiet, directory=str(DIST))) as server:
-        server.daemon_threads = True
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        try:
-            yield f"http://127.0.0.1:{server.server_address[1]}/v2/"
-        finally:
-            server.shutdown()
+    # JEG-1586 (group B): since JEG-1539 dist/v2/ is a redirect stub; the v2 shell is build-only and served at /v2-app.html.
+    with serve() as base:
+        yield f"{base}/{V2_URL}"
 
 
 PROBE = """() => {

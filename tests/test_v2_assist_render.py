@@ -91,7 +91,7 @@ def run_checks(assist_js=None, v2_js=None) -> list[str]:
         try:
             # 1. The footer line is in the served HTML, so an assistant that runs no JavaScript reads it.
             raw = urllib.request.urlopen(base).read().decode("utf-8")
-            if LINE not in raw or "Connect the tool" not in raw or "/connect/" not in raw:
+            if LINE not in raw or "Connect the tool" not in raw or 'href="connect/"' not in raw:   # JEG-1586: the link is relative since JEG-1539 (the page's base resolves it)
                 errors.append("footer line missing from the served page HTML")
 
             # 2. Copy link -> open round trip between two leagues.
