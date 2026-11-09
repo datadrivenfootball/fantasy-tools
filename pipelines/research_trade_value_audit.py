@@ -432,9 +432,10 @@ def weekly(inp) -> dict:
 RULES = {
     "balance": "Position mix vs DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
-    "superflex": "Superflex: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
-    "league_size": "League size: Strong when the source offers its own numbers by team count; Weak with one table for every league size.",
-    "depth": "Depth: none of the four charts states a roster size, so each is measured against the waiver line of a 12-team league with our lineup. For each position, the gap between players listed and players rostered, as a share of players rostered, counting stopping short and reaching past alike; averaged over the four positions. Strong up to 10%, OK up to 30%, Weak above 30%.",
+    "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all value in a 12-team Half PPR superflex league and DDF Value's. Close up to 5, OK up to 10, Far above 10. DDF Value's position split is partly built from projections (see How we tested); distance describes a chart, it does not prove it right or wrong.",
+    "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
+    "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
+    "depth": "Depth: how far down the chart's list goes compared with how many players a 12-team league rosters. None of the four charts states a roster size, so each is measured against the waiver line of a 12-team league with our lineup. For each position, the gap between players listed and players rostered, as a share of players rostered, counting stopping short and reaching past alike; averaged over the four positions. Strong up to 10%, OK up to 30%, Weak above 30%.",
     "curve": "Curve shape: average distance, in percentage points of each chart's own #1 player, between the chart's value curve and DDF Value's over overall ranks 1 to 100 (Half PPR). Close up to 5, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "freshness": "Weekly change: Strong when each of the four week-to-week changes in our saved weekly snapshots (weeks 5 to 9) is a distinct capture and moves last week's top 24 per position by at least a quarter of a rank on average; OK when one week did not; Weak otherwise.",
     "consolidation": "2-for-1 sense: the share of mid-tier pairs (ranks 25-60) that the raw chart says beat a top-12 player, minus the share once each player's waiver-level value is subtracted. Strong up to 10 points of difference, OK up to 25, Weak above 25.",
@@ -473,6 +474,7 @@ def scorecard(meta, pw, sc, sfx, wk, cons, curves_half) -> dict:
     for k in CHARTS:
         gap = pw["half_ppr/12/1qb"]["gap_vs_ddf"][k]
         n_sf = sfx[k]["superflex_qbs_listed"]
+        qb_gap = r(abs(sfx["ddf_value"]["qb_share_sf"] - sfx[k]["qb_share_sf"]), 1)
         depth = sum(abs(meta[k]["listed"][p] - meta[k]["rostered"][p]) / meta[k]["rostered"][p] for p in POS) / len(POS)
         cv, ref = curves_half[k], curves_half["ddf"]
         n = min(100, len(cv), len(ref))
@@ -483,6 +485,7 @@ def scorecard(meta, pw, sc, sfx, wk, cons, curves_half) -> dict:
             "balance": {"level": grade(gap, 5, 10), "value": gap},
             "scoring": {"level": scoring_level(sc[k])},
             "superflex": {"level": 3 if n_sf >= 24 else 2 if n_sf > 0 else 1, "value": n_sf},
+            "qb_sf": {"level": grade(qb_gap, 5, 10), "value": qb_gap},
             "league_size": {"level": 3 if k in league_size_offered else 1},
             "depth": {"level": grade(100 * depth, 10, 30), "value": r(100 * depth, 0)},
             "curve": {"level": grade(cdist, 5, 10), "value": r(cdist, 1)},

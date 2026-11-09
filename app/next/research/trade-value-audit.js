@@ -9,11 +9,11 @@
   var GRADED = CHARTS;
   var NAME = { cbs: 'CBS Sports', usatoday: 'USA Today', fantasypros: 'FantasyPros', fantasycalc: 'FantasyCalc',
     ddf: 'DDF Value (reference)', ddf_value: 'DDF Value (reference)',
-    analyst: 'Analyst charts' };
+    analyst: 'Avg of Analyst charts' };
   var POS = ['QB', 'RB', 'WR', 'TE'];
   var SHORT = { ddf_value: 'DDF Value', fantasycalc: 'FantasyCalc', fantasypros: 'FantasyPros' };
-  var DIMS = ['balance', 'curve', 'scoring', 'superflex', 'league_size', 'depth', 'freshness', 'consolidation'];
-  var DIM_NAME = { balance: 'Position mix vs DDF Value', curve: 'Curve shape vs DDF Value', scoring: 'Scoring formats', superflex: 'Superflex', league_size: 'League size',
+  var DIMS = ['balance', 'curve', 'scoring', 'superflex', 'qb_sf', 'league_size', 'depth', 'freshness', 'consolidation'];
+  var DIM_NAME = { balance: 'Position mix vs DDF Value', curve: 'Curve shape vs DDF Value', scoring: 'Scoring formats', superflex: 'Superflex coverage', qb_sf: 'QB share in superflex vs DDF Value', league_size: 'League size',
     depth: 'Depth', freshness: 'Weekly change', consolidation: '2-for-1 sense' };
   var D = null;
 
@@ -99,7 +99,7 @@
     GRADED.forEach(function (k) {
       var tr = el('tr');
       tr.appendChild(el('th', { scope: 'row' }, NAME[k] + (k === 'fantasycalc' ? ' (Live market)' : '')));
-      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname], dname === 'balance' || dname === 'curve')); tr.appendChild(td); });
+      DIMS.forEach(function (dname) { var td = el('td'); td.appendChild(badge(D.scorecard[k][dname], dname === 'balance' || dname === 'curve' || dname === 'qb_sf')); tr.appendChild(td); });
       tb.appendChild(tr);
     });
     var ul = $('#rules');
@@ -112,7 +112,7 @@
       DIMS.forEach(function (dname) {
         var dim = D.scorecard[k][dname];
         if (!dim || dim.level == null) return;
-        var b = badge(dim, dname === 'balance' || dname === 'curve');
+        var b = badge(dim, dname === 'balance' || dname === 'curve' || dname === 'qb_sf');
         b.insertBefore(document.createTextNode(DIM_NAME[dname] + ': '), b.childNodes[1]);
         host.appendChild(b);
       });

@@ -104,6 +104,9 @@ class AuditData(unittest.TestCase):
         self.assertEqual("Strong", card["cbs"]["curve"]["label"])   # close to the reference curve
         self.assertEqual("Weak", card["usatoday"]["curve"]["label"])
         self.assertEqual("Weak", card["usatoday"]["depth"]["label"])  # reaching past counts like stopping short
+        self.assertEqual("Strong", card["cbs"]["superflex"]["label"])  # coverage: superflex values for 24+ QBs
+        self.assertEqual("Weak", card["cbs"]["qb_sf"]["label"])        # but its QB share is Far from DDF Value
+        self.assertEqual("Strong", card["fantasypros"]["qb_sf"]["label"])
         for k in audit.CHARTS:
             listed, ros = self.fresh["sources"][k]["listed"], self.fresh["sources"][k]["rostered"]
             gap = sum(abs(listed[p] - ros[p]) / ros[p] for p in ("QB", "RB", "WR", "TE")) / 4
