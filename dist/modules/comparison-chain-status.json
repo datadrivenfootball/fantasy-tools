@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-08T22:07:01.569689+00:00",
+  "run_at": "2026-11-08T23:20:36.210555+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -253,17 +253,19 @@
       "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes"
     ],
     "assertions": [
-      "Exception occurred during processing of request from ('127.0.0.1', 59802)",
+      "Exception occurred during processing of request from ('127.0.0.1', 49280)",
       "BrokenPipeError: [Errno 32] Broken pipe",
-      "Exception occurred during processing of request from ('127.0.0.1', 59818)",
+      "Exception occurred during processing of request from ('127.0.0.1', 59122)",
+      "Exception occurred during processing of request from ('127.0.0.1', 57278)",
+      "Exception occurred during processing of request from ('127.0.0.1', 55364)",
       "AssertionError: 'weighted over the 5 league allocations (34 to 34 rostered, read at QB35 to QB35' not found in '= the value of the first player past the league\u2019s rostered count on USA Today\u2019s list: QB35 Carson Wentz 21.00 at the heaviest allocation (34 QBs rostered); weighted over the 5 league allocations (34 rostered, read at QB35) = 21.00' : usatoday"
     ],
     "breaches": [],
     "make_targets": [
       "Makefile:805: test-core"
     ],
-    "detail": "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes\nException occurred during processing of request from ('127.0.0.1', 59802)\nBrokenPipeError: [Errno 32] Broken pipe\nException occurred during processing of request from ('127.0.0.1', 59818)\nAssertionError: 'weighted over the 5 league allocations (34 to 34 rostered, read at QB35 to QB35' not found in '= the value of the first player past the league\u2019s rostered count on USA Today\u2019s list: QB35 Carson Wentz 21.00 at the heaviest allocation (34 QBs rostered); weighted over the 5 league allocations (34 rostered, read at QB35) = 21.00' : usatoday",
-    "recorded_at": "2026-11-08T23:09:18.221136+00:00",
+    "detail": "FAIL tests.test_learn_engine_parity.LearnEngineParity.test_round6_waiver_line_and_notes\nException occurred during processing of request from ('127.0.0.1', 49280)\nBrokenPipeError: [Errno 32] Broken pipe\nException occurred during processing of request from ('127.0.0.1', 59122)\nException occurred during processing of request from ('127.0.0.1', 57278)\nException occurred during processing of request from ('127.0.0.1', 55364)\nAssertionError: 'weighted over the 5 league allocations (34 to 34 rostered, read at QB35 to QB35' not found in '= the value of the first player past the league\u2019s rostered count on USA Today\u2019s list: QB35 Carson Wentz 21.00 at the heaviest allocation (34 QBs rostered); weighted over the 5 league allocations (34 rostered, read at QB35) = 21.00' : usatoday",
+    "recorded_at": "2026-11-09T00:33:13.186814+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
