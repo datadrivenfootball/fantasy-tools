@@ -1193,6 +1193,10 @@ test-render-sweep-3:
 	python3 -m unittest tests.test_jeg1249_league_site_render
 	python3 -m unittest tests.test_league_problems_render
 	python3 -m unittest tests.test_v2_league_phone_render
+
+# JEG-1546 (2026-11-08): shard 3 hit its 60-minute timeout on the first full run (run 42536442898; 59.8 min at its
+# 25th of 31 modules, test_v2_league_tables_render alone 16.9 min while red, JEG-1584). Its tail moved here.
+test-render-sweep-4:
 	python3 -m unittest tests.test_v2_league_tables_render
 	python3 -m unittest tests.test_jeg1213_acceptance_render
 	python3 -m unittest tests.test_v2_overrides_basis_render
