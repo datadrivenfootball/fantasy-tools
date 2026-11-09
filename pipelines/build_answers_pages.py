@@ -83,12 +83,26 @@ def write_tables(dist: Path, out: Path, cells: list[str] | None = None) -> None:
 
 
 def cache_key(dist: Path, tag: str | None, cells: list[str] | None) -> str:
-    h = hashlib.sha256(f"{tag}|{','.join(cells or [])}".encode())
+    # The day (the week choice falls back to the calendar when history does not match the build) and node's version
+    # are inputs too.
+    import datetime
+    day = os.environ.get("TRADE_VALUE_TODAY") or datetime.date.today().isoformat()
+    node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip() if shutil.which("node") else "-"
+    h = hashlib.sha256(f"{tag}|{','.join(cells or [])}|{day}|{node}".encode())
     files = [dist / f for f in TABLE_INPUTS] + sorted((dist / "assets" / "history").glob("*.json")) + [ROOT / f for f in CODE_INPUTS]
     for path in files:
         h.update(path.name.encode())
         h.update(path.read_bytes() if path.exists() else b"-")
     return h.hexdigest()[:24]
+
+
+def complete(data: Path) -> bool:
+    """Every cell grid.json counts has its table, plus players.json."""
+    try:
+        cells = json.loads((data / "grid.json").read_text(encoding="utf-8"))["cells"]
+    except (OSError, ValueError, KeyError):
+        return False
+    return (data / "players.json").exists() and len(list(data.glob("*-sf*-q*.json"))) == cells
 
 
 def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cells: list[str] | None = None,
@@ -106,6 +120,8 @@ def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, cell
         (out / name).write_text(page_html(text, tag, name) if name.endswith(".html") else text, encoding="utf-8")
     key = cache_key(dist, tag, cells) if cache else None
     hit = cache / key if key else None
+    if hit and (hit / "checked").exists() and not complete(hit / "data"):
+        shutil.rmtree(hit, ignore_errors=True)   # a partial cache is rebuilt, never published (review of #1396)
     if hit and (hit / "checked").exists():
         shutil.copytree(hit / "data", out / "data")
         print(f"answer_tables: reused the checked tables ({key})")

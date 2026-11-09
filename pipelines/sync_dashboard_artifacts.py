@@ -588,6 +588,8 @@ def main() -> int:
     if reason is not None:
         shutil.rmtree(DIST / "answers", ignore_errors=True)
         print(f"sync: WARNING answers/ not published: {reason[:2000]}")
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=answers/ not published::{reason.splitlines()[0][:300]}")
 
     # JEG-1567: last step, after every page (including value-logic) is written.
     from site_noindex import apply_site_noindex
