@@ -475,37 +475,39 @@ class LearnEngineParity(unittest.TestCase):
         here from TradeValueCurveHarness.runPipelineWith (never the page model): the player at the first seat past the
         heaviest allocation's rostered count, and the weight-average of every allocation's line equals the engine's.
         R6-OP-02: the spread band's end is the D'Hondt N′, not the league's rostered count. R6-OP-03: the intro.
-        R6-OP-07: a superflex USA Today QB (Josh Allen when his subtraction differs) states the engine's restatement when the subtraction differs."""
-        cases = [(("ppr", 12, 0), "cbs", None), (("half_ppr", 10, 1), "usatoday", "Josh Allen")]
+        R6-OP-07: a superflex chart player (USA Today's Josh Allen when his subtraction differs) states the engine's restatement when the subtraction differs."""
+        cases = [(("ppr", 12, 0), "cbs", None, []), (("half_ppr", 10, 1), "usatoday", "Josh Allen", ["cbs"])]
         engine_js = """(a) => { const H = TradeValueCurveHarness, ins = TradeValueCurveControls.getInspection(), vp = ins.valuePipeline;
-          const s = DDFNumbers.snapshot(); let key = null, pos = 'RB';
+          const s = DDFNumbers.snapshot(); let key = null, pos = 'RB', S = a.s;
           if (a.name) { const p = s.players.find(p => p.name === a.name); key = String(p.player_key); pos = p.pos;
             /* JEG-1583: R6-OP-07 needs a player above the waiver line whose subtraction differs at 2 dp. Which players do
-               moves with the data, so when the named player's matches, take the highest-DDF player (any position) whose does. */
-            const row = k => ins.players[a.s][k], line = q => (vp.sources[a.s].positions[q.pos] || {}).waiver;
-            const differs = q => { const r = row(String(q.player_key)), w = line(q);
+               moves with the data (2026-11-09: no USA Today player at half PPR/10/SF), so when the named player's matches,
+               take the highest-DDF player (any position) whose does, in this chart and then in each of a.alts. */
+            const differs = (src, q) => { const r = ins.players[src][String(q.player_key)], w = (vp.sources[src].positions[q.pos] || {}).waiver;
               return r && isFinite(r.native) && isFinite(r.vorp) && isFinite(w) && r.native > w && (r.native - w).toFixed(2) !== r.vorp.toFixed(2); };
-            if (!differs(p)) { const alt = s.players.filter(differs).sort((x, y) => y.ddf - x.ddf)[0];
-              if (alt) { key = String(alt.player_key); pos = alt.pos; } } }
-          else key = String(s.players.filter(p => p.pos === 'RB' && ins.players[a.s][String(p.player_key)]).sort((x, y) => y.ddf - x.ddf)[0].player_key);
+            if (!differs(S, p)) for (const src of [a.s].concat(a.alts || [])) {
+              const alt = s.players.filter(q => differs(src, q)).sort((x, y) => y.ddf - x.ddf)[0];
+              if (alt) { S = src; key = String(alt.player_key); pos = alt.pos; break; } } }
+          else key = String(s.players.filter(p => p.pos === 'RB' && ins.players[S][String(p.player_key)]).sort((x, y) => y.ddf - x.ddf)[0].player_key);
           const mix = vp.allocationMix && vp.allocationMix.length > 1 ? vp.allocationMix : [{weight: 1, allocation: (vp.allocationMix && vp.allocationMix[0] || {}).allocation || vp.allocation}];
-          const reads = mix.map(m => { const r = mix.length > 1 ? H.runPipelineWith({seatAllocation: m.allocation}) : {sources: {[a.s]: {players: ins.players[a.s], positions: vp.sources[a.s].positions}}};
-            const src = r.sources[a.s], P = src.positions[pos];
+          const reads = mix.map(m => { const r = mix.length > 1 ? H.runPipelineWith({seatAllocation: m.allocation}) : {sources: {[S]: {players: ins.players[S], positions: vp.sources[S].positions}}};
+            const src = r.sources[S], P = src.positions[pos];
             const work = Object.entries(src.players).filter(([k, q]) => q.pos === pos && isFinite(q.rank)).sort((x, y) => x[1].rank - y[1].rank);
             const W = m.allocation[pos].rostered, at = work[W];
             return {weight: m.weight, W, waiver: P.waiver, key: at && at[0], native: at && at[1].native, est: !!(at && at[1].estimated)}; });
-          const p = ins.players[a.s][key], P = vp.sources[a.s].positions[pos], o = vp.sources[a.s];
+          const p = ins.players[S][key], P = vp.sources[S].positions[pos], o = vp.sources[S];
           const nm = k => (s.players.find(q => String(q.player_key) === k) || {}).name || null;
           return {key, pos, reads, names: reads.map(r => nm(r.key)), waiver: P.waiver, rostered: P.rostered, cs: vp.chartSigma[pos],
-            native: p.native, vorp: p.vorp, vorpDisplay: p.vorpDisplay, factor: o.vorpFactor, n: mix.length}; }"""
-        got = {}
+            native: p.native, vorp: p.vorp, vorpDisplay: p.vorpDisplay, factor: o.vorpFactor, src: S, n: mix.length}; }"""
+        got = []
         with serve() as base, self.sync_playwright() as p:
             browser, page, console = self._page(p, base, viewport=(390, 844))
-            for (scoring, teams, sf), src, name in cases:
+            for (scoring, teams, sf), src, name, alts in cases:
                 q = f"?scoring={scoring}&teams={teams}&roster=" + ROSTER.format(sf=sf)
                 go(page, "#numbers/pie" + q)
                 page.wait_for_function(SNAP_READY, arg={"scoring": scoring, "teams": teams, "sf": bool(sf)}, timeout=60000)
-                eng = page.evaluate(engine_js, {"s": src, "name": name})
+                eng = page.evaluate(engine_js, {"s": src, "name": name, "alts": alts})
+                src = eng["src"]
                 intro = page.text_content("#nx-method")
                 go(page, f"#numbers/build-up/{src}/{eng['pos']}{q}")
                 page.wait_for_selector("#bu-worked-pick", timeout=20000)
@@ -516,10 +518,10 @@ class LearnEngineParity(unittest.TestCase):
                 page.wait_for_timeout(200)
                 trace = page.text_content("#tr-adj-body")
                 overflow = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
-                got[src] = (eng, intro, worked, trace, overflow)
+                got.append((src, eng, intro, worked, trace, overflow))
             browser.close()
         u = lambda v, s: f"{round(v):,}" if s == "fantasycalc" else f"{v:.2f}"
-        for src, (eng, intro, worked, trace, overflow) in got.items():
+        for src, eng, intro, worked, trace, overflow in got:
             pos, reads = eng["pos"], eng["reads"]
             tot = sum(r["weight"] for r in reads)
             line = sum(r["weight"] * r["waiver"] for r in reads) / tot
@@ -558,8 +560,9 @@ class LearnEngineParity(unittest.TestCase):
             else:
                 self.assertIn(f"{u(eng['native'], src)} − {u(eng['waiver'], src)} = {u(sub, src)}", worked[[k for k in worked if k.startswith("Above the waiver line")][0]]["how"], src)
             self.assertFalse(overflow, f"{src}: horizontal overflow at 390 px")
-        self.assertNotEqual(u(got["usatoday"][0]["native"] - got["usatoday"][0]["waiver"], "usatoday"), u(got["usatoday"][0]["vorp"], "usatoday"),
-                            "no USA Today player's subtraction differs at this setting; the R6-OP-07 check proves nothing")
+        r6_src, r6 = got[1][0], got[1][1]
+        self.assertNotEqual(u(r6["native"] - r6["waiver"], r6_src), u(r6["vorp"], r6_src),
+                            "no USA Today or CBS player's subtraction differs at this setting; the R6-OP-07 check proves nothing")
         self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
 
     def test_round6_bench_weight_scope(self):

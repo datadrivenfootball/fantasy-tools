@@ -23,3 +23,8 @@ None of these changes touch a published number, the engine or an export. Items 2
 
 ### Left open
 - The class remains: any display-precision check with a hand-picked tolerance can go red on new data. Decision A in the JEG-1485 audit (data gates only in the chain) removes that coupling.
+
+### Follow-up, 2026-11-09 (second PR)
+- The first post-fix chain run (42535166048, which checked out main with #1384) failed only `test_round6_waiver_line_and_notes`: "no USA Today player's subtraction differs at this setting". On that candidate (ba7a75fb, USA Today fidelity-held), a browser probe over 12 settings found 0 of 151 USA Today players above the waiver line whose subtraction differs at half PPR/10/SF, 17 of 148 for CBS, and 0 for USA Today at 4 other settings. That is data, not a page bug: the page's restatement branch renders for CBS.
+- Fix: the R6-OP-07 example searches USA Today first and then CBS at the same setting. The assertions and the premise guard are unchanged, and the guard still fails if neither chart has such a player. Not a loosening.
+- Checks: `tests.test_learn_engine_parity` (11 tests) OK on candidate ba7a75fb's data and on main's committed data.
