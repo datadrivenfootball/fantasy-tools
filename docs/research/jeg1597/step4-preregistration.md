@@ -67,4 +67,10 @@ Rules:
 
 ## Changes after this commit
 
-(none yet)
+- 2026-11-09, before any test was run: the step 2 builder found the literal inverse
+  ("map back through the same fit") gives `native x ratio^b` with `b` about 2-5 on convex charts,
+  moving FantasyCalc WR vs RB about 3.5 times the projections' own move. `DDF_new` and `FC_corr`
+  therefore use the position-scaled mapping (each position's level moves as its projected points
+  do; only a player's deviation from his position's ratio goes through the chart's curve). The
+  literal variant is scored too, as `DDF_new_literal` / `FC_corr_literal`, under the same tests.
+  Damping variants lambda 0.5 are reported as sensitivity; lambda 1 is primary.
