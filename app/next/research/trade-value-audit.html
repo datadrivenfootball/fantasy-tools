@@ -265,11 +265,16 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 
 </ul>
 </div>
+<div class="prose"><p>In value, the misses are small next to the counts. In a 12-team league CBS Sports gives no number to <b class="n" data-n="depth_vs_waiver.sources.cbs.12.unpriced_players_pct">35</b>% of rostered players, but they hold <b class="n" data-n="depth_vs_waiver.sources.cbs.12.unpriced_value_pct">2.7</b>% of the pie by DDF Value, because the players it skips sit near the line. On the other side, USA Today puts <b class="n" data-n="depth_vs_waiver.sources.usatoday.12.value_past_line_pct">5.3</b>% of its own value past the line, FantasyPros <b class="n" data-n="depth_vs_waiver.sources.fantasypros.12.value_past_line_pct">2</b>% and FantasyCalc <b class="n" data-n="depth_vs_waiver.sources.fantasycalc.12.value_past_line_pct">0.6</b>%. The depth grade counts players, so it shows where a list ends; these shares show how much value is at stake.</p>
+</div>
 <figure class="reveal" id="fig-depth"><figcaption><b>Where each list ends against the waiver line.</b> Value by rank at one position, as a share of that chart's top player there. The dashed line is the waiver line for the league size you pick; a dot marks each chart's last listed player.</figcaption>
 <div class="controls" role="group" aria-label="League size"><button type="button" data-teams="10" aria-pressed="false">10 teams</button><button type="button" data-teams="12" aria-pressed="true">12 teams</button><button type="button" data-teams="14" aria-pressed="false">14 teams</button></div>
 <div class="controls" role="group" aria-label="Position"><button type="button" data-dpos="QB" aria-pressed="false">QB</button><button type="button" data-dpos="RB" aria-pressed="true">RB</button><button type="button" data-dpos="WR" aria-pressed="false">WR</button><button type="button" data-dpos="TE" aria-pressed="false">TE</button></div>
 <div class="chart" id="depth" role="img" aria-label="Value by rank at one position for each chart, with the waiver line; the cards below give each chart's numbers"></div>
 <div class="tbl" data-table="depth"></div>
+<h3 style="margin-top:16px;font-size:16px">Share of the pie given up or over-allocated, <span id="pie-teams">12</span> teams</h3>
+<p class="meta" style="margin:0 0 6px">The pie here is the DDF Value of every player the league rosters. Under-allocation prices the rostered players a chart leaves out with DDF Value, as a share of that pie; over-allocation is the share of the chart's own value that sits past the waiver line. Per-position figures in brackets. The table follows the league-size buttons.</p>
+<div class="tbl" data-table="pie"></div>
 </figure>
 </section>
 <section aria-labelledby="h-21">

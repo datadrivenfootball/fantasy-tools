@@ -453,6 +453,21 @@
         ul.appendChild(li);
       });
       host2.appendChild(ul);
+      /* Pie shares: under-allocation (DDF Value of rostered players the chart leaves unpriced, as a share of the
+         DDF Value of all rostered players) and over-allocation (share of the chart's own value past the line). */
+      var pie = $('[data-table=pie]');
+      if (pie) {
+        var head = ['Chart', 'Rostered players with no number', 'Unpriced value (share of the rostered pie)', 'Own value past the line'];
+        var rows = GRADED.map(function (k) {
+          var r = dv.sources[k][teams];
+          return [NAME[k]].concat(['QB', 'RB', 'WR', 'TE'].map(function (p) { return ''; }).slice(0, 0),
+            [fmt(r.unpriced_players_pct) + '% (' + POS.map(function (p) { return p + ' ' + fmt(r[p].unpriced_players_pct); }).join(', ') + ')',
+             fmt(r.unpriced_value_pct) + '% (' + POS.map(function (p) { return p + ' ' + fmt(r[p].unpriced_value_pct); }).join(', ') + ')',
+             fmt(r.value_past_line_pct) + '% (' + POS.map(function (p) { return p + ' ' + fmt(r[p].past_value_pct); }).join(', ') + ')']);
+        });
+        table(pie, head, rows);
+        var cap = $('#pie-teams'); if (cap) cap.textContent = teams;
+      }
     }
     function draw(anim) { var el2 = render(); readout(); if (!anim && started) animateIn(el2); }
     $all('[data-teams]', fig).forEach(function (b) { b.addEventListener('click', function () { teams = b.getAttribute('data-teams'); $all('[data-teams]', fig).forEach(function (x2) { x2.setAttribute('aria-pressed', String(x2 === b)); }); started = true; draw(true); }); });

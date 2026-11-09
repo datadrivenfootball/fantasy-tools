@@ -584,11 +584,20 @@ def depth_vs_waiver(inp, data: dict) -> dict:
         diag = s.diagnostics()
         pos_of = s.pos_of
         out["rostered"][t] = {p: diag["sources"]["cbs"]["positions"][p]["rostered"] for p in POS}
+        # The pie for under-allocation: DDF Value of the players the league rosters (top N at each
+        # position by DDF Value, N = rostered count). A chart's unpriced value = DDF Value of those
+        # rostered players it does not list.
+        ddf = ddf_values(s)
+        ros_set = {p: sorted((i for i in ddf if pos_of.get(i) == p), key=lambda i: (-ddf[i], i))[:out["rostered"][t][p]]
+                   for p in POS}
+        ddf_pie = sum(max(0.0, ddf[i]) for p in POS for i in ros_set[p])
+        out.setdefault("ddf_pie", {})[t] = r(ddf_pie, 1)
         for k in keys:
             nat = s.natives(k)
             row = out["sources"].setdefault(k, {}).setdefault(t, {})
             total = sum(nat.values())
             past_value = 0.0
+            miss_value, miss_n = 0.0, 0
             for p in POS:
                 order = sorted((i for i in nat if pos_of.get(i) == p), key=lambda i: (-nat[i], i))
                 ros = out["rostered"][t][p]
@@ -597,15 +606,24 @@ def depth_vs_waiver(inp, data: dict) -> dict:
                 last = order[-1]
                 beyond = order[ros:]
                 past_value += sum(nat[i] for i in beyond)
+                missing = [i for i in ros_set[p] if i not in nat]
+                mv = sum(max(0.0, ddf[i]) for i in missing)
+                miss_value += mv
+                miss_n += len(missing)
                 row[p] = {"listed": len(order), "rostered": ros, "gap": len(order) - ros,
                           "unpriced": max(0, ros - len(order)), "beyond": max(0, len(order) - ros),
                           "class": depth_class(len(order), ros),
                           "last_name": inp.players[last]["name"],
                           "last_pct_of_top": r(100 * nat[last] / top, 1),
-                          "waiver_pct_of_top": r(100 * waiver / top, 1)}
+                          "waiver_pct_of_top": r(100 * waiver / top, 1),
+                          "unpriced_players_pct": r(100 * len(missing) / ros, 0),
+                          "unpriced_value_pct": r(100 * mv / ddf_pie, 1),
+                          "past_value_pct": r(100 * sum(nat[i] for i in beyond) / total, 1)}
                 if t == 12:
                     row[p]["curve"] = [r(100 * nat[i] / top, 1) for i in order[:DEPTH_CURVE_MAX]]
             row["value_past_line_pct"] = r(100 * past_value / total, 1)
+            row["unpriced_value_pct"] = r(100 * miss_value / ddf_pie, 1)
+            row["unpriced_players_pct"] = r(100 * miss_n / sum(out["rostered"][t].values()), 0)
     out["filled_in_12"] = {k: sum(data["sources"][k]["filled_in"].values()) for k in CHARTS}
     return out
 

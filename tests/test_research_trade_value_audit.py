@@ -162,6 +162,16 @@ class AuditData(unittest.TestCase):
             self.assertNotIn(word, text)
         self.assertNotIn("ddf", self.fresh["scorecard"])
 
+    def test_pie_shares_in_depth(self):
+        dv = self.fresh["depth_vs_waiver"]
+        cbs = dv["sources"]["cbs"]["12"]
+        self.assertEqual(round(100 * 22 / 65), cbs["RB"]["unpriced_players_pct"])  # 22 of 65 backs, as in the prose
+        self.assertEqual(0, cbs["value_past_line_pct"])                            # it never reaches past the line
+        for k, v in dv["sources"].items():
+            row = v["12"]
+            self.assertAlmostEqual(row["value_past_line_pct"], sum(row[p]["past_value_pct"] for p in ("QB", "RB", "WR", "TE")), delta=0.25)
+            self.assertLessEqual(row["unpriced_value_pct"], 100)
+
     def test_curve_readout_names_line_up_with_values(self):
         for sc, lines in self.fresh["curves"].items():
             for k, vals in lines.items():
