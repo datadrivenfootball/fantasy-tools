@@ -99,13 +99,13 @@ class CheckWeeklyFreshnessTest(unittest.TestCase):
             self.sbclient.get.return_value = rows
         buf = io.StringIO()
         with mock.patch.object(self.module, "dt", _StubDt):
-            if environ is None:
+            # JEG-1586: the nightly runs in GitHub Actions, where GITHUB_ACTIONS=true would add `::error::` lines to
+            # every run; only the tests that pass it explicitly may see it.
+            with mock.patch.dict(os.environ, environ or {}, clear=False):
+                if not environ or "GITHUB_ACTIONS" not in environ:
+                    os.environ.pop("GITHUB_ACTIONS", None)
                 with contextlib.redirect_stdout(buf):
                     code = self.module.main()
-            else:
-                with mock.patch.dict(os.environ, environ, clear=False):
-                    with contextlib.redirect_stdout(buf):
-                        code = self.module.main()
         return code, buf.getvalue()
 
     # --- expected_week ---------------------------------------------------

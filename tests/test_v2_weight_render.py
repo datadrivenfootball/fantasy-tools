@@ -114,7 +114,7 @@ def run_checks(root_html=None, v2_css=None, compare_values=True) -> list[str]:
                 page.route(lambda u: u.split("#")[0] == base, functools.partial(_serve, html, "text/html"))
             if css is not None:
                 page.route("**/v2/v2.css*", functools.partial(_serve, css, "text/css"))
-            page.goto(base, wait_until="networkidle")
+            page.goto(base + "#trade-targets", wait_until="networkidle")
             page.wait_for_function("() => window.TradeValueV2 && document.querySelector('#v2TTable tbody tr')", timeout=60000)
             return page, page_errors, requests
 
