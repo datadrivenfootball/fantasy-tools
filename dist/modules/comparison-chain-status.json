@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-11-10T03:55:58.250906+00:00",
-  "nfl_week": 9,
+  "run_at": "2026-11-10T05:06:31.017287+00:00",
+  "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
     "fantasycalc": "promoted 3/3",
@@ -32,7 +32,7 @@
       ],
       "detail": "927/927 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
-      "week": 9
+      "week": 10
     },
     "espn": {
       "reason": "fidelity: scrape_validity",
@@ -45,7 +45,7 @@
       ],
       "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 5.56 to 15.15), Puka Nacua 0 (expected 9.44 to 25.74)",
       "hold_severity": "red",
-      "week": 9
+      "week": 10
     }
   },
   "runner": "github-actions",
@@ -119,20 +119,20 @@
     "usatoday": {
       "content_vintage": "2026-11-03",
       "content_week": 9,
-      "health_status": "ok",
-      "lagging_one_week": false
+      "health_status": "warning",
+      "lagging_one_week": true
     },
     "fantasycalc": {
       "content_vintage": "Week 9",
       "content_week": 9,
-      "health_status": "ok",
-      "lagging_one_week": false
+      "health_status": "warning",
+      "lagging_one_week": true
     },
     "fantasypros": {
       "content_vintage": "2026-11-03",
       "content_week": 9,
-      "health_status": "ok",
-      "lagging_one_week": false
+      "health_status": "warning",
+      "lagging_one_week": true
     },
     "espn": {
       "content_vintage": "2026-11-09",
@@ -143,8 +143,8 @@
     "cbs": {
       "content_vintage": "Week 9",
       "content_week": 9,
-      "health_status": "ok",
-      "lagging_one_week": false
+      "health_status": "warning",
+      "lagging_one_week": true
     },
     "cbsros": {
       "content_vintage": "2026-11-10",
@@ -165,18 +165,18 @@
       "label_week": 9,
       "published_at": "2026-11-04T00:35:42+00:00",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     },
     "cbsros": {
       "served_week": 10,
       "label_week": 10,
       "published_at": "2026-11-10",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
@@ -187,59 +187,66 @@
       "label_week": 9,
       "published_at": "2026-11-09",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     },
     "fantasycalc": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-10T01:09:10+00:00",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     },
     "fantasypros": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-03",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     },
     "razzball": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-09",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     },
     "usatoday": {
       "served_week": 9,
       "label_week": 9,
       "published_at": "2026-11-03",
       "basis": "section_label",
-      "expected_week": 9,
-      "weeks_behind": 0,
-      "state": "current",
+      "expected_week": 10,
+      "weeks_behind": 1,
+      "state": "lagging",
       "stale": false,
-      "stale_after": null
+      "stale_after": "2026-11-12T12:00:00-06:00"
     }
   },
   "stale_sources": [],
-  "lagging_sources": [],
+  "lagging_sources": [
+    "cbs",
+    "espn",
+    "fantasycalc",
+    "fantasypros",
+    "razzball",
+    "usatoday"
+  ],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
@@ -248,14 +255,23 @@
   "post_rebuild_validation": {
     "status": "failed",
     "command": "make validate-data",
-    "failed_tests": [],
-    "assertions": [],
+    "failed_tests": [
+      "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_lagging_charts_keep_order_in_their_own_week",
+      "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_the_replay_is_a_transition",
+      "FAIL tests.test_rank_guard.TestEngineKeepsOrderWithHeldLaggingChart.test_lagging_charts_keep_order_in_their_own_week",
+      "FAIL tests.test_rank_guard.TestEngineKeepsOrderWithHeldLaggingChart.test_the_replay_is_a_transition"
+    ],
+    "assertions": [
+      "AssertionError: {'cbs': 9, 'usatoday': 9} != {'cbs': 8, 'usatoday': 8}",
+      "AssertionError: 8 not found in [10, 9] : (('ppr', 12), {'week': 9, 'selected': False, 'default_week': 9, 'newest': 10, 'previous': 9, 'transition': True, 'weeks': [10, 9], 'on_newest': 1, 'total': 6, 'views': {'9': {'sources': ['cbs', 'cbsros', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '10': {'sources': ['cbsros'], 'missing_sources': ['cbs', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 10, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 9, 'fantasypros': 9, 'cbs': 9}, 'missingSaved': {}})",
+      "AssertionError: 8 not found in [10, 9] : (('ppr', 12), {'week': 9, 'selected': False, 'default_week': 9, 'newest': 10, 'previous': 9, 'transition': True, 'weeks': [10, 9], 'on_newest': 1, 'total': 5, 'views': {'9': {'sources': ['cbsros', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '10': {'sources': ['cbsros'], 'missing_sources': ['fantasycalc', 'fantasypros', 'razzball', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 10, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 9, 'fantasypros': 9, 'cbs': 9}, 'missingSaved': {}})"
+    ],
     "breaches": [],
     "make_targets": [
-      "Makefile:700: value-check-compare"
+      "Makefile:680: data-gate"
     ],
-    "detail": "make validate-data failed at Makefile:700: value-check-compare",
-    "recorded_at": "2026-11-10T04:07:41.993948+00:00",
+    "detail": "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_lagging_charts_keep_order_in_their_own_week\nFAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_the_replay_is_a_transition\nFAIL tests.test_rank_guard.TestEngineKeepsOrderWithHeldLaggingChart.test_lagging_charts_keep_order_in_their_own_week\nFAIL tests.test_rank_guard.TestEngineKeepsOrderWithHeldLaggingChart.test_the_replay_is_a_transition\nAssertionError: {'cbs': 9, 'usatoday': 9} != {'cbs': 8, 'usatoday': 8}\nAssertionError: 8 not found in [10, 9] : (('ppr', 12), {'week': 9, 'selected': False, 'default_week': 9, 'newest': 10, 'previous': 9, 'transition': True, 'weeks': [10, 9], 'on_newest': 1, 'total': 6, 'views': {'9': {'sources': ['cbs', 'cbsros', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '10': {'sources': ['cbsros'], 'missing_sources': ['cbs', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 10, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 9, 'fantasypros': 9, 'cbs': 9}, 'missingSaved': {}})\nAssertionError: 8 not found in [10, 9] : (('ppr', 12), {'week': 9, 'selected': False, 'default_week': 9, 'newest': 10, 'previous': 9, 'transition': True, 'weeks': [10, 9], 'on_newest': 1, 'total': 5, 'views': {'9': {'sources': ['cbsros', 'fantasycalc', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '10': {'sources': ['cbsros'], 'missing_sources': ['fantasycalc', 'fantasypros', 'razzball', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 10, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 9, 'fantasypros': 9, 'cbs': 9}, 'missingSaved': {}})",
+    "recorded_at": "2026-11-10T05:28:46.741193+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }

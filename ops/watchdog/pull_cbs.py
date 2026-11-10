@@ -52,9 +52,16 @@ SLUG_GUESSES = (
 # Discovery does not rely on it.
 SLUG = SLUG_GUESSES[1]
 NEWS_PATH = "/fantasy/football/news/"
-TABLE_MARK = 'class="TableBuilder"'
+# Since about 2026-11-04 CBS wraps each table in TableBase divs and adds a
+# class: <h2>..</h2><div class="TableBaseWrapper ..">..<table class="TableBuilder
+# TableBase-table">. The old exact match rejected every article ("no TableBuilder
+# tables"), so the Week 9 probe and ingest gave up (JEG-1485 diagnosis,
+# 2026-11-09). Both shapes are accepted; the cells are unchanged (the Week 9
+# page parses to the stored Week 9 rows exactly).
+TABLE_MARK_RE = re.compile(r'<table class="TableBuilder(?:\s[^"]*)?"')
 TABLE_RE = re.compile(
-    r"<h2>\s*(.*?)\s*</h2>\s*<table class=\"TableBuilder\">(.*?)</table>", re.S)
+    r"<h2>\s*(.*?)\s*</h2>\s*(?:<div\b[^>]*>\s*)*"
+    r"<table class=\"TableBuilder(?:\s[^\"]*)?\">(.*?)</table>", re.S)
 _CHART_SLUG_RE = re.compile(r"trade-(?:value-)?charts?", re.I)
 _CHART_TEXT_RE = re.compile(r"trade (?:value )?charts?", re.I)
 
@@ -200,7 +207,7 @@ def check_article(url, week, fetch_fn=fetch):
     st, html = fetch_fn(url)
     if st != 200 or not html:
         return "status=%r" % (st,)
-    if TABLE_MARK not in html:
+    if not TABLE_MARK_RE.search(html):
         return "no TableBuilder tables"
     headline = extract_page_headline(html)
     if not headline or not _CHART_TEXT_RE.search(headline):
@@ -299,7 +306,7 @@ def pull(url, fetch_fn=fetch):
     st, html = fetch_fn(url)
     if st != 200 or not html:
         raise RuntimeError("fetch failed: status=%r url=%s" % (st, url))
-    if TABLE_MARK not in html:
+    if not TABLE_MARK_RE.search(html):
         raise RuntimeError("CBS TableBuilder markup not found at %s" % url)
     tables = parse_tables(html)
     if len(tables) < 4:
