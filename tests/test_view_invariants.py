@@ -222,6 +222,10 @@ class ViewInvariants(unittest.TestCase):
         lagging = {k for k, w in (week["served"] if week else {}).items()
                    if isinstance(w, int) and w < week["week"]}
         held |= lagging
+        if lagging:  # JEG-1176 rule 6: a lagging chart is never skipped silently
+            import sys
+            print(f"views-audit: {', '.join(sorted(lagging))} still on an older week than Week {week['week']}; "
+                  "not measured here (the Week views tests read them in their own week)", file=sys.stderr)
         live = lambda keys: sum(1 for k in keys if k.replace("_vorp", "") not in held)
         self.assertGreaterEqual(len(measured), len(SETTINGS) * (live(PUBLISHED) * 3 + live(RAW_VORP) + live(PROJECTIONS)))
         self.assertEqual(problems, [], "\n".join(problems[:25]))
