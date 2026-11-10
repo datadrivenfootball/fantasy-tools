@@ -83,6 +83,8 @@ const out = {
   starter_mix_mean: result.starterMixMean,
   bench_mix_mean: result.benchMixMean,
   ddf_weights: result.ddfWeights,
+  // JEG-1569: the charts-only split prices the projections on their own weights (absent on "all").
+  ...(result.ddfSplit !== undefined ? {ddf_split: result.ddfSplit, ddf_weights_projections: result.ddfWeightsProjections} : {}),
   group_budgets: result.budgets,
   default_ranking: intKeys(result.defaultRanking),
   sources: {},

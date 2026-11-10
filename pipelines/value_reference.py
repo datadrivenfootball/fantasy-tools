@@ -268,7 +268,7 @@ class League:
     # source in I (the old split); "charts" = the trade charts in I (and the
     # projections their own split; live since the flip). Setting resolves it (argument, then the DDF_VALUE_SPLIT
     # environment variable); a League built directly takes this default.
-    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: <date>)
+    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: "Flip all now.", 2026-11-09 CT)
 
     @property
     def starting_slots(self) -> int:

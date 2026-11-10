@@ -88,7 +88,7 @@ class Setting:
     # JEG-1569 (VP-4.6): "all" = DDF weights over every source in I (live);
     # "charts" = over the charts in I, no JEG-1366 rule, and the projections
     # priced on their own split over the projections in I.
-    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: <date>)
+    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: "Flip all now.", 2026-11-09 CT)
 
     @classmethod
     def from_fixture(cls, s: dict) -> "Setting":

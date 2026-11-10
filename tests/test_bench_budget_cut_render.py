@@ -134,27 +134,33 @@ def check_run(run: dict, label: str):
     if not isinstance(pie, (int, float)) or pie <= 0:
         return [f"{label}: no pie ({pie!r})"], [], notes
     tol = REL_TOL * max(1.0, pie)
-    budgets = {pos: pie * (run.get("ddfWeights") or {}).get(f"{pos}|bench", 0.0) for pos in POSITIONS}
+    # JEG-1569 (VP-4.6): on the charts-only split a projection's budget is pie x W_proj, its own family's
+    # weights; the charts (and every source on the "all" split) share pie x W.
+    w_proj = run.get("ddfWeightsProjections")
+    def budget_set(src):
+        w = w_proj if w_proj and src.get("family") == "projection" else (run.get("ddfWeights") or {})
+        return "projection" if w is w_proj else "shared", {pos: pie * w.get(f"{pos}|bench", 0.0) for pos in POSITIONS}
     priced = {k: s for k, s in (run.get("sources") or {}).items() if s.get("weights")}
     compared = sorted(priced)
     if len(compared) < 2:
         problems.append(f"{label}: only {compared} priced, nothing to compare")
-    by_pos = {pos: {} for pos in POSITIONS}
+    by_pos = {}
     for key in compared:
         src = priced[key]
         unfunded = unfunded_bench(src)
         totals = bench_totals(src)
+        family_set, budgets = budget_set(src)
         for pos in POSITIONS:
             if f"{pos}|bench" in unfunded:
                 notes.append(f"{label}: {key} {pos} bench budget {budgets[pos]:.3f} unfunded (engine-reported)")
                 want = 0.0
             else:
                 want = budgets[pos]
-                by_pos[pos][key] = totals[pos]
+                by_pos.setdefault((family_set, pos), {})[key] = totals[pos]
             if abs(totals[pos] - want) > tol:
                 problems.append(f"{label}: {key} {pos} budget-cut bench {totals[pos]:.6f}, "
-                                f"shared bench budget {want:.6f} (pie {pie} x W)")
-    for pos, vals in by_pos.items():
+                                f"{family_set} bench budget {want:.6f} (pie {pie} x W)")
+    for (_family_set, pos), vals in by_pos.items():
         if len(vals) >= 2 and max(vals.values()) - min(vals.values()) > tol:
             lo, hi = min(vals, key=vals.get), max(vals, key=vals.get)
             problems.append(f"{label}: {pos} budget-cut bench differs across sources: "
@@ -164,8 +170,9 @@ def check_run(run: dict, label: str):
 
 def from_driver(out: dict) -> dict:
     """tests/value_pipeline_driver.js output -> check_run's run shape."""
-    return {"pie": out["pie"], "ddfWeights": out["ddf_weights"], "sources": {
-        key: {"rates": s["rates"], "weights": s["weights"], "unfundedMoved": s["unfunded_moved"],
+    return {"pie": out["pie"], "ddfWeights": out["ddf_weights"],
+            "ddfWeightsProjections": out.get("ddf_weights_projections"), "sources": {
+        key: {"family": s.get("family"), "rates": s["rates"], "weights": s["weights"], "unfundedMoved": s["unfunded_moved"],
               "unfundedGroups": s["unfunded_groups"],
               "players": [[p["pos"], p["bench_slice"]] for p in s["players"].values()]}
         for key, s in out["sources"].items()}}
@@ -175,8 +182,9 @@ def from_reference(res: dict) -> dict:
     """value_reference.Setting.result() -> check_run's run shape. A source
     left out of the run (an older week than the view) has no players and no
     weights there, so check_run does not price it."""
-    return {"pie": res["pie"], "ddfWeights": res["ddf_weights"], "sources": {
-        key: {"rates": d.get("rates") or {}, "weights": d.get("weights") if d.get("players") else None,
+    return {"pie": res["pie"], "ddfWeights": res["ddf_weights"],
+            "ddfWeightsProjections": res.get("ddf_weights_projections"), "sources": {
+        key: {"family": d.get("family"), "rates": d.get("rates") or {}, "weights": d.get("weights") if d.get("players") else None,
               "unfundedMoved": d.get("unfunded_moved") or [], "unfundedGroups": d.get("unfunded_groups") or [],
               "players": [[p["pos"], p.get("bench_slice") or 0.0] for p in (d.get("players") or {}).values()]}
         for key, d in res["sources"].items()}}
@@ -226,10 +234,11 @@ READ = """(week) => {
   const st = c.getWeekState ? c.getWeekState() : null;
   const ins = c.getInspection(), vp = ins.valuePipeline;
   const out = {week: st ? st.week : null, pie: vp ? vp.pie : null, ddfWeights: vp ? vp.ddfWeights : null,
+    ddfWeightsProjections: vp ? (vp.ddfWeightsProjections || null) : null,
     benchShareApplied: vp ? vp.benchShareApplied : null, sources: {}};
   if (!vp) return out;
   for (const [key, s] of Object.entries(vp.sources)) {
-    out.sources[key] = {rates: s.rates, weights: s.weights, unfundedMoved: s.unfundedMoved || [],
+    out.sources[key] = {family: s.family, rates: s.rates, weights: s.weights, unfundedMoved: s.unfundedMoved || [],
       unfundedGroups: s.unfundedGroups || [],
       players: Object.values(ins.players[key] || {}).map(p => [p.pos, p.benchSlice || 0])};
   }

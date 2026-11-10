@@ -54,9 +54,11 @@ class WorkedExample(unittest.TestCase):
         out = we.run_fixture(_fx())
         # JEG-1121 stable: new VORP bench method (WR 1, TE 1 instead of WR 2, TE 0).
         # JEG-1047 (rule changed by Jeremy): projection waiver line is the 7-player band.
-        self.assertAlmostEqual(out["sources"]["p1"]["players"][201]["adjusted"], 51.498107, 6)
+        # JEG-1569 flip: the projections are priced on their own split (was 51.498107 on the all-source split).
+        self.assertAlmostEqual(out["sources"]["p1"]["players"][201]["adjusted"], 42.874996, 6)
         # JEG-1073: blended DDF = charts average; JEG-1121: updated for new bench allocation.
-        self.assertAlmostEqual(out["rows"][201]["ddf_blended"]["value"], 52.165616, 6)
+        # JEG-1569 flip: the charts-only split (was 52.165616 on the all-source split).
+        self.assertAlmostEqual(out["rows"][201]["ddf_blended"]["value"], 56.584455, 6)
         self.assertEqual(out["pie"], 280.0)
 
 

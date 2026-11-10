@@ -246,7 +246,9 @@ class SpecWeights(unittest.TestCase):
 class SpecWiring(unittest.TestCase):
     """run_week passes the league's own QB and superflex counts to VP-4."""
 
-    def calls(self, slots_qb, superflex):
+    def calls(self, slots_qb, superflex, split="all"):
+        # JEG-1569 flip: the JEG-1366 rule lives on the old "all" split, so it is pinned there.
+        import dataclasses
         from unittest import mock
         from spec_reference import worked_example as we
         fx = json.loads(we.FIXTURE.read_text(encoding="utf-8"))
@@ -254,14 +256,18 @@ class SpecWiring(unittest.TestCase):
         s = json.loads(json.dumps(fx["setting"]))
         s["slots"] = {**s["slots"], "QB": slots_qb}
         s["superflex"] = superflex
+        setting = dataclasses.replace(spec.Setting.from_fixture(s), ddf_split=split)
         with mock.patch.object(spec, "ddf_weights", wraps=spec.ddf_weights) as dw:
-            spec.run_week(spec.Setting.from_fixture(s), inp["pos_of"], inp["sources"], inp["included"],
-                          names=inp["names"])
+            spec.run_week(setting, inp["pos_of"], inp["sources"], inp["included"], names=inp["names"])
         return [c.args[4] if len(c.args) > 4 else c.kwargs.get("two_qb_native", False) for c in dw.call_args_list]
 
     def test_two_qb_league_takes_the_native_share(self):
         self.assertTrue(self.calls(2, 0))
         self.assertTrue(all(self.calls(2, 0)))
+
+    def test_charts_split_has_no_two_qb_rule(self):
+        # JEG-1569 decision 4 (Jeremy, 2026-11-07): on the charts split the charts' 2-QB lists set the QB share.
+        self.assertFalse(any(self.calls(2, 0, split="charts")))
 
     def test_superflex_and_one_qb_do_not(self):
         self.assertFalse(any(self.calls(2, 1)))

@@ -37,3 +37,9 @@ How to re-freeze (only after a merged, deliberate default-value change; never to
   git show origin/main:app/trade-value-chart/assets/curve-widget.js > tests/fixtures/baseline_main_771c3422/curve-widget.js
 then add a dated paragraph here (commit, reason, decision) and a docs/claude-log entry, and check that the Broken* tests
 in tests/test_basis_overrides_render.py still fail.
+
+Re-frozen 2026-11-09 (JEG-1569 flip, PR #1367; Jeremy 2026-11-07 option A "charts-only becomes the new default", go
+"Flip all now." 2026-11-09 CT): value-model.js copied byte for byte from the PR head, which is main's engine once it
+merges (as for JEG-1142). Before the copy the frozen engine equalled origin/main e14995fff byte for byte, so the only
+difference was `DDF_VALUE_SPLIT_DEFAULT = "all"` -> `"charts"`, a deliberate change to default values at every league
+setting. curve-widget.js was already identical and is unchanged.
