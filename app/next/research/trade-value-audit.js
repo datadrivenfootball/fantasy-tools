@@ -622,9 +622,32 @@
       ks.map(function (k) { return [NAME[k], w[k].snapshot_dates.join(', '), w[k].rank_move.map(fmt).join(', '), w[k].unchanged_pct.map(fmt).join(', ')]; }));
   }
 
+  /* One-row spread of the charts' Standard-to-Full reorder shares, with real outcomes as a dashed reference. */
+  function reorderSpread() {
+    var host = $('#reorder-spread'); if (!host || !D.realized_scoring) return;
+    var h = D.headline.reorder_avg_pct, ref = D.realized_scoring.pooled;
+    var bar = el('div', { class: 'bar1' });
+    bar.appendChild(el('div', { class: 'axis' }));
+    var r = el('div', { class: 'ref' }); r.style.left = ref + '%'; bar.appendChild(r);
+    [0, 25, 50, 75, 100].forEach(function (v) { var tk = el('div', { class: 'tk' }, v + '%'); tk.style.left = v + '%'; bar.appendChild(tk); });
+    var seen = {};
+    CHARTS.forEach(function (k) {
+      var v = h[k], m = el('div', { class: 'mk' }); seen[v] = (seen[v] || 0) + 1;
+      m.style.left = v + '%'; m.style.top = (8 + (seen[v] - 1) * 10) + 'px'; m.style.background = color(k); bar.appendChild(m);
+    });
+    host.appendChild(bar);
+    var lg = el('div', { class: 'legend' });
+    CHARTS.forEach(function (k) {
+      var it = el('span'); var sw = el('i'); sw.style.background = color(k); it.appendChild(sw);
+      it.appendChild(document.createTextNode(NAME[k] + ' ' + fmt(h[k]) + '%')); lg.appendChild(it);
+    });
+    var rs = el('span'); var rw = el('i'); rw.style.border = '2px dashed var(--muted)'; rw.style.background = 'transparent'; rs.appendChild(rw);
+    rs.appendChild(document.createTextNode('Real outcomes ' + fmt(ref) + '% (reference)')); lg.appendChild(rs);
+    host.appendChild(lg);
+  }
   function start(data) {
     D = data;
-    bindNumbers(); reveals(); scorecard(); positions(); curves(); scoringRace(); superflex(); depth(); trade(); pairsRace(); scatter(); freshness();
+    bindNumbers(); reveals(); scorecard(); reorderSpread(); positions(); curves(); scoringRace(); superflex(); depth(); trade(); pairsRace(); scatter(); freshness();
   }
   if (REDUCE) document.documentElement.classList.add('no-motion');
   /* The single-file copy (pipelines/build_trade_value_audit_single.py) carries the data inline. */

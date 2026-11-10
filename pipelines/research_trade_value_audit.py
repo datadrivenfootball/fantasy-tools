@@ -797,6 +797,9 @@ def headline(d: dict) -> dict:
         "superflex_qbs_max": max(sfx[k]["superflex_qbs_listed"] for k in CHARTS),
         "filled_in_total": {k: sum(d["sources"][k]["filled_in"].values()) for k in CHARTS},
         "usatoday_hold": d["sources"]["usatoday"]["hold_level"],
+        "reorder_chart_spread": max(reorder[k] for k in CHARTS) - min(reorder[k] for k in CHARTS),
+        "reorder_cbs_usatoday_gap": abs(reorder["usatoday"] - reorder["cbs"]),
+        "reorder_half_gap": abs(reorder["usatoday"] - reorder["cbs"]) / 2,
     }
 
 

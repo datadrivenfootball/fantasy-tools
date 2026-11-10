@@ -171,6 +171,15 @@ class AuditData(unittest.TestCase):
         for k in ("cbs", "usatoday", "fantasypros", "fantasycalc"):  # every chart reorders less than real outcomes
             self.assertLess(self.fresh["headline"]["reorder_avg_pct"][k], rs["pooled"])
 
+    def test_reorder_spread_logic(self):
+        h = self.fresh["headline"]
+        r = h["reorder_avg_pct"]
+        self.assertEqual(0, r["fantasypros"])
+        self.assertEqual(0, r["fantasycalc"])
+        self.assertEqual(max(r[k] for k in audit.CHARTS) - min(r[k] for k in audit.CHARTS), h["reorder_chart_spread"])
+        self.assertEqual(abs(r["usatoday"] - r["cbs"]), h["reorder_cbs_usatoday_gap"])
+        self.assertEqual(h["reorder_cbs_usatoday_gap"] / 2, h["reorder_half_gap"])
+
     def test_pie_shares_in_depth(self):
         dv = self.fresh["depth_vs_waiver"]
         cbs = dv["sources"]["cbs"]["12"]
