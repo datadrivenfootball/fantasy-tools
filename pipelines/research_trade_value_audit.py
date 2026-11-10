@@ -439,7 +439,7 @@ def weekly(inp) -> dict:
 
 RULES = {
     "balance": "Position mix vs DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
-    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
+    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
     "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all value in a 12-team Half PPR superflex league and DDF Value's. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
@@ -712,6 +712,57 @@ def replacement_qb(inp) -> dict:
     return out
 
 
+ACTUALS = REPO / "data" / "inputs" / "weekly_actuals_nflverse_2015_2025.csv.gz"
+BENCH_WEEKS = (5, 6, 7, 8)
+
+
+def realized_scoring_benchmark() -> dict:
+    """How much a ranking by realized rest-of-season fantasy points reorders between
+    Standard and Full PPR: for each season 2015-2025 and snapshot week w in 5-8, sum
+    each player's points from week w to the season's last regular week, take the top
+    SCORING_TOP RB/WR/TE by Full PPR points, and count how many change places within
+    their position when the same players are ranked by Standard points (the page's
+    reorder rule); average over the three positions."""
+    import csv
+    import gzip
+    pts = {}
+    last = {}
+    with gzip.open(ACTUALS, "rt", newline="", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            if row["pos"] not in FLEX:
+                continue
+            season, week = int(row["season"]), int(row["week"])
+            last[season] = max(last.get(season, 0), week)
+            key = (season, row["player_id"], row["pos"])
+            pts.setdefault(key, []).append((week, float(row["std"] or 0), float(row["ppr"] or 0)))
+    cells = []
+    by_season = {}
+    for season in sorted(last):
+        for w in BENCH_WEEKS:
+            moved = []
+            for p in FLEX:
+                tot = {}
+                for (s_, pid, pos), weeks in pts.items():
+                    if s_ != season or pos != p:
+                        continue
+                    std = sum(x[1] for x in weeks if x[0] >= w)
+                    ppr = sum(x[2] for x in weeks if x[0] >= w)
+                    if ppr > 0:
+                        tot[pid] = (std, ppr)
+                top = sorted(tot, key=lambda i: (-tot[i][1], i))[:SCORING_TOP]
+                oa = sorted(top, key=lambda i: (-tot[i][0], i))
+                ob = sorted(top, key=lambda i: (-tot[i][1], i))
+                moved.append(100 * sum(1 for x, y in zip(oa, ob) if x != y) / len(top))
+            cell = sum(moved) / len(moved)
+            cells.append(cell)
+            by_season.setdefault(season, []).append(cell)
+    seasons = {s_: r(sum(v) / len(v), 0) for s_, v in by_season.items()}
+    return {"seasons": seasons, "pooled": r(sum(cells) / len(cells), 0),
+            "min": r(min(cells), 0), "max": r(max(cells), 0),
+            "season_min": min(seasons.values()), "season_max": max(seasons.values()),
+            "first_season": min(seasons), "last_season": max(seasons), "weeks": list(BENCH_WEEKS)}
+
+
 def headline(d: dict) -> dict:
     """The numbers the article quotes in its text, gathered in one place.
     The yardstick everywhere is DDF Value (the reference), never a participant."""
@@ -800,6 +851,8 @@ def build() -> dict:
     data["source_links"] = {"read": LINKS_READ, "links": SOURCE_LINKS}
     data["should_be"] = should_be(inp, data)
     data["replacement_qb"] = replacement_qb(inp)
+    data["realized_scoring"] = realized_scoring_benchmark()
+    data["rules"] = {**data["rules"], "scoring": data["rules"]["scoring"].format(realized=int(data["realized_scoring"]["pooled"]))}
     data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)
     return data
 

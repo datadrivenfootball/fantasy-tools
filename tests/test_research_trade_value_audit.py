@@ -162,6 +162,15 @@ class AuditData(unittest.TestCase):
             self.assertNotIn(word, text)
         self.assertNotIn("ddf", self.fresh["scorecard"])
 
+    def test_realized_scoring_benchmark(self):
+        rs = self.fresh["realized_scoring"]
+        self.assertEqual((2015, 2025), (rs["first_season"], rs["last_season"]))
+        self.assertLessEqual(rs["min"], rs["season_min"])
+        self.assertLessEqual(rs["season_max"], rs["max"])
+        self.assertIn("about %d%%" % rs["pooled"], self.fresh["rules"]["scoring"])
+        for k in ("cbs", "usatoday", "fantasypros", "fantasycalc"):  # every chart reorders less than real outcomes
+            self.assertLess(self.fresh["headline"]["reorder_avg_pct"][k], rs["pooled"])
+
     def test_pie_shares_in_depth(self):
         dv = self.fresh["depth_vs_waiver"]
         cbs = dv["sources"]["cbs"]["12"]
