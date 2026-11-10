@@ -180,4 +180,27 @@ scored sets). Reported, no verdict: three weeks.
 
 ## Changes after this commit
 
-(none yet)
+**2026-11-10, implementation readings, coded in `tools/research/jeg1605/response_test.py` before
+the first scored run** (no pre-registered choice changed; each is the most literal reading where
+the text did not pin the code down):
+
+1. *Percentiles.* Within-position percentiles (moves, the mean reference) are computed once per
+   week on the full set; the bootstrap reweights players but does not re-rank them. The (a)
+   Spearman itself is re-ranked per resample (`step4_tests.spearman` with weights).
+2. *Mean reference.* (a): Spearman against the mean of the two charts' percentiles. Value share:
+   the mean of the two charts' share vectors. Levels: geometric mean of the two ratios (as written).
+3. *`today`.* FantasyCalc's published column at `s`; a set player it does not list there counts as
+   0 (log share floored at 1e-12).
+4. *Levels* use every priced player of each list (top k by its own order), not the scored set.
+5. *Placebo.* The (a) statistic per shuffle is the week mean of (position mean of Spearman of the
+   shuffled Standard list minus Spearman of the base list), unweighted. Adjusted values <= 0 are
+   floored at 1e-9 before taking logs (counted in the output). Run for `v1`, `v1_l05`,
+   `v1_literal`, `v2` against every reference (not the Half-anchor variants).
+6. *Leave-one-out sign check* compares the point estimates of (a) Standard, `corr` and `closer` on
+   the mean reference.
+7. *FAIL rule* uses the `closer` interval for (b) as written (not `corr`).
+8. *Games variant.* `G_espn` applies to any player in that week's ESPN capture; a player not in it
+   keeps the current rule. Differences versus the current rule use the same bootstrap rows (same
+   weeks 7-9 sets, which do not depend on games).
+9. *Extremes* use the all-source reception share in every run, including leave-one-out (it only
+   selects players).
