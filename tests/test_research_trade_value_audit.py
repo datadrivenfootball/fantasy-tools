@@ -190,6 +190,14 @@ class AuditData(unittest.TestCase):
             self.assertAlmostEqual(row["value_past_line_pct"], sum(row[p]["past_value_pct"] for p in ("QB", "RB", "WR", "TE")), delta=0.25)
             self.assertLessEqual(row["unpriced_value_pct"], 100)
 
+    def test_bench_weight_against_expected_starts(self):
+        bw = self.fresh["bench_weight"]
+        self.assertTrue(bw["all_over"])
+        for k in audit.CHARTS:  # every chart prices the bench above what expected starts support
+            self.assertGreater(bw[k]["face_pct"], bw[k]["expected_starts_pct"])
+            self.assertGreaterEqual(bw[k]["ratio"], bw["ratio_min"])
+            self.assertLessEqual(bw[k]["ratio"], bw["ratio_max"])
+
     def test_curve_readout_names_line_up_with_values(self):
         for sc, lines in self.fresh["curves"].items():
             for k, vals in lines.items():
@@ -216,6 +224,8 @@ class ChartsOnlyVariant(unittest.TestCase):
         data = json.loads(self.DATA.read_text(encoding="utf-8"))
         sf = [data["superflex"][k]["qb_share_sf"] for k in audit.CHARTS]
         self.assertAlmostEqual(sum(sf) / 4, data["superflex"]["ddf_value"]["qb_share_sf"], delta=0.15)
+        self.assertLess(data["ddf_mix_vs_chart_mean"]["max_gap_pts"], 0.1)  # mix = mean of the four charts (VP-4)
+        self.assertTrue(data["bench_weight"]["all_over"])
         text = self.PAGE.read_text(encoding="utf-8")
         self.assertNotIn("three sevenths", text)
         self.assertIn('noindex, nofollow', text)

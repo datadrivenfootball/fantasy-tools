@@ -857,7 +857,46 @@ def build() -> dict:
     data["realized_scoring"] = realized_scoring_benchmark()
     data["rules"] = {**data["rules"], "scoring": data["rules"]["scoring"].format(realized=int(data["realized_scoring"]["pooled"]))}
     data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)
+    data["bench_weight"] = bench_weight(inp)
+    data["ddf_mix_vs_chart_mean"] = ddf_mix_vs_chart_mean(data)
     return data
+
+
+def bench_weight(inp) -> dict:
+    """How much of each chart's value above the waiver line goes to players who would sit on a
+    12-team bench (ranks past the starters, up to the rostered count; default lineup, Half PPR),
+    taken at face value, against the share those same players deliver once each player's value
+    is weighted by his expected starts (ES-5 parts: missed-game rates 2015-2025, byes and
+    projection spread from config/lineup_parameters.json; methodology ES-1, ES-5, ES-14)."""
+    res = setting(inp).result()
+    out = {}
+    for k in CHARTS:
+        rows = [row for row in res["sources"][k]["players"].values() if row["role"] != "waiver"]
+        face = sum(row["vorp"] for row in rows)
+        face_bench = sum(row["vorp"] for row in rows if row["role"] == "bench")
+        lineup = sum(row["bench_slice"] + row["starter_slice"] for row in rows)
+        lineup_bench = sum(row["bench_slice"] + row["starter_slice"] for row in rows if row["role"] == "bench")
+        face_pct, es_pct = 100 * face_bench / face, 100 * lineup_bench / lineup
+        out[k] = {"face_pct": r(face_pct, 1), "expected_starts_pct": r(es_pct, 1),
+                  "ratio": r(face_pct / es_pct, 1),
+                  "filled_in_players": sum(1 for row in rows if row["imputed"])}
+    ratios = [out[k]["ratio"] for k in CHARTS]
+    out["ratio_min"], out["ratio_max"] = min(ratios), max(ratios)
+    out["all_over"] = all(out[k]["face_pct"] > out[k]["expected_starts_pct"] for k in CHARTS)
+    out["ddf_readout_pct"] = r(100 * res["bench_share_readout"]["overall"], 1)
+    return out
+
+
+def ddf_mix_vs_chart_mean(data: dict) -> dict:
+    """VP-4: DDF Value's position mix is the mean of the included charts' own position mixes
+    (value above the waiver line). The largest gap, in percentage points, between DDF Value's
+    share and the plain mean of the four charts' shares, over the figure's four settings."""
+    gaps = []
+    for case in data["position_weighting"].values():
+        for p in POS:
+            mean4 = sum(case["sources"][k][p] for k in CHARTS) / len(CHARTS)
+            gaps.append(abs(case["ddf_value"][p] - mean4))
+    return {"max_gap_pts": r(max(gaps), 2)}
 
 
 def dump(data: dict) -> str:

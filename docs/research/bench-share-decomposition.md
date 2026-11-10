@@ -59,3 +59,13 @@ Note: the fill-in-only share is constant within a position because with sigma = 
 ## Pre-convention numbers (for reference)
 
 Previous run on pre-convention tiers (2026-10-12): fill-in floor 8.3%, recommended 8.8%, VORP ceiling 13.4% at ppr/12. Displacement absorbed 83% of the gross start-worthy gain. The mechanism is unchanged; the convention shifted tier boundaries, increasing both the floor and the ceiling.
+
+## Charts' face-value bench share vs expected starts (JEG-1565, 2026-11-09)
+
+Week 9 2026, 12 teams, Half PPR, default lineup; `bench_weight()` in
+`pipelines/research_trade_value_audit.py`. Share of each chart's value above the
+waiver line held by bench-tier players (ranks past the starters, up to rostered),
+at face value vs weighted by the ES-5 parts (sw + fi): CBS Sports 13.8 vs 5.4,
+USA Today 17.7 vs 8.5, FantasyPros 17.8 vs 8.9, FantasyCalc 9.6 vs 3.7. All four
+put 2.0x to 2.6x more value on the bench than expected starts support. CBS
+Sports' bench is mostly filled in (62 players) because its list stops short.
