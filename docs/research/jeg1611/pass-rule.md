@@ -133,3 +133,43 @@ T1, T2, T4, T7 (both subjects, TE/RB; FantasyCalc WR/RB may still fail) and to *
 T5 and T6 (FantasyPros)**; T8 is the open question, no prediction. So the expected overall verdict
 remains **"v4 does not pass"**. If T8 passes while T3/T5 fail, the reading is "v4 tracks realized
 points at least as well as the unchanged chart but moves further than the publishers do".
+
+## Amendments after review round 1b, Codex gpt-6-astra (2026-11-10, still before any week 8-9 or week 10 number)
+
+Codex (read-only, session 01a1c383) concurred with the Opus reviewer on weeks 8-9, the T5 slope,
+T6's reversed burden and the T7 widening, and added two points. Accepted:
+
+10. **Burden of proof for no harm (T3, T6).** A no-harm test passes only when the **lower** bound of
+    the paired bootstrap interval of (v4 - unchanged) is >= 0 (epsilon = 0; no independently
+    justified tolerance exists). Interval crossing 0 = **inconclusive**; interval entirely below 0
+    = **harm**. Point estimates and per-position values are reported. The earlier -0.008 / -0.003
+    margins are withdrawn. Under this rule the dev values give: T3 CBS both directions harm or
+    inconclusive, USA Today inconclusive; T6 FantasyPros harm. **Expected on weeks 8-9 and week 10:
+    T3 and T6 do not pass.**
+11. **T5 (size).** Kept as the SD ratio in [0.5, 1.5] (the one statistic that isolates size); next to
+    it `closer` is reported normalised by E[r^2] with its lower bound, as Codex asked, labelled
+    "undetectable at this sample" where the best achievable value is below the interval width.
+12. **T7.** Widening set to 0; the publisher envelope is descriptive. T7 is no longer a Tier 1 test:
+    it is reported, with the overshoot count (item 9).
+13. **Share-model cross-validation.** Leakage paths named by Codex (history accumulated before the
+    season split; the cross-fitted share used as a feature in E; model form chosen on all folds)
+    are being re-run as a strict rolling-origin (forward-only) evaluation. **T1 is replaced by the
+    rolling-origin result**: pass if the forward-only share-model conversion (E viii vs vi) beats
+    not converting in >= 6 of the 8 forward seasons with interval above 0. If the rolling-origin
+    numbers differ materially from the pooled CV, the pooled numbers are withdrawn from every
+    summary.
+14. **Chart-implied points are not shown to be a calibrated forecast.** Added as a reported
+    calibration check (realized rest-of-season ppg on `P_i(s0)` per chart and position, slope,
+    intercept, R^2, against the projections' own ppg). T8 remains the downstream test of the whole
+    conversion against realized points.
+15. **Wording.** The defensible conclusion if T8 passes and T3/T5/T6 fail is: "v4 implements the
+    scoring transformation exactly; its conversion tracks realized points at least as well as the
+    unchanged chart on this sample; it moves further than CBS Sports and USA Today, whose measured
+    scoring responses disagree with each other on these samples." Not "the logic works" and not
+    "the publishers share no standard".
+
+**Tier 1 after both reviews:** T1 (rolling-origin mechanism), T2 (exactness), T3 (within no harm,
+lower bound >= 0, four cells), T4 (direction), T5 (SD ratio), T6 (agreement no harm, lower bound
+>= 0), T8 (realized points, lower bound of the difference >= 0 ... stated as: point estimate >= 0
+and interval not entirely below 0, since T8 asks "at least as good" of a 3-week truth). Expected
+verdict: **does not pass** (T3, T5, T6). Tier 2: everything else.
