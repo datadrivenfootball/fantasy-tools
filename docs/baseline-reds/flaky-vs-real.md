@@ -49,3 +49,4 @@ Read `README.md` and `registry.json` in this folder first. A registry entry attr
 | `tests.test_entry_pages` | `networkidle` waits (6 sites) can outlast the timeout on a loaded runner | Open: switch to `domcontentloaded` plus readiness |
 | 44 px tap-target checks (`a.v2-srclink` at 43.0px, fieldnotes targets) | sub-pixel heights under 44 at some widths | Real by the test's rule, not a flake: check the CSS |
 | `tests.test_v2_chart_fit_render` | 60 s `wait_for_function` timeout | Not a flake: stale `/v2/` harness, fixed in JEG-1546 |
+| `tests.test_team_opportunity_render.test_guard_fails_on_shifted_threshold`, `tests.test_short_chart_waiver.test_chart_never_short_is_unchanged` | mutant not caught / `n_imputed` 1 != 0 after a data bake | Data drift in the test premise, fixed in JEG-1609 (mutant and chart choice derived from the synced data) |
