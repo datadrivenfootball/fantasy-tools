@@ -1,0 +1,154 @@
+{
+ "ticket": "JEG-1611",
+ "fitted_on": "nflverse weekly actuals 2015-2025; decision weeks 5-10; RB/WR/TE with >= 3 ROS games and >= 1 prior game",
+ "formula": "rec_hat = (n_eff*rec_h + k*prior)/(n_eff + k); game weight 0.5**(age_games/half_life) * season_decay**seasons_back; prior = mean or max(0, a + b*std_h) (std_h = same-weighted Standard ppg)",
+ "positions": {
+  "RB": {
+   "prior_form": "linear_std",
+   "half_life_games": 8,
+   "season_decay": 0.5,
+   "k": 3,
+   "mean": 1.5776630967339595,
+   "a": 0.8501820104800033,
+   "b": 0.0955875852754061,
+   "w_at_n_eff": {
+    "6": 0.667,
+    "17": 0.85,
+    "34": 0.919
+   },
+   "n_eff_cap": 12.049
+  },
+  "WR": {
+   "prior_form": "linear_std",
+   "half_life_games": 17,
+   "season_decay": 0.3,
+   "k": 3,
+   "mean": 2.5431449878972896,
+   "a": 1.053526149412331,
+   "b": 0.2557566917728468,
+   "w_at_n_eff": {
+    "6": 0.667,
+    "17": 0.85,
+    "34": 0.919
+   },
+   "n_eff_cap": 25.029
+  },
+  "TE": {
+   "prior_form": "mean",
+   "half_life_games": 8,
+   "season_decay": 0.5,
+   "k": 1,
+   "mean": 2.048719472925692,
+   "a": null,
+   "b": null,
+   "w_at_n_eff": {
+    "6": 0.857,
+    "17": 0.944,
+    "34": 0.971
+   },
+   "n_eff_cap": 12.049
+  }
+ },
+ "ratio_model": {
+  "RB": {
+   "target": "log(1 + rec/std) of the ROS",
+   "half_life_games": 12,
+   "season_decay": 0.5,
+   "k": 4,
+   "mean": 0.24486456064855383,
+   "w_at_n_eff": {
+    "6": 0.6,
+    "17": 0.81,
+    "34": 0.895
+   },
+   "n_eff_scenarios": {
+    "6_current_games": {
+     "n_eff": 5.219,
+     "w": 0.566
+    },
+    "6_current_plus_1_prior_season": {
+     "n_eff": 9.158,
+     "w": 0.696
+    },
+    "6_current_plus_2_prior_seasons": {
+     "n_eff": 9.896,
+     "w": 0.712
+    },
+    "17_prior_season_only_week1": {
+     "n_eff": 5.572,
+     "w": 0.582
+    }
+   },
+   "min_std_h": 1.0
+  },
+  "WR": {
+   "target": "log(1 + rec/std) of the ROS",
+   "half_life_games": null,
+   "season_decay": 0.5,
+   "k": 25,
+   "mean": 0.4436660703845709,
+   "w_at_n_eff": {
+    "6": 0.194,
+    "17": 0.405,
+    "34": 0.576
+   },
+   "n_eff_scenarios": {
+    "6_current_games": {
+     "n_eff": 6.0,
+     "w": 0.194
+    },
+    "6_current_plus_1_prior_season": {
+     "n_eff": 14.5,
+     "w": 0.367
+    },
+    "6_current_plus_2_prior_seasons": {
+     "n_eff": 18.75,
+     "w": 0.429
+    },
+    "17_prior_season_only_week1": {
+     "n_eff": 8.5,
+     "w": 0.254
+    }
+   },
+   "min_std_h": 1.0
+  },
+  "TE": {
+   "target": "log(1 + rec/std) of the ROS",
+   "half_life_games": null,
+   "season_decay": 0.7,
+   "k": 20,
+   "mean": 0.4801793610536214,
+   "w_at_n_eff": {
+    "6": 0.231,
+    "17": 0.459,
+    "34": 0.63
+   },
+   "n_eff_scenarios": {
+    "6_current_games": {
+     "n_eff": 6.0,
+     "w": 0.231
+    },
+    "6_current_plus_1_prior_season": {
+     "n_eff": 17.9,
+     "w": 0.472
+    },
+    "6_current_plus_2_prior_seasons": {
+     "n_eff": 26.23,
+     "w": 0.567
+    },
+    "17_prior_season_only_week1": {
+     "n_eff": 11.9,
+     "w": 0.373
+    }
+   },
+   "min_std_h": 1.0
+  }
+ },
+ "qb": {
+  "mean_rec_pg": 0.012,
+  "rule": "left alone (w = 0)"
+ },
+ "half_life_games": null,
+ "season_decay": 1.0,
+ "selection_rule": "per position: role-aware prior if it beats the constant prior on LOSO pooled MSE and in >= 7 of 11 seasons"
+}
