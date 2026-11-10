@@ -177,6 +177,32 @@ class AuditData(unittest.TestCase):
             for k, vals in lines.items():
                 self.assertEqual(len(vals), len(self.fresh["curve_players"][sc][k]), (sc, k))
 
+class ChartsOnlyVariant(unittest.TestCase):
+    """The post-flip variant (JEG-1569 charts-only position split): page numbers equal its data
+    file, which is produced by running the script on a value model with DDF_VALUE_SPLIT=charts:
+    AUDIT_ENGINE_DIR=<checkout>/pipelines DDF_VALUE_SPLIT=charts python3 pipelines/research_trade_value_audit.py
+        --out app/next/research/trade-value-audit-data-chartsonly.json"""
+    PAGE = ROOT / "app" / "next" / "research" / "trade-value-audit-chartsonly.html"
+    DATA = ROOT / "app" / "next" / "research" / "trade-value-audit-data-chartsonly.json"
+
+    def test_numbers_equal_its_data(self):
+        data = json.loads(self.DATA.read_text(encoding="utf-8"))
+        p = Spans()
+        p.feed(self.PAGE.read_text(encoding="utf-8"))
+        self.assertGreater(len(p.found), 60)
+        for path, text in p.found:
+            with self.subTest(path=path):
+                self.assertEqual(fmt(lookup(data, path)), text.strip())
+
+    def test_split_is_the_four_charts(self):
+        data = json.loads(self.DATA.read_text(encoding="utf-8"))
+        sf = [data["superflex"][k]["qb_share_sf"] for k in audit.CHARTS]
+        self.assertAlmostEqual(sum(sf) / 4, data["superflex"]["ddf_value"]["qb_share_sf"], delta=0.15)
+        text = self.PAGE.read_text(encoding="utf-8")
+        self.assertNotIn("three sevenths", text)
+        self.assertIn('noindex, nofollow', text)
+
+
 class StaysPrivate(unittest.TestCase):
     def test_page_is_noindex(self):
         self.assertIn('<meta name="robots" content="noindex, nofollow">', PAGE.read_text(encoding="utf-8"))

@@ -630,7 +630,7 @@
   /* The single-file copy (pipelines/build_trade_value_audit_single.py) carries the data inline. */
   var inline = document.getElementById('tva-data');
   if (inline) { start(JSON.parse(inline.textContent)); return; }
-  fetch('trade-value-audit-data.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(start).catch(function () {
+  fetch(document.body.getAttribute('data-src') || 'trade-value-audit-data.json', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(start).catch(function () {
     $all('.chart').forEach(function (c) { c.textContent = 'The chart data did not load. The numbers in the text are still current.'; });
   });
 })();

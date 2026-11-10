@@ -25,8 +25,13 @@ from datetime import date
 from itertools import combinations
 from pathlib import Path
 
+import os
+
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "pipelines"))
+# AUDIT_ENGINE_DIR: run the article on another checkout's value model (e.g. one with the
+# charts-only position split, DDF_VALUE_SPLIT=charts) while reading this branch's week 9 inputs.
+ENGINE_DIR = Path(os.environ.get("AUDIT_ENGINE_DIR") or (REPO / "pipelines"))
+sys.path.insert(0, str(ENGINE_DIR))
 import value_reference as vr  # noqa: E402
 from lib.canonical_players import norm_player_name  # noqa: E402  (the one name rule, JEG-438)
 
@@ -83,9 +88,12 @@ def spearman(a: list, b: list) -> float | None:
     return cov / (va * vb) if va and vb else None
 
 
+WEEK9_FIXTURE = REPO / "data" / "fixtures" / "current" / "comparison-sources-data.json"
+WEEK9_PLAYERS = REPO / "data" / "fixtures" / "current" / "players.json"
+
+
 def load():
-    inp = vr.Inputs.load(today=SNAPSHOT_DAY)
-    return inp
+    return vr.Inputs.load(WEEK9_FIXTURE, WEEK9_PLAYERS, today=SNAPSHOT_DAY)
 
 
 def setting(inp, scoring="half_ppr", teams=12, superflex=0):
@@ -432,7 +440,7 @@ def weekly(inp) -> dict:
 RULES = {
     "balance": "Position mix vs DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change.",
-    "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all value in a 12-team Half PPR superflex league and DDF Value's. Close up to 5, OK up to 10, Far above 10. DDF Value's position split is partly built from projections (see How we tested); distance describes a chart, it does not prove it right or wrong.",
+    "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all value in a 12-team Half PPR superflex league and DDF Value's. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
     "depth": "Depth: how far down the chart's list goes compared with how many players a 12-team league rosters. None of the four charts states a roster size, so each is measured against the waiver line of a 12-team league with our lineup. For each position, the gap between players listed and players rostered, as a share of players rostered, counting stopping short and reaching past alike; averaged over the four positions. Strong up to 10%, OK up to 30%, Weak above 30%.",

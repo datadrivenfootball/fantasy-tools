@@ -18,10 +18,10 @@ SRC = REPO / "app" / "next" / "research"
 DEFAULT_OUT = Path.home() / "Desktop" / "ddf-handoff 2" / "06-audit" / "trade-value-audit-draft.html"
 
 
-def build_html() -> str:
-    html = (SRC / "trade-value-audit.html").read_text(encoding="utf-8")
+def build_html(page: str = "trade-value-audit.html", data_file: str = "trade-value-audit-data.json") -> str:
+    html = (SRC / page).read_text(encoding="utf-8")
     js = (SRC / "trade-value-audit.js").read_text(encoding="utf-8")
-    data = json.loads((SRC / "trade-value-audit-data.json").read_text(encoding="utf-8"))
+    data = json.loads((SRC / data_file).read_text(encoding="utf-8"))
     # Compact JSON; "</" escaped so the data can never close its <script> early.
     blob = json.dumps(data, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")
     js = js.replace("</script", "<\\/script")
@@ -31,6 +31,10 @@ def build_html() -> str:
         '<script src="trade-value-audit.js"></script>':
             f'<script id="tva-data" type="application/json">{blob}</script>\n<script>{js}</script>',
     }
+    if page != "trade-value-audit.html":  # the charts-only variant names its own data file
+        replacements[' <a href="trade-value-audit-data.json">The data file</a>.'.replace("data.json", "data-chartsonly.json")] = \
+            replacements.pop(' <a href="trade-value-audit-data.json">The data file</a>.')
+        replacements[' data-src="trade-value-audit-data-chartsonly.json"'] = ""
     for old, new in replacements.items():
         if old not in html:
             raise SystemExit(f"page changed; update the single-file builder: {old[:60]}")
@@ -41,9 +45,11 @@ def build_html() -> str:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    ap.add_argument("--page", default="trade-value-audit.html")
+    ap.add_argument("--data", default="trade-value-audit-data.json")
     args = ap.parse_args(argv)
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(build_html(), encoding="utf-8")
+    args.out.write_text(build_html(args.page, args.data), encoding="utf-8")
     print(f"wrote {args.out} ({args.out.stat().st_size // 1024} KB)")
     return 0
 
