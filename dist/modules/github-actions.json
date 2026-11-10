@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-10T07:37:43.823835+00:00",
+  "generated_at": "2026-11-10T07:59:05.911021+00:00",
   "repo": "datadrivenfootball/fantasy-tools",
   "workflows": [
     {
@@ -1889,17 +1889,26 @@
         "schedule": "On push to main",
         "key_task": "Production deployment"
       },
-      "health": "running",
+      "health": "warn",
       "last_run": {
-        "created_at": "2026-11-10T07:16:52Z",
-        "updated_at": "2026-11-10T07:35:41Z",
-        "status": "in_progress",
+        "created_at": "2026-11-10T07:37:49Z",
+        "updated_at": "2026-11-10T07:37:50Z",
+        "status": "pending",
         "conclusion": null,
         "event": "push",
-        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42774179019",
-        "duration_s": 1129
+        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42776627605",
+        "duration_s": 1
       },
       "recent_runs": [
+        {
+          "created_at": "2026-11-10T07:37:49Z",
+          "updated_at": "2026-11-10T07:37:50Z",
+          "status": "pending",
+          "conclusion": null,
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42776627605",
+          "duration_s": 1
+        },
         {
           "created_at": "2026-11-10T07:16:52Z",
           "updated_at": "2026-11-10T07:35:41Z",
@@ -1935,15 +1944,6 @@
           "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42771332102",
           "duration_s": 873
-        },
-        {
-          "created_at": "2026-11-10T06:41:20Z",
-          "updated_at": "2026-11-10T06:51:41Z",
-          "status": "completed",
-          "conclusion": "cancelled",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42770186849",
-          "duration_s": 621
         }
       ],
       "recent_failures": 0,
@@ -2136,9 +2136,9 @@
     "total_workflows": 30,
     "active": 29,
     "healthy": 23,
-    "warn": 2,
+    "warn": 3,
     "failing": 4,
-    "running": 1,
+    "running": 0,
     "failing_streak_count": 4,
     "alert_needed_count": 4,
     "max_consecutive_failures": 5,
