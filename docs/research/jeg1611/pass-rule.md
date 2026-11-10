@@ -74,3 +74,62 @@ chart-zero variants. A sign flip of any Tier 1 point estimate under a robustness
   RB and 0.44 WR, but the cross-validated model still keeps a weak term) would likely clear T3; it
   is not done here because the choice would be made to fit the publishers, not the actuals.
 - The anchors: FantasyCalc at Half (sensitivity) and FantasyPros at Half are assumptions.
+
+## Amendments after review round 1 (2026-11-10, commit cf7c8592f was the first registration; written before any week 8-9 or week 10 number exists)
+
+A fresh Opus reviewer (read-only) found that the first rule was weaker than it looked. Accepted
+points and the amended rule:
+
+1. **Weeks 8-9 are not a clean holdout.** v3's results (`docs/research/jeg1610/results.md`) were
+   computed on weeks 5-9 and the lead read them. No jeg1611 development script loaded 8-9, but the
+   lead's priors did. Weeks 8-9 are therefore a **confirmation run**; the **deciding holdout is week
+   10 onward**, re-run with the same runner and this rule, no changes in between.
+2. **T4, T5, T6 as first written do not separate v4 from v1/v2** (which also pass them on dev) and T1,
+   T2 cannot fail. The discriminating content is T3, T7 and the new T5 and T8 below.
+3. **T3 (within-position no harm), restated.** Statistic: per cell, the mean over weeks of the
+   RB/WR/TE-averaged (v4 within - unchanged within), paired player bootstrap interval (2000, seed
+   16052). Pass: point estimate >= -0.003 (half the available headroom, 1 - 0.994) **and** interval
+   not entirely below 0. Per-position values are reported and a TE loss below -0.01 is named even
+   when the cell passes. Dev values recomputed by the reviewer from `g1.json`: CBS S->F -0.0056,
+   CBS F->S -0.0119, USA Today S->F +0.0004, F->S -0.0001 (the first registration quoted -0.004 /
+   -0.010 / -0.001 / +0.001; the reviewer's are the rule's statistic). **Expected: CBS fails both
+   directions, USA Today passes both.**
+4. **T5 (size), restated.** The slope of method on reference mixes direction with size
+   (slope = corr x sd_m / sd_r). Statistic: sd(method percentile move) / sd(reference percentile
+   move) against the mean reference, per subject, with interval. Pass: point estimate in [0.5, 1.5]
+   (the publishers' own ratios against the mean reference are 1.13 and 1.38). Implied dev value for
+   v4: 0.86 / 0.50 = 1.72 (FantasyCalc), 0.63 / 0.36 = 1.74 (FantasyPros). **Expected: FAIL;** the
+   first registration's "size is now right" was wrong and is withdrawn (iteration log 4b).
+5. **T6, restated.** Add: point estimate >= -0.008 for every subject and reference. Dev FantasyPros
+   -0.021: **expected FAIL.**
+6. **T7, restated.** The 0.05 widening had no source. Widening = the pooled week-to-week SD of the
+   publishers' own log WR/RB and TE/RB level moves (from `levels_by_week`, computed on dev weeks
+   before the run). `v4_assumed` (no player mix) also passes T7, so T7 tests the level machinery
+   only, not step 5/6, and is labelled so.
+7. **T8 (new): realized points, the truth the charts can be scored against.** Within-position
+   Spearman (RB/WR/TE averaged) against realized rest-of-season points at the target scoring, paired
+   bootstrap. Pass requires, for the Full-to-Standard direction (the one with the largest move):
+   (a) CBS Sports' and USA Today's Full column rebuilt to Standard by v4 scores at least as well as
+   the unchanged Full column against realized Standard points (interval of the difference not
+   entirely below 0, point estimate >= 0) and (b) FantasyCalc and FantasyPros v4 Standard lists
+   at least as well as their base lists. Reported beside it: the publishers' own Standard column
+   against the same truth. This is a mechanism check on the charts themselves, not a trade-value
+   benchmark (Jeremy, 2026-11-10: realized points is not the main test), and it has only weeks
+   w..9 of 2026 as truth; week 10 adds one more.
+8. **Vocabulary corrected.** `closer` is passable in principle (any positively correlated move
+   scaled far enough down) but undetectable here (best achievable about corr^2 x E[r^2], of order
+   1e-4); "cannot be passed" in the challenges section is replaced by "cannot be detected".
+   The publishers' smaller Full slope differs by position (0.88 / 0.73 / 0.69) and the two
+   publishers agree on it within 0.04, so it is a cross-position value statement they share, not
+   only a currency convention; v4 holds `b_p` fixed across scorings, which both publishers
+   contradict. A test of whether DDF's own pricing does the same (projections at Standard vs Full)
+   is added as a reported item.
+9. **Overshoot count (reported).** The number of cells where both publishers lie on the same side
+   and v4 lies beyond both. If that is most cells, the honest summary is "v4 overshoots", not "the
+   publishers share no standard".
+
+**Amended expected verdict, written now:** on weeks 8-9 and on week 10, v4 is expected to pass
+T1, T2, T4, T7 (both subjects, TE/RB; FantasyCalc WR/RB may still fail) and to **fail T3 (CBS),
+T5 and T6 (FantasyPros)**; T8 is the open question, no prediction. So the expected overall verdict
+remains **"v4 does not pass"**. If T8 passes while T3/T5 fail, the reading is "v4 tracks realized
+points at least as well as the unchanged chart but moves further than the publishers do".
