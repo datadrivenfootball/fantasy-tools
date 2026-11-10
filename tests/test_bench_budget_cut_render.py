@@ -138,7 +138,11 @@ def check_run(run: dict, label: str):
     priced = {k: s for k, s in (run.get("sources") or {}).items() if s.get("weights")}
     compared = sorted(priced)
     if len(compared) < 2:
-        problems.append(f"{label}: only {compared} priced, nothing to compare")
+        if compared and compared == [run.get("single_source_view")]:
+            notes.append(f"{label}: only {compared} priced (the newest week's view, not the default); "
+                         "its own budget checked, nothing to compare")
+        else:
+            problems.append(f"{label}: only {compared} priced, nothing to compare")
     by_pos = {pos: {} for pos in POSITIONS}
     for key in compared:
         src = priced[key]
@@ -278,6 +282,14 @@ def page_runs(overrides=None, settings=None):
                         runs.append((f"{setting} week {run['week']}",
                                      {"pie": None, "error": "the bench-share override did not reach the pipeline"}))
                         continue
+                    priced = [k for k, s in (run.get("sources") or {}).items() if s.get("weights")]
+                    served_now = (state or {}).get("servedWeeks") or {}
+                    if (week is not None and week != state.get("week") and len(priced) == 1
+                            and served_now.get(priced[0]) == week):
+                        # JEG-1618: early in a transition the newest week's view (not the default) can hold one
+                        # source, the one serving that week (2026-11-10: CBS ROS alone on Week 10). Its own
+                        # budget checks still run; only "nothing to compare" is waived (check_run).
+                        run = {**run, "single_source_view": priced[0]}
                     runs.append((f"{setting} week {run['week']}", run))
                 served = (state or {}).get("servedWeeks") or {}
                 lagging = sorted(k for k, w in served.items()
