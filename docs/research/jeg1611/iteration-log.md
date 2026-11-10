@@ -242,3 +242,45 @@ in iteration 1's decision; the no-harm form of T3 stands.
 Corrections after round 1: "size is now right" (4b) is withdrawn (SD ratio about 1.7); "the
 publishers' damping is explained by data" (iteration 2) compared an SD ratio with an OLS slope and
 is withdrawn; `closer` is passable in principle but undetectable here.
+
+## Iteration 5 (2026-11-10): review round 1 additions
+
+Added to `run_v4.py` (stage `review`, `out/v4/review1.json`, summary section "Iteration 5
+additions"); nothing already reported changed. Weeks 5-7 only; bootstrap 2000, seed 16052.
+Realized points: 2026 rows of `weekly_actuals_2024_2026.csv`, weeks `w..9` (week 9 holds only 36
+rows in the file, so it is nearly empty), players with at least 2 ROS game rows; T8 uses ROS totals,
+the calibration (7) uses ROS points per game.
+
+1. **G2 size** (sd of the method's percentile move / sd of the reference's; slope of the reference move
+   on the method move; mean reference): v4 1.72 [1.49, 1.97] FantasyCalc, 1.77 [1.49, 2.15] FantasyPros
+   (v2 1.83 / 2.43, v1 2.38 / 2.06, v4_mult 1.52 / 1.90, v4_raw 2.57 / 2.86, v4_recg 2.60 / 3.21);
+   slope 0.29 / 0.21. The publishers' own ratios on the same sets: CBS 1.15 / 1.20, USA Today 1.35 / 1.34
+   (slope 0.60-0.68). Against a single publisher v4 is 1.42-1.52.
+2. **G1 within, paired** (v4 - unchanged, mean over weeks of the RB/WR/TE mean): CBS S->F -0.0056
+   [-0.029, +0.003], CBS F->S -0.0120 [-0.051, +0.003], USA Today S->F +0.0004 [-0.013, +0.013], F->S
+   -0.0001 [-0.012, +0.010] (the reviewer's figures confirmed; -0.0119 vs -0.0120 is rounding). TE
+   intervals are wide (week-cells up to [-0.26, +0.03]). v4_mult USA Today F->S -0.055 [-0.143, -0.001].
+3. **T8 realized** (within-position Spearman, RB/WR/TE mean, diff vs unchanged): G1 CBS S->F v4 -0.013
+   [-0.070, +0.017] (published Full column -0.009 [-0.033, +0.018]); CBS F->S +0.023 [-0.033, +0.094]
+   (published Standard +0.011); USA Today S->F -0.015 [-0.060, +0.018] (published +0.000); F->S +0.009
+   [-0.024, +0.053] (published +0.000). G2 at Standard: FantasyCalc +0.017 [-0.025, +0.075], FantasyPros
+   +0.021 [-0.014, +0.076]; at Full +0.000 (anchor) and -0.002 [-0.016, +0.011]. G3 DDF v4 - current:
+   Standard +0.006 [-0.021, +0.039], Full +0.005 [-0.000, +0.017]. Nothing is shown either way; the
+   publishers' own column switch does not beat "unchanged" on realized points either.
+4. **Overshoot**: of 66 cells (G2 level moves, G2 median Full/Standard ratios per position, G1 rebuilt
+   median ratios), 58 have both publishers on the same side and v4 lies beyond both in 51. The 7 that
+   are not beyond are TE/RB level moves in week 7 and USA Today's rebuilt TE ratios.
+5. **Week-to-week SD of the publishers' own level moves**: CBS WR/RB 0.0049, TE/RB 0.0052; USA Today
+   0.0183 / 0.0152; pooled 0.0134 / 0.0113.
+6. **DDF's value per point** (OLS slope of Adjusted on ppg, Adjusted > 0, ratio Full / Standard, mean
+   over weeks and sources): projections QB 0.905, RB 0.903, WR 0.690, TE 0.707; the rebuilt v4
+   FantasyCalc / FantasyPros Adjusted on `P_i(s)`: QB 0.821, RB 0.684, WR 0.794, TE 0.724. The
+   publishers' (quoted by the lead): CBS 0.88 / 0.73 / 0.69, USA Today 0.88 / 0.70 / 0.65 (RB / WR /
+   TE). DDF's own projection pricing lowers a point's value at Full by position close to the
+   publishers' pattern; v4's rebuilt charts do not (RB 0.68 vs about 0.9, WR 0.79 vs about 0.7).
+7. **Calibration** (realized ROS ppg at `s0` on `P_i(s0)`, invertible RB/WR/TE, weeks pooled): slopes
+   RB 0.21-0.53, WR 0.65-0.94, TE 1.07-1.70; intercepts RB +5.6 to +9.7, WR +0.3 to +4.3, TE -0.9 to
+   -6.1. The projections' own mean ppg on the same players: RB 0.45-0.67, WR 0.86-0.96, TE 1.32-2.02.
+   R^2 is lower for `P_i(s0)` than for the projections in 16 of 18 chart-positions, Spearman in 15 of 18.
+   Neither is a calibrated forecast: both compress RB (and stretch TE). The chart's implied points are
+   a slightly noisier version of the projections, on the same miscalibrated scale.

@@ -269,3 +269,173 @@ v4_chartzero G2 verdict: FAIL, levels moves away
 | usatoday|ppr|primary | RB | 4.63 | 4.63 | 3 of 3 |
 | usatoday|ppr|primary | WR | 6.74 | 6.74 | 3 of 3 |
 | usatoday|ppr|primary | TE | 7.99 | 7.99 | 3 of 3 |
+
+## Iteration 5 additions (review round 1)
+
+### 1. G2 size: sd(method move) / sd(reference move); slope of reference on method
+
+| Subject, reference | method | sd ratio | slope ref on method |
+| --- | --- | --- | --- |
+| fantasycalc, mean | v1 | +2.384 [+2.064, +2.834] | +0.195 [+0.116, +0.279] |
+| fantasycalc, mean | v2 | +1.830 [+1.574, +2.102] | +0.268 [+0.168, +0.354] |
+| fantasycalc, mean | v4 | +1.724 [+1.492, +1.969] | +0.292 [+0.182, +0.382] |
+| fantasycalc, mean | v4_mult | +1.523 [+1.305, +1.756] | +0.312 [+0.194, +0.421] |
+| fantasycalc, mean | v4_raw | +2.565 [+2.215, +3.062] | +0.176 [+0.108, +0.255] |
+| fantasycalc, mean | v4_recg | +2.600 [+2.226, +3.066] | +0.170 [+0.102, +0.244] |
+| fantasycalc, mean | v4_chartzero | +1.724 [+1.492, +1.969] | +0.292 [+0.182, +0.382] |
+| fantasycalc, mean | v4_fchalf | +1.748 [+1.432, +2.040] | +0.286 [+0.173, +0.358] |
+| fantasycalc, mean | pub_cbs | +1.148 [+1.010, +1.270] | +0.676 [+0.593, +0.750] |
+| fantasycalc, mean | pub_usatoday | +1.347 [+1.179, +1.534] | +0.617 [+0.550, +0.698] |
+| fantasycalc, cbs | v4 | +1.523 [+1.324, +1.803] | +0.248 [+0.085, +0.396] |
+| fantasycalc, usatoday | v4 | +1.425 [+1.190, +1.716] | +0.306 [+0.206, +0.411] |
+| fantasypros, mean | v1 | +2.062 [+1.776, +2.458] | +0.208 [+0.143, +0.276] |
+| fantasypros, mean | v2 | +2.430 [+2.068, +2.908] | +0.162 [+0.103, +0.226] |
+| fantasypros, mean | v4 | +1.774 [+1.485, +2.148] | +0.211 [+0.114, +0.319] |
+| fantasypros, mean | v4_mult | +1.896 [+1.606, +2.280] | +0.185 [+0.091, +0.283] |
+| fantasypros, mean | v4_raw | +2.863 [+2.419, +3.461] | +0.116 [+0.056, +0.180] |
+| fantasypros, mean | v4_recg | +3.206 [+2.715, +3.867] | +0.093 [+0.044, +0.147] |
+| fantasypros, mean | v4_chartzero | +1.774 [+1.485, +2.148] | +0.211 [+0.114, +0.319] |
+| fantasypros, mean | pub_cbs | +1.199 [+1.055, +1.334] | +0.664 [+0.586, +0.744] |
+| fantasypros, mean | pub_usatoday | +1.337 [+1.194, +1.504] | +0.599 [+0.530, +0.671] |
+| fantasypros, cbs | v4 | +1.498 [+1.233, +1.896] | +0.180 [+0.076, +0.323] |
+| fantasypros, usatoday | v4 | +1.428 [+1.223, +1.697] | +0.216 [+0.116, +0.331] |
+
+### 2. G1 within, paired (method minus unchanged), mean over weeks of the RB/WR/TE mean
+
+| Cell | v4 | v4_mult | v4_chartzero |
+| --- | --- | --- | --- |
+| cbs|standard->ppr | -0.006 [-0.029, +0.003] | -0.004 [-0.028, +0.004] | -0.006 [-0.029, +0.003] |
+| cbs|ppr->standard | -0.012 [-0.051, +0.003] | -0.011 [-0.050, +0.004] | -0.012 [-0.051, +0.003] |
+| usatoday|standard->ppr | +0.000 [-0.013, +0.013] | -0.005 [-0.027, +0.005] | +0.000 [-0.013, +0.013] |
+| usatoday|ppr->standard | -0.000 [-0.012, +0.010] | -0.055 [-0.143, -0.001] | -0.000 [-0.012, +0.010] |
+
+v4 per week and position:
+
+- cbs|standard->ppr wk 5: mean -0.004 [-0.046, +0.013]; RB -0.000 [-0.006, +0.005], WR +0.003 [-0.002, +0.014], TE -0.016 [-0.143, +0.036]
+- cbs|standard->ppr wk 6: mean -0.005 [-0.045, +0.000]; RB -0.002 [-0.015, +0.005], WR -0.002 [-0.013, +0.001], TE -0.012 [-0.131, +0.000]
+- cbs|standard->ppr wk 7: mean -0.007 [-0.049, +0.008]; RB -0.007 [-0.037, +0.007], WR -0.000 [-0.007, +0.003], TE -0.014 [-0.136, +0.028]
+- cbs|ppr->standard wk 5: mean -0.016 [-0.090, +0.009]; RB -0.008 [-0.041, +0.003], WR +0.003 [-0.005, +0.014], TE -0.044 [-0.259, +0.027]
+- cbs|ppr->standard wk 6: mean -0.004 [-0.022, +0.007]; RB -0.011 [-0.046, +0.002], WR -0.002 [-0.015, +0.004], TE +0.000 [-0.039, +0.035]
+- cbs|ppr->standard wk 7: mean -0.015 [-0.081, +0.005]; RB -0.007 [-0.038, +0.006], WR +0.001 [-0.001, +0.006], TE -0.039 [-0.235, +0.018]
+- usatoday|standard->ppr wk 5: mean -0.001 [-0.040, +0.034]; RB +0.000 [-0.010, +0.006], WR +0.003 [-0.005, +0.018], TE -0.006 [-0.120, +0.096]
+- usatoday|standard->ppr wk 6: mean -0.000 [-0.014, +0.011]; RB -0.000 [-0.016, +0.015], WR +0.001 [-0.007, +0.012], TE -0.002 [-0.038, +0.027]
+- usatoday|standard->ppr wk 7: mean +0.003 [-0.011, +0.015]; RB +0.007 [-0.007, +0.036], WR +0.001 [-0.006, +0.011], TE -0.001 [-0.038, +0.019]
+- usatoday|ppr->standard wk 5: mean +0.004 [-0.009, +0.031]; RB -0.002 [-0.014, +0.004], WR +0.001 [-0.011, +0.012], TE +0.014 [-0.018, +0.095]
+- usatoday|ppr->standard wk 6: mean -0.005 [-0.026, +0.004]; RB -0.002 [-0.027, +0.017], WR -0.001 [-0.015, +0.007], TE -0.011 [-0.072, +0.003]
+- usatoday|ppr->standard wk 7: mean +0.000 [-0.012, +0.010]; RB +0.002 [-0.022, +0.031], WR -0.001 [-0.011, +0.006], TE -0.001 [-0.027, +0.009]
+
+### 3. T8 realized ROS points (2026 weeks w..9, >= 2 games), within-position Spearman
+
+| Test | list values (RB/WR/TE mean) | diffs |
+| --- | --- | --- |
+| G1|cbs|standard->ppr | v4 0.366, unchanged 0.379, published_target 0.370 | v4-unchanged -0.013 [-0.070, +0.017]; published_target-unchanged -0.009 [-0.033, +0.018]; v4-published_target -0.004 [-0.066, +0.028] |
+| G1|cbs|ppr->standard | v4 0.387, unchanged 0.364, published_target 0.375 | v4-unchanged +0.023 [-0.033, +0.094]; published_target-unchanged +0.011 [-0.017, +0.036]; v4-published_target +0.012 [-0.037, +0.081] |
+| G1|usatoday|standard->ppr | v4 0.381, unchanged 0.396, published_target 0.396 | v4-unchanged -0.015 [-0.060, +0.018]; published_target-unchanged +0.000 [-0.022, +0.022]; v4-published_target -0.015 [-0.049, +0.011] |
+| G1|usatoday|ppr->standard | v4 0.360, unchanged 0.351, published_target 0.352 | v4-unchanged +0.009 [-0.024, +0.053]; published_target-unchanged +0.000 [-0.022, +0.025]; v4-published_target +0.009 [-0.020, +0.047] |
+| G2|fantasycalc|standard | v4 0.401, base 0.384, today 0.384 | v4-base +0.017 [-0.025, +0.075]; today-base +0.000 [+0.000, +0.000] |
+| G2|fantasycalc|ppr | v4 0.400, base 0.400, today 0.400 | v4-base +0.000 [+0.000, +0.000]; today-base +0.000 [+0.000, +0.000] |
+| G2|fantasypros|standard | v4 0.485, base 0.465, today 0.465 | v4-base +0.021 [-0.014, +0.076]; today-base +0.000 [+0.000, +0.000] |
+| G2|fantasypros|ppr | v4 0.465, base 0.467, today 0.467 | v4-base -0.002 [-0.016, +0.011]; today-base +0.000 [+0.000, +0.000] |
+| G3|ddf|standard | ddf_v4 0.352, ddf_current 0.346 | ddf_v4-ddf_current +0.006 [-0.021, +0.039] |
+| G3|ddf|ppr | ddf_v4 0.381, ddf_current 0.375 | ddf_v4-ddf_current +0.005 [-0.000, +0.017] |
+
+### 4. Overshoot: 51 of 58 same-side cells have v4 beyond both publishers (66 cells in all)
+
+- median_ratio wk 5 fantasycalc RB: CBS 1.065, USAT 1.073, v4 1.258 BEYOND
+- median_ratio wk 5 fantasycalc WR: CBS 1.167, USAT 1.061, v4 1.584 BEYOND
+- median_ratio wk 5 fantasycalc TE: CBS 1.268, USAT 1.056, v4 1.424 BEYOND
+- median_ratio wk 5 fantasypros RB: CBS 1.059, USAT 1.066, v4 1.202 BEYOND
+- median_ratio wk 5 fantasypros WR: CBS 1.174, USAT 1.062, v4 1.306 BEYOND
+- median_ratio wk 5 fantasypros TE: CBS 1.268, USAT 1.056, v4 1.380 BEYOND
+- median_ratio wk 6 fantasycalc RB: CBS 1.062, USAT 1.071, v4 1.241 BEYOND
+- median_ratio wk 6 fantasycalc WR: CBS 1.182, USAT 1.067, v4 1.581 BEYOND
+- median_ratio wk 6 fantasycalc TE: CBS 1.254, USAT 1.066, v4 1.366 BEYOND
+- median_ratio wk 6 fantasypros RB: CBS 1.062, USAT 1.071, v4 1.221 BEYOND
+- median_ratio wk 6 fantasypros WR: CBS 1.177, USAT 1.064, v4 1.325 BEYOND
+- median_ratio wk 6 fantasypros TE: CBS 1.254, USAT 1.066, v4 1.370 BEYOND
+- level_move wk 7 fantasycalc WR/RB: CBS 0.061, USAT 0.011, v4 0.201 BEYOND
+- level_move wk 7 fantasycalc TE/RB: CBS 0.163, USAT 0.004, v4 0.138
+- median_ratio wk 7 fantasycalc RB: CBS 1.058, USAT 1.069, v4 1.231 BEYOND
+- median_ratio wk 7 fantasycalc WR: CBS 1.185, USAT 1.068, v4 1.562 BEYOND
+- median_ratio wk 7 fantasycalc TE: CBS 1.286, USAT 1.071, v4 1.412 BEYOND
+- level_move wk 7 fantasypros WR/RB: CBS 0.061, USAT 0.011, v4 0.112 BEYOND
+- level_move wk 7 fantasypros TE/RB: CBS 0.163, USAT 0.004, v4 0.140
+- median_ratio wk 7 fantasypros RB: CBS 1.060, USAT 1.076, v4 1.212 BEYOND
+- median_ratio wk 7 fantasypros WR: CBS 1.185, USAT 1.069, v4 1.326 BEYOND
+- median_ratio wk 7 fantasypros TE: CBS 1.286, USAT 1.071, v4 1.368 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 5 cbs RB: CBS 1.062, USAT 1.066, v4 1.304 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 5 cbs WR: CBS 1.174, USAT 1.061, v4 1.456 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 5 cbs TE: CBS 1.286, USAT 1.056, v4 1.403 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 5 usatoday RB: CBS 1.062, USAT 1.066, v4 1.223 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 5 usatoday WR: CBS 1.174, USAT 1.061, v4 1.349 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 5 usatoday TE: CBS 1.286, USAT 1.056, v4 1.307 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 5 cbs RB: CBS 1.062, USAT 1.066, v4 1.263 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 5 cbs WR: CBS 1.174, USAT 1.061, v4 1.589 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 5 cbs TE: CBS 1.286, USAT 1.056, v4 1.396 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 5 usatoday RB: CBS 1.062, USAT 1.066, v4 1.191 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 5 usatoday WR: CBS 1.174, USAT 1.061, v4 1.408 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 5 usatoday TE: CBS 1.286, USAT 1.056, v4 1.276
+- G1_median_ratio|cbs|standard->ppr wk 6 cbs RB: CBS 1.059, USAT 1.068, v4 1.286 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 6 cbs WR: CBS 1.170, USAT 1.064, v4 1.489 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 6 cbs TE: CBS 1.254, USAT 1.059, v4 1.364 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 6 usatoday RB: CBS 1.059, USAT 1.068, v4 1.231 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 6 usatoday WR: CBS 1.170, USAT 1.064, v4 1.373 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 6 usatoday TE: CBS 1.254, USAT 1.059, v4 1.206
+- G1_median_ratio|cbs|ppr->standard wk 6 cbs RB: CBS 1.059, USAT 1.068, v4 1.253 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 6 cbs WR: CBS 1.170, USAT 1.064, v4 1.607 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 6 cbs TE: CBS 1.253, USAT 1.059, v4 1.434 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 6 usatoday RB: CBS 1.059, USAT 1.068, v4 1.158 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 6 usatoday WR: CBS 1.170, USAT 1.064, v4 1.410 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 6 usatoday TE: CBS 1.253, USAT 1.059, v4 1.176
+- G1_median_ratio|cbs|standard->ppr wk 7 cbs RB: CBS 1.060, USAT 1.069, v4 1.287 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 7 cbs WR: CBS 1.182, USAT 1.068, v4 1.476 BEYOND
+- G1_median_ratio|cbs|standard->ppr wk 7 cbs TE: CBS 1.286, USAT 1.074, v4 1.373 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 7 usatoday RB: CBS 1.060, USAT 1.069, v4 1.239 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 7 usatoday WR: CBS 1.182, USAT 1.068, v4 1.379 BEYOND
+- G1_median_ratio|usatoday|standard->ppr wk 7 usatoday TE: CBS 1.286, USAT 1.074, v4 1.193
+- G1_median_ratio|cbs|ppr->standard wk 7 cbs RB: CBS 1.060, USAT 1.069, v4 1.274 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 7 cbs WR: CBS 1.182, USAT 1.068, v4 1.497 BEYOND
+- G1_median_ratio|cbs|ppr->standard wk 7 cbs TE: CBS 1.286, USAT 1.074, v4 1.395 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 7 usatoday RB: CBS 1.060, USAT 1.069, v4 1.183 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 7 usatoday WR: CBS 1.182, USAT 1.068, v4 1.373 BEYOND
+- G1_median_ratio|usatoday|ppr->standard wk 7 usatoday TE: CBS 1.286, USAT 1.074, v4 1.184
+
+### 5. Week-to-week SD of the publishers' own level moves
+
+- cbs|WR/RB: sd 0.0049 (moves +0.069, +0.070, +0.061)
+- usatoday|WR/RB: sd 0.0183 (moves -0.025, -0.008, +0.011)
+- pooled|WR/RB: sd 0.0134
+- cbs|TE/RB: sd 0.0052 (moves +0.169, +0.158, +0.163)
+- usatoday|TE/RB: sd 0.0152 (moves -0.026, -0.012, +0.004)
+- pooled|TE/RB: sd 0.0113
+
+### 6. Value per point, ratio of Adjusted-on-ppg slopes Full / Standard, mean over weeks and sources
+
+| Source | QB | RB | WR | TE |
+| --- | --- | --- | --- | --- |
+| projections | 0.905 | 0.903 | 0.690 | 0.707 |
+| v4_charts | 0.821 | 0.684 | 0.795 | 0.724 |
+| publishers (quoted) | | CBS 0.88, USAT 0.88 | 0.73, 0.70 | 0.69, 0.65 |
+
+### 7. Calibration: realized ROS ppg at s0 on chart-implied P_i(s0) vs on the projections' mean ppg
+
+| Chart, s0, pos | n | P0 slope | P0 intercept | P0 R^2 | P0 Spearman | proj slope | proj intercept | proj R^2 | proj Spearman | mean P0 / proj / realized |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| fantasycalc|ppr|RB | 126 | 0.401 | +8.58 | 0.158 | 0.411 | 0.575 | +6.57 | 0.235 | 0.447 | 11.83 / 11.74 / 13.32 |
+| fantasycalc|ppr|WR | 159 | 0.659 | +3.90 | 0.381 | 0.516 | 0.907 | +1.04 | 0.404 | 0.552 | 11.94 / 11.83 / 11.77 |
+| fantasycalc|ppr|TE | 62 | 1.072 | -0.95 | 0.398 | 0.574 | 1.407 | -4.17 | 0.458 | 0.612 | 10.47 / 10.26 / 10.28 |
+| fantasypros|half_ppr|RB | 118 | 0.506 | +6.83 | 0.180 | 0.397 | 0.546 | +6.40 | 0.190 | 0.425 | 11.09 / 11.07 / 12.44 |
+| fantasypros|half_ppr|WR | 143 | 0.941 | +0.33 | 0.375 | 0.543 | 0.864 | +1.35 | 0.339 | 0.516 | 10.34 / 10.08 / 10.06 |
+| fantasypros|half_ppr|TE | 48 | 1.703 | -6.11 | 0.379 | 0.598 | 1.318 | -2.26 | 0.361 | 0.526 | 9.02 / 8.73 / 9.25 |
+| cbs|standard|RB | 97 | 0.208 | +9.68 | 0.051 | 0.306 | 0.453 | +7.11 | 0.109 | 0.364 | 11.79 / 11.10 / 12.14 |
+| cbs|standard|WR | 97 | 0.651 | +2.89 | 0.180 | 0.447 | 0.939 | +0.35 | 0.235 | 0.484 | 9.30 / 9.15 / 8.94 |
+| cbs|standard|TE | 31 | 1.214 | -1.70 | 0.370 | 0.496 | 2.018 | -7.24 | 0.574 | 0.675 | 7.58 / 7.30 / 7.50 |
+| cbs|ppr|RB | 100 | 0.399 | +8.82 | 0.111 | 0.364 | 0.546 | +7.03 | 0.175 | 0.380 | 13.66 / 13.27 / 14.28 |
+| cbs|ppr|WR | 104 | 0.647 | +4.30 | 0.259 | 0.467 | 0.958 | +0.26 | 0.331 | 0.508 | 14.18 / 13.79 / 13.47 |
+| cbs|ppr|TE | 39 | 1.125 | -1.57 | 0.289 | 0.445 | 1.482 | -5.37 | 0.398 | 0.550 | 11.88 / 11.58 / 11.79 |
+| usatoday|standard|RB | 147 | 0.502 | +5.62 | 0.227 | 0.540 | 0.666 | +4.29 | 0.289 | 0.568 | 8.97 / 8.77 / 10.12 |
+| usatoday|standard|WR | 118 | 0.803 | +1.54 | 0.218 | 0.456 | 0.917 | +0.60 | 0.281 | 0.515 | 8.57 / 8.52 / 8.41 |
+| usatoday|standard|TE | 54 | 1.503 | -3.39 | 0.389 | 0.561 | 1.536 | -3.26 | 0.463 | 0.569 | 6.56 / 6.33 / 6.47 |
+| usatoday|ppr|RB | 132 | 0.525 | +6.80 | 0.195 | 0.475 | 0.620 | +5.86 | 0.264 | 0.505 | 11.71 / 11.43 / 12.95 |
+| usatoday|ppr|WR | 161 | 0.735 | +3.16 | 0.341 | 0.518 | 0.885 | +1.41 | 0.402 | 0.555 | 11.73 / 11.72 / 11.78 |
+| usatoday|ppr|TE | 56 | 1.308 | -3.51 | 0.392 | 0.540 | 1.346 | -3.51 | 0.439 | 0.523 | 10.76 / 10.46 / 10.56 |
