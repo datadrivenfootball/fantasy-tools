@@ -439,22 +439,26 @@ class EngineTest(unittest.TestCase):
 
     def test_perturbed_source_budget_fails(self):
         from tests.test_value_pipeline_engine import run_engine
-        with tempfile.TemporaryDirectory() as tmp:
-            model = Path(tmp) / "value-model.js"
-            model.write_text(perturbed_model("c2"), encoding="utf-8")
-            for variant in self.VARIANTS:
-                with self.subTest(variant=variant):
-                    out = run_engine(model=model, variant=variant)
-                    problems, _, _ = check_run(from_driver(out), str(variant))
-                    self.assertTrue(any(" c2 " in p for p in problems),
-                                    f"a 1% bench-to-starter shift in c2 was NOT caught: {problems}")
-                    # Only the perturbed source is off its budget.
-                    off = {p.split(": ", 1)[1].split(" ", 1)[0] for p in problems if "differs" not in p}
-                    self.assertEqual(off, {"c2"}, problems)
-                    # The shift keeps c2's total on the pie, so the page's
-                    # fixedPieIndexed guard cannot see it; only this check does.
-                    total = sum(p["adjusted"] for p in out["sources"]["c2"]["players"].values())
-                    self.assertAlmostEqual(total, out["pie"], delta=REL_TOL * out["pie"])
+        # c2 is a chart; p1 a projection, paid on its own family's budgets on the charts-only split (JEG-1569).
+        for source in ("c2", "p1"):
+            with tempfile.TemporaryDirectory() as tmp:
+                model = Path(tmp) / "value-model.js"
+                model.write_text(perturbed_model(source), encoding="utf-8")
+                for variant in self.VARIANTS:
+                    with self.subTest(source=source, variant=variant):
+                        out = run_engine(model=model, variant=variant)
+                        if source == "p1":
+                            self.assertEqual(out.get("ddf_split"), "charts", "the projection case needs the charts split")
+                        problems, _, _ = check_run(from_driver(out), str(variant))
+                        self.assertTrue(any(f" {source} " in p for p in problems),
+                                        f"a 1% bench-to-starter shift in {source} was NOT caught: {problems}")
+                        # Only the perturbed source is off its budget.
+                        off = {p.split(": ", 1)[1].split(" ", 1)[0] for p in problems if "differs" not in p}
+                        self.assertEqual(off, {source}, problems)
+                        # The shift keeps the source's total on the pie, so the page's
+                        # fixedPieIndexed guard cannot see it; only this check does.
+                        total = sum(p["adjusted"] for p in out["sources"][source]["players"].values())
+                        self.assertAlmostEqual(total, out["pie"], delta=REL_TOL * out["pie"])
 
 
 class TransitionReferenceTest(unittest.TestCase):

@@ -32,7 +32,8 @@ current main"): value-model.js and curve-widget.js copied byte for byte from ori
 changed in e1bebdf8, JEG-1571). Deliberate engine changes since the JEG-1142 freeze, among them JEG-1335 fractional seats
 and JEG-1571 QB-eligible flex, had made 476 players differ at half_ppr/10.
 
-How to re-freeze (only after a merged, deliberate default-value change; never to make a red pass):
+How to re-freeze (only for a deliberate default-value change, after it merges or in the PR that makes it, as JEG-1142
+and JEG-1569 did; never to make a red pass):
   git show origin/main:app/trade-value-chart/assets/value-model.js > tests/fixtures/baseline_main_771c3422/value-model.js
   git show origin/main:app/trade-value-chart/assets/curve-widget.js > tests/fixtures/baseline_main_771c3422/curve-widget.js
 then add a dated paragraph here (commit, reason, decision) and a docs/claude-log entry, and check that the Broken* tests

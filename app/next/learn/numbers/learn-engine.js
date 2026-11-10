@@ -166,7 +166,9 @@
     var vsrc = (ins.valuePipeline && ins.valuePipeline.sources && ins.valuePipeline.sources[source]) || {};
     var posInfo = (vsrc.positions && vsrc.positions[p.pos]) || {};
     var rates = vsrc.rates || {};
-    var vp = ins.valuePipeline || {}, W = vp.ddfWeights || {}, groups = vsrc.groups || {};
+    var vp = ins.valuePipeline || {}, groups = vsrc.groups || {};
+    /* JEG-1569 (VP-4.6): on the charts-only split a projection is paid on its own family's weights, W_proj. */
+    var W = (vp.ddfSplit === 'charts' && vsrc.family === 'projection' && vp.ddfWeightsProjections) || vp.ddfWeights || {};
     var budget = function (g) { return finite(vp.pie) !== null && finite(W[g]) !== null ? vp.pie * W[g] : null; };
     var movedGroups = (vsrc.unfundedMoved || []).concat(vsrc.unfundedGroups || []).reduce(function (acc, m) {
       [m.from, m.to, m.group].forEach(function (g) { if (g) acc[g] = true; }); return acc;
@@ -188,7 +190,7 @@
         rostered: finite(cs.rostered), players: finite(cs.players) } : null,
       starterLineParts: starterLineParts(ins, source, p.pos, posInfo),
       waiverLineParts: waiverLineParts(snap, source, p.pos, posInfo), leagueRostered: finite(posInfo.rostered),
-      starterWeightInputs: weightInputs(vp, sg, p.pos), fillInWeightInputs: weightInputs(vp, bg, p.pos),
+      starterWeightInputs: weightInputs(vp, sg, p.pos, vsrc.family), fillInWeightInputs: weightInputs(vp, bg, p.pos, vsrc.family),
       allocationParts: allocationParts(vp, p.pos),
       fillPath: est ? est.path || null : null,
       sigmaRel: sigmaRel, sigmaFloor: sigmaFloor, sigma: sigma,
@@ -310,29 +312,36 @@
     if (e) { expected = {}; F.forEach(function (f) { expected[f] = finite(e[f]); }); }
     return { list: list, expected: expected };
   }
-  function groupMean(vp, group, pos) {
+  /* JEG-1569 (VP-4.6): on the charts-only split DDF Value's weights W average the included trade charts only, and
+     a projection is priced on W_proj, the same average over the included projections. null = every included source. */
+  function splitFamily(vp, sourceFamily) {
+    if (!vp || vp.ddfSplit !== 'charts') return null;
+    return sourceFamily === 'projection' && vp.ddfWeightsProjections ? 'projection' : 'chart';
+  }
+  function groupMean(vp, group, pos, family) {
     var srcs = vp.sources || {};
     var rows = (vp.included || []).filter(function (s) {
       var o = srcs[s];
-      return o && o.weights && finite(o.weights[group]) !== null && !(o.positions && o.positions[pos] && o.positions[pos].method === 'no_players');
+      return o && (!family || o.family === family) && o.weights && finite(o.weights[group]) !== null && !(o.positions && o.positions[pos] && o.positions[pos].method === 'no_players');
     }).map(function (s) { return { source: s, label: LABELS[s] || s, share: srcs[s].weights[group] }; });
     return rows.length ? { rows: rows, mean: rows.reduce(function (t, r) { return t + r.share; }, 0) / rows.length } : null;
   }
   var ROLES = ['starter', 'bench'];
   var POS4 = ['QB', 'RB', 'WR', 'TE'];
   /* R7-CX-01: each DDF weight's derivation, read back from the engine's own inputs (value-model.js vpWeightsOver, ES-15.1
-     and JEG-1366, then VP-4 saved position shares). Default: each group's weight is the mean of the included sources' own
-     shares, renormalized over the 8 groups. In a league with two or more QB slots and no superflex, the QB groups are the
+     and JEG-1366, then VP-4 saved position shares). Default (JEG-1569 charts-only split): each group's weight is the
+     mean of the included trade charts' own shares, renormalized over the 8 groups; on the old "all" split, of every
+     included source's. In a league with two or more QB slots and no superflex, the QB groups are the
      mean of the included projections' own QB shares (held ones too) and RB, WR and TE keep their relative shares of the
      rest. Saved position shares then scale each position's starter and bench weights to its share, in their own ratio.
      The page prints the derivation only when it reproduces the engine's weight (verified); otherwise it names the gap. */
-  function twoQbRule(vp) {
+  function twoQbRule(vp) {  /* off on the charts-only split (JEG-1569 decision 4) */
     var st = vp.setting || {}, slots = st.slots || {};
     return Math.floor(Number(slots.QB) || 0) >= 2 && !(Number(st.superflex) > 0) && vp.ddfSplit !== 'charts';
   }
-  function weightModel(vp) {
+  function weightModel(vp, family) {
     var srcs = vp.sources || {}, means = {}, total = 0;
-    POS4.forEach(function (p) { ROLES.forEach(function (role) { var g = p + '|' + role, m = groupMean(vp, g, p); means[g] = m; total += m ? m.mean : 0; }); });
+    POS4.forEach(function (p) { ROLES.forEach(function (role) { var g = p + '|' + role, m = groupMean(vp, g, p, family); means[g] = m; total += m ? m.mean : 0; }); });
     var base = {}, two = null;
     POS4.forEach(function (p) { ROLES.forEach(function (role) { var g = p + '|' + role; base[g] = means[g] && total > 0 ? means[g].mean / total : 0; }); });
     if (twoQbRule(vp)) {
@@ -361,17 +370,19 @@
     });
     return { means: means, total: total, base: base, two: two, shares: shares, final: final };
   }
-  function weightInputs(vp, group, pos) {
-    var m = groupMean(vp, group, pos);
-    var W = vp.ddfWeights ? finite(vp.ddfWeights[group]) : null;
+  function weightInputs(vp, group, pos, sourceFamily) {
+    var family = splitFamily(vp, sourceFamily);
+    var m = groupMean(vp, group, pos, family);
+    var Wset = family === 'projection' ? vp.ddfWeightsProjections : vp.ddfWeights;
+    var W = Wset ? finite(Wset[group]) : null;
     if (!m || W === null) return null;
-    var M = weightModel(vp), srcs = vp.sources || {}, role = group.split('|')[1];
+    var M = weightModel(vp, family), srcs = vp.sources || {}, role = group.split('|')[1];
     var sh = M.shares ? finite(M.shares[pos]) : null;
     /* The 2-QB rescale and saved shares are ratios, applied in each league allocation and then averaged, so the
        derivation from the averaged source shares lands close to the engine's weight, not on it (about 1e-5 here). */
     var gap = Math.abs(M.final[group] - W);
     var out = { rows: m.rows, mean: m.mean, weight: W, total: M.total, base: M.base[group], computed: M.final[group],
-      verified: gap <= 5e-4, exact: gap <= 5e-6 };
+      verified: gap <= 5e-4, exact: gap <= 5e-6, split: family ? family + 's' : 'all' };
     if (M.two) {
       out.twoQb = { projections: M.two.projections.map(function (s) { return { source: s, label: LABELS[s] || s, share: srcs[s].weights['QB|' + role] }; }),
         qbStarter: M.two.qbStarter, qbBench: M.two.qbBench, remainder: M.two.remainder, restRaw: M.two.restRaw };

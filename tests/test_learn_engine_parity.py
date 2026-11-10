@@ -144,12 +144,12 @@ ENGINE_R5 = """() => { const C = window.TradeValueCurveControls, ins = C.getInsp
   const top = C.getAllRows().filter(r => r.pos === 'RB' && r.ddfByVersion && r.ddfByVersion.blended && isFinite(r.ddfByVersion.blended.value)
     && ins.players.cbs[String(r.player_key)]).sort((a, b) => b.ddfByVersion.blended.value - a.ddfByVersion.blended.value)[0];
   const P = src.positions.RB, mix = (vp.allocationMix && vp.allocationMix.length) ? vp.allocationMix : [{weight: 1, allocation: vp.allocation}];
-  const weights = {}, method = {};
-  Object.keys(vp.sources).forEach(s => { weights[s] = vp.sources[s].weights; method[s] = vp.sources[s].positions.RB.method; });
+  const weights = {}, method = {}, family = {};
+  Object.keys(vp.sources).forEach(s => { weights[s] = vp.sources[s].weights; method[s] = vp.sources[s].positions.RB.method; family[s] = vp.sources[s].family; });
   const paths = [];
   ['QB','RB','WR','TE'].forEach(q => Object.values(src.positions[q].estimates || {}).forEach(e => paths.push(e.path)));
   return {key: String(top.player_key), bye: vp.lineup.bye, m: P.lineup.m, avail: P.avail, conf: vp.lineup.projection_confidence,
-    sigmaRel: P.lineup.sigmaRel, cs: vp.chartSigma.RB, W: vp.ddfWeights, included: vp.included, weights, method,
+    sigmaRel: P.lineup.sigmaRel, cs: vp.chartSigma.RB, W: vp.ddfWeights, split: vp.ddfSplit || 'all', included: vp.included, weights, method, family,
     work: Object.values(ins.players.cbs).filter(p => p.pos === 'RB').map(p => [p.rank, p.native]),
     mix: mix.map(m => [m.weight, m.allocation.RB.starters]), waiver: P.waiver, starterLine: P.starterLine, paths}; }"""
 PAGE_BUILDUP = """() => [...document.querySelectorAll('#bu-table tbody tr')].map(tr => ({k: tr.dataset.key, cells: [...tr.querySelectorAll('td')].map(td => td.textContent.trim())}))"""
@@ -433,12 +433,16 @@ class LearnEngineParity(unittest.TestCase):
             want = f"(1 − bye share {eng['bye'] * 100:.2f}%) × (1 − RB missed-game rate {eng['m'] * 100:.2f}%) = {1 - eng['bye']:.4f} × {1 - eng['m']:.4f} = {a * 100:.1f}%"
             if want not in worked["Availability"]["how"] or abs(a - eng["avail"]) > 1e-9:
                 errors.append(f"{tag}: availability {worked['Availability']['how']!r}, want {want!r} (engine {eng['avail']})")
-            # DDF weight = mean of the included sources' own shares for the group.
+            # DDF weight = mean of the included sources' own shares for the group; on the charts-only split
+            # (JEG-1569, VP-4.6) the included trade charts' (CBS Sports is a chart).
+            charts = eng["split"] == "charts"
             for group, row in (("RB|starter", "Starter rate"), ("RB|bench", "Fill-in rate")):
-                shares = [eng["weights"][s][group] for s in eng["included"] if eng["weights"].get(s) and eng["method"][s] != "no_players"]
+                shares = [eng["weights"][s][group] for s in eng["included"] if eng["weights"].get(s) and eng["method"][s] != "no_players"
+                          and (not charts or eng["family"][s] == "chart")]
                 mean = sum(shares) / len(shares)
                 role = "starter" if group.endswith("starter") else "fill-in"
-                want = f"DDF weight {eng['W'][group] * 100:.2f}% = the mean of the {len(shares)} included sources’ own RB {role} shares (held sources too)"
+                who = "trade charts" if charts else "sources"
+                want = f"DDF weight {eng['W'][group] * 100:.2f}% = the mean of the {len(shares)} included {who}’ own RB {role} shares (held ones too)"
                 if abs(mean - eng["W"][group]) > 5e-6 or want not in worked[row]["how"] or f"÷ {len(shares)} = {mean * 100:.2f}%" not in worked[row]["how"]:
                     errors.append(f"{tag}: {group} weight {worked[row]['how'][:300]!r}, want {want!r} mean {mean}")
                 if want not in trace:

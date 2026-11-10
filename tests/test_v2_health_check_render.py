@@ -226,6 +226,22 @@ def logic_checks(pie_js: str | None = None) -> list[str]:
                 if [c["id"] for c in got if c["status"] == "flag"] != HEALTHY_FLAGS:
                     errors.append(f"{name}: flags {[c['id'] for c in got if c['status'] == 'flag']}, want {HEALTHY_FLAGS}")
 
+            # JEG-1569 charts-only split: the projections are paid their own family's budgets, so a chart-vs-projection
+            # position gap is by design. On healthy charts-split data neither "positions" nor "totals" flags; a
+            # perturbed chart and a perturbed projection are each caught and named alone (within its weight set).
+            charts = fixture("healthy_charts_split_week9.json")
+            if not charts["valuePipeline"].get("ddfWeightsProjections"):
+                errors.append("healthy_charts_split_week9.json: not a charts-split capture (no ddfWeightsProjections)")
+            got = page.evaluate(CHECKS_JS, charts)
+            bad = [c["id"] for c in got if c["status"] == "flag" and c["id"] in ("positions", "totals")]
+            if bad:
+                errors.append(f"charts split healthy: {bad} flag on healthy data")
+            for src in ("fantasycalc", "espn"):
+                got = page.evaluate(CHECKS_JS, scaled(charts, src, 1.3, pos="RB"))
+                pos_row = next(c for c in got if c["id"] == "positions")
+                if pos_row["status"] != "flag" or pos_row["sources"] != [src]:
+                    errors.append(f"charts split {src} RB x1.3: positions {pos_row['status']} naming {pos_row['sources']}, want a flag naming ['{src}']")
+
             # Wording never changes a flag: relabel every source, statuses stay the same.
             page.evaluate("() => { window.TradeValueV2 = {publishers: () => Object.fromEntries(['espn','cbsros','razzball','fantasycalc','usatoday','fantasypros','cbs'].map(k => [k, {label: 'Source ' + k, symbol: ''}]))}; }")
             before = [(c["id"], c["status"]) for c in page.evaluate(CHECKS_JS, perturbed)]
