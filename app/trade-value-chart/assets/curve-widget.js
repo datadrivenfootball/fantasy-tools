@@ -3165,9 +3165,16 @@
   // the active scoring (its superflex values where the roster has a superflex
   // slot and it publishes them), ranked high to low; ties share the better
   // rank. {playerKey: rank} over the canonical players the chart prices.
+  // In a week view older than the chart's served week, the chart is priced on
+  // its saved copy of that week (computePipeline), so it is ranked on that copy
+  // too. Ranking it on the served week put a newer rank next to an older value
+  // (JEG-1606: 1854 FantasyCalc inversions when the default view fell back a week).
   function nativeRanksFor(source) {
     if (!AS_PUBLISHED_KEYS.has(source)) return null;
-    const native = savedPublishedNative(source);
+    const served = weekView?.servedWeeks?.[source];
+    const saved = weekView && Number.isInteger(served) && served > weekView.week
+      ? weekView.savedNatives?.[source] : null;
+    const native = saved || savedPublishedNative(source);
     const ordered = [...native.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
     const ranks = new Map();
     let previous = null, rank = 0;

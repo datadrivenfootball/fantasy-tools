@@ -373,6 +373,85 @@ class TestEngineKeepsOrderWithHeldLaggingChart(TestEngineKeepsOrderInTransition)
             self.assertNotIn("cbs", view["missing_sources"], (setting, state))
 
 
+class TestEngineKeepsOrderWithLiveHolds(TestEngineKeepsOrderInTransition):
+    """Chain runs 42704839004 and 42720406111 (2026-11-09): the built fixture
+    had ESPN, CBS ROS and Razzball on red fidelity holds. The replay kept
+    them, so only FantasyCalc and FantasyPros (2 of 4 counted charts) served
+    the newest week and the default view fell back a week: the replay was no
+    longer the transition this class checks. transition_overrides now clears
+    every hold; this feeds it that chain state and it must stay a transition.
+    (The fallen-back view itself is checked in the next class.)"""
+
+    LIVE_HELD = ("espn", "cbsros", "razzball")
+
+    @classmethod
+    def _live_held_fixture(cls, W):
+        doc = json.loads((W.DIST / W.FIXTURE_ASSET).read_text(encoding="utf-8"))
+        for key in cls.LIVE_HELD:
+            doc["sources"][key]["validationHold"] = {"reason": "fidelity: scrape_validity", "hold_level": "red"}
+        return doc
+
+    @classmethod
+    def _overrides(cls, W):
+        return W.transition_overrides(fixture=cls._live_held_fixture(W))
+
+    def test_the_replay_clears_the_live_holds(self):
+        from tests import test_week_history as W
+        doc = json.loads(self.overrides[W.FIXTURE_ASSET])
+        held = {k for k, s in doc["sources"].items()
+                if isinstance(s, dict) and (s.get("validationHold") or s.get("promotionHold"))}
+        self.assertEqual(held, set())
+
+
+class TestEngineKeepsOrderWhenTheDefaultFallsBack(TestEngineKeepsOrderWithLiveHolds):
+    """The same chain state with its holds kept: the default view is the
+    previous week, and FantasyCalc and FantasyPros (already on the newest
+    week) are priced on their saved previous week. Their native ranks must
+    come from that saved week too. Before JEG-1606 getNativeRanks ranked them
+    on the served week, so the page showed a newer rank next to an older
+    value (1854 FantasyCalc and 999 FantasyPros inversions at ppr/12). A
+    reader sees this view at the start of every transition and whenever they
+    pick the previous week."""
+
+    MOVED = ("fantasycalc", "fantasypros")
+
+    @classmethod
+    def _overrides(cls, W):
+        return W.transition_overrides(fixture=cls._live_held_fixture(W), keep_holds=True)
+
+    def test_the_replay_clears_the_live_holds(self):
+        self.skipTest("this class keeps the live holds on purpose")
+
+    def test_the_replay_is_a_transition(self):
+        # Guards the sentinel: the holds tip the default view back a week and
+        # the moved charts are in it (read from their saved copy).
+        for setting, state in self.states.items():
+            newest = state["newest"]
+            self.assertEqual(state["week"], newest - 1, (setting, state))
+            self.assertEqual((state["on_newest"], state["total"]), (2, 4), (setting, state))
+            self.assertEqual({k: state["servedWeeks"].get(k) for k in self.MOVED},
+                             {k: newest for k in self.MOVED}, (setting, state))
+            self.assertTrue(set(self.MOVED) <= set(state["views"][str(state["week"])]["sources"]),
+                            (setting, state))
+
+    def test_lagging_charts_keep_order_in_their_own_week(self):
+        # Every chart is in the default view here; the moved ones are the point.
+        self.assertEqual(order_problems(self.swept), [])
+        for setting, res in self.swept.items():
+            default = self.states[setting[:2]]["week"]
+            self.assertEqual({k: res["weeks"][k] for k in PUBLISHED}, {k: default for k in PUBLISHED}, setting)
+
+    def test_a_reordered_moved_chart_still_fails(self):
+        setting = ("ppr", 12, "null")
+        res = copy.deepcopy(self.swept[setting])
+        ranks, indexed = res["ranks"]["fantasycalc"], res["indexed"]["fantasycalc"]
+        ordered = sorted((k for k in ranks if k in indexed), key=lambda k: float(ranks[k]))
+        first, second = next((a, b) for a, b in zip(ordered, ordered[1:]) if float(ranks[a]) != float(ranks[b]))
+        indexed[first], indexed[second] = indexed[second], indexed[first]
+        problems = order_problems({setting: res})
+        self.assertTrue([p for p in problems if " fantasycalc: " in p and "inversions" in p], problems)
+
+
 class TestLaggingWeek(unittest.TestCase):
     STATE = {"week": 8, "weeks": [8, 7],
              "servedWeeks": {"cbs": 7, "espn": 8, "old": 6, "gone": None, "held": 7, "ahead": 9},
