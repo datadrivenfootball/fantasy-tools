@@ -19,6 +19,17 @@ below are history, including any "Codex reviews and merges" line.
 
 ## Resume here
 
+### Week 10 held by the view-invariants count (JEG-1614, Claude, 2026-11-10 UTC): PR up, urgent
+
+- Every main chain run from 2026-11-10 03:25 UTC failed closed; the site kept the 01:13 UTC build (all Week 9).
+  From 15:05 UTC the one blocker was `tests.test_view_invariants` counting CBS and Razzball (still Week 9, left
+  out of the Week 10 view by JEG-1176 design) as missing. Fix on branch `claude/JEG-1614-view-invariants-lagging`
+  reads them in their own week view (`tests/_week_view.py`); test-only, no value change.
+- Next: independent `review-high-risk` review (it changes a gate assertion's count), green CI, Jeremy's yes, merge.
+  The next hourly chain run then publishes Week 10. Evidence: `docs/claude-log/2026-11-10-jeg1614-view-invariants-lagging.md`.
+- Public site is https://datadrivenfootball.github.io/fantasy-tools/ (the repo moved to the
+  `datadrivenfootball` org; the jb-barrel-droid Pages URL returns 404).
+
 ### JEG-1128 seat-tier docs (Claude, 2026-10-31 UTC): PR #1075, waiting on the merge gate
 
 - Branch `claude/JEG-1128-seat-tiers-docs`. Docs and a pin test only (VP-7.3 "tiers follow seats",
