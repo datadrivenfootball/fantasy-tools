@@ -101,3 +101,48 @@ usatoday: rows 244, history fallback 8, no ROS games 16.
 | usatoday | RB | 0.0051 | 0.0003 | 0.0636 | 0.6093, 1.0506 | 1.8534 / 1.8865 | 0.0464 |
 | usatoday | WR | 0.0022 | 0.0002 | 0.0818 | -0.8187, 1.0838 | 1.3504 / 1.3788 | 0.2505 |
 | usatoday | TE | 0.0016 | 0.0003 | 0.1669 | -0.7361, 1.0871 | 1.0899 / 1.1238 | 0.1046 |
+
+# Follow-up (items 6-7)
+
+## 6. G2 'closer' ceiling (percentile move, common set)
+
+pooled = mean of weekly statistics (as response_test.summarize); percentiles within position on the common set (l_gate scored set, all four columns > 0), not response_test's top-N set. Against ref=mean the method is half of the reference, which inflates corr and closer.
+
+Unchanged (m = 0) has closer = 0 exactly.
+
+Scale: mean r^2 of each publisher's own percentile move (the upper bound of closer) and share of players whose percentile move is exactly 0:
+
+- cbs: RB 0.0007 (zero 0.3377), WR 0.0007 (zero 0.3706), TE 0.0016 (zero 0.465)
+- usatoday: RB 0.0012 (zero 0.3965), WR 0.0012 (zero 0.3689), TE 0.002 (zero 0.5551)
+
+| Cell | Pos | corr | slope | closer |
+| --- | --- | --- | --- | --- |
+| ref=cbs,method=usatoday | RB | 0.450 [0.171, 0.620] | 0.598 [0.248, 0.912] | -0.000 [-0.001, 0.000] |
+| ref=cbs,method=usatoday | WR | 0.198 [-0.012, 0.378] | 0.270 [-0.023, 0.594] | -0.001 [-0.001, -0.000] |
+| ref=cbs,method=usatoday | TE | -0.005 [-0.326, 0.341] | -0.042 [-0.524, 0.426] | -0.002 [-0.004, -0.001] |
+| ref=cbs,method=usatoday | ALL | 0.269 [0.098, 0.415] | 0.344 [0.136, 0.530] | -0.001 [-0.001, -0.000] |
+| ref=usatoday,method=cbs | RB | 0.450 [0.171, 0.620] | 0.343 [0.115, 0.508] | 0.000 [-0.000, 0.001] |
+| ref=usatoday,method=cbs | WR | 0.198 [-0.012, 0.378] | 0.148 [-0.014, 0.310] | -0.000 [-0.001, 0.000] |
+| ref=usatoday,method=cbs | TE | -0.005 [-0.326, 0.341] | 0.022 [-0.301, 0.522] | -0.002 [-0.003, -0.001] |
+| ref=usatoday,method=cbs | ALL | 0.269 [0.098, 0.415] | 0.211 [0.067, 0.354] | -0.000 [-0.001, 0.000] |
+| ref=mean,method=cbs | RB | 0.820 [0.624, 0.873] | 0.859 [0.605, 1.022] | 0.001 [0.000, 0.001] |
+| ref=mean,method=cbs | WR | 0.713 [0.581, 0.812] | 0.815 [0.551, 1.113] | 0.000 [-0.000, 0.000] |
+| ref=mean,method=cbs | TE | 0.650 [0.305, 0.878] | 0.889 [0.332, 1.515] | -0.000 [-0.001, 0.001] |
+| ref=mean,method=cbs | ALL | 0.749 [0.645, 0.821] | 0.843 [0.667, 1.004] | 0.000 [0.000, 0.001] |
+| ref=mean,method=usatoday | RB | 0.875 [0.774, 0.935] | 1.141 [0.978, 1.395] | 0.001 [0.000, 0.001] |
+| ref=mean,method=usatoday | WR | 0.824 [0.682, 0.907] | 1.185 [0.887, 1.449] | 0.000 [-0.000, 0.000] |
+| ref=mean,method=usatoday | TE | 0.743 [0.433, 0.874] | 1.111 [0.485, 1.668] | -0.000 [-0.001, 0.001] |
+| ref=mean,method=usatoday | ALL | 0.837 [0.765, 0.886] | 1.157 [0.997, 1.333] | 0.000 [0.000, 0.001] |
+
+## 7. Scale convention per column (mean of weeks 5-7; weekly values in the JSON)
+
+| Pub | Pos | top-N value ratio F/S | all-listed value ratio | slope Std | slope Full | slope ratio F/S | proj ppg top-N ratio (pub top) | proj ppg top-N ratio (proj top) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| cbs | RB | 1.0569 | 1.0655 | 3.2592 | 2.8697 | 0.8805 | 1.1949 | 1.2005 |
+| cbs | WR | 1.1166 | 1.1597 | 4.8911 | 3.5601 | 0.7281 | 1.5492 | 1.5335 |
+| cbs | TE | 1.2284 | 1.2387 | 4.0218 | 2.7569 | 0.6852 | 1.6524 | 1.6564 |
+| usatoday | RB | 1.0604 | 1.0915 | 3.9103 | 3.4294 | 0.877 | 1.197 | 1.2005 |
+| usatoday | WR | 1.0728 | 1.0673 | 5.7334 | 3.9987 | 0.6974 | 1.5397 | 1.5335 |
+| usatoday | TE | 1.0684 | 1.066 | 5.8327 | 3.7661 | 0.6455 | 1.6469 | 1.6564 |
+
+Top-N: 12 for RB and WR, 6 for TE. Slopes: OLS of chart value on mean projected ppg at that scoring (projection lines as l_gate loads them), players listed > 0 in both columns.

@@ -194,3 +194,34 @@ Result (`out/v4/summary.md`, "Iteration 4 additions"):
 - v4_chartzero: chart zero falls back in most TE and QB cells and in every USA Today Full cell; where
   it holds it sits above R_p (RB: CBS 3.83 vs 1.40 at Standard, FantasyCalc 5.85 vs 4.63). G1
   original measures 6 of 36 (v4 4); G2 FAIL, levels move away; G3 worse.
+
+## Iteration 4b (2026-11-10): lead's reading of iteration 4 and the diagnostics follow-up
+
+Follow-up diagnostics (`tools/research/jeg1611/diag/publisher_moves_followup.py`, appended to
+`out/diag/publisher_moves.{json,md}`, dev weeks 5-7):
+- G2 `closer` ceiling: with CBS Sports as the reference, **USA Today's own move** scores closer
+  -0.0007 [-0.0011, -0.0003] (corr 0.27, slope 0.34); reversed -0.0003 [-0.0006, +0.0001]. The
+  most `closer` can ever be is 0.0007-0.0020 and 34-56% of players have a percentile move of
+  exactly 0. Against the mean reference a publisher clears 0 only because it is half the reference.
+- Currency per column: the publishers' chart-value slope on projected points at Full is 0.88 /
+  0.73 / 0.69 (CBS, RB / WR / TE) and 0.88 / 0.70 / 0.65 (USA Today) of its Standard value; their
+  top-12 value ratio Full/Standard is 1.06 / 1.12 / 1.23 (CBS) and 1.06 / 1.07 / 1.07 (USA Today)
+  against a projected-points ratio of 1.20 / 1.55 / 1.65 for the same players.
+
+Reading of iteration 4 (v4 at weeks 5-7):
+- Within position v4 is at the ceiling for RB and WR (diffs 0 to -0.011 and within +/-0.004) and
+  loses at TE (CBS -0.012 to -0.044). The publishers do not differentiate tight ends by reception
+  share (CBS slope -0.19 on the history move); the actuals keep a weak TE term (share ICC 0.18;
+  cross-validated k = 20). Left as is: removing it would be fitting to the publishers.
+- Size in percentile units is now right (slope of v4's move on the mean reference's 0.86 FC, 0.63
+  FP; v3 moved 2-10x too far), direction is right (corr 0.50 / 0.36, placebo p95 0.13).
+- Cross-position level moves: v4 WR/RB +0.10 to +0.21, TE/RB +0.13; CBS +0.07 / +0.16, USA Today
+  -0.01 / -0.01; the projections' own points imply about +0.26 WR/RB before replacement. v4 sits
+  between the publishers and the points; the two publishers do not agree with each other.
+- Native-unit level error (G1 levels, median rebuilt/published ratio) is the publishers' currency
+  convention and is dropped as a verdict measure (kept as reported).
+- `v4_chartzero` (H-d) cannot reorder within position and mostly falls back; `v4_mult` is best on
+  position shares (CBS 3 of 3 both directions) but not on anything else. Primary stays additive.
+
+Decision: no further implementation iteration on dev; write the pass rule (`pass-rule.md`,
+with the expected verdict stated in advance), run the adversarial reviews, then the holdout.
