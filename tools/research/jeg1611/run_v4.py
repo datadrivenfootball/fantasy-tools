@@ -30,8 +30,18 @@ DEV_WEEKS = (5, 6, 7)
 G1_CHARTS, G1_DIRECTIONS, G1_MEASURES = R3.G1_CHARTS, R3.G1_DIRECTIONS, R3.G1_MEASURES
 # name -> (mixkind, form) of the native-list variants
 LIST_VARIANTS = {"v4": ("share", "delta"), "v4_mult": ("share", "mult"), "v4_tail": ("share", "tail"),
-                 "v4_raw": ("raw", "delta"), "v4_recg": ("recg", "delta"), "v4_assumed": ("assumed", "delta")}
-r4, rnd, better = R3.r4, R3.rnd, R3.better
+                 "v4_raw": ("raw", "delta"), "v4_recg": ("recg", "delta"), "v4_assumed": ("assumed", "delta"),
+                 "v4_chartzero": ("share", "chartzero")}
+r4, rnd = R3.r4, R3.rnd
+G1_MEASURES_ALL = G1_MEASURES + ("levels_norm", "levels_norm_pos")
+LOWER_BETTER = ("levels", "levels_norm", "levels_norm_pos")
+SHARE_POS = ("RB", "WR", "TE")
+
+
+def better(measure, a, b):
+    if a is None or b is None:
+        return None
+    return a < b if measure in LOWER_BETTER else a > b
 
 
 def level_threshold(weeks):
@@ -43,10 +53,28 @@ def level_threshold(weeks):
 # G1
 # ---------------------------------------------------------------------------
 
+def pos_shares(ctx, keys, vals):
+    """Iteration 4: RB/WR/TE shares of the scored set's total (QB in the total)."""
+    tot = sum(vals[k] for k in keys)
+    return {p: sum(vals[k] for k in keys if ctx["pos_of"][k] == p) / tot for p in SHARE_POS}
+
+
+def scale_free(ctx, keys, vals, tgt):
+    """Iteration 4: MALE after scaling vals to tgt's total over the scored set,
+    and the mean absolute log error of the RB/WR/TE shares."""
+    f = sum(tgt[k] for k in keys) / sum(vals[k] for k in keys)
+    pos_l = [k for k in keys if vals[k] > 0 and tgt[k] > 0]
+    male = statistics.fmean(abs(math.log(f * vals[k]) - math.log(tgt[k])) for k in pos_l)
+    sv, st = pos_shares(ctx, keys, vals), pos_shares(ctx, keys, tgt)
+    return male, statistics.fmean(abs(math.log(sv[p] / st[p])) for p in SHARE_POS), sv
+
+
 def g1_row(ctx, wkl, keys, vals, inp, tgt):
     m = lg.metrics(ctx, wkl, keys, vals, inp, tgt)
+    ln, lnp, sh = scale_free(ctx, keys, vals, tgt)
     return {"within": m["within"], "levels": m["male"], "xpos": m["whole_set"], "within_by_pos": m["within_by_pos"],
-            "median_ratio_to_input": m["median_ratio_to_input"], "n_levels": m["n_male"]}
+            "median_ratio_to_input": m["median_ratio_to_input"], "n_levels": m["n_male"],
+            "levels_norm": ln, "levels_norm_pos": lnp, "pos_share": sh}
 
 
 def g1(ctx, weeks, wkls, W):
@@ -70,18 +98,29 @@ def g1(ctx, weeks, wkls, W):
                                                            if k in u.records)
                         row["scored_fallback_prior"] = sum(u.records[k]["mix"].label == "fallback_prior"
                                                            for k in keys if k in u.records)
+                # Iteration 4: per-position share move, log(share Full / share Standard)
+                sgn = 1.0 if s == "ppr" else -1.0
+                sh_in = row["unchanged"]["pos_share"]
+                tgt_sh = pos_shares(ctx, keys, tgt)
+                row["share_move_full_over_std"] = {
+                    "published": {p: sgn * math.log(tgt_sh[p] / sh_in[p]) for p in SHARE_POS}, "unchanged": 0.0,
+                    **{v: {p: sgn * math.log(row[v]["pos_share"][p] / sh_in[p]) for p in SHARE_POS}
+                       for v in LIST_VARIANTS}}
+                row["within_diff_by_pos"] = {v: {p: row[v]["within_by_pos"][p] - row["unchanged"]["within_by_pos"][p]
+                                                 for p in SHARE_POS} for v in LIST_VARIANTS}
                 cell[w] = row
             cells[name] = cell
     table = {}
     for name, cell in cells.items():
-        for meas in G1_MEASURES:
+        for meas in G1_MEASURES_ALL:
             t = {"unchanged": {w: cell[w]["unchanged"][meas] for w in W}}
             for vname in LIST_VARIANTS:
                 t[vname] = {w: cell[w][vname][meas] for w in W}
                 t[f"weeks_won|{vname}"] = sum(bool(better(meas, cell[w][vname][meas], cell[w]["unchanged"][meas]))
                                               for w in W)
             table[f"{name}|{meas}"] = t
-    totals = {v: sum(t[f"weeks_won|{v}"] for t in table.values()) for v in LIST_VARIANTS}
+    totals = {v: sum(t[f"weeks_won|{v}"] for k, t in table.items() if k.split("|")[-1] in G1_MEASURES)
+              for v in LIST_VARIANTS}
     return {"weeks": list(W), "table": table, "weeks_won_totals_of": 12 * len(W), "weeks_won_totals": totals,
             "cells": cells}
 
@@ -115,6 +154,68 @@ def level_verdict(lv, meth, W):
     return "mixed"
 
 
+def g2_by_position(ctx, worlds, lists, W, meths, ref="mean"):
+    """Iteration 4: corr and closer of the Standard-to-Full percentile move per
+    position (RB, WR, TE), same bootstrap rows as response_test.run_cells."""
+    out = {}
+    for subj in rtest.SUBJECTS:
+        sets_w = {w: rtest.player_set(ctx, worlds[w], subj, ref) for w in W}
+        units = sorted({k for w in W for p in rtest.POS for k in sets_w[w][p]})
+        unit = {k: i for i, k in enumerate(units)}
+        Wb = np.vstack([np.ones(len(units)), s4.bootstrap_counts(len(units), rtest.N_BOOT, rtest.SEED_BOOT)])
+        for m in meths + ("base",):
+            for p in rtest.POS:
+                acc = {"corr": [], "closer": []}
+                for w in W:
+                    ks = sets_w[w][p]
+                    by_s = lists[w][subj][m]
+                    rm = rtest.ref_pct(worlds[w], ref, ks, "ppr") - rtest.ref_pct(worlds[w], ref, ks, "standard")
+                    mv = rtest.pct([by_s["ppr"][k] for k in ks]) - rtest.pct([by_s["standard"][k] for k in ks])
+                    c, _sl, cl = rtest.move_stats(mv, rm, Wb[:, [unit[k] for k in ks]])
+                    acc["corr"].append(c)
+                    acc["closer"].append(cl)
+                row = {}
+                for stat, arrs in acc.items():
+                    arr = np.mean(arrs, axis=0)
+                    row[stat] = {"est": r4(arr[0]), "ci": [r4(x) for x in s4.interval(arr[1:])],
+                                 "by_week": [r4(a[0]) for a in arrs]}
+                out[f"{subj}|{m}|{p}"] = row
+    return out
+
+
+def g2_level_moves(lv, W):
+    """Iteration 4: per week, each method's log WR/RB and TE/RB move (Standard to
+    Full) against CBS's, USA Today's and the mean reference move; abs difference
+    vs 'unchanged' (move 0, i.e. |reference move|)."""
+    out = {}
+    for w in W:
+        bw = lv["by_week"][w]
+        refm = bw["ref_move"]
+        for key, d in bw.items():
+            if "|" not in key:
+                continue
+            subj, meth = key.split("|", 1)
+            if meth not in ("base", "today", "v2") + G2_METHODS:
+                continue
+            row = {"move": d["move"]}
+            for r in rtest.REFS:
+                row[f"absdiff|{r}"] = {q: r4(abs(d["move"][q] - refm[r][q])) for q in ("WR/RB", "TE/RB")}
+                row[f"absdiff_unchanged|{r}"] = {q: r4(abs(refm[r][q])) for q in ("WR/RB", "TE/RB")}
+            out[f"{w}|{key}"] = row
+        out[f"{w}|ref_move"] = refm
+    summ = {}
+    for key in {k.split("|", 1)[1] for k in out if not k.endswith("ref_move")}:
+        for r in rtest.REFS:
+            for q in ("WR/RB", "TE/RB"):
+                closer = sum(out[f"{w}|{key}"][f"absdiff|{r}"][q] < out[f"{w}|{key}"][f"absdiff_unchanged|{r}"][q]
+                             for w in W)
+                summ.setdefault(key, {})[f"{r}|{q}"] = {
+                    "weeks_closer_than_unchanged": int(closer),
+                    "mean_move": r4(statistics.fmean(out[f"{w}|{key}"]["move"][q] for w in W)),
+                    "mean_ref_move": r4(statistics.fmean(out[f"{w}|ref_move"][r][q] for w in W))}
+    return {"by_week": out, "summary": summ}
+
+
 def g2(ctx, weeks, W):
     worlds = {w: rtest.week_world(ctx, w) for w in W}
     lists = {w: add_v4(rtest.adjusted_lists(ctx, worlds[w]), weeks[w]) for w in W}
@@ -140,13 +241,15 @@ def g2(ctx, weeks, W):
         if m in ("v1", "v2"):
             p.update({f"{s}|mean|{m}": rtest.placebo(ctx, worlds, lists, W, s, "mean", m) for s in rtest.SUBJECTS})
         verdicts[m] = {"ranking": rtest.verdict(main, loo, p, m), "levels": level_verdict(lv, m, W)}
+    by_pos = g2_by_position(ctx, worlds, lists, W, ("v4", "v4_chartzero", "v2"))
+    level_moves = g2_level_moves(lv, W)
     pick = ("base", "today", "v1", "v2") + G2_METHODS
     short = {k: {m: v["methods"][m] for m in pick if m in v["methods"]} | {"info": v["info"]} for k, v in main.items()}
     short_loo = {k: {m: v["methods"][m] for m in G2_METHODS if m in v["methods"]} for k, v in loo.items()}
     return {"weeks": list(W), "level_rule_weeks": level_threshold(W), "verdicts": verdicts, "main": short,
             "loo": short_loo, "placebo": plc,
             "levels_summary": {k: v for k, v in lv["summary"].items() if k.split("|")[1] in pick},
-            "levels_by_week": lv["by_week"]}
+            "levels_by_week": lv["by_week"], "by_position_mean_ref": by_pos, "level_moves": level_moves}
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +257,8 @@ def g2(ctx, weeks, W):
 # ---------------------------------------------------------------------------
 
 G3_PAIRS = {"primary": ("v4", "current"), "fchalf": ("v4_fchalf", "current"),
-            "noFC": ("v4_noFC", "current_noFC"), "alloc_fixed_half": ("v4_alloc_half", "current")}
+            "noFC": ("v4_noFC", "current_noFC"), "alloc_fixed_half": ("v4_alloc_half", "current"),
+            "chartzero": ("v4_chartzero", "current")}
 
 
 def g3_lists(ctx, weeks, W, scorings=("standard", "ppr")):
@@ -165,7 +269,8 @@ def g3_lists(ctx, weeks, W, scorings=("standard", "ppr")):
                     "v4_fchalf": v4.v4_run(wk, s, fc_variant="fchalf"),
                     "current_noFC": wk.current(s, drop=("fantasycalc",)),
                     "v4_noFC": v4.v4_run(wk, s, drop=("fantasycalc",)),
-                    "v4_alloc_half": v4.v4_run(wk, s, alloc="half_fixed")} for s in scorings}
+                    "v4_alloc_half": v4.v4_run(wk, s, alloc="half_fixed"),
+                    "v4_chartzero": v4.v4_run(wk, s, form="chartzero")} for s in scorings}
         for R in R3.G3_REFS:
             lists[(w, R)] = {m: {s: R3.ddf_minus(runs[s][m], R) for s in scorings} for m in runs[scorings[0]]}
         ddf_full[w] = {s: {"current": runs[s]["current"]["ddf"], "v4": runs[s]["v4"]["ddf"]} for s in scorings}
@@ -236,7 +341,7 @@ def g3(ctx, weeks, W):
         verdicts[label] = {"by_set": by_set,
                            "overall": "worse" if "worse" in vs else "better" if vs == {"better"} else "not shown"}
     hinge = {}
-    for label in ("fchalf", "noFC", "alloc_fixed_half"):
+    for label in ("fchalf", "noFC", "alloc_fixed_half", "chartzero"):
         for key, row in res.items():
             p, q = row["primary"]["a_standard_diff"]["est"], row[label]["a_standard_diff"]["est"]
             hinge[f"{label}|{key}"] = bool(p is not None and q is not None and (p > 0) != (q > 0))
@@ -260,6 +365,10 @@ def coverage(ctx, weeks, W):
             u, x, dg, tag = wk.unwound(chart, s0, var)
             key = f"{chart}|{u.s0}|{var}|{w}"
             out["per_chart_week"][key] = v4.counts4(u)
+            z = v4.chart_zero(u)
+            for p in v4.POSITIONS:
+                out["per_chart_week"][key][p].update(chart_zero_ppg=z[p]["zero"], chart_zero_fallback=z[p]["fallback"],
+                                                     R_s0=u.R0[p], intercept=u.b[p]["intercept"])
             rkey = f"{tag}|{w}"
             if rkey not in out["replacement_ppg"]:
                 out["replacement_ppg"][rkey] = {
@@ -404,7 +513,92 @@ def summary_md(W, G1, G2, G3, COV, EXT):
         for g, d in EXT["mean_over_weeks"].items():
             L.append(f"| {g} | " + " | ".join(f"{d[f]:+.2f}" for f in d) + " |")
         L.append("")
+    L += summary_iter4(W, G1, G2, G3, COV)
     return "\n".join(L)
+
+
+def summary_iter4(W, G1, G2, G3, COV):
+    L = ["## Iteration 4 additions", ""]
+    if G1:
+        L += ["### G1 scale-free levels: weeks won over unchanged (of %d)" % len(W), "",
+              "| Cell | measure | v4 | v4_chartzero | v4_mult | unchanged by week | v4 by week | chartzero by week |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        for name, t in G1["table"].items():
+            meas = name.split("|")[-1]
+            if meas not in ("levels_norm", "levels_norm_pos") and not name.endswith("|levels"):
+                continue
+            f = lambda d: ", ".join(f"{v:.3f}" for v in d.values())
+            L.append(f"| {'|'.join(name.split('|')[:2])} | {meas} | {t['weeks_won|v4']} | {t['weeks_won|v4_chartzero']} | "
+                     f"{t['weeks_won|v4_mult']} | {f(t['unchanged'])} | {f(t['v4'])} | {f(t['v4_chartzero'])} |")
+        L += ["", "### G1 per-position share move, log(share Full / share Standard), by week (unchanged = 0)", "",
+              "| Cell | week | published RB/WR/TE | v4 | v4_chartzero |", "| --- | --- | --- | --- | --- |"]
+        for name, cell in G1["cells"].items():
+            for w in W:
+                sm = cell[w]["share_move_full_over_std"]
+                f = lambda d: " / ".join(f"{d[p]:+.3f}" for p in SHARE_POS)
+                L.append(f"| {name} | {w} | {f(sm['published'])} | {f(sm['v4'])} | {f(sm['v4_chartzero'])} |")
+        L += ["", "### G1 within-position diffs (method minus unchanged) by week, RB / WR / TE", "",
+              "| Cell | week | v4 | v4_chartzero |", "| --- | --- | --- | --- |"]
+        for name, cell in G1["cells"].items():
+            for w in W:
+                d = cell[w]["within_diff_by_pos"]
+                f = lambda x: " / ".join(f"{x[p]:+.4f}" for p in SHARE_POS)
+                L.append(f"| {name} | {w} | {f(d['v4'])} | {f(d['v4_chartzero'])} |")
+        L += ["", "Weeks won (original measures, of %d): " % G1["weeks_won_totals_of"] +
+              ", ".join(f"{k} {v}" for k, v in G1["weeks_won_totals"].items()), ""]
+    if G2:
+        L += ["### G2 per position, mean reference (corr, closer)", "",
+              "| Subject | method | RB corr | RB closer | WR corr | WR closer | TE corr | TE closer |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+        bp = G2["by_position_mean_ref"]
+        for subj in rtest.SUBJECTS:
+            for m in ("v4", "v4_chartzero", "v2"):
+                cells = []
+                for p in rtest.POS:
+                    r = bp[f"{subj}|{m}|{p}"]
+                    cells += [ci(r["corr"]), ci(r["closer"])]
+                L.append(f"| {subj} | {m} | " + " | ".join(cells) + " |")
+        L += ["", "### G2 level move, log ratio Standard to Full, mean over weeks; weeks closer than unchanged (of %d)" % len(W),
+              "", "| Subject, method | WR/RB move | TE/RB move | vs CBS (WR/RB, TE/RB) | vs USA Today | vs mean |",
+              "| --- | --- | --- | --- | --- | --- |"]
+        sm = G2["level_moves"]["summary"]
+        rm = {r: [sm[next(iter(sm))][f"{r}|{q}"]["mean_ref_move"] for q in ("WR/RB", "TE/RB")] for r in rtest.REFS}
+        L.append(f"| reference moves | CBS {rm['cbs'][0]:+.3f}, USAT {rm['usatoday'][0]:+.3f}, mean {rm['mean'][0]:+.3f} | "
+                 f"CBS {rm['cbs'][1]:+.3f}, USAT {rm['usatoday'][1]:+.3f}, mean {rm['mean'][1]:+.3f} | | | |")
+        for key in sorted(sm):
+            d = sm[key]
+            if key.split("|")[1] not in ("base", "v2", "v4", "v4_chartzero", "v4_mult", "v4_raw", "v4_recg", "v4_assumed"):
+                continue
+            L.append(f"| {key} | {d['mean|WR/RB']['mean_move']:+.3f} | {d['mean|TE/RB']['mean_move']:+.3f} | " +
+                     " | ".join(f"{d[r + '|WR/RB']['weeks_closer_than_unchanged']}, {d[r + '|TE/RB']['weeks_closer_than_unchanged']}"
+                                for r in ("cbs", "usatoday", "mean")) + " |")
+        v = G2["verdicts"].get("v4_chartzero")
+        if v:
+            L += ["", f"v4_chartzero G2 verdict: {v['ranking']['verdict']}, levels {v['levels']}"]
+        L.append("")
+    if G3:
+        r = G3["verdicts"]["chartzero"]
+        L += [f"### G3 chartzero: {r['overall']} ({r['by_set']})", ""]
+        for key, row in G3["cells"].items():
+            c = row["chartzero"]
+            L.append(f"- {key}: (a) Std {ci(c['a_standard_diff'])}, (a) Full {ci(c['a_ppr_diff'])}, closer "
+                     f"{ci(c['closer_diff'])}, levels {row['levels']['chartzero']['verdict']}")
+        L.append("")
+    if COV:
+        L += ["### Chart zero (ppg) vs R_p(s0), mean over weeks; fallbacks counted", "",
+              "| Unwind | pos | chart zero | R_p(s0) | fallbacks |", "| --- | --- | --- | --- | --- |"]
+        g = {}
+        for key, byp in COV["per_chart_week"].items():
+            gk = "|".join(key.split("|")[:3])
+            for p, c in byp.items():
+                g.setdefault((gk, p), []).append(c)
+        for (gk, p), cs in g.items():
+            zs = [c["chart_zero_ppg"] for c in cs if c["chart_zero_ppg"] is not None]
+            rs = [c["R_s0"] for c in cs if c["R_s0"] is not None]
+            L.append(f"| {gk} | {p} | {statistics.fmean(zs):.2f} | {statistics.fmean(rs):.2f} | "
+                     f"{sum(c['chart_zero_fallback'] for c in cs)} of {len(cs)} |")
+        L.append("")
+    return L
 
 
 # ---------------------------------------------------------------------------

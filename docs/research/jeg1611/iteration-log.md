@@ -153,3 +153,44 @@ Result on weeks 5-7 (`out/v4/summary.md`): G1 primary wins 4 of 36 week-cells (x
 TE 1.38 against published 1.06 / 1.18 / 1.28). G2 FAIL for v4 and every variant except assumed-mix
 (NOT SHOWN, no move); `closer` -0.001 [-0.001, -0.001] (FantasyCalc) vs v3 -0.004. G3 worse in the
 primary and every robustness run. Decision is the lead's.
+
+## Iteration 4 (2026-11-10): scale-free levels, per-position views, the chart's own zero (H-d)
+
+Hypothesis: the publishers re-normalise their chart currency per column (their own VORP slopes
+differ between Standard and Full: CBS WR b(Full)/b(Std) 0.65-0.68, TE 0.72-0.82, RB 1.14-1.25; USA
+Today WR 0.62, TE 0.63-0.68, RB 1.02-1.07), so native-unit level measures mix that convention with
+the points move; DDF is scale-invariant per source. And v4's move may be too large because the
+zero is the projections' waiver line rather than the chart's own zero.
+
+Change (added to `run_v4.py` / `v4.py`, nothing already reported changed; weeks 5-7):
+- G1 `levels_norm` (MALE after scaling rebuilt and target to the same total over the scored set) and
+  `levels_norm_pos` (mean absolute log error of the RB/WR/TE shares of the scored set's total, QB in
+  the total); per-position share move `log(share Full / share Standard)`; per-position within diffs.
+- G2 per-position `corr` / `closer` (mean reference, same bootstrap rows) for v4, v4_chartzero, v2;
+  level-move table: each method's log WR/RB and TE/RB move against CBS's, USA Today's and the mean
+  move, weeks closer than unchanged (move 0).
+- Variant `v4_chartzero`: from `x = a_p + b_p V(s0)`, zero `Z_p(s0) = R_p(s0) - a_p / b_p`, fallback to
+  `R_p(s0)` when `a_p >= 0` (or `b_p` missing / not positive; counted); `Z_p(s) = Z_p(s0) (1 + r_s sh_p)/
+  (1 + r_s0 sh_p)` with `sh_p = expm1` of the share model's position mean (QB 0); same additive delta.
+  Identity at `s = s0` tested (14 tests pass). G1, G2, G3 as the other variants.
+
+Result (`out/v4/summary.md`, "Iteration 4 additions"):
+- G1 `levels_norm`: v4 and v4_chartzero win 0 of 3 in all four cells (CBS 0.098-0.120 vs unchanged
+  0.079-0.084; USA Today 0.106-0.124 vs 0.046-0.054). `levels_norm_pos`: v4 wins CBS S->F 3, CBS F->S
+  1, USA Today 0 / 0; v4_chartzero 2 / 0 / 0 / 0; v4_mult 3 / 3 / 0 / 0. Share moves: CBS published
+  RB / WR / TE about -0.04 / +0.04 / +0.11, v4 -0.06 / +0.10 / +0.06 (S->F) and -0.08 / +0.14 / +0.05
+  (F->S); USA Today published about 0 at every position, v4 RB -0.04 to -0.07, WR +0.07 to +0.13.
+- Within diffs: TE carries the loss at CBS (-0.012 to -0.044 in 5 of 6 week-cells); RB -0.000 to
+  -0.011; WR within +/-0.004. v4_chartzero is identical to v4 within position (a per-position constant
+  shift of the zero cannot reorder a position) and in G2's per-position statistics.
+- G2 per position (FantasyCalc / FantasyPros): v4 corr RB +0.63 / +0.44, WR +0.38 / +0.45, TE +0.31 /
+  +0.22; `closer` RB -0.001 / -0.001, WR -0.000 / -0.001, TE -0.003 / -0.004 (v2: WR -0.002 / -0.004, TE
+  -0.001 / -0.004). The remaining `closer` harm is mostly TE.
+- Level moves (mean of weeks): references WR/RB CBS +0.067, USA Today -0.007, mean +0.030; TE/RB
+  +0.163 / -0.011 / +0.076. v4 FantasyCalc +0.206 / +0.126, FantasyPros +0.101 / +0.136 (v2 +0.43 /
+  +0.41); v4_chartzero +0.227 / +0.255 and +0.112 / +0.217. Closer than unchanged: TE/RB vs CBS 3 of 3
+  for every v4 variant and both subjects; WR/RB vs CBS 3 of 3 for FantasyPros v4 (0 for FantasyCalc);
+  never vs USA Today.
+- v4_chartzero: chart zero falls back in most TE and QB cells and in every USA Today Full cell; where
+  it holds it sits above R_p (RB: CBS 3.83 vs 1.40 at Standard, FantasyCalc 5.85 vs 4.63). G1
+  original measures 6 of 36 (v4 4); G2 FAIL, levels move away; G3 worse.

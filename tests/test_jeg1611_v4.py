@@ -100,6 +100,24 @@ def test_pure_receiver_move():
     assert v4.points_at(10.0, v4.Mix4("share", sh), "standard", "ppr") == pytest.approx(10.0 / 1.9)
 
 
+def test_chartzero_zero_and_move():
+    recs, maps, mixes, R0 = synth_case(7)
+    x = {i: r[1] for i, r in recs.items()}
+    u = v4.unwind4(recs, maps, mixes, R0, "ppr")
+    u.extra["prior_sh"] = {"RB": 0.3, "WR": 0.5, "TE": 0.6}
+    assert v4.rebuild4(u, "ppr", x, dict(R0), "chartzero") == x
+    z = v4.chart_zero(u)["WR"]
+    b, a = u.b["WR"]["b"], u.b["WR"]["intercept"]
+    if not z["fallback"]:
+        assert z["zero"] == pytest.approx(6.0 - a / b) and z["zero"] >= 6.0
+    out = v4.rebuild4(u, "standard", x, {p: 99.0 for p in v4.POSITIONS}, "chartzero")   # Rs unused
+    Zs = z["zero"] / 1.5
+    for i, r in u.records.items():
+        if r["label"] == "invertible":
+            Ps = r["P0"] / (1 + r["mix"].sh)
+            assert out[i] == pytest.approx(max(0.0, r["x"] + b * ((Ps - Zs) - (r["P0"] - z["zero"]))))
+
+
 def test_qb_untouched_synthetic():
     recs, maps, mixes, R0 = synth_case(5, pos="QB")
     x = {i: r[1] for i, r in recs.items()}
@@ -169,7 +187,7 @@ def test_identity_every_chart_week(world):
                     out, _, _ = wk.v4_list(c, u.s0, s0, var, (), kind, form)
                     assert out == x, (w, c, s0, var, kind, form)
                     n += 1
-    assert n == 3 * 13 * 4 * 3
+    assert n == 3 * 13 * 4 * len(v4.FORMS)
 
 
 def test_current_ddf_reproduced_at_anchor(world):

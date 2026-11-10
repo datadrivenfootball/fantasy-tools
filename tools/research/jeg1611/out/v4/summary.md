@@ -2,36 +2,52 @@
 
 ## G1: weeks won over unchanged (of 3)
 
-| Cell | v4 | v4_mult | v4_tail | v4_raw | v4_recg | v4_assumed |
-| --- | --- | --- | --- | --- | --- | --- |
-| cbs|standard->ppr|within | 0 | 0 | 0 | 0 | 0 | 0 |
-| cbs|standard->ppr|levels | 0 | 0 | 0 | 0 | 0 | 0 |
-| cbs|standard->ppr|xpos | 1 | 3 | 1 | 0 | 0 | 0 |
-| cbs|ppr->standard|within | 0 | 0 | 0 | 0 | 0 | 0 |
-| cbs|ppr->standard|levels | 0 | 0 | 0 | 0 | 0 | 0 |
-| cbs|ppr->standard|xpos | 0 | 1 | 0 | 0 | 0 | 0 |
-| usatoday|standard->ppr|within | 1 | 1 | 1 | 0 | 0 | 0 |
-| usatoday|standard->ppr|levels | 0 | 0 | 0 | 0 | 0 | 0 |
-| usatoday|standard->ppr|xpos | 0 | 0 | 0 | 0 | 0 | 0 |
-| usatoday|ppr->standard|within | 2 | 0 | 2 | 0 | 0 | 0 |
-| usatoday|ppr->standard|levels | 0 | 0 | 0 | 0 | 0 | 0 |
-| usatoday|ppr->standard|xpos | 0 | 0 | 0 | 0 | 0 | 0 |
-| **total of 36** | 4 | 5 | 4 | 0 | 0 | 0 |
+| Cell | v4 | v4_mult | v4_tail | v4_raw | v4_recg | v4_assumed | v4_chartzero |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cbs|standard->ppr|within | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|standard->ppr|levels | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|standard->ppr|xpos | 1 | 3 | 1 | 0 | 0 | 0 | 3 |
+| cbs|standard->ppr|levels_norm | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|standard->ppr|levels_norm_pos | 3 | 3 | 3 | 3 | 3 | 3 | 2 |
+| cbs|ppr->standard|within | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|ppr->standard|levels | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|ppr->standard|xpos | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
+| cbs|ppr->standard|levels_norm | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| cbs|ppr->standard|levels_norm_pos | 1 | 3 | 1 | 2 | 3 | 2 | 0 |
+| usatoday|standard->ppr|within | 1 | 1 | 1 | 0 | 0 | 0 | 1 |
+| usatoday|standard->ppr|levels | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|standard->ppr|xpos | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|standard->ppr|levels_norm | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|standard->ppr|levels_norm_pos | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|ppr->standard|within | 2 | 0 | 2 | 0 | 0 | 0 | 2 |
+| usatoday|ppr->standard|levels | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|ppr->standard|xpos | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|ppr->standard|levels_norm | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| usatoday|ppr->standard|levels_norm_pos | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| **total of 36** | 4 | 5 | 4 | 0 | 0 | 0 | 6 |
 
 Week ranges, v4 vs unchanged:
 
 - cbs|standard->ppr|within: v4 0.987-0.990, unchanged 0.992-0.995
 - cbs|standard->ppr|levels: v4 0.164-0.173, unchanged 0.107-0.118
 - cbs|standard->ppr|xpos: v4 0.982-0.989, unchanged 0.987-0.988
+- cbs|standard->ppr|levels_norm: v4 0.098-0.104, unchanged 0.079-0.084
+- cbs|standard->ppr|levels_norm_pos: v4 0.029-0.046, unchanged 0.062-0.067
 - cbs|ppr->standard|within: v4 0.975-0.991, unchanged 0.992-0.995
 - cbs|ppr->standard|levels: v4 0.175-0.203, unchanged 0.107-0.118
 - cbs|ppr->standard|xpos: v4 0.975-0.985, unchanged 0.987-0.988
+- cbs|ppr->standard|levels_norm: v4 0.104-0.120, unchanged 0.079-0.084
+- cbs|ppr->standard|levels_norm_pos: v4 0.046-0.072, unchanged 0.062-0.067
 - usatoday|standard->ppr|within: v4 0.988-0.995, unchanged 0.989-0.995
 - usatoday|standard->ppr|levels: v4 0.164-0.171, unchanged 0.058-0.066
 - usatoday|standard->ppr|xpos: v4 0.989-0.990, unchanged 0.992-0.995
+- usatoday|standard->ppr|levels_norm: v4 0.106-0.111, unchanged 0.046-0.054
+- usatoday|standard->ppr|levels_norm_pos: v4 0.047-0.050, unchanged 0.004-0.008
 - usatoday|ppr->standard|within: v4 0.991-0.993, unchanged 0.989-0.995
 - usatoday|ppr->standard|levels: v4 0.139-0.161, unchanged 0.058-0.066
 - usatoday|ppr->standard|xpos: v4 0.973-0.983, unchanged 0.992-0.995
+- usatoday|ppr->standard|levels_norm: v4 0.109-0.122, unchanged 0.046-0.054
+- usatoday|ppr->standard|levels_norm_pos: v4 0.056-0.076, unchanged 0.004-0.008
 
 Median rebuilt-to-input ratio by position (v4 / published), mean over weeks:
 
@@ -50,6 +66,7 @@ Median rebuilt-to-input ratio by position (v4 / published), mean over weeks:
 | v4_raw | FAIL | moves away | -0.002 [-0.037, +0.035] | -0.003 [-0.004, -0.002] | +0.442 [+0.276, +0.587] | -0.036 [-0.104, -0.006] | -0.004 [-0.006, -0.003] | +0.328 [+0.165, +0.487] |
 | v4_recg | FAIL | moves away | -0.022 [-0.065, +0.014] | -0.003 [-0.004, -0.002] | +0.440 [+0.277, +0.582] | -0.045 [-0.121, -0.013] | -0.006 [-0.008, -0.004] | +0.294 [+0.144, +0.427] |
 | v4_assumed | NOT SHOWN | moves away | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] | +0.000 [+0.000, +0.000] |
+| v4_chartzero | FAIL | moves away | +0.004 [-0.024, +0.030] | -0.001 [-0.001, -0.001] | +0.497 [+0.307, +0.644] | -0.021 [-0.074, -0.002] | -0.001 [-0.002, -0.001] | +0.362 [+0.190, +0.516] |
 | v1 | FAIL | moves away | +0.001 [-0.017, +0.028] | -0.003 [-0.004, -0.002] | +0.452 [+0.282, +0.593] | -0.011 [-0.031, -0.002] | -0.002 [-0.002, -0.001] | +0.424 [+0.302, +0.526] |
 | v2 | FAIL | moves away | +0.005 [-0.009, +0.030] | -0.001 [-0.002, -0.001] | +0.487 [+0.303, +0.642] | -0.014 [-0.039, -0.002] | -0.003 [-0.004, -0.002] | +0.384 [+0.246, +0.505] |
 
@@ -61,6 +78,7 @@ Median rebuilt-to-input ratio by position (v4 / published), mean over weeks:
 | fchalf | worse | {'fantasycalc': 'worse', 'fantasypros': 'worse'} |
 | noFC | worse | {'fantasycalc': 'worse', 'fantasypros': 'worse'} |
 | alloc_fixed_half | worse | {'fantasycalc': 'worse', 'fantasypros': 'worse'} |
+| chartzero | worse | {'fantasycalc': 'worse', 'fantasypros': 'worse'} |
 
 | Set, ref | (a) Std diff | (a) Full diff | closer diff | corr diff | levels |
 | --- | --- | --- | --- | --- | --- |
@@ -121,3 +139,133 @@ b_p (R^2) per position, mean over weeks:
 | receiving_tight_ends | +0.41 | +0.38 | +0.23 | +0.08 | +0.18 | +0.21 |
 | least_receiving_tight_ends | +0.23 | +0.25 | +0.23 | +0.04 | +0.16 | +0.08 |
 | rushing_quarterbacks | +0.00 | +0.00 | +0.00 | +0.00 | -0.10 | -0.19 |
+
+## Iteration 4 additions
+
+### G1 scale-free levels: weeks won over unchanged (of 3)
+
+| Cell | measure | v4 | v4_chartzero | v4_mult | unchanged by week | v4 by week | chartzero by week |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| cbs|standard->ppr | levels | 0 | 0 | 0 | 0.118, 0.107, 0.113 | 0.164, 0.173, 0.168 | 0.160, 0.156, 0.156 |
+| cbs|standard->ppr | levels_norm | 0 | 0 | 0 | 0.080, 0.079, 0.084 | 0.099, 0.098, 0.104 | 0.104, 0.107, 0.100 |
+| cbs|standard->ppr | levels_norm_pos | 3 | 2 | 3 | 0.062, 0.064, 0.067 | 0.029, 0.041, 0.046 | 0.069, 0.063, 0.063 |
+| cbs|ppr->standard | levels | 0 | 0 | 0 | 0.118, 0.107, 0.113 | 0.195, 0.203, 0.175 | 0.163, 0.159, 0.161 |
+| cbs|ppr->standard | levels_norm | 0 | 0 | 0 | 0.080, 0.079, 0.084 | 0.114, 0.120, 0.104 | 0.108, 0.111, 0.105 |
+| cbs|ppr->standard | levels_norm_pos | 1 | 0 | 3 | 0.062, 0.064, 0.067 | 0.072, 0.068, 0.046 | 0.070, 0.080, 0.073 |
+| usatoday|standard->ppr | levels | 0 | 0 | 0 | 0.065, 0.058, 0.066 | 0.171, 0.169, 0.164 | 0.180, 0.179, 0.175 |
+| usatoday|standard->ppr | levels_norm | 0 | 0 | 0 | 0.054, 0.046, 0.050 | 0.111, 0.106, 0.111 | 0.116, 0.111, 0.114 |
+| usatoday|standard->ppr | levels_norm_pos | 0 | 0 | 0 | 0.008, 0.004, 0.007 | 0.050, 0.047, 0.047 | 0.083, 0.071, 0.069 |
+| usatoday|ppr->standard | levels | 0 | 0 | 0 | 0.065, 0.058, 0.066 | 0.161, 0.153, 0.139 | 0.170, 0.168, 0.155 |
+| usatoday|ppr->standard | levels_norm | 0 | 0 | 0 | 0.054, 0.046, 0.050 | 0.122, 0.121, 0.109 | 0.124, 0.118, 0.113 |
+| usatoday|ppr->standard | levels_norm_pos | 0 | 0 | 0 | 0.008, 0.004, 0.007 | 0.067, 0.076, 0.056 | 0.084, 0.073, 0.067 |
+
+### G1 per-position share move, log(share Full / share Standard), by week (unchanged = 0)
+
+| Cell | week | published RB/WR/TE | v4 | v4_chartzero |
+| --- | --- | --- | --- | --- |
+| cbs|standard->ppr | 5 | -0.042 / +0.036 / +0.108 | -0.056 / +0.084 / +0.083 | -0.119 / +0.121 / +0.154 |
+| cbs|standard->ppr | 6 | -0.046 / +0.042 / +0.104 | -0.066 / +0.099 / +0.060 | -0.121 / +0.127 / +0.134 |
+| cbs|standard->ppr | 7 | -0.042 / +0.039 / +0.121 | -0.057 / +0.099 / +0.057 | -0.109 / +0.123 / +0.158 |
+| cbs|ppr->standard | 5 | -0.042 / +0.036 / +0.108 | -0.080 / +0.142 / +0.038 | -0.112 / +0.147 / +0.137 |
+| cbs|ppr->standard | 6 | -0.046 / +0.042 / +0.104 | -0.093 / +0.152 / +0.057 | -0.118 / +0.147 / +0.168 |
+| cbs|ppr->standard | 7 | -0.042 / +0.039 / +0.121 | -0.055 / +0.112 / +0.070 | -0.105 / +0.145 / +0.172 |
+| usatoday|standard->ppr | 5 | +0.013 / -0.001 / +0.008 | -0.037 / +0.066 / +0.038 | -0.070 / +0.078 / +0.095 |
+| usatoday|standard->ppr | 6 | +0.010 / +0.003 / +0.000 | -0.035 / +0.082 / -0.018 | -0.069 / +0.091 / +0.048 |
+| usatoday|standard->ppr | 7 | +0.004 / +0.006 / +0.011 | -0.039 / +0.085 / -0.010 | -0.067 / +0.087 / +0.067 |
+| usatoday|ppr->standard | 5 | +0.013 / -0.001 / +0.008 | -0.062 / +0.115 / +0.018 | -0.070 / +0.113 / +0.063 |
+| usatoday|ppr->standard | 6 | +0.010 / +0.003 / +0.000 | -0.067 / +0.132 / -0.024 | -0.070 / +0.127 / +0.014 |
+| usatoday|ppr->standard | 7 | +0.004 / +0.006 / +0.011 | -0.052 / +0.108 / -0.002 | -0.062 / +0.108 / +0.045 |
+
+### G1 within-position diffs (method minus unchanged) by week, RB / WR / TE
+
+| Cell | week | v4 | v4_chartzero |
+| --- | --- | --- | --- |
+| cbs|standard->ppr | 5 | -0.0002 / +0.0034 / -0.0164 | -0.0002 / +0.0034 / -0.0164 |
+| cbs|standard->ppr | 6 | -0.0019 / -0.0021 / -0.0121 | -0.0019 / -0.0021 / -0.0121 |
+| cbs|standard->ppr | 7 | -0.0071 / -0.0003 / -0.0140 | -0.0071 / -0.0003 / -0.0140 |
+| cbs|ppr->standard | 5 | -0.0077 / +0.0027 / -0.0441 | -0.0077 / +0.0027 / -0.0441 |
+| cbs|ppr->standard | 6 | -0.0112 / -0.0022 / +0.0001 | -0.0112 / -0.0022 / +0.0001 |
+| cbs|ppr->standard | 7 | -0.0075 / +0.0011 / -0.0387 | -0.0075 / +0.0011 / -0.0387 |
+| usatoday|standard->ppr | 5 | +0.0000 / +0.0034 / -0.0062 | +0.0000 / +0.0034 / -0.0062 |
+| usatoday|standard->ppr | 6 | -0.0001 / +0.0011 / -0.0021 | -0.0001 / +0.0011 / -0.0021 |
+| usatoday|standard->ppr | 7 | +0.0074 / +0.0013 / -0.0010 | +0.0074 / +0.0013 / -0.0010 |
+| usatoday|ppr->standard | 5 | -0.0019 / +0.0008 / +0.0140 | -0.0019 / +0.0008 / +0.0140 |
+| usatoday|ppr->standard | 6 | -0.0019 / -0.0012 / -0.0108 | -0.0019 / -0.0012 / -0.0108 |
+| usatoday|ppr->standard | 7 | +0.0017 / -0.0006 / -0.0010 | +0.0017 / -0.0006 / -0.0010 |
+
+Weeks won (original measures, of 36): v4 4, v4_mult 5, v4_tail 4, v4_raw 0, v4_recg 0, v4_assumed 0, v4_chartzero 6
+
+### G2 per position, mean reference (corr, closer)
+
+| Subject | method | RB corr | RB closer | WR corr | WR closer | TE corr | TE closer |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| fantasycalc | v4 | +0.634 [+0.361, +0.797] | -0.001 [-0.002, -0.000] | +0.376 [+0.091, +0.584] | -0.000 [-0.001, -0.000] | +0.314 [+0.012, +0.626] | -0.003 [-0.004, -0.002] |
+| fantasycalc | v4_chartzero | +0.634 [+0.361, +0.797] | -0.001 [-0.002, -0.000] | +0.376 [+0.091, +0.584] | -0.000 [-0.001, -0.000] | +0.314 [+0.012, +0.626] | -0.003 [-0.004, -0.002] |
+| fantasycalc | v2 | +0.631 [+0.320, +0.808] | -0.001 [-0.001, -0.000] | +0.449 [+0.228, +0.627] | -0.002 [-0.003, -0.001] | +0.145 [-0.061, +0.452] | -0.001 [-0.002, -0.000] |
+| fantasypros | v4 | +0.435 [+0.246, +0.586] | -0.001 [-0.002, -0.000] | +0.446 [+0.213, +0.626] | -0.001 [-0.001, -0.000] | +0.220 [-0.270, +0.666] | -0.004 [-0.009, -0.001] |
+| fantasypros | v4_chartzero | +0.435 [+0.246, +0.586] | -0.001 [-0.002, -0.000] | +0.446 [+0.213, +0.626] | -0.001 [-0.001, -0.000] | +0.220 [-0.270, +0.666] | -0.004 [-0.009, -0.001] |
+| fantasypros | v2 | +0.400 [+0.201, +0.567] | -0.001 [-0.003, -0.001] | +0.483 [+0.287, +0.654] | -0.004 [-0.005, -0.002] | +0.153 [-0.136, +0.482] | -0.004 [-0.009, -0.001] |
+
+### G2 level move, log ratio Standard to Full, mean over weeks; weeks closer than unchanged (of 3)
+
+| Subject, method | WR/RB move | TE/RB move | vs CBS (WR/RB, TE/RB) | vs USA Today | vs mean |
+| --- | --- | --- | --- | --- | --- |
+| reference moves | CBS +0.067, USAT -0.007, mean +0.030 | CBS +0.163, USAT -0.011, mean +0.076 | | | |
+| fantasycalc|base | +0.000 | +0.000 | 0, 0 | 0, 0 | 0, 0 |
+| fantasycalc|v2 | +0.438 | +0.413 | 0, 0 | 0, 0 | 0, 0 |
+| fantasycalc|v4 | +0.206 | +0.126 | 0, 3 | 0, 0 | 0, 3 |
+| fantasycalc|v4_assumed | +0.161 | +0.083 | 0, 3 | 0, 0 | 0, 3 |
+| fantasycalc|v4_chartzero | +0.227 | +0.255 | 0, 3 | 0, 0 | 0, 0 |
+| fantasycalc|v4_mult | +0.225 | +0.173 | 0, 3 | 0, 0 | 0, 0 |
+| fantasycalc|v4_raw | +0.213 | +0.145 | 0, 3 | 0, 0 | 0, 2 |
+| fantasycalc|v4_recg | +0.140 | +0.068 | 1, 3 | 0, 0 | 0, 3 |
+| fantasypros|base | +0.000 | +0.000 | 0, 0 | 0, 0 | 0, 0 |
+| fantasypros|v2 | +0.426 | +0.399 | 0, 1 | 0, 0 | 0, 0 |
+| fantasypros|v4 | +0.101 | +0.136 | 3, 3 | 0, 0 | 0, 2 |
+| fantasypros|v4_assumed | +0.068 | +0.101 | 3, 3 | 0, 0 | 0, 3 |
+| fantasypros|v4_chartzero | +0.112 | +0.217 | 3, 3 | 0, 0 | 0, 0 |
+| fantasypros|v4_mult | +0.215 | +0.186 | 0, 3 | 0, 0 | 0, 0 |
+| fantasypros|v4_raw | +0.107 | +0.150 | 3, 3 | 0, 0 | 0, 2 |
+| fantasypros|v4_recg | +0.080 | +0.123 | 3, 3 | 0, 0 | 0, 3 |
+
+v4_chartzero G2 verdict: FAIL, levels moves away
+
+### G3 chartzero: worse ({'fantasycalc': 'worse', 'fantasypros': 'worse'})
+
+- fantasycalc_set|cbs: (a) Std -0.007 [-0.031, +0.012], (a) Full +0.002 [-0.000, +0.010], closer -0.001 [-0.001, -0.000], levels moves away
+- fantasycalc_set|usatoday: (a) Std +0.004 [-0.006, +0.019], (a) Full -0.001 [-0.008, +0.004], closer -0.000 [-0.001, +0.000], levels moves away
+- fantasypros_set|cbs: (a) Std -0.008 [-0.029, +0.012], (a) Full +0.001 [-0.001, +0.010], closer -0.001 [-0.001, -0.001], levels moves away
+- fantasypros_set|usatoday: (a) Std +0.004 [-0.004, +0.018], (a) Full +0.001 [-0.003, +0.005], closer -0.000 [-0.001, -0.000], levels moves away
+
+### Chart zero (ppg) vs R_p(s0), mean over weeks; fallbacks counted
+
+| Unwind | pos | chart zero | R_p(s0) | fallbacks |
+| --- | --- | --- | --- | --- |
+| fantasycalc|ppr|primary | QB | 16.33 | 16.33 | 3 of 3 |
+| fantasycalc|ppr|primary | RB | 5.85 | 4.63 | 0 of 3 |
+| fantasycalc|ppr|primary | WR | 7.13 | 6.74 | 0 of 3 |
+| fantasycalc|ppr|primary | TE | 7.99 | 7.99 | 3 of 3 |
+| fantasycalc|half_ppr|fchalf | QB | 16.33 | 16.33 | 3 of 3 |
+| fantasycalc|half_ppr|fchalf | RB | 4.77 | 2.88 | 0 of 3 |
+| fantasycalc|half_ppr|fchalf | WR | 6.32 | 6.12 | 0 of 3 |
+| fantasycalc|half_ppr|fchalf | TE | 6.28 | 6.25 | 2 of 3 |
+| fantasypros|half_ppr|primary | QB | 16.94 | 16.33 | 0 of 3 |
+| fantasypros|half_ppr|primary | RB | 3.38 | 2.88 | 0 of 3 |
+| fantasypros|half_ppr|primary | WR | 6.12 | 6.12 | 3 of 3 |
+| fantasypros|half_ppr|primary | TE | 6.25 | 6.25 | 3 of 3 |
+| cbs|standard|primary | QB | 16.33 | 16.33 | 3 of 3 |
+| cbs|standard|primary | RB | 3.83 | 1.40 | 0 of 3 |
+| cbs|standard|primary | WR | 5.13 | 5.11 | 2 of 3 |
+| cbs|standard|primary | TE | 4.79 | 4.79 | 3 of 3 |
+| cbs|ppr|primary | QB | 16.33 | 16.33 | 3 of 3 |
+| cbs|ppr|primary | RB | 6.73 | 4.63 | 0 of 3 |
+| cbs|ppr|primary | WR | 7.21 | 6.74 | 1 of 3 |
+| cbs|ppr|primary | TE | 7.99 | 7.99 | 3 of 3 |
+| usatoday|standard|primary | QB | 16.33 | 16.33 | 3 of 3 |
+| usatoday|standard|primary | RB | 2.28 | 1.40 | 0 of 3 |
+| usatoday|standard|primary | WR | 5.11 | 5.11 | 3 of 3 |
+| usatoday|standard|primary | TE | 4.79 | 4.79 | 3 of 3 |
+| usatoday|ppr|primary | QB | 16.33 | 16.33 | 3 of 3 |
+| usatoday|ppr|primary | RB | 4.63 | 4.63 | 3 of 3 |
+| usatoday|ppr|primary | WR | 6.74 | 6.74 | 3 of 3 |
+| usatoday|ppr|primary | TE | 7.99 | 7.99 | 3 of 3 |

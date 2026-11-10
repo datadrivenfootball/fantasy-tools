@@ -32,6 +32,13 @@
     "fantasypros": "worse"
    },
    "overall": "worse"
+  },
+  "chartzero": {
+   "by_set": {
+    "fantasycalc": "worse",
+    "fantasypros": "worse"
+   },
+   "overall": "worse"
   }
  },
  "hinges_on_sign_flip_a_standard": {
@@ -46,7 +53,11 @@
   "alloc_fixed_half|fantasycalc_set|cbs": false,
   "alloc_fixed_half|fantasycalc_set|usatoday": false,
   "alloc_fixed_half|fantasypros_set|cbs": false,
-  "alloc_fixed_half|fantasypros_set|usatoday": false
+  "alloc_fixed_half|fantasypros_set|usatoday": false,
+  "chartzero|fantasycalc_set|cbs": false,
+  "chartzero|fantasycalc_set|usatoday": false,
+  "chartzero|fantasypros_set|cbs": false,
+  "chartzero|fantasypros_set|usatoday": false
  },
  "cells": {
   "fantasycalc_set|cbs": {
@@ -478,6 +489,113 @@
      ]
     }
    },
+   "chartzero": {
+    "a_standard_diff": {
+     "est": -0.0072,
+     "ci": [
+      -0.031,
+      0.0121
+     ]
+    },
+    "a_standard|v4_chartzero": {
+     "est": 0.9337,
+     "ci": [
+      0.8404,
+      0.9674
+     ]
+    },
+    "a_standard|current": {
+     "est": 0.9409,
+     "ci": [
+      0.857,
+      0.9694
+     ]
+    },
+    "a_ppr_diff": {
+     "est": 0.0017,
+     "ci": [
+      -0.0004,
+      0.0098
+     ]
+    },
+    "a_ppr|v4_chartzero": {
+     "est": 0.9345,
+     "ci": [
+      0.8468,
+      0.9665
+     ]
+    },
+    "a_ppr|current": {
+     "est": 0.9327,
+     "ci": [
+      0.8423,
+      0.9654
+     ]
+    },
+    "corr_diff": {
+     "est": -0.0085,
+     "ci": [
+      -0.1835,
+      0.1291
+     ]
+    },
+    "corr|v4_chartzero": {
+     "est": 0.2858,
+     "ci": [
+      0.0898,
+      0.43
+     ]
+    },
+    "corr|current": {
+     "est": 0.2942,
+     "ci": [
+      0.177,
+      0.4008
+     ]
+    },
+    "closer_diff": {
+     "est": -0.0008,
+     "ci": [
+      -0.0012,
+      -0.0004
+     ]
+    },
+    "closer|v4_chartzero": {
+     "est": -0.0009,
+     "ci": [
+      -0.0013,
+      -0.0005
+     ]
+    },
+    "closer|current": {
+     "est": -0.0001,
+     "ci": [
+      -0.0003,
+      0.0001
+     ]
+    },
+    "slope_diff": {
+     "est": 0.1544,
+     "ci": [
+      -0.0892,
+      0.3515
+     ]
+    },
+    "slope|v4_chartzero": {
+     "est": 0.3853,
+     "ci": [
+      0.1245,
+      0.6073
+     ]
+    },
+    "slope|current": {
+     "est": 0.2309,
+     "ci": [
+      0.1459,
+      0.3213
+     ]
+    }
+   },
    "levels": {
     "primary": {
      "weeks_lower_error": 0,
@@ -514,6 +632,15 @@
       1.3806
      ],
      "verdict": "mixed"
+    },
+    "chartzero": {
+     "weeks_lower_error": 0,
+     "weeks_higher_error": 3,
+     "mean_err": [
+      1.4907,
+      1.3806
+     ],
+     "verdict": "moves away"
     }
    }
   },
@@ -946,6 +1073,113 @@
      ]
     }
    },
+   "chartzero": {
+    "a_standard_diff": {
+     "est": 0.0045,
+     "ci": [
+      -0.0059,
+      0.0187
+     ]
+    },
+    "a_standard|v4_chartzero": {
+     "est": 0.9551,
+     "ci": [
+      0.9116,
+      0.9679
+     ]
+    },
+    "a_standard|current": {
+     "est": 0.9506,
+     "ci": [
+      0.9048,
+      0.9642
+     ]
+    },
+    "a_ppr_diff": {
+     "est": -0.0005,
+     "ci": [
+      -0.0082,
+      0.0041
+     ]
+    },
+    "a_ppr|v4_chartzero": {
+     "est": 0.9509,
+     "ci": [
+      0.9035,
+      0.9641
+     ]
+    },
+    "a_ppr|current": {
+     "est": 0.9514,
+     "ci": [
+      0.9065,
+      0.964
+     ]
+    },
+    "corr_diff": {
+     "est": 0.2606,
+     "ci": [
+      0.1522,
+      0.3657
+     ]
+    },
+    "corr|v4_chartzero": {
+     "est": 0.415,
+     "ci": [
+      0.2762,
+      0.5372
+     ]
+    },
+    "corr|current": {
+     "est": 0.1544,
+     "ci": [
+      0.0459,
+      0.2588
+     ]
+    },
+    "closer_diff": {
+     "est": -0.0003,
+     "ci": [
+      -0.0007,
+      0.0
+     ]
+    },
+    "closer|v4_chartzero": {
+     "est": -0.0005,
+     "ci": [
+      -0.0009,
+      -0.0001
+     ]
+    },
+    "closer|current": {
+     "est": -0.0002,
+     "ci": [
+      -0.0003,
+      0.0
+     ]
+    },
+    "slope_diff": {
+     "est": 0.4174,
+     "ci": [
+      0.2617,
+      0.5805
+     ]
+    },
+    "slope|v4_chartzero": {
+     "est": 0.5064,
+     "ci": [
+      0.3279,
+      0.7101
+     ]
+    },
+    "slope|current": {
+     "est": 0.089,
+     "ci": [
+      0.0248,
+      0.1603
+     ]
+    }
+   },
    "levels": {
     "primary": {
      "weeks_lower_error": 0,
@@ -982,6 +1216,15 @@
       2.2966
      ],
      "verdict": "mixed"
+    },
+    "chartzero": {
+     "weeks_lower_error": 0,
+     "weeks_higher_error": 3,
+     "mean_err": [
+      2.4026,
+      2.2966
+     ],
+     "verdict": "moves away"
     }
    }
   },
@@ -1414,6 +1657,113 @@
      ]
     }
    },
+   "chartzero": {
+    "a_standard_diff": {
+     "est": -0.0078,
+     "ci": [
+      -0.0294,
+      0.0119
+     ]
+    },
+    "a_standard|v4_chartzero": {
+     "est": 0.9341,
+     "ci": [
+      0.8375,
+      0.968
+     ]
+    },
+    "a_standard|current": {
+     "est": 0.9419,
+     "ci": [
+      0.8533,
+      0.969
+     ]
+    },
+    "a_ppr_diff": {
+     "est": 0.0013,
+     "ci": [
+      -0.0008,
+      0.0096
+     ]
+    },
+    "a_ppr|v4_chartzero": {
+     "est": 0.936,
+     "ci": [
+      0.836,
+      0.969
+     ]
+    },
+    "a_ppr|current": {
+     "est": 0.9346,
+     "ci": [
+      0.8331,
+      0.9678
+     ]
+    },
+    "corr_diff": {
+     "est": -0.0593,
+     "ci": [
+      -0.2022,
+      0.0749
+     ]
+    },
+    "corr|v4_chartzero": {
+     "est": 0.2492,
+     "ci": [
+      0.0826,
+      0.3982
+     ]
+    },
+    "corr|current": {
+     "est": 0.3085,
+     "ci": [
+      0.1792,
+      0.4269
+     ]
+    },
+    "closer_diff": {
+     "est": -0.0009,
+     "ci": [
+      -0.0013,
+      -0.0006
+     ]
+    },
+    "closer|v4_chartzero": {
+     "est": -0.001,
+     "ci": [
+      -0.0014,
+      -0.0006
+     ]
+    },
+    "closer|current": {
+     "est": -0.0,
+     "ci": [
+      -0.0002,
+      0.0002
+     ]
+    },
+    "slope_diff": {
+     "est": 0.1303,
+     "ci": [
+      -0.0926,
+      0.3517
+     ]
+    },
+    "slope|v4_chartzero": {
+     "est": 0.3639,
+     "ci": [
+      0.1259,
+      0.5992
+     ]
+    },
+    "slope|current": {
+     "est": 0.2336,
+     "ci": [
+      0.1428,
+      0.3141
+     ]
+    }
+   },
    "levels": {
     "primary": {
      "weeks_lower_error": 0,
@@ -1450,6 +1800,15 @@
       1.3806
      ],
      "verdict": "mixed"
+    },
+    "chartzero": {
+     "weeks_lower_error": 0,
+     "weeks_higher_error": 3,
+     "mean_err": [
+      1.4907,
+      1.3806
+     ],
+     "verdict": "moves away"
     }
    }
   },
@@ -1882,6 +2241,113 @@
      ]
     }
    },
+   "chartzero": {
+    "a_standard_diff": {
+     "est": 0.004,
+     "ci": [
+      -0.0039,
+      0.0176
+     ]
+    },
+    "a_standard|v4_chartzero": {
+     "est": 0.9588,
+     "ci": [
+      0.916,
+      0.9698
+     ]
+    },
+    "a_standard|current": {
+     "est": 0.9548,
+     "ci": [
+      0.9092,
+      0.9661
+     ]
+    },
+    "a_ppr_diff": {
+     "est": 0.0009,
+     "ci": [
+      -0.0032,
+      0.0054
+     ]
+    },
+    "a_ppr|v4_chartzero": {
+     "est": 0.9571,
+     "ci": [
+      0.9148,
+      0.9673
+     ]
+    },
+    "a_ppr|current": {
+     "est": 0.9563,
+     "ci": [
+      0.9136,
+      0.9663
+     ]
+    },
+    "corr_diff": {
+     "est": 0.1589,
+     "ci": [
+      0.0401,
+      0.2855
+     ]
+    },
+    "corr|v4_chartzero": {
+     "est": 0.3579,
+     "ci": [
+      0.2359,
+      0.4764
+     ]
+    },
+    "corr|current": {
+     "est": 0.199,
+     "ci": [
+      0.0716,
+      0.3191
+     ]
+    },
+    "closer_diff": {
+     "est": -0.0004,
+     "ci": [
+      -0.0008,
+      -0.0001
+     ]
+    },
+    "closer|v4_chartzero": {
+     "est": -0.0005,
+     "ci": [
+      -0.001,
+      -0.0002
+     ]
+    },
+    "closer|current": {
+     "est": -0.0001,
+     "ci": [
+      -0.0003,
+      0.0001
+     ]
+    },
+    "slope_diff": {
+     "est": 0.3332,
+     "ci": [
+      0.2044,
+      0.4767
+     ]
+    },
+    "slope|v4_chartzero": {
+     "est": 0.4543,
+     "ci": [
+      0.2924,
+      0.6357
+     ]
+    },
+    "slope|current": {
+     "est": 0.1211,
+     "ci": [
+      0.0442,
+      0.2115
+     ]
+    }
+   },
    "levels": {
     "primary": {
      "weeks_lower_error": 0,
@@ -1918,6 +2384,15 @@
       2.2966
      ],
      "verdict": "mixed"
+    },
+    "chartzero": {
+     "weeks_lower_error": 0,
+     "weeks_higher_error": 3,
+     "mean_err": [
+      2.4026,
+      2.2966
+     ],
+     "verdict": "moves away"
     }
    }
   }

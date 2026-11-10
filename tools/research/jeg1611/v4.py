@@ -41,7 +41,7 @@ SKILL = ("RB", "WR", "TE")
 SEASON = 2026
 MIN_B_NODES = 4
 MIX_MODELS = ("share", "raw", "recg", "assumed")
-FORMS = ("delta", "mult", "tail")
+FORMS = ("delta", "mult", "tail", "chartzero")
 
 
 # ---------------------------------------------------------------------------
@@ -160,22 +160,48 @@ def unwind4(chart_recs: dict, maps0: dict, mixes: dict, R0: dict, s0: str) -> U4
     return U4(s0, recs, dict(R0), fit_b(recs, R0))
 
 
+def chart_zero(u: U4) -> dict:
+    """Iteration 4 (H-d): the chart's own zero in points per position from the
+    fit x = a_p + b_p V(s0): Z_p(s0) = R_p(s0) - a_p / b_p. Falls back to R_p(s0)
+    (counted) when a_p >= 0, b_p is missing or not positive, or Z_p < R_p."""
+    out = {}
+    for p in POSITIONS:
+        b, a, R0 = u.b[p]["b"], u.b[p]["intercept"], u.R0[p]
+        if R0 is None:
+            out[p] = {"zero": None, "fallback": True}
+        elif b is None or a is None or b <= 0 or a >= 0 or R0 - a / b < R0:
+            out[p] = {"zero": R0, "fallback": True}
+        else:
+            out[p] = {"zero": R0 - a / b, "fallback": False}
+    return out
+
+
 def rebuild4(u: U4, s: str, natives0: dict, Rs: dict, form: str = "delta") -> dict:
     """Chart natives at s. natives0 = the chart's whole input list; every
     non-invertible player keeps x_i (form 'tail': moved by the position's
     median invertible ratio of the delta form)."""
     out = dict(natives0)
     ratios = {p: [] for p in POSITIONS}
+    if form == "chartzero":
+        # the zero moves with scoring by the position prior share (QB 0)
+        prior = u.extra.get("prior_sh", {})
+        r, r0 = R_OF[s], R_OF[u.s0]
+        z = chart_zero(u)
+        Z0 = {p: z[p]["zero"] for p in POSITIONS}
+        Rs = {p: (None if Z0[p] is None else
+                  Z0[p] * ((1.0 + r * prior.get(p, 0.0)) / (1.0 + r0 * prior.get(p, 0.0)))) for p in POSITIONS}
+    else:
+        Z0 = u.R0
     for i, rec in u.records.items():
         if rec["label"] != "invertible":
             continue
         p = rec["pos"]
         bp = u.b[p]["b"]
-        if bp is None or u.R0[p] is None or Rs.get(p) is None:
+        if bp is None or Z0[p] is None or Rs.get(p) is None:
             continue
         P0 = rec["P0"]
         Ps = points_at(P0, rec["mix"], s, u.s0)
-        V0, Vs = P0 - u.R0[p], Ps - Rs[p]
+        V0, Vs = P0 - Z0[p], Ps - Rs[p]
         x = rec["x"]
         delta = max(0.0, x + bp * (Vs - V0))
         if form == "mult":
@@ -378,6 +404,7 @@ class Week4(R3.Week):
             priced = [k for k, r in recs.items() if r[1] > 0]
             mx = self.mixes(mixkind, priced, s00, priced)
             u = unwind4(recs, uw.maps_by_position(dg["pairs"]), mx, dg["R"], s00)
+            u.extra["prior_sh"] = {p: math.expm1(self.model["ratio_model"][p]["mean"]) for p in SKILL}
             self._u[key] = (u, x, dg, tag)
         return self._u[key]
 
@@ -397,11 +424,11 @@ def v4_natives(wk: Week4, s, fc_variant="primary", drop=(), mixkind="share", for
     return nat
 
 
-def v4_run(wk: Week4, s, fc_variant="primary", drop=(), alloc="rederived"):
+def v4_run(wk: Week4, s, fc_variant="primary", drop=(), alloc="rederived", form="delta"):
     """DDF Value v4 at s: the pipeline at s with FantasyCalc and FantasyPros
     replaced by their v4 lists. alloc='half_fixed': mix held at today's Half run's."""
-    nat = v4_natives(wk, s, fc_variant, drop)
-    tag = f"v4|{fc_variant}|{alloc}"
+    nat = v4_natives(wk, s, fc_variant, drop, form=form)
+    tag = f"v4|{fc_variant}|{alloc}|{form}"
     if alloc == "rederived":
         return wk.run(tag, nat, s, drop)
     half = wk.current("half_ppr", drop)
