@@ -68,7 +68,9 @@ READ = """() => {
   });
   const ddf = {};
   window.TradeValueCurveControls.getAllRows().forEach(r => { ddf[r.player_key] = r.values.ddf_value; });
+  const wk = window.TradeValueCurveControls.getWeekState && window.TradeValueCurveControls.getWeekState();
   const out = {maps: {}, viewInvariants: d.viewInvariants || null, viewMode: d.viewMode, pie: result.pie,
+    week: wk ? {week: wk.week, served: wk.servedWeeks || {}} : null,
     listed, ddf, unpaid: Object.fromEntries(Object.entries(result.sources).map(([k, src]) =>
       [k, (src.unfundedGroups || []).reduce((t, g) => t + g.amount, 0)]))};
   maps.forEach((m, k) => { out.maps[k] = Object.fromEntries([...m.entries()]); });
@@ -212,6 +214,14 @@ class ViewInvariants(unittest.TestCase):
         # views are not measured; count only the sources the fixture does not hold.
         sources = json.loads((_render_env.ROOT / "data/fixtures/current/comparison-sources-data.json").read_text(encoding="utf-8"))["sources"]
         held = {k for k, v in sources.items() if isinstance(v, dict) and v.get("validationHold")}
+        # The page also leaves out a source still serving an older week than the one on show (early in a
+        # rollover week, e.g. CBS and USA Today still on Week 9 when FantasyCalc is on Week 10): it is
+        # "not yet published", not held. Read that from the page, as the hold is read from the fixture.
+        week = next((v["week"] for views in swept.values() if isinstance(views, dict)
+                     for v in views.values() if v.get("week")), None)
+        lagging = {k for k, w in (week["served"] if week else {}).items()
+                   if isinstance(w, int) and w < week["week"]}
+        held |= lagging
         live = lambda keys: sum(1 for k in keys if k.replace("_vorp", "") not in held)
         self.assertGreaterEqual(len(measured), len(SETTINGS) * (live(PUBLISHED) * 3 + live(RAW_VORP) + live(PROJECTIONS)))
         self.assertEqual(problems, [], "\n".join(problems[:25]))
