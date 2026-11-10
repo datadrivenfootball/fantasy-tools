@@ -70,10 +70,14 @@ from tests._holds import pin_holds_in_dist  # noqa: E402
 
 
 def _fixture_today():
-    """The date the built fixture belongs to, so the page's content-week clock
-    matches the data it serves (JEG-675, JEG-787)."""
-    fixture = json.loads((DIST / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
-    return fixture["built_at"][:10]
+    """A date in the served data's content week, so the page's content-week
+    clock matches the data it serves (JEG-675, JEG-787). The shared pin
+    (tests.test_week_history._fixture_today), not built_at: a chain build
+    after the Tuesday flip (00:00 UTC) has built_at in week N+1 while every
+    chart is still week N, and the page then called every source "Prior week",
+    so GL-05 found no Current row (JEG-1612, 2026-11-10, built_at 2026-11-10T01:13Z)."""
+    from tests.test_week_history import _fixture_today as data_week_today
+    return data_week_today()
 
 
 def setUpModule():
