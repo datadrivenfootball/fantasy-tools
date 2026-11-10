@@ -107,3 +107,49 @@ Change from v3, before any run (design written here first):
   position's median invertible ratio. QB untouched.
 - Target run: the unmodified pipeline at `s` (allocation re-derived, Jeremy's literal step 7) as
   primary; variant with the allocation fixed at Half's.
+
+## Iteration 3a (2026-11-10): implementation readings for v4, written with the code and tests
+
+Code `tools/research/jeg1611/v4.py` (chain) and `run_v4.py` (runner, `--weeks`, default 5,6,7; other
+week sets write to `out/v4/weeks_<list>/`), tests `tests/test_jeg1611_v4.py` (13 pass, run before the
+gates, weeks 5-7 only). Where the design did not pin the code down, the most literal reading:
+
+1. **"Allocation fixed" does not work as written.** The pipeline's default run is a blend of 8-9
+   seat vertices (`allocation_mix`, heaviest weight about 0.4), and `out["allocation"]` is only the
+   heaviest vertex, so `run_pipeline(allocation=out["allocation"])` does **not** reproduce the anchor
+   run. Read as: hold the anchor's whole allocation mix (vertices and weights), run each vertex with
+   `allocation=a` and blend with `value_reference._blend_runs`, which is what `run_pipeline` does once
+   it has built its mix. Tested: this reproduces today's run exactly at every scoring and week
+   (`ddf`, every `adjusted`, every `waiver_value`), and the FantasyCalc Half-anchor run.
+2. `R_p(s)` = mean over the projections in `I` (ESPN, CBS ROS, Razzball; hidden ones included) of the
+   blended `waiver_value` at `p` (weight-average over the vertices, as `blend_values`). The run at
+   `s` uses today's inputs at `s`; only the projections' waiver lines are read, and with the mix held
+   they do not depend on the chart inputs.
+3. `b_p` fallback (under 4 invertible players) = `x_top / V_top(s0)`, top = highest native among the
+   invertible players. Never used in weeks 5-7 (84 of 84 position-chart-weeks are OLS, R^2 >= 0.980).
+4. `fallback_prior` = the share model returned `w = 0` (no rows before `w`, or recency-weighted
+   Standard ppg under `min_std_h` = 1.0). QB: `sh = 0`, not counted. With `R_QB` identical at every
+   scoring (QB projections do not depend on the reception weight) QBs are untouched exactly (tested).
+5. Multiplicative variant: `x (max(0, V(s)) / V(s0))` for `V(s0) > 0`, else `x` kept (parenthesised for
+   bit-exact identity). `tail_scaled`: below_waiver and no_inverse players move by the median of
+   `x(s)/x` of the delta form over the invertible players at the position.
+6. Raw-mix variant = v3's history mix with its 6-game minimum and `q_p` fallback; rec/g variant
+   `P(s) = P(s0) + (r_s - r_s0) rec_hat` (unclamped; QB `rec_hat = 0`). Assumed-mix variant: every
+   RB/WR/TE at `expm1` of the ratio model's position mean; it cannot reorder within a position (its
+   G2 move statistics are exactly 0 by construction), so it speaks to levels only.
+7. Target-run variant "allocation fixed to the Half run's" = today's Half run's mix (with the same
+   dropped sources when dropping).
+8. With 3 weeks, the G2 (c) and G3 levels rule "4 of 5 weeks" is read as at least 80% of the weeks,
+   `ceil(0.8 x 3) = 3` of 3. G1 is reported as weeks won of 3 per cell, no verdict here.
+9. G2: v4 and each variant are methods of `response_test`; placebo for `v4` against every reference
+   and for the variants against the mean reference; leave-one-out drops `cbsros` and `cbs` from the
+   anchor, fixed and target runs. Extreme-pair groups as v3 (raw history share) for comparability,
+   with the shrunk share reported per player.
+10. Weeks 8-9: the runner never loads their week inputs unless passed `--weeks`; the world loader
+    reads the snapshot file whole (as v3), nothing of weeks 8-9 is run or printed.
+
+Result on weeks 5-7 (`out/v4/summary.md`): G1 primary wins 4 of 36 week-cells (xpos 1, within 3, levels
+0); rebuilt moves still overshoot the publishers' (CBS Standard to Full median ratio RB 1.29 / WR 1.47 /
+TE 1.38 against published 1.06 / 1.18 / 1.28). G2 FAIL for v4 and every variant except assumed-mix
+(NOT SHOWN, no move); `closer` -0.001 [-0.001, -0.001] (FantasyCalc) vs v3 -0.004. G3 worse in the
+primary and every robustness run. Decision is the lead's.
