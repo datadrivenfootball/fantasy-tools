@@ -196,4 +196,82 @@ count; share of the G1/G2 scored sets on the fallback. Category data coverage of
 
 ## Changes after this commit
 
-(none yet)
+**2026-11-10, implementation readings, coded in `tools/research/jeg1610/` (`history.py`,
+`unwind.py`, `run_v3.py`) and tested in `tests/test_jeg1610_v3.py` before the first gate run.** No
+pre-registered choice changed; each is the most literal reading where the text did not pin the code
+down.
+
+1. *Pipeline wiring.* Every run is `rebuild_ddf.run` with the live league, lineup, included set and
+   hidden set of the run's scoring. The anchor run at `s0` is today's run at `s0` (every source's
+   own natives at `s0`). FantasyCalc's Half-anchor run is the pipeline at Half with FantasyCalc's
+   natives replaced by its `ppr` base list. "Dropping" a source (leave-one-out, no FantasyCalc)
+   removes it from `I` and from the inputs.
+2. *A_i and "priced".* `A_i` = the chart's `adjusted` in the run result (after the allocation-mix
+   blend) for a player the chart lists (not a fill-in estimate) at `x_i > 0`. Players listed at 0
+   or unlisted are not unwound; in the target run their input is unchanged (0 stays 0, unlisted stays
+   unlisted, and the pipeline's own fill-in machinery is untouched).
+3. *Projection maps.* Nodes = the projection's listed players at `p` with native ppg > 0 in the same
+   run (ESPN, CBS ROS, Razzball, i.e. the projections in `I`; ESPN and Razzball are hidden from the
+   DDF blend but priced on the same `W`). Sorted by (ppg, adjusted); `adjusted` made monotone by a
+   running maximum. Inverse at `A`: the lowest ppg at which the monotone curve reaches `A`, linear
+   between nodes. `A` above the top node: from the top node with the OLS slope of the raw `adjusted`
+   on ppg over the top 3 nodes by ppg; undefined if that slope is not positive. `A` below the lowest
+   node: undefined for that projection.
+4. *No inverse.* `A_i > 0` with no projection defining an inverse: labelled `no_inverse`, keeps
+   `x_i` like `below_waiver`, counted with the losses.
+5. *History rows.* Every game row of the actuals file counts as a game (including 0-point rows);
+   2024 and 2025 all weeks in the file (1-18); 2026 weeks `1 .. w - 1`. The actuals file is keyed by
+   `player_key`, so the "no key" reason cannot occur in the primary window (reported as 0). For the
+   2015-2026 variant: id map rows with a numeric `player_key`; a `gsis_id` mapped to two keys is
+   dropped; nflverse rows are used for seasons 2015-2023 only; unmapped nflverse rows are counted. A
+   player with no gsis mapping simply has no 2015-2023 rows.
+6. *Position-level mix.* `q_p` = median of `rec_h / (std_h + rec_h)` over the chart-week's priced
+   players at `p` whose mix is their own history (not on the fallback for any reason). The fallback
+   changes only the ratio; `k_i` and implied categories are not defined for fallback players.
+7. *P_i(s)* is computed as `P_i(s0) x ratio_i`, algebraically equal to `k_i (std_h + r_s rec_h)`; at
+   `s = s0` the ratio is exactly 1.0, so the delta form returns `x_i` bit for bit (no shortcut).
+8. *g_p.* Nodes = the invertible players at `p`; equal `P_i(s0)` collapsed to the mean `x`
+   (counted; with these charts they are players tied on the native). Beyond the end nodes: from the
+   end node with the OLS slope of `x` on `P` over the top (lowest) 3 nodes; one node = constant.
+   `g_p` is floored at 0; `x_i(s)` is not floored again (the count of rebuilt values <= 0 in the
+   scored sets is reported).
+9. *Target run.* The pipeline at `s` with the live settings of `s`; CBS Sports, USA Today and the
+   projections at their own `s` natives; FantasyCalc and FantasyPros = their rebuilt full listed
+   lists. DDF Value v3 = the blended `ddf_value`.
+10. *v3_proj.* Forward maps from today's run at `s` (projections at `s`): linear between nodes, the
+    lowest node's monotone value below it, the top-3 slope above the top, floor 0, mean over the
+    projections with a map. The forward-priced `P_i(s)` replaces the chart's Adjusted for invertible
+    players; `below_waiver` -> 0; every other player keeps today's chart Adjusted at `s`. In G1,
+    `v3_proj` (Adjusted units) is scored on within and xpos only (levels are in another unit); a set
+    player without a `v3_proj` value scores 0.
+11. *G1.* Players, within, levels (`male`), xpos (`whole_set`) exactly as `l_gate.metrics` on the
+    `l_gate.load_week` key set; "beats" is strict. Projected-mix comparison: `roundtrip.player_mix`
+    (all three sources) with the same fallback rules (no line -> fallback). History-share mixed pairs:
+    the v2 definition (top third vs bottom third at RB and TE of the scored set) over players with
+    their own history mix.
+12. *G2.* `response_test` lists are rerun; `v3` = the rebuilt natives restricted to the subject's base
+    list (FantasyCalc at Full returns its base list: a tie by construction); `v3_fchalf` is reported.
+    Leave-one-out anchor runs drop `cbsros` and `cbs` from `I` and the inputs; the leave-one-out
+    world of `response_test` is used for everything else. Placebo for `v3` against every reference.
+    `v1` and `v2` verdicts are recomputed in the same run for comparison. Code check shuffle seed
+    16101 (a diagnostic, not a pre-registered statistic).
+13. *G3.* `DDF^-R` = the mean of the row's `adjusted` over the run's included, non-hidden charts other
+    than `R` (as `value_reference._ddf`: a chart that does not list him counts 0, a missing price is
+    skipped). "Players as G2's sets": the G2 set rule is applied for each subject (FantasyCalc set
+    and FantasyPros set) with `R` as the reference; G3 is scored on both sets; per set the verdict
+    rule as written; **overall better only if better on both sets, worse if worse on either,
+    otherwise not shown**. The "worse" rule uses (a) Standard, (a) Full and `closer` as written.
+    Measures from `response_test.week_cell` with current DDF as the comparator. Levels: `level` of
+    `DDF^-R` against `R`'s columns, verdict by the G2 (c) rule (4 of 5 weeks), reported. No
+    FantasyCalc: dropped from the anchor run and the target run for v3, and from today's run for
+    current.
+14. *Secondary.* `step4_tests.build_cells` / `metric_samples` / `diff` with methods `DDF_cur` and
+    `DDF_v3` (blended values, 0 omitted as `rebuild_ddf` writes them), seed 1597.
+15. *Extreme pairs display.* Per week: RB and TE players in the union of G2's mean-reference sets
+    with their own history mix, top 6 and bottom 6 by history reception share; rushing quarterbacks
+    = top 6 by rushing share of Standard points (category cache, 2024-2026) among FantasyCalc's top
+    24 QBs. Move = `log(Full / Standard)` of each list.
+16. *Category cache.* One read-only SELECT on 2026-11-09 to
+    `cache/player_game_stats_2024_2026.json`. Correction of fact: the table **does** carry
+    `fumbles_lost`; it is cached and used in the Standard-points reconstruction (display and coverage
+    only; v3 itself reads only `std` and `ppr` from the actuals file).
