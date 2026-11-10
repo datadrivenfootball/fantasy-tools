@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-09T23:57:47.641239+00:00",
+  "generated_at": "2026-11-10T00:28:16.917264+00:00",
   "repo": "datadrivenfootball/fantasy-tools",
   "workflows": [
     {
@@ -1889,17 +1889,26 @@
         "schedule": "On push to main",
         "key_task": "Production deployment"
       },
-      "health": "warn",
+      "health": "fail",
       "last_run": {
-        "created_at": "2026-11-09T22:07:49Z",
-        "updated_at": "2026-11-09T22:45:44Z",
-        "status": "completed",
-        "conclusion": "failure",
+        "created_at": "2026-11-09T23:57:54Z",
+        "updated_at": "2026-11-10T00:28:15Z",
+        "status": "waiting",
+        "conclusion": null,
         "event": "push",
-        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42708994490",
-        "duration_s": 2275
+        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42724613222",
+        "duration_s": 1821
       },
       "recent_runs": [
+        {
+          "created_at": "2026-11-09T23:57:54Z",
+          "updated_at": "2026-11-10T00:28:15Z",
+          "status": "waiting",
+          "conclusion": null,
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42724613222",
+          "duration_s": 1821
+        },
         {
           "created_at": "2026-11-09T22:07:49Z",
           "updated_at": "2026-11-09T22:45:44Z",
@@ -1935,22 +1944,13 @@
           "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42688134809",
           "duration_s": 2488
-        },
-        {
-          "created_at": "2026-11-09T19:16:36Z",
-          "updated_at": "2026-11-09T20:07:20Z",
-          "status": "completed",
-          "conclusion": "success",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/42681785030",
-          "duration_s": 3044
         }
       ],
       "recent_failures": 4,
-      "consecutive_failures": 4,
-      "last_success_at": "2026-11-09T19:16:36Z",
-      "failing_streak": true,
-      "alert_needed": true
+      "consecutive_failures": 0,
+      "last_success_at": null,
+      "failing_streak": false,
+      "alert_needed": false
     },
     {
       "id": 377507485,
@@ -2136,11 +2136,11 @@
     "total_workflows": 30,
     "active": 29,
     "healthy": 23,
-    "warn": 3,
-    "failing": 4,
+    "warn": 2,
+    "failing": 5,
     "running": 0,
-    "failing_streak_count": 5,
-    "alert_needed_count": 5,
+    "failing_streak_count": 4,
+    "alert_needed_count": 4,
     "max_consecutive_failures": 5,
     "gaps_count": 25
   }
