@@ -41,6 +41,7 @@ import unittest
 from pathlib import Path
 
 from tests._dist_server import DIST, ENGINE_PAGE, serve
+from tests._holds import pinned_holds_override
 from tests import _render_env
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,7 +67,10 @@ class Session:
             self._pw.stop()
             raise _render_env.unavailable("no Chromium available")
         self.browser = self._pw.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=exe)
-        self._srv = serve(DIST, self.overrides)
+        # JEG-1578: serve a fixture with no source held (tests/_holds), so the rubric does not depend on which sources
+        # this week's live data holds (ESPN was held on 2026-11-08). The rubric picks every source, CBS included, so
+        # the usual pinned CBS hold does not fit it. Caller overrides still win.
+        self._srv = serve(DIST, {**pinned_holds_override(DIST, none_held=True), **(self.overrides or {})})
         self.base = self._srv.__enter__()
         self.page = self.browser.new_page(viewport={"width": self.viewport[0], "height": self.viewport[1]})
         self.errors = []

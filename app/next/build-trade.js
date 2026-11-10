@@ -774,7 +774,10 @@
   /* ---------- events ---------- */
   function changed() { $('copy-status').textContent = ''; render(); }
   function wire() {
-    $('copy').onclick = () => DDF.copyText($('message').value, $('copy-status'), 'Message copied. Ready to paste into your league chat.');
+    $('copy').onclick = () => {
+      if (DDF.track) DDF.track('trade-message-copied');   // JEG-1548: a fixed event name, never the message
+      return DDF.copyText($('message').value, $('copy-status'), 'Message copied. Ready to paste into your league chat.');
+    };
     document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
       if (S.mode === b.dataset.mode) return;
       S.mode = b.dataset.mode; S.dirty = false;

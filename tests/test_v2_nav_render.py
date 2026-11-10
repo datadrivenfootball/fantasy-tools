@@ -111,7 +111,12 @@ def run_checks(v2_js=None, v2_css=None) -> list[str]:
             })""")
             # JEG-855: Manifesto, How values work and Research are sections of one Writing tab (Jeremy, 2026-10-22);
             # the landing tab stays Trade targets.
+            # JEG-1586: JEG-1263 added "Simplified site" to the menu (2026-11-02); the grouped order is checked without it
+            # (as test_waivers_render does by neighbours), and the entry itself must be there exactly once.
             names = [tab["text"] for tab in tabs]
+            if names.count("Simplified site") != 1:
+                errors.append(f"nav: want one Simplified site entry, got {names.count('Simplified site')}")
+            names = [n for n in names if n != "Simplified site"]
             if names != ["Value chart", "Compare a trade", "Find a trade: your team", "Find a trade: league-wide", "Risers and fallers", "Waivers", "Trade targets", "Value pie", "Source build-up", "Methodology", *RESEARCH, "Manifesto", "Customize", "Overrides"]:
                 errors.append(f"nav order: {names}, want the grouped menu (Trade, Players, Auditing, Our approach, Settings; JEG-1106)")
             # JEG-953 (Jeremy, 2026-10-23): below 768 px the tabs live in a hamburger menu, so their row layout is

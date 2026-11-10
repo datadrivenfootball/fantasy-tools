@@ -145,16 +145,26 @@ class ShortChartTranslation(unittest.TestCase):
         self.assertEqual(new["translated"], old["translated"])
 
     def test_chart_never_short_is_unchanged(self):
-        """USA Today and FantasyCalc at 12 teams list more players than the
-        league rosters at every position: peers change nothing."""
+        """A chart that lists more players than the league rosters at every
+        position (12 teams): peers change nothing.
+
+        JEG-1609: which charts qualify is read from the synced data, not
+        assumed. On 2026-11-09 (data bake daeeb2164) FantasyCalc listed 58 RBs
+        with 58 rostered, so its RB chart is short by the rule above and is
+        correctly imputed; USA Today still lists more at every position."""
+        checked = {scoring: [] for scoring in SCORINGS}
         for source in ("usatoday", "fantasycalc"):
             for scoring in SCORINGS:
                 ranked = _load_ranked(source, scoring)
-                with_peers = unified.translate_ranked(ranked, 12, peers=_load_peers(source, scoring))
                 without = unified.translate_ranked(ranked, 12)
+                if any(p["n_listed"] <= p["n_rostered"] for p in without["positions"].values()):
+                    continue
+                with_peers = unified.translate_ranked(ranked, 12, peers=_load_peers(source, scoring))
                 self.assertEqual(with_peers, without, f"{source}/{scoring}")
                 self.assertTrue(all(p["waiver_method"] == "roster_determined"
                                     for p in with_peers["positions"].values()))
+                checked[scoring].append(source)
+        self.assertTrue(all(checked.values()), f"no never-short chart at some scoring: {checked}")
 
     def test_real_short_charts_are_extrapolated(self):
         """CBS lists 12 QBs, ~43 RBs, ~44 WRs, ~17 TEs: every position short at

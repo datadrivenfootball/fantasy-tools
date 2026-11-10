@@ -120,7 +120,7 @@
     var inputs = snap.charts.map(function (s) {
       var r = p.sources[s];
       if (!r) return label(s) + ': not priced';
-      return label(s) + ' published ' + fPub(s, r.published).replace(/,/g, '') + ' → indexed ' + f1(r.indexed) + ' → adjusted ' + f1(r.adjusted) + (r.estimated ? ' (filled in from other charts)' : '');
+      return label(s) + ' published ' + fPub(s, r.published).replace(/,/g, '') + ' → indexed ' + f1(r.indexed) + ' → adjusted ' + f1(r.adjusted) + (r.estimated ? ' (' + fillWords(r.fillPath) + ')' : '');
     }).join('; ');
     return 'DDF Value, ' + p.name + ' (' + p.pos + '), ' + settingsLine(snap.settings) + ', ' + snapshotLine() + '.\n' +
       'Inputs: ' + inputs + '.\n' +
@@ -198,7 +198,7 @@
       return '<a class="nx-chip" href="' + link(view, p.player_key) + '"' + (p.player_key === state.player ? ' aria-current="true"' : '') + '>' + esc(p.name) + '</a>';
     }).join('');
   }
-  function estTag(r) { return r && r.estimated ? ' <span class="nx-est" title="Filled in from other charts">est.</span>' : ''; }
+  function estTag(r) { return r && r.estimated ? ' <span class="nx-est" title="' + esc(fillWords(r.fillPath).replace(/^f/, 'F')) + '">est.</span>' : ''; }
 
   /* ---------- (a) Value pie: one player ---------- */
   function renderPie(p, animate) {
@@ -285,7 +285,7 @@
             return '<tr><th scope="row">' + src(r) + '</th><td class="nx-n">' + f1(d.starterAdj) + '</td><td class="nx-n">' + f1(d.benchAdj) + '</td><td class="nx-n">' + f1(d.waiverAdj) + '</td><td class="nx-n">' + f1(d.posAdj) + '</td><td class="nx-n">' + f1(d.budget) + '</td></tr>';
           }).join('') + '</tbody></table></div>';
       }).join('') + '</details>';
-    html += '<details class="nx-details"><summary>Are any players filled in?</summary><p class="nx-hint">A filled-in player is one the source did not list, so the engine gave him a value from the other charts. Each cell is filled-in players out of the rostered slots at that position; over 75% needs a look.</p>' +
+    html += '<details class="nx-details"><summary>Are any players filled in?</summary><p class="nx-hint">A filled-in player is one the source did not list, so the engine ' + esc(FILL_RULE.replace(/^filled in/, 'filled him in')) + '.' + esc(fillCurveNote(rows)) + ' Each cell is filled-in players out of the rostered slots at that position; over 75% needs a look.</p>' +
       '<div class="nx-scroll" tabindex="0" role="region" aria-label="Filled-in players by source"><table class="nx-table nx-hc"><thead><tr><th scope="col">Source</th>' + POS.map(function (p) { return '<th scope="col">' + p + '</th>'; }).join('') + '<th scope="col">All</th></tr></thead><tbody>' +
       rows.map(function (r) {
         return '<tr><th scope="row">' + src(r) + '</th>' + r.positions.map(function (d) {
@@ -368,7 +368,7 @@
     var body = rows.map(function (r) {
       var p = byKey[r.key];
       var oth = p ? others.map(function (s) { return p.sources[s] ? f1(p.sources[s].adjusted) : DASH; }).join(' · ') : DASH;
-      return '<tr data-key="' + esc(r.key) + '"><td class="nx-n nx-muted">' + r.rank + '</td><th scope="row">' + esc(r.name) + (r.estimated ? ' <span class="nx-est" title="Filled in from other charts">est.</span>' : '') + '</th><td>' + esc(r.pos) + '</td><td>' + esc(ROLE[r.role] || r.role || DASH) + '</td>' +
+      return '<tr data-key="' + esc(r.key) + '"><td class="nx-n nx-muted">' + r.rank + '</td><th scope="row">' + esc(r.name) + (r.estimated ? estTag(p && p.sources[src] && p.sources[src].estimated ? p.sources[src] : { estimated: true }) : '') + '</th><td>' + esc(r.pos) + '</td><td>' + esc(ROLE[r.role] || r.role || DASH) + '</td>' +
         (chart ? '<td class="nx-n">' + fPub(src, r.published) + '</td><td class="nx-n">' + f1(r.indexed) + '</td>' : '<td class="nx-n">' + fPts(r.published) + '</td>') +
         '<td class="nx-n nx-strong">' + f1(r.adjusted) + '</td>' + (chart ? '<td class="nx-n nx-muted">' + oth + '</td>' : '') +
         '<td class="nx-n nx-ddf">' + (p ? '<a href="' + link('trace', p.player_key) + '" aria-label="Trace ' + esc(r.name) + '’s DDF Value ' + f1(p.ddf) + '">' + f1(p.ddf) + '</a>' : DASH) + '</td></tr>';
@@ -378,7 +378,7 @@
       (chart ? '<td class="nx-n">' + fPub(src, sumListed(model)) + '</td><td class="nx-n">' + f1(model.totals.indexed) + '</td>' : '<td></td>') +
       '<td class="nx-n">' + f1(model.totals.adjusted) + '</td>' + (chart ? '<td></td>' : '') + '<td></td></tr></tfoot>';
     $('bu-meta').textContent = (pos === 'ALL' ? 'Adjusted total = the value pie, ' + fInt(snap.pie) + '. ' : '') +
-      model.shown + ' players, ' + model.estimatedCount + ' filled in from other charts (marked est.). Showing ' + rows.length + ' of ' + model.shown + ' in ' + name + '’s order.' + (chart ? ' The published total counts only the players ' + name + ' lists. The indexed total also counts the filled-in players, so dividing it by the published total does not give the factor: ' + factorText(src) : '') + ' A dash means the engine has no value there; it is never zero.' +
+      model.shown + ' players, ' + model.estimatedCount + ' ' + fillCount(src, pos, model.estimatedCount) + ', marked est. Showing ' + rows.length + ' of ' + model.shown + ' in ' + name + '’s order.' + (chart ? ' The published total counts only the players ' + name + ' lists. The indexed total also counts the filled-in players, so dividing it by the published total does not give the factor: ' + factorText(src) : '') + ' A dash means the engine has no value there; it is never zero.' +
       (model.status ? statusNote(model.status, chart) : '');
     var more = $('bu-more');
     more.hidden = model.shown <= state.limit;
@@ -440,6 +440,164 @@
     }
     return out;
   }
+  /* R5-OP-02: where availability, the starter line, the spread rate and the DDF weights come from, with the engine's
+     own inputs at the reader's setting (Full value logic is fixed at its own setting). Each line says so when its
+     arithmetic does not give the engine's figure. */
+  var pct2 = function (v) { return (v * 100).toFixed(2) + '%'; };
+  var withNums = function (sym, nums) { return sym + (nums ? ': ' + nums : ''); };
+  var andThen = function (s) { return s ? s + '. ' : ''; };
+  function availText(w, pos) {
+    if (![w.byeShare, w.missRate, w.availability].every(num)) return '';
+    var a = (1 - w.byeShare) * (1 - w.missRate);
+    return '(1 − bye share ' + pct2(w.byeShare) + ') × (1 − ' + pos + ' missed-game rate ' + pct2(w.missRate) + ') = ' +
+      (1 - w.byeShare).toFixed(4) + ' × ' + (1 - w.missRate).toFixed(4) + ' = ' + pct(a) +
+      (Math.abs(a - w.availability) > 1e-9 ? '; the engine’s availability is ' + pct(w.availability) : '');
+  }
+  function lineText(w, pos, plain) {
+    var L = w.starterLineParts;
+    if (!L || !num(w.starterLine) || !L.groups.length) return '';
+    var who = function (pt, rank) { var p = byKey[pt.key]; return pos + rank + ' ' + (p ? p.name + ' ' : '') + plain(pt.value); };
+    var one = function (g) {
+      if (!g.last) return 'fewer than ' + g.starters + ' players listed, so the waiver line, ' + plain(L.waiver);
+      var t = g.next ? '(' + who(g.last, g.starters) + ' + ' + who(g.next, g.starters + 1) + ') ÷ 2 = ' + plain(g.mid) : who(g.last, g.starters) + ', the last player listed';
+      return t + (g.floored ? ', under the waiver line, so ' + plain(g.line) : '');
+    };
+    var body = L.groups.length === 1 ? one(L.groups[0]) + ' (' + L.groups[0].starters + ' ' + pos + ' starters)'
+      : L.groups.map(function (g) { return pct(g.share) + ' of the league allocations have ' + g.starters + ' ' + pos + ' starters: ' + one(g); }).join('; ') +
+        '; weighted by those shares, ' + plain(L.line);
+    var ok = Math.abs(L.line - w.starterLine) <= 1e-6 * Math.max(1, Math.abs(w.starterLine));
+    return body + (ok ? '' : '; the engine’s line is ' + plain(w.starterLine));
+  }
+  /* R6-OP-01: the waiver line's derivation, read from each league allocation's own list (learn-engine.js
+     waiverLineParts). Says so when the weighted reads do not give the engine's line. */
+  var WAIVER_RULE = { chart: 'the value of the first player past the league’s rostered count on this chart’s list', projection: 'the mean of the 7 players around the first seat past the league’s rostered count on this projection’s list' };
+  function waiverText(w, pos, plain) {
+    var L = w.waiverLineParts;
+    if (!L || !L.reads.length) return '';
+    var proj = L.family === 'projection';
+    var one = function (x) {
+      if (x.short) return 'the list ends before seat ' + (x.rostered + 1) + ', so the last player listed, ' + pos + x.listed + ' ' + nameOf(x.key) + plain(x.value);
+      if (proj) return pos + x.lo + '–' + pos + x.hi + ', mean ' + plain(x.waiver);
+      return pos + (x.rostered + 1) + ' ' + nameOf(x.key) + (x.estimated ? '(est.) ' : '') + plain(x.value);
+    };
+    var h = L.heavy, many = L.reads.length > 1;
+    var body = one(h) + (many ? ' at the heaviest allocation (' + h.rostered + ' ' + pos + 's rostered)' : ' (' + h.rostered + ' ' + pos + 's rostered)');
+    if (many) {
+      var ns = L.reads.map(function (x) { return x.rostered; });
+      var lo = Math.min.apply(null, ns), hi = Math.max.apply(null, ns);
+      var seats = lo === hi ? pos + (lo + 1) : proj ? 'bands around ' + pos + (lo + 1) + ' to ' + pos + (hi + 1) : pos + (lo + 1) + ' to ' + pos + (hi + 1);
+      var keys = L.reads.map(function (x) { return x.key; });
+      var same = !proj && keys.every(function (k) { return k && k === keys[0]; });
+      body += '; weighted over the ' + L.reads.length + ' league allocations (' + (lo === hi ? lo : lo + ' to ' + hi) + ' rostered, read at ' + seats +
+        (same && lo !== hi ? ', the same player in each allocation’s own list' : '') + ') = ' + plain(L.line);
+    }
+    var ok = Math.abs(L.line - w.waiver) <= 1e-6 * Math.max(1, Math.abs(w.waiver));
+    return body + (ok ? '' : '; the engine’s line is ' + plain(w.waiver));
+  }
+  function nameOf(key) { var p = byKey[key]; return p ? p.name + ' ' : ''; }
+  /* R6-OP-07: above the waiver line is published − waiver line only when the allocations agree; the engine's figure is
+     value above waivers on the value pie ÷ the averaged value-pie factor (value-model.js vpBlendSourcePlayers). */
+  function aboveText(w, plain) {
+    if (![w.published, w.waiver, w.aboveWaivers].every(num)) return '';
+    var diff = w.published - w.waiver, floored = Math.max(0, diff);
+    /* R8-CX-01: v = max(0, published − waiver line); a value at or below the line is 0, not a negative surplus. */
+    var sub = diff < 0
+      ? 'max(0, ' + plain(w.published) + ' − ' + plain(w.waiver) + ') = max(0, ' + plain(diff) + ') = ' + plain(0)
+      : plain(w.published) + ' − ' + plain(w.waiver) + ' = ' + plain(diff);
+    if (plain(floored) === plain(w.aboveWaivers) || !num(w.aboveWaiversPie) || !num(w.vorpFactor)) return sub;
+    return 'here the engine’s figure is value above waivers on the value pie ' + w.aboveWaiversPie.toFixed(3) + ' ÷ the averaged value-pie factor ' + fFactor(w.vorpFactor) + ' = ' + plain(w.aboveWaivers) +
+      '; it differs from ' + sub + ' because each of the ' + w.allocations + ' league allocations has its own waiver line and value-pie factor';
+  }
+  function spreadText(w, pos) {
+    if (!num(w.sigmaRel)) return '';
+    var c = w.chartSpread;
+    if (w.family !== 'chart') {
+      return pos + ' projection spread rate ' + w.sigmaRel.toFixed(4) + ', measured from past projections at ' + pos + (w.sigmaFloor > 0 ? ', with a floor of ' + w.sigmaFloor.toFixed(2) + ' points a game' : '');
+    }
+    if (!c || !num(c.rate)) return pos + ' chart spread rate ' + w.sigmaRel.toFixed(4);
+    var conf = num(w.confidence) ? w.confidence : 1;
+    var first = Math.floor((c.starters || 0) / 2) + 1, last = first + (c.band || 0) - 1;
+    var core = c.band > 0
+      ? pos + ' chart spread rate ' + c.rate.toFixed(4) + ' = the median chart disagreement at ' + pos + ' ranks ' + first + '–' + last +
+        ' (' + c.band + ' players at least two charts list, each chart scaled to one total and the players ranked by their average; the band runs from half the ' +
+        c.starters + ' seats ' + pos + ' could start in, every flex and superflex seat counted, to ' + c.rostered + ' (the ' + c.starters + ' seats plus ' + pos + '’s ' + (c.rostered - c.starters) + ' bench seats from a fixed D’Hondt split' +
+        (num(w.leagueRostered) && w.leagueRostered !== c.rostered ? ', not the league’s ' + w.leagueRostered + ' rostered' : '') + ') or the end of the list). A player’s disagreement is the standard deviation of the charts’ scaled values ÷ their average'
+      : pos + ' chart spread rate ' + c.rate.toFixed(4) + ', the default (no players in the band)';
+    return core + (conf !== 1 ? '; × projection confidence ' + conf + ' = ' + (c.rate * conf).toFixed(4) : '') +
+      (Math.abs(c.rate * conf - w.sigmaRel) > 1e-9 ? '; the engine uses ' + w.sigmaRel.toFixed(4) : '');
+  }
+  function weightText(wi, pos, role) {
+    if (!wi) return '';
+    var n = wi.rows.length, q = wi.twoQb, sh = wi.shares;
+    var meanOf = function (rows) { return '(' + rows.map(function (x) { return label(x.source) + ' ' + pct2(x.share); }).join(' + ') + ') ÷ ' + rows.length; };
+    var plainMean = 'the mean of the ' + n + ' included sources’ own ' + pos + ' ' + role + ' shares (held sources too): ' + meanOf(wi.rows) + ' = ' + pct2(wi.mean);
+    var renorm = function () { return Math.abs(wi.total - 1) > 5e-6 ? ', ÷ ' + pct2(wi.total) + ' (the 8 groups’ means summed, so the weights add up to 100%)' : ''; };
+    if (!wi.verified) {
+      /* A setting the derivation below does not reproduce: name the gap instead of a reason. */
+      return 'DDF weight ' + pct2(wi.weight) + '; ' + plainMean + ', and the engine’s weight is ' + pct2(wi.weight);
+    }
+    var base;
+    if (q && pos === 'QB') {
+      /* R7-CX-01: 2-QB without superflex (value-model.js vpWeightsOver, JEG-1366). */
+      base = 'in a league with two or more QB slots and no superflex, the QB groups come from the included projections only (held ones too): the mean of their own QB ' + role + ' shares ' +
+        meanOf(q.projections) + ' = ' + pct2(wi.base);
+    } else if (q) {
+      base = 'in a league with two or more QB slots and no superflex, the QB groups come from the included projections only (QB starter ' + pct2(q.qbStarter) + ' + QB fill-in ' + pct2(q.qbBench) +
+        '), and RB, WR and TE keep their relative shares of the remaining ' + pct2(q.remainder) + ': ' + plainMean + ', × ' + pct2(q.remainder) + ' ÷ ' + pct2(q.restRaw) +
+        ' (the RB, WR and TE means summed) = ' + pct2(wi.base);
+    } else {
+      base = plainMean + renorm() + (Math.abs(wi.total - 1) > 5e-6 ? ' = ' + pct2(wi.base) : '');
+    }
+    if (sh) {
+      base += '; your saved position share for ' + pos + ' (' + pct2(sh.share) + ', starter and fill-in together) then keeps the starter-to-fill-in ratio: ' +
+        pct2(wi.base) + ' × ' + pct2(sh.share) + ' ÷ (' + pct2(sh.baseStarter) + ' + ' + pct2(sh.baseBench) + ') = ' + pct2(wi.computed);
+    }
+    var approx = wi.exact ? '' : '; the engine applies this in each league allocation and averages the results, which gives ' + pct2(wi.weight);
+    return 'DDF weight ' + pct2(wi.weight) + ' = ' + base + approx;
+  }
+  /* R7-OP-03: the league allocations behind the seat counts at the reader's setting. Allocations that give this
+     position the same seats are merged (their weights added); the other positions are what differ between them. */
+  function allocText(w, pos) {
+    var A = w.allocationParts;
+    if (!A || !A.list.length) return '';
+    var n = function (x) { return num(x) ? (Math.abs(x - Math.round(x)) < 1e-9 ? String(Math.round(x)) : x.toFixed(2)) : DASH; };
+    var seats = function (a) {
+      var parts = [n(a.dedicated) + ' dedicated'];
+      if (a.flex) parts.push(n(a.flex) + ' flex');
+      if (a.superflex) parts.push(n(a.superflex) + ' superflex');
+      return n(a.starters) + ' starters (' + parts.join(' + ') + ') + ' + n(a.bench) + ' bench = ' + n(a.rostered) + ' rostered';
+    };
+    var merged = [], bySig = {};
+    A.list.forEach(function (a) {
+      var sig = [a.dedicated, a.flex, a.superflex, a.bench].join('/');
+      if (bySig[sig]) { bySig[sig].weight += a.weight; return; }
+      bySig[sig] = Object.assign({}, a); merged.push(bySig[sig]);
+    });
+    merged.sort(function (a, b) { return b.weight - a.weight; });
+    var e = A.expected;
+    var lead = e && num(e.starters) ? 'Expected ' + pos + ' seats at these settings: ' + seats(e) + '. ' : '';
+    var how = 'Flex and bench seats are shared out by projected points, so expected counts can be fractional; the engine runs ' +
+      (A.list.length === 1 ? 'one whole-seat league allocation' : 'the ' + A.list.length + ' whole-seat league allocations they produce and averages every number by weight') + '. ';
+    if (merged.length === 1) return lead + how + (A.list.length === 1 ? 'It gives ' : 'All of them give ') + pos + ' ' + seats(merged[0]);
+    return lead + how + 'At ' + pos + ': ' + merged.map(function (a) { return seats(a) + ' in ' + pct(a.weight); }).join('; ');
+  }
+  /* R5-OP-05: how a filled-in player got his estimate. */
+  var FILL_RULE = 'filled in (from the other charts or, when none is usable, from the chart’s own values against projected points)';
+  function fillWords(path) {
+    return path === 'curve' ? 'filled in from the chart’s own values against projected points' : path === 'peers' ? 'filled in from the other charts' : FILL_RULE;
+  }
+  var ALL_POS = ['QB', 'RB', 'WR', 'TE'];
+  function fillCount(src, pos, count) {
+    var m = LE().fillMethods(snap, src, pos === 'ALL' ? ALL_POS : [pos]);
+    if (!count || !m || m.other || m.peers + m.curve !== count) return FILL_RULE;
+    if (!m.curve) return 'filled in from the other charts';
+    if (!m.peers) return 'filled in from the chart’s own values against projected points (no other chart was usable)';
+    return 'filled in (' + m.peers + ' from the other charts, ' + m.curve + ' from the chart’s own values against projected points, where no other chart was usable)';
+  }
+  function fillCurveNote(rows) {
+    var own = rows.map(function (r) { var m = LE().fillMethods(snap, r.src, ALL_POS); return m && m.curve ? label(r.src) + ' ' + m.curve : null; }).filter(Boolean);
+    return own.length ? ' This week ' + own.join(', ') + ' came from the chart’s own values; the rest from the other charts.' : ' This week every one came from the other charts.';
+  }
   /* R4-OP-03: why a rate's single formula comes out close to, not equal to, the rate shown. */
   function rateNote(w) {
     return w.allocations > 1
@@ -475,35 +633,37 @@
     var units = function (n) { return !num(n) ? DASH : !chart ? n.toFixed(2) + ' points a game' : src === 'fantasycalc' ? fInt(n) : n.toFixed(2); };
     var v = function (n, kind) {
       if (!num(n)) return DASH;
-      return kind === 'pct' ? (n * 100).toFixed(1) + '%' : kind === 'rate' ? fRate(n) : kind === 'units' ? units(n) : kind === 'f1' ? f1(n) : fPart(n);
+      return kind === 'count' ? String(n) : kind === 'pct' ? (n * 100).toFixed(1) + '%' : kind === 'rate' ? fRate(n) : kind === 'units' ? units(n) : kind === 'f1' ? f1(n) : fPart(n);
     };
     var row = function (labelText, n, kind, how, howHtml) {
       return '<tr><th scope="row">' + esc(labelText) + (how ? '<span class="nx-how">' + esc(how) + (howHtml || '') + '</span>' : '') + '</th><td class="nx-n">' + v(n, kind) + '</td></tr>';
     };
     var unitWord = chart ? esc(label(src)) + '’s own units' : 'points a game';
     var unitName = chart ? label(src) + ' units' : 'points a game';
+    var plain = function (n) { return !num(n) ? DASH : src === 'fantasycalc' ? fInt(n) : n.toFixed(2); };
     var fx = workedFormulas(w, src, units);
-    var withNums = function (sym, nums) { return sym + (nums ? ': ' + nums : ''); };
     host.innerHTML = '<details class="nx-details" open><summary>From ' + (chart ? 'published' : 'projection') + ' to adjusted value, one player</summary>' +
       '<div class="nx-pick"><label for="bu-worked-pick">Player</label><select id="bu-worked-pick" class="nx-select">' +
       model.rows.map(function (x) { return '<option value="' + esc(x.key) + '"' + (x.key === r.key ? ' selected' : '') + '>' + esc(x.name + ' (' + x.pos + ')') + '</option>'; }).join('') + '</select></div>' +
       '<div class="nx-scroll"><table class="nx-table nx-worked"><caption class="nx-sr">' + esc(r.name) + ': ' + (chart ? 'published' : 'projection') + ' to adjusted value</caption><tbody>' +
-      row(chart ? 'Published' + (w.estimated ? ' (filled in from other charts)' : '') : 'Projected points', w.published, 'units') +
-      row(r.pos + ' waiver line', w.waiver, 'units') + row(r.pos + ' starter line', w.starterLine, 'units') +
-      row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units') +
+      row(chart ? 'Published' + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') : 'Projected points', w.published, 'units') +
+      row(r.pos + ' league allocations', w.allocationParts ? w.allocationParts.list.length : null, 'count', allocText(w, r.pos)) +
+      row(r.pos + ' waiver line', w.waiver, 'units', withNums('= ' + WAIVER_RULE[chart ? 'chart' : 'projection'].replace(chart ? 'this chart’s' : 'this projection’s', label(src) + '’s'), waiverText(w, r.pos, plain))) +
+      row(r.pos + ' starter line', w.starterLine, 'units', withNums('= the midpoint of the last starter’s and the first non-starter’s values on ' + label(src) + '’s list at your league’s counts, never below the waiver line', lineText(w, r.pos, plain))) +
+      row('Above the waiver line (' + unitName + ')', w.aboveWaivers, 'units', withNums('= ' + (chart ? 'published' : 'projected points') + ' − waiver line', aboveText(w, plain))) +
       row('Value above waivers (on the value pie)', w.aboveWaiversPie, 'f1', fx.pieVaw ? withNums('= above the waiver line × this source’s value-pie factor', fx.pieVaw) + (fx.pieFactor ? '. ' + fx.pieFactor : '') : '') +
-      row('Availability', w.availability, 'pct') +
-      row('Spread σ', w.sigma, 'units', fx.sigma ? withNums('= ' + r.pos + (chart ? ' chart spread rate' : ' projection spread rate') + ' × ' + (chart ? 'published' : 'projected points'), fx.sigma) : '',
-        '. <a href="' + link('logic') + '">Full value logic §1</a> gives the spread rule.') +
+      row('Availability', w.availability, 'pct', withNums('= (1 − bye share) × (1 − the position’s missed-game rate)', availText(w, r.pos))) +
+      row('Spread σ', w.sigma, 'units', fx.sigma ? withNums('= ' + r.pos + (chart ? ' chart spread rate' : ' projection spread rate') + ' × ' + (chart ? 'published' : 'projected points'), fx.sigma) + (spreadText(w, r.pos) ? '. ' + spreadText(w, r.pos) : '') : '',
+        '. <a href="' + link('logic') + '">Full value logic §1</a> gives the spread rule (at its own fixed setting).') +
       row('Chance above the starter line', w.startWorthy, 'pct', fx.chance ? withNums('= 1 − Φ((starter line − ' + (chart ? 'published' : 'projected points') + ') ÷ σ), where Φ is the standard normal cumulative probability (the chance a standard normal draw is at or below the number)', fx.chance) : '') +
       row('Expected lineup share', w.lineupShare, 'pct') +
       row('Chance he fills in from the bench', w.fillInChance, 'pct', '= Σ over bench bands of P(his level is in the band) × P(enough of a team’s starters are out for that band to play); see Full value logic. Check: expected lineup share ÷ availability − chance above the starter line gives the same number') +
       row('Start-worthy part', w.starterPart, null, withNums('= availability × above the waiver line × chance above the starter line', fx.starterPart)) +
       row('Fill-in part', w.fillInPart, null, withNums('= availability × above the waiver line × chance he fills in', fx.fillInPart)) +
-      row('Starter rate', w.starterRate, 'rate', withNums('= ' + r.pos + ' starter budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' start-worthy parts', fx.starterRate) + '. ' + rateNote(w)) +
-      row('Fill-in rate', w.fillInRate, 'rate', withNums('= ' + r.pos + ' fill-in budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' fill-in parts', fx.fillInRate) + '. ' + rateNote(w)) +
+      row('Starter rate', w.starterRate, 'rate', withNums('= ' + r.pos + ' starter budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' start-worthy parts', fx.starterRate) + '. ' + andThen(weightText(w.starterWeightInputs, r.pos, 'starter')) + rateNote(w)) +
+      row('Fill-in rate', w.fillInRate, 'rate', withNums('= ' + r.pos + ' fill-in budget (value pie × DDF weight) ÷ ' + label(src) + '’s total of ' + r.pos + ' fill-in parts', fx.fillInRate) + '. ' + andThen(weightText(w.fillInWeightInputs, r.pos, 'fill-in')) + rateNote(w)) +
       '<tr><th scope="row">Adjusted = start-worthy part × starter rate + fill-in part × fill-in rate</th><td class="nx-n">' + esc(workedEquation(w)) + '</td></tr>' +
-      '</tbody></table></div><p class="nx-hint">The lines, the value above the waiver line and the parts are in ' + unitWord + '; value above waivers on the value pie is the site’s Value above waivers for this source. The league’s roster sets the waiver line and the starter line at his position; the engine averages them over the seat counts the league can produce, so ' + (chart ? 'the published value' : 'the projection') + ' minus the waiver line can differ a little from the value above the waiver line. ' +
+      '</tbody></table></div><p class="nx-hint">The lines, the value above the waiver line and the parts are in ' + unitWord + '; value above waivers on the value pie is the site’s Value above waivers for this source. The league’s roster sets the waiver line and the starter line at his position; the engine works out each seat count the league can produce on its own and restates the value above the waiver line as value above waivers on the value pie ÷ the averaged value-pie factor, so ' + (chart ? 'the published value' : 'the projection') + ' minus the waiver line can differ a little from the value above the waiver line. ' +
       'The rates fund each position’s starter and fill-in budget from the value pie (' + esc(pieText()) + '). ' + partsNote() +
       (chart ? ' The chart is adjusted from its published numbers: multiplying them by one factor (indexing) would change the rates by the opposite factor and leave the adjusted value the same.' : '') +
       ' The engine keeps full precision; a dash means it does not expose that readout.</p></details>';
@@ -533,6 +693,19 @@
     return bits.length ? '; ' + bits.join('; ') : '';
   }
 
+  /* R5-OP-02: the inputs every chart shares at this position, with their derivation at these settings. */
+  function traceInputs(w, pos) {
+    var items = [
+      ['Availability ' + (num(w.availability) ? pct(w.availability) : DASH), availText(w, pos)],
+      ['Spread rate', spreadText(w, pos)],
+      [pos + ' league allocations', allocText(w, pos)],
+      [pos + ' starter group', weightText(w.starterWeightInputs, pos, 'starter')],
+      [pos + ' fill-in group', weightText(w.fillInWeightInputs, pos, 'fill-in')]
+    ].filter(function (x) { return x[1]; });
+    return items.length ? '<p class="nx-hint nx-tr-inputs"><b>The same for every chart at ' + esc(pos) + ', at these settings.</b> ' +
+      items.map(function (x) { return esc(x[0]) + ': ' + esc(x[1]) + '.'; }).join(' ') + '</p>' : '';
+  }
+
   /* ---------- (c) Trace ---------- */
   function renderTrace(p) {
     $('tr-name').textContent = p.name + ' · ' + p.pos;
@@ -540,16 +713,21 @@
     $('tr-sub').textContent = 'DDF Value · #' + p.rank + ' by DDF Value · ' + settingsLine(snap.settings);
     $('tr-step1').textContent = chartWord().replace(/^./, function (c) { return c.toUpperCase(); }) + ' charts publish a value; indexed shows it on DDF Value’s scale, and adjusted fits it to your league';
     /* How each chart's published value becomes its adjusted value, for this player (R1-CX-07 / R1-OP-07). */
+    var shared = null;
     $('tr-adj-body').innerHTML = '<ul class="nx-adj-lines">' + snap.charts.map(function (s) {
       var w = LE().worked(snap, s, p.player_key);
       var r = p.sources[s];
       if (!w) return '<li><b>' + esc(label(s)) + '</b> does not list ' + esc(p.name) + (r && num(r.adjusted) ? '; its adjusted value is ' + f1(r.adjusted) + (r.adjusted === 0 ? ' (his value is at or below its waiver line)' : '') + '.' : '.') + '</li>';
+      if (!shared) shared = w;
       var u = function (n) { return !num(n) ? DASH : s === 'fantasycalc' ? fInt(n) : n.toFixed(2); };
-      return '<li><b>' + esc(label(s)) + '</b>: published ' + u(w.published) + (w.estimated ? ' (filled in from other charts)' : '') + ' − ' + esc(p.pos) + ' waiver line ' + u(w.waiver) +
-        ' → ' + u(w.aboveWaivers) + ' above the waiver line (' + esc(label(s)) + ' units' + (num(w.aboveWaiversPie) ? '; value above waivers on the value pie ' + f1(w.aboveWaiversPie) : '') + ')' +
+      var line = lineText(w, p.pos, u), wline = waiverText(w, p.pos, u), above = aboveText(w, u);
+      return '<li><b>' + esc(label(s)) + '</b>: published ' + u(w.published) + (w.estimated ? ' (' + fillWords(w.fillPath) + ')' : '') + ' − ' + esc(p.pos) + ' waiver line ' + u(w.waiver) + (wline ? ' (' + esc(WAIVER_RULE.chart) + ': ' + esc(wline) + ')' : '') +
+        ' → ' + u(w.aboveWaivers) + ' above the waiver line (' + esc(label(s)) + ' units' + (num(w.aboveWaiversPie) ? '; value above waivers on the value pie ' + f1(w.aboveWaiversPie) : '') +
+        (above && above.indexOf('engine’s figure') >= 0 ? '; ' + esc(above) : '') + ')' +
+        (num(w.starterLine) ? '; ' + esc(p.pos) + ' starter line ' + u(w.starterLine) + (line ? ' = ' + esc(line) : '') : '') +
         traceParts(w, s, u) + '; adjusted = ' + esc(workedEquation(w)) +
         ' <a href="' + link('build-up', s) + '" data-worked="' + esc(String(p.player_key)) + '">every step</a></li>';
-    }).join('') + '</ul><p class="nx-hint">Start-worthy part = availability × above the waiver line × chance above the starter line; fill-in part = availability × above the waiver line × chance he fills in; rate = the position group’s budget (value pie × DDF weight) ÷ this chart’s total of those parts. ' +
+    }).join('') + '</ul>' + (shared ? traceInputs(shared, p.pos) : '') + '<p class="nx-hint">Starter line = the midpoint of the last starter’s and the first non-starter’s values on that chart’s list at your league’s counts, never below the waiver line. Start-worthy part = availability × above the waiver line × chance above the starter line; fill-in part = availability × above the waiver line × chance he fills in; rate = the position group’s budget (value pie × DDF weight) ÷ this chart’s total of those parts. ' +
       'Adjusted = start-worthy part × starter rate + fill-in part × fill-in rate, in each chart’s own units. Indexing multiplies a chart by one factor, which the adjustment ignores, so it changes no DDF number. ' + partsNote() + '</p>';
     Array.prototype.forEach.call($('tr-adj-body').querySelectorAll('a[data-worked]'), function (a) {
       a.addEventListener('click', function () { state.worked = a.getAttribute('data-worked'); });
@@ -660,7 +838,7 @@
     state.query = settingsQuery(st);
     $('nx-snapshot').textContent = snapshotLine();
     $('nx-settings').textContent = settingsLine(st) + ' · ' + overridesLine();
-    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' trade charts (' + chartMix() + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, split into a start-worthy part and a fill-in part against your league’s starter line, each paid at its group’s rate.';
+    $('nx-method').textContent = 'DDF Value is the average of the ' + chartWord() + ' trade charts (' + chartMix() + '), each adjusted to your league: how much more a player is worth than a freely available one at his position, turned into a start-worthy part and a fill-in part against your league’s starter line (his expected share of it in a lineup, after byes and injuries, so together less than the whole), each paid at its group’s rate.';
     $('nx-sources').textContent = 'The analyst charts are CBS Sports, USA Today and FantasyPros; the live market is FantasyCalc. A chart that is held this week is left out of the average, never counted as zero.';
     $('set-scoring').value = st.scoring;
     $('set-teams').value = String(st.teams);
@@ -684,7 +862,7 @@
   }
   function render(r) {
     if (!r.canonical) { history.replaceState(null, '', link('pie', state.player || '')); r = parse(); }
-    var prev = { view: lastView, player: state.player, source: state.source, position: state.position };
+    var prev = { view: lastView, player: state.player, source: state.source, position: state.position, query: lastLiveQuery };
     if ((r.view === 'pie' || r.view === 'trace') && r.arg) {
       if (byKey[r.arg]) state.player = +r.arg;
       else if (state.player) { $('nx-live').textContent = 'That player has no DDF Value at these settings. Showing ' + byKey[state.player].name + '.'; history.replaceState(null, '', link(r.view, state.player)); r = parse(); }
@@ -714,14 +892,16 @@
     } else if (state.view === 'build-up') {
       renderBuildUp();
     }
-    var changed = state.view !== prev.view || state.player !== prev.player || state.source !== prev.source || state.position !== prev.position;
+    /* R5-OP-08: a settings change re-announces, so the status never keeps the old setting's DDF Value. */
+    var changed = state.view !== prev.view || state.player !== prev.player || state.source !== prev.source || state.position !== prev.position || loadedQuery !== prev.query;
+    lastLiveQuery = loadedQuery;
     if (changed || !$('nx-live').textContent) {
       $('nx-live').textContent = state.view === 'build-up'
         ? 'Source build-up: ' + label(state.source) + (state.position !== 'ALL' ? ', ' + state.position : '') + ' selected.'
         : p ? (state.view === 'pie' ? 'Value pie: ' : 'Trace: ') + p.name + ' selected, DDF Value ' + f1(p.ddf) + '.' : '';
     }
   }
-  var lastView = null;
+  var lastView = null, lastLiveQuery = null;
 
   function showGlossary(term) {
     var prevView = lastView;

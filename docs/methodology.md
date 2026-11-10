@@ -176,10 +176,10 @@ implementation follows the rule as written.
    (VP-4), the fill-in peers (VP-2.4) and the DDF versions (VP-6.3). The
    same `I` is used for both weeks.
    **Hidden sources are in `I`** and so count in the allocation, the rosterable
-   set, the DDF weights, the fill-in peers and the pie (VP-5). They are hidden
-   from the displayed values: left out of the DDF Value blend (VP-6.3), the
-   Indexed basis (VP-6.4) and the bench-share readout, and not drawn as
-   curves or shown as rows.
+   set, the DDF weights, the fill-in peers and the pie (VP-5). They are left
+   out of the DDF Value blend they would feed (VP-6.3), the Indexed basis
+   (VP-6.4) and the bench-weight readout (ES-14). They are still shown,
+   labelled held, on Full value logic (JEG-1393 R5-OP-06).
 4. A source outside `I` (unpublished, no prior week) is still shown from
    its kept section. It goes through VP-2, VP-3, VP-5 and VP-6.4 against the
    same allocation, rosterable set, pie and DDF weights, with the charts in
@@ -448,7 +448,8 @@ chart DDF Value").
      defined when that sum is `> 0`.
 4. **Bench share (OC-2; fixed-share mode only, under expected starts the
    bench share is an output, ES-15.1).** `bs` = 0.15 unless the reader has set the
-   bench-share slider, which replaces it (**Lead's reading:** the slider stays
+   bench-share override (once a slider; no current page has one), which
+   replaces it (**Lead's reading:** the slider stays
    as a reader override; 15% is its default, and source-implied shares are
    never used). Each source is normalized to it at the source level: its
    weights are `w_s[p, starter] = (1 - bs) x sig_s[p]` and
@@ -477,7 +478,7 @@ that day). JEG-1393 R4 (OP-01, OP-11).
    only `sum(Sraw) = 0`.
 3. `W[p, starter] = (1 - bs*) x Sraw[p] / sum(Sraw)` and
    `W[p, bench] = bs* x Braw[p] / sum(Braw)` (0 where the denominator is 0).
-   The bench groups of `W` therefore sum to exactly `bs` (15% by default) and
+   The bench groups of `W` therefore sum to exactly `bs` (15% by default in fixed-share mode) and
    the starter groups to `1 - bs`.
 3a. **2-QB league, no superflex slot** (JEG-1366, Jeremy 2026-10-30, pick A
    on the before/after on the ticket). When the roster has 2 or more
@@ -819,7 +820,7 @@ that day). JEG-1393 R4 (OP-01, OP-11).
 | Superflex `SF` | The league allocation (by projected points); the chart natives' superflex overlay; the pie. |
 | QB slots `>= 2` | The league allocation; the chart natives' superflex overlay, as with `SF >= 1` (JEG-1365). |
 | Bench per team `B` | Bench seats, so `N_p`, the rosterable set and the waiver line. Not the pie (OC-1). |
-| Bench share `bs` | 15% by default (OC-2); the reader's slider replaces it (VP-3.4). |
+| Bench share | Computed from the expected-starts parts by default (ES-15.1), not a fixed percentage. An explicit bench-share override replaces it (`benchShareOverride`, kept with the reader's saved league settings or carried in a shared Build a Trade link's `bso`; no current page has a bench-share slider). 15% (`bs`, OC-2) applies only to fixed-share mode (VP-3.4). JEG-1393 R5-CX-01. |
 | Reader position shares | Only when the reader sets them (VP-4.4). |
 
 The charts' saved lists are 12-team lists. At every `T` and roster the same
@@ -864,9 +865,9 @@ above left a choice. Each was settled here, and the text above now states it:
 | `shapeToAnchorPeaksThenSharedTotal` (per-position peak pin, then shared total) | VP-5. Group totals equal pie x DDF weights by construction |
 | CBS ROS / Razzball level-matched to ESPN (option C, total only) | Each projection's own VP-2 to VP-5 |
 | The ESPN top = 70 unit: two-tier `70 / max`, `OUR_MAX`, `positionalMaxForSetup`, the Adjusted view's 70 factor | The fixed league pie (VP-5.1) |
-| ESPN group totals as DDF weights ("the anchor's total for that group") | The average of the source mixes with bench fixed at 15% (VP-3, VP-4) |
-| ESPN-measured positional pies (`espn_pies.json`) and the two-tier glide as the projections' value | VP-2.6 slices and VP-5 rates. The bench share keeps its meaning as the share of the pie paid on bench slices (15% by default), without the softplus glide |
-| Source-implied bench share (the first draft's OC-2 A) | 15% fixed default, every source normalized to it (VP-3.4) |
+| ESPN group totals as DDF weights ("the anchor's total for that group") | The average of the source mixes with bench fixed at 15% (VP-3, VP-4); since expected starts (OC-9), the mean of the sources' own weights with the bench share computed (ES-15.1) |
+| ESPN-measured positional pies (`espn_pies.json`) and the two-tier glide as the projections' value | VP-2.6 slices and VP-5 rates. The bench share keeps its meaning as the share of the pie paid on bench slices (15% by default in fixed-share mode; computed under expected starts, ES-15.1), without the softplus glide |
+| Source-implied bench share (the first draft's OC-2 A) | 15% fixed default, every source normalized to it (VP-3.4); fixed-share mode only since expected starts (OC-9), where the bench share is computed from the parts (ES-15.1) |
 | Indexed factor against the ESPN leg (`order_preserving_rescale`, `derivePublishedSetup`'s live-anchor factor, the 40-player fallback) | VP-6.4 against blended DDF Value |
 | Default lock and curve on ESPN; ESPN tier (V2-TIER-VS-ESPN-LEG) | VP-7.3 / VP-7.4 on DDF Value |
 | Slot filling and zones by ESPN points per game | VP-7.1 / VP-7.2, the mean of the included projections |
@@ -1114,7 +1115,9 @@ change to them is a value change and is reviewed as one.
   realized projection error (then `sigma` becomes the measured error).
 - Chart family: the same construction on the four charts after putting each
   on a common scale (one factor per chart over the players all four list):
-  QB 58%, RB 50%, WR 52%, TE 84% this week; no floor (ES-6).
+  no floor (ES-6). At adoption (JEG-536, 2026-10-12) the rates were QB 58%,
+  RB 50%, WR 52%, TE 84%; they move with the charts each week, and Full value
+  logic prints the live rates.
 - The result is insensitive to all of these (ES-7 sensitivity): the decision
   is about the form, not the numbers.
 - The 95% intervals in the table are binomial over team games and are too
@@ -1124,8 +1127,10 @@ change to them is a value change and is reviewed as one.
   JEG-525 item d). Whether `m_RB` should weight recent seasons more is MR-25;
   the bench tier moves by at most 0.15 points across the candidates.
 
-**ES-2 Roster.** VP-2.2 unchanged: dedicated, greedy flex (OC-4 A), the
-greedy bench fill of VP-2.2d (JEG-1121), `S_p` and `N_p` per source. `n_p = max(1, round(S_p / T))` is the
+**ES-2 Roster.** VP-2.2 unchanged: dedicated, then fractional flex seats
+(VP-2.2g, JEG-1335; it replaced the greedy flex of OC-4 A), the bench of
+VP-2.2d (JEG-1121; shared fractionally with no league loaded, VP-2.2g),
+`S_p` and `N_p` per source, set in each allocation of the VP-2.2g mix. `n_p = max(1, round(S_p / T))` is the
 starters per team at `p`, flex winners included.
 
 - **Roster decision (JEG-563, 2026-10-16; supersedes the JEG-521 constraint).**
@@ -1156,8 +1161,10 @@ work list of VP-2.4).
 2. A starter at `p` is unavailable in a week with probability
    `q_p = b + (1 - b) m_p`. The depth-`k` bench player on an average team
    plays when at least `k` of his team's `n_p` starters are out:
-   `fill_k = P(Binomial(n_p, q_p) >= k)`. At 12 teams this week:
-   RB depth 1 about 0.34, depth 2 about 0.04; WR depth 1 about 0.48.
+   `fill_k = P(Binomial(n_p, q_p) >= k)`. At 12 teams at adoption (JEG-536,
+   2026-10-12): RB depth 1 about 0.34, depth 2 about 0.04; WR depth 1 about
+   0.48. They move with the bye share and the starter counts; Full value logic
+   prints the live probabilities.
 3. The level of a player projected at `x` is `X ~ Normal(x, s(x))` with
    `s(x) = max(sigma_p x, sigma_floor,p)` (for a chart, `sigma_chart,p x`).
    `X` is where his projection will sit when a manager sets a lineup, not

@@ -393,7 +393,7 @@ def run_post_rebuild_scenario(text, validate_ok):
               f"pathlib.Path({FIXTURE!r}).write_text('NEW')\n"
               f"pathlib.Path({OUT_STATUS!r}).write_text(json.dumps({{'success': True, 'failed': []}}))\n")
         write(work, "validate.out", PIN_FAILURE_LOG if not validate_ok else "OK\n")
-        write(work, "Makefile", "validate:\n\t@cat validate.out; exit %d\n" % (0 if validate_ok else 1))
+        write(work, "Makefile", "validate validate-data:\n\t@cat validate.out; exit %d\n" % (0 if validate_ok else 1))
         evidence = ROOT / "pipelines/candidate_evidence.py"
         write(work, "pipelines/candidate_evidence.py", evidence.read_text(encoding="utf-8"))
         recorder = ROOT / "pipelines/record_post_rebuild_validation.py"

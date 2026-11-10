@@ -49,6 +49,12 @@ body.connect{scrollbar-color:#176c4d #eef1ec;caret-color:#176c4d}.connect ::sele
 @media(max-width:760px){.connect .entry-actions{flex-direction:column-reverse;align-items:stretch}.connect .entry-right{align-items:stretch}.connect .entry-right .button,.connect .entry-right button{text-align:center;justify-content:center}.connect .entry-actions>.button{text-align:center}}
 </style>
 <link rel="icon" href="data:,"><style id="entry-live">
+/* JEG-1570: Sleeper loads rosters from the league ID, so the copy and paste parts step aside (the paste box stays one tap away) */
+.connect[data-entry-provider="sleeper"] #step1-title .step-num,.connect[data-entry-provider="sleeper"] .way-link h3,.connect[data-entry-provider="sleeper"] .jump-paste,.connect[data-entry-provider="sleeper"] .way-or,.connect[data-entry-provider="sleeper"] .way-how{display:none}
+.connect[data-entry-provider="sleeper"]:not(.show-paste) #entry{display:none}
+.connect[data-entry-provider="sleeper"] .routes{grid-template-columns:minmax(0,1fr)!important}
+.connect .sleeper-paste{margin:8px 0 0;font-size:14px}.connect .sleeper-example{margin:6px 0 0;font-size:14px;color:#5c6a76;overflow-wrap:anywhere}.connect .sleeper-paste .link-button{min-height:44px}
+.connect #link-result.is-loading{color:#5c6a76}.connect #link-result.is-error{color:#8a3b12;background:#fbeee3;border-radius:8px;padding:10px 14px}.connect #link-result.is-ok{color:#176c4d;font-weight:600}
 .connect .entry-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#f3f5f2;border:1px solid #dbe0dc;border-radius:10px;padding:12px 14px;margin:0 0 18px}.connect .entry-top p{margin:0;flex:1 1 280px;font-size:15px}.connect .entry-top-actions{display:flex;gap:10px;flex-wrap:wrap}.connect .entry-top .button,.connect .entry-fresh{min-height:44px;display:inline-flex;align-items:center}.connect .entry-fresh{background:#fff;border:1px solid #a83e12;color:#a83e12;border-radius:5px;padding:8px 13px;font-weight:600;cursor:pointer}.connect .replacing-line{margin:4px 0 0;font-size:14px;color:#5c6a76}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 html[data-device="phone"] .dv-desktop{display:none}html[data-device="desktop"] .dv-phone{display:none}
@@ -151,7 +157,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.connect a.button.primary[aria-disabled="true"],.connect a.button.primary[aria-disabled="true"]:hover,.connect a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.connect .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.connect .advance-end{display:none}.connect .entry-actions>a.button[href="index.html"]{display:none}</style></head><body class="connect"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li aria-current="step">1. League rosters</li><li>2. Your team</li><li>3. League settings</li></ol></div></header><main>
 <h1>Add your league rosters</h1>
 <div class="entry-top" id="entry-top" hidden><p id="entry-top-text"></p><div class="entry-top-actions"><a class="button" id="entry-keep" href="team.html" hidden>Keep my league</a><button type="button" class="entry-fresh" data-start-fresh>Start fresh</button></div></div>
-<p class="muted">Open the page that lists every team's roster, copy it, and paste it here.</p>
+<p class="muted" id="connect-intro">Open the page that lists every team's roster, copy it, and paste it here.</p>
 <p class="jump-paste"><a href="#entry">Already copied your rosters? Jump to the paste box.</a></p>
 <div class="provider-field"><span class="provider-label">Where is your league?</span><div class="provider-toggle" role="group" aria-label="Where is your league?"><button type="button" data-provider="espn" aria-pressed="true" class="selected">ESPN</button><button type="button" data-provider="yahoo" aria-pressed="false">Yahoo</button><button type="button" data-provider="sleeper" aria-pressed="false">Sleeper</button></div></div>
 <details class="section paste-link" id="paste-link" hidden><summary><h2>Paste your link or DDF block</h2></summary>
@@ -163,7 +169,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <section class="step" id="step-1" aria-labelledby="step1-title">
 <h2 id="step1-title"><span class="step-num">Step 1</span>Open your rosters page</h2>
 <div class="routes" id="routes">
-<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID, and we'll give you the link to your rosters page.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p id="link-result" aria-live="polite"></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
+<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID, and we'll give you the link to your rosters page.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p class="sleeper-example" id="sleeper-example" hidden>For example sleeper.com/leagues/1234567890123456 or just 1234567890123456.</p><p id="link-result" aria-live="polite"></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
 <div data-idhelp="espn"><p><strong>ESPN Fantasy app</strong></p><ol><li>Open your league in the ESPN Fantasy app.</li><li>Tap the <strong>League</strong> tab.</li><li>Tap <strong>League Info</strong>.</li><li>Check <strong>League ID</strong> under Basic Settings.</li></ol>
 <p>In a web address it is the number after <code>leagueId=</code>:</p><p class="id-example">fantasy.espn.com/football/league?leagueId=<strong>123456</strong></p>
 <div class="id-shots"><figure><a href="img/league-id/espn-app-league.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league.jpg" alt="ESPN Fantasy app, League tab: League Info is the first icon in the row under the league name" width="600" height="483" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League tab: tap League Info.</figcaption></figure><figure><a href="img/league-id/espn-app-league-info.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league-info.jpg" alt="ESPN Fantasy app, League Info screen: League ID is listed under Basic Settings" width="600" height="1062" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League ID under Basic Settings.</figcaption></figure></div></div>
@@ -172,7 +178,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <div class="id-shots"><figure><a href="img/league-id/yahoo-app-league.jpg" target="_blank" rel="noopener"><img src="img/league-id/yahoo-app-league.jpg" alt="Yahoo Fantasy app, League tab: a settings gear sits next to the league name" width="600" height="521" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League tab: tap the gear.</figcaption></figure><figure><a href="img/league-id/yahoo-app-settings.jpg" target="_blank" rel="noopener"><img src="img/league-id/yahoo-app-settings.jpg" alt="Yahoo Fantasy app, Scoring and Settings screen: League ID# is the first row" width="600" height="749" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League ID# is the first row.</figcaption></figure></div></div>
 <div data-idhelp="sleeper" hidden><p><strong>Sleeper app</strong></p><ol><li>Open your league in the Sleeper app.</li><li>Tap <strong>League Settings</strong>, then <strong>General League Settings</strong>.</li><li>Scroll to the bottom and tap <strong>Copy League ID</strong>.</li></ol>
 <p>In a web address it is the long number (about 18 digits) after <code>/leagues/</code>:</p><p class="id-example">sleeper.com/leagues/<strong>123456789012345678</strong></p></div>
-</details></div>
+</details><p class="sleeper-paste" id="sleeper-paste" hidden><button type="button" class="link-button" id="sleeper-paste-instead">Paste the rosters page instead</button></p></div>
 <div class="way-or" aria-hidden="true"><span>or</span></div>
 <div class="way way-how"><h3>Prefer to click through yourself?</h3>
 <details class="tutorial" id="tutorial"><summary>Show me how to copy every team's roster</summary>
@@ -296,7 +302,7 @@ ALWAYS
 </script>
 </section>
 <div class="row advance-end"><a class="button" href="index.html">Back</a><a class="button primary" id="connect-next" href="setup.html" data-sticky-next data-back-href="index.html" data-back-label="Back" data-next-label="Next: confirm your team" data-summary="Paste your rosters to continue." data-disabled-reason="Paste your rosters to continue.">Next: confirm your team</a><span id="gate-reason" class="gate-reason" role="status"></span></div>
-</main><footer class="cn-foot">Data Driven Football</footer><script src="site.js"></script><!-- ddf-engine --><script src="v2/ddf-value-link.js"></script><script src="ddf-engine.js"></script><script src="v2/roster-paste.js"></script><script src="rosterparse.js"></script><script src="league-paste.js"></script><script src="connect-entry.js"></script><script src="caveats.js"></script><script>
+</main><footer class="cn-foot">Data Driven Football</footer><script src="site.js"></script><!-- ddf-engine --><script src="v2/ddf-value-link.js"></script><script src="ddf-engine.js"></script><script src="v2/roster-paste.js"></script><script src="rosterparse.js"></script><script src="league-paste.js"></script><script src="sleeper-import.js"></script><script src="connect-entry.js"></script><script src="caveats.js"></script><script>
 (() => {
 const page = document.querySelector('main');
 page.querySelector('#manual-toggle').addEventListener('click', event => {
@@ -330,6 +336,7 @@ page.querySelectorAll('[data-provider]').forEach(button => {
  });
 });
 page.querySelector('#get-link').addEventListener('click', () => {
+ if (selectedProvider === 'sleeper') return;   /* JEG-1570: connect-entry.js loads the Sleeper league itself */
  const value = page.querySelector('#league-ref').value;
  const match = selectedProvider === 'espn' ? (value.match(/leagueId=(\d+)/) || value.match(/\d{5,}/))
   : selectedProvider === 'yahoo' ? (value.match(/\/f1\/(\d+)/) || value.match(/\d{5,}/))

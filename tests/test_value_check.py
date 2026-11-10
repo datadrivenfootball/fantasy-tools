@@ -288,7 +288,7 @@ class Attribution(unittest.TestCase):
         chain = wf.index("python3 pipelines/rebuild_comparison_chain.py --nfl-week")
         compare = wf.index("python3 pipelines/value_check.py compare")
         hold = wf.index("python3 pipelines/value_check.py hold")
-        validate = wf.index("make validate > output/post-rebuild-validate.log")
+        validate = wf.index("make validate-data > output/post-rebuild-validate.log")
         self.assertLess(chain, compare)
         self.assertLess(compare, hold)
         self.assertLess(hold, validate)

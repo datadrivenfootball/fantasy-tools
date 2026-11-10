@@ -31,6 +31,7 @@ DIST = ROOT / "dist"
 MOVERS_JS = ROOT / "app" / "v2" / "movers.js"
 
 from tests import _render_env  # noqa: E402
+from tests._dist_server import V2_SHELL_PAGE, V2_URL  # noqa: E402
 from tests.test_published_league_settings_render import _chromium_executable  # noqa: E402
 
 CASES = [(3.0, 0.5), (-4.0, 0.2), (0.3, 3.0), (-0.5, -2.6), (2.5, 1.0), (2.4, 0.0), (2.5, 1.05), (3.0, 3.0), (0.2, 0.3),
@@ -64,6 +65,9 @@ def _served(movers_js=None):
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp) / "dist"
         shutil.copytree(DIST, dist)
+        # JEG-1546: since JEG-1539 dist/v2/index.html is the legacy redirect stub; the v2 shell is build-only
+        # (build/v2/index.html) and the harnesses serve it at /v2-app.html.
+        shutil.copy(V2_SHELL_PAGE, dist / V2_URL)
 
         class Quiet(http.server.SimpleHTTPRequestHandler):
             def log_message(self, format, *args):
@@ -73,7 +77,7 @@ def _served(movers_js=None):
             server.daemon_threads = True
             threading.Thread(target=server.serve_forever, daemon=True).start()
             try:
-                yield f"http://127.0.0.1:{server.server_address[1]}/v2/"
+                yield f"http://127.0.0.1:{server.server_address[1]}/{V2_URL}"
             finally:
                 server.shutdown()
 

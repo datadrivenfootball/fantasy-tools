@@ -33,6 +33,7 @@ DIST = ROOT / "dist"
 V2_JS = ROOT / "app" / "v2" / "v2.js"
 
 from tests import _render_env  # noqa: E402
+from tests._dist_server import V2_SHELL_PAGE, V2_URL  # noqa: E402
 from tests._holds import pin_holds_in_dist  # noqa: E402
 from tests.test_published_league_settings_render import _chromium_executable  # noqa: E402
 
@@ -63,11 +64,14 @@ def _served(shell_patch=None):
     with tempfile.TemporaryDirectory() as tmp:
         dist = Path(tmp) / "dist"
         shutil.copytree(DIST, dist)
+        # JEG-1546: since JEG-1539 dist/v2/index.html is the legacy redirect stub; the v2 shell is build-only
+        # (build/v2/index.html) and the harnesses serve it at /v2-app.html.
+        shutil.copy(V2_SHELL_PAGE, dist / V2_URL)
         # Held-proof fixture (JEG-718): the fidelity pulse holds different sources on different days.
         pin_holds_in_dist(dist)
         if shell_patch:
             old, new = shell_patch
-            page = dist / "v2" / "index.html"
+            page = dist / V2_URL
             text = page.read_text(encoding="utf-8")
             assert old in text, f"shell patch anchor missing: {old!r}"
             page.write_text(text.replace(old, new, 1), encoding="utf-8")
@@ -80,7 +84,7 @@ def _served(shell_patch=None):
             server.daemon_threads = True
             threading.Thread(target=server.serve_forever, daemon=True).start()
             try:
-                yield f"http://127.0.0.1:{server.server_address[1]}/v2/"
+                yield f"http://127.0.0.1:{server.server_address[1]}/{V2_URL}"
             finally:
                 server.shutdown()
 

@@ -16,7 +16,7 @@ const POSITIONS = ["QB", "RB", "WR", "TE"] as const;
 
 // curve-widget.js DEFAULT_ROSTER / ROSTER_BOUNDS / rosterBounds (QB, RB, WR, TE and FLEX are 1 to 5).
 const DEFAULT_ROSTER: Record<string, number> = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7 };
-const ROSTER_BOUNDS: Record<string, [number, number]> = { BENCH: [0, 14], SUPERFLEX: [0, 1] };
+const ROSTER_BOUNDS: Record<string, [number, number]> = { BENCH: [0, 14], SUPERFLEX: [0, 2] };
 const rosterBounds = (key: string): [number, number] => ROSTER_BOUNDS[key] ?? [1, 5];
 
 const DEFAULT_BENCH_SHARE = 0.15;

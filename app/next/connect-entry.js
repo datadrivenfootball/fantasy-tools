@@ -83,13 +83,22 @@
     if (!st || !DDF.engine || !DDF.engine.apply || !Array.isArray(st.slots)) return;
     try {
       DDF.engine.apply({scoring: st.scoring, teams: st.teams, superflex: !!st.superflex,
+        superflexSlots: DDF.link && DDF.link.superflexSlots ? DDF.link.superflexSlots(st) : (st.superflex ? 1 : 0),
         roster: {QB: st.slots[0], RB: st.slots[1], WR: st.slots[2], TE: st.slots[3], FLEX: st.slots[4], BENCH: st.slots[5]}});
     } catch (e) { /* settings.html asks again */ }
+  }
+  // JEG-1571: a paste that prints QB-eligible flex slot labels (Q/W/R/T, OP, SUPERFLEX...) sets that count; settings.html
+  // shows it for the reader to confirm. A paste without those labels leaves the setting alone.
+  function pastedSettings(res) {
+    if (!res || !Number.isInteger(res.superflexSlots) || !DDF.engine || !DDF.engine.apply) return;
+    try { DDF.engine.apply({superflexSlots: res.superflexSlots}); } catch (e) { /* settings.html asks */ }
   }
   function save(record) {
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
+    /* JEG-1548: the method only (paste, sleeper, manual); analytics.js drops anything not on its list */
+    if (DDF.track && record && typeof record.source === "string") DDF.track("league-added/" + record.source);
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
   }
   function drop() {
@@ -132,8 +141,11 @@
     if (res.notEvaluated) issues.push(res.notEvaluated + " kicker or defense line" + (res.notEvaluated === 1 ? "" : "s") + " not evaluated");
     return head + (issues.length ? " " + issues.join(", ").replace(/^./, function (c) { return c.toUpperCase(); }) + "." : "");
   }
-  function showResult(res) {
+  function showResult(res, from) {
     var card = $("recognized");
+    /* a Sleeper league is read from Sleeper, not a paste: its team names come from the league, so no rename box */
+    $("recognition-title").textContent = from === "sleeper" ? "Here's what we read from Sleeper" : "Here's what we read from your paste";
+    $("edit-team-names").hidden = from === "sleeper";
     $("recognition-summary").textContent = summaryText(res);
     var lg = res.league || {}, found = $("recognition-league");
     if (found) {
@@ -187,6 +199,7 @@
         hideEditNames();
         showResult(res);
         save(DDF.leaguePaste.record(res, "paste"));
+        pastedSettings(res);
         askBookmark(res);
         status("Check the list below, then confirm your team.", "ok");
         if (scroll) $("recognized").scrollIntoView({block: "start"});
@@ -214,6 +227,7 @@
     });
   }
   function readAgain() {
+    if (kept() && kept().source === "sleeper") { hideEditNames(); return; }
     var names = $("edit-names-input").value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
     if (names.length < 2) { $("edit-names-status").textContent = "Add at least two team names, one per line."; return; }
     whenRows().then(function (r) {
@@ -223,6 +237,7 @@
       hideEditNames();
       showResult(res);
       save(DDF.leaguePaste.record(res, "paste"));
+      pastedSettings(res);
       askBookmark(res);
       status("Check the list below, then confirm your team.", "ok");
       $("recognized").scrollIntoView({block: "start"});
@@ -321,12 +336,88 @@
     var line = $("replacing-line");
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }
+  /* ---------- Sleeper (JEG-1570): the league ID loads every roster; no copy and paste ---------- */
+  var SLEEPER = {h3: "Sleeper league link or ID", p: "Paste your league link or ID and we'll load every team's roster. No copying needed.",
+    label: "Sleeper league link or ID", btn: "Load my league", ph: "sleeper.com/leagues/... or a number", title: "Add your Sleeper league",
+    intro: "Sleeper rosters are public, so there is nothing to copy."};
+  var original = null, sleeperBusy = false, sleeperLast = null;
+  function provider() { var b = document.querySelector("[data-provider][aria-pressed='true']"); return b ? b.getAttribute("data-provider") : "espn"; }
+  function wayEls() {
+    var way = document.querySelector(".way-link");
+    return way && {h3: way.querySelector("h3"), p: way.querySelector("h3 + p"), label: way.querySelector("label[for='league-ref']"),
+      btn: $("get-link"), input: $("league-ref"), title: $("step1-title"), intro: $("connect-intro")};
+  }
+  function applyProvider() {
+    var el = wayEls(); if (!el) return;
+    var sl = provider() === "sleeper";
+    document.body.setAttribute("data-entry-provider", provider());
+    var titleText = el.title.lastChild;
+    if (!original) original = {h3: el.h3.textContent, p: el.p ? el.p.textContent : "", label: el.label.textContent, btn: el.btn.textContent,
+      ph: el.input.getAttribute("placeholder") || "", title: titleText ? titleText.textContent : "", intro: el.intro ? el.intro.textContent : ""};
+    var src = sl ? SLEEPER : original;
+    el.h3.textContent = src.h3; if (el.p) el.p.textContent = src.p; el.label.textContent = src.label; el.btn.textContent = src.btn;
+    el.input.setAttribute("placeholder", src.ph); if (titleText) titleText.textContent = src.title;
+    if (el.intro) el.intro.textContent = src.intro;
+    $("sleeper-paste").hidden = !sl;
+    $("sleeper-example").hidden = !sl;
+    el.btn.classList.toggle("primary", sl);   /* one clear action on the Sleeper step */
+    if (!sl) { document.body.classList.remove("show-paste"); sleeperSeq++; if (sleeperBusy) sleeperDone(el); }
+    var out = $("link-result"); if (out) { out.textContent = ""; out.className = ""; }
+  }
+  function linkMsg(text, kind) { var out = $("link-result"); if (!out) return; out.textContent = text; out.className = kind ? "is-" + kind : ""; }
+  var sleeperSeq = 0;
+  function sleeperDone(el) { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); }
+  function sleeperGo() {
+    var el = wayEls(), id = DDF.sleeper && DDF.sleeper.parseId(el.input.value);
+    if (!id) { linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Paste your Sleeper league link or ID first.", "error"); return Promise.resolve(null); }
+    if (sleeperLast === id && kept() && kept().source === "sleeper" && kept().leagueId === id) return Promise.resolve(null);
+    /* a newer request (another ID, or switching away from Sleeper) wins; an older answer is dropped */
+    var seq = ++sleeperSeq;
+    var current = function () { return seq === sleeperSeq && provider() === "sleeper" && DDF.sleeper.parseId(el.input.value) === id; };
+    sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
+    linkMsg("Loading your league from Sleeper...", "loading");
+    return whenRows().then(function (rows) {
+      return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
+        if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
+        sleeperDone(el);
+        if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
+        sleeperLast = id;
+        var res = out.result;
+        if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
+        hideEditNames();
+        showResult(res, "sleeper");
+        save(DDF.leaguePaste.record(res, "sleeper"));
+        askBookmark(res);
+        var lg = res.league || {};
+        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then press Next to confirm your team.", "ok");
+        status("", "");
+        return out;
+      });
+    }, function () {
+      if (current()) { sleeperDone(el); linkMsg("Player values are still loading. Try again in a moment.", "error"); }
+      return null;
+    }).catch(function () { if (current()) { sleeperDone(el); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); } return null; });
+  }
+  function initSleeper() {
+    var el = wayEls(); if (!el || !DDF.sleeper) return;
+    document.addEventListener("click", function (e) {
+      if (e.target.closest && e.target.closest("button[data-provider]")) applyProvider();   /* after the toggle's own handler */
+    });
+    el.btn.addEventListener("click", function () { if (provider() === "sleeper") sleeperGo(); });
+    el.input.addEventListener("keydown", function (e) { if (e.key === "Enter" && provider() === "sleeper") { e.preventDefault(); sleeperGo(); } });
+    el.input.addEventListener("paste", function () { if (provider() === "sleeper") setTimeout(sleeperGo, 0); });
+    el.input.addEventListener("change", function () { if (provider() === "sleeper") sleeperGo(); });
+    el.input.addEventListener("input", function () { sleeperLast = null; });
+    $("sleeper-paste-instead").addEventListener("click", function () { document.body.classList.add("show-paste"); $("rosters").focus(); });
+    applyProvider();
+  }
   function init() {
     var form = $("roster-form");
     if (!form || !DDF.leaguePaste) return;
     form.addEventListener("submit", function (e) { e.preventDefault(); check(true, true); });
     var ta = $("rosters");
     ta.addEventListener("paste", function () { setTimeout(function () { check(false, true); }, 0); });
+    initSleeper();
     editing = startEditing();
     if (!editing) DDF.state.remove("editprev");
     showEditing();
@@ -363,5 +454,5 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo};
 })();

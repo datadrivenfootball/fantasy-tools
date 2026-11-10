@@ -139,6 +139,8 @@ test-unit-modules:
 	# JEG-1049: the daily/on-demand edge drift workflow stays read-only and keeps the checker's exit code.
 	python3 -m unittest tests.test_edge_drift_workflow
 	python3 -m unittest tests.test_ddf_state
+	# JEG-1543: the answers version shows no source name or source number and the same DDF Value (needs dist/answers).
+	python3 -m unittest tests.test_answers_site
 	# JEG-1334: fractional flex and bench seats helper (option B, JEG-1286).
 	python3 -m unittest tests.test_fractional_seats
 	# JEG-1335: the engine's copy of the seat functions, and the worked example's
@@ -208,6 +210,10 @@ test-unit-modules:
 	python3 -m unittest tests.test_weekly_fantasypros_contract
 	python3 -m unittest tests.test_source_probe
 	python3 -m unittest tests.test_source_lateness
+	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
+	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
+	# JEG-1485 decision A: the chain and the deploy gate on data-gate; it stays inside test-core.
+	python3 -m unittest tests.test_chain_data_gate
 	python3 -m unittest tests.test_source_snapshot_match
 	python3 -m unittest tests.test_rebuild_chain_failclosed
 	python3 -m unittest tests.test_rebuild_chain_per_source_hold
@@ -657,6 +663,39 @@ validate: reference sync guard-harness test-core value-check-compare test-integr
 # test-core's lines (none missing, none twice) and validate == validate-base + test-core.
 validate-base: reference sync guard-harness value-check-compare test-integration
 
+# JEG-1485 decision A (Jeremy, 2026-11-08): the rebuild chain and the Pages
+# deploy check DATA only before publishing; code tests (test-core) keep gating
+# PRs (preview.yml) and run nightly. A data check asserts something about the
+# build's own artifacts (fixture, players.json, history index, dist/): shape,
+# coverage, identity joins, week labels, bake-to-section consistency, published
+# order and invariants, the built site's surfaces. Engine vs reference on the
+# data is value-check-compare (strict) in validate-base. Every data-gate line is
+# also in test-core. Definitions and the list's rules: docs/week-held-runbook.md.
+validate-data: validate-base data-gate
+
+data-gate:
+	python3 -m unittest tests.test_site_noindex
+	python3 -m unittest tests.test_static_export
+	python3 -m unittest tests.test_seeded_hold_build
+	python3 -m unittest tests.test_rank_guard
+	python3 -m unittest tests.test_view_invariants
+	python3 -m unittest tests.test_games_remaining
+	python3 -m unittest tests.test_ppg_tie_parity
+	python3 -m unittest tests.test_kdst_removed
+	python3 -m unittest tests.test_comparison_source_integrity
+	python3 -m unittest tests.test_cbsros_bake_identity
+	python3 -m unittest tests.test_suffix_identity
+	python3 -m unittest tests.test_player_aliases
+	python3 -m unittest tests.test_razzball_refresh
+	python3 -m unittest tests.test_bake_on_change
+	python3 -m unittest tests.test_razzball_one_save
+	python3 -m unittest tests.test_player_scenario_matrix
+	python3 -m unittest tests.test_published_surfaces
+	python3 -m unittest tests.test_verify_live
+	python3 -m unittest tests.test_page_load_no_404
+	python3 -m unittest tests.test_lineup_content_week_advance
+	python3 -m unittest tests.test_week_history
+
 value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json
 
@@ -734,6 +773,8 @@ test-core:
 	node tests/test_v2_league_paste.js
 	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
 	node tests/test_entry_league_paste.js
+	# JEG-1570: Sleeper import (fixture API responses, no live calls).
+	node tests/test_sleeper_import.js
 	node tests/test_v2_name_format.js
 	python3 -m unittest tests.test_v2_headlines
 	python3 -m unittest tests.test_v2_movers
@@ -774,6 +815,8 @@ test-core:
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
+	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
+	python3 -m unittest tests.test_find_waiver_alternative
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
 	python3 -m unittest tests.test_team_opportunity_render
@@ -807,6 +850,8 @@ test-core:
 	python3 -m unittest tests.test_edit_league
 	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
 	python3 -m unittest tests.test_entry_sticky_bar
+	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
+	python3 -m unittest tests.test_sleeper_entry
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -852,6 +897,9 @@ test-core:
 # is exactly test-core: a line added to test-core must also go into one shard, or
 # tests/test_validate_shards.py fails. Balanced by the per-module times of preview run 40199508029
 # (about 7.5 minutes of tests each); within a shard the lines keep test-core's order.
+# JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
+# 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
+# and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
 test-core-shard-1:
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
@@ -895,6 +943,8 @@ test-core-shard-2:
 	node tests/test_v2_league_paste.js
 	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
 	node tests/test_entry_league_paste.js
+	# JEG-1570: Sleeper import (fixture API responses, no live calls).
+	node tests/test_sleeper_import.js
 	python3 -m unittest tests.test_v2_trade_story
 	python3 -m unittest tests.test_v2_phone_customize_targets_render
 	python3 -m unittest tests.test_v2_phone_fallback_font_render
@@ -903,6 +953,9 @@ test-core-shard-2:
 	python3 -m unittest tests.test_v2_phone_wide_font_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_asset_load_retry
+	python3 -m unittest tests.test_espn_listed_rows
+	python3 -m unittest tests.test_page_load_no_404
+	python3 -m unittest tests.test_bench_share_low_pie
 	python3 -m unittest tests.test_value_overrides
 	python3 -m unittest tests.test_source_scale_agreement_retired
 	python3 -m unittest tests.test_value_reference_worked_example
@@ -946,6 +999,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
+	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
+	python3 -m unittest tests.test_find_waiver_alternative
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
 	python3 -m unittest tests.test_team_opportunity_render
@@ -961,19 +1016,6 @@ test-core-shard-3:
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
-	python3 -m unittest tests.test_espn_listed_rows
-	python3 -m unittest tests.test_page_load_no_404
-	python3 -m unittest tests.test_bench_share_low_pie
-	python3 -m unittest tests.test_bench_budget_cut_render
-	python3 -m unittest tests.test_ddf_composite_value
-	python3 -m unittest tests.test_view_switch_hidden_defaults
-	python3 -m unittest tests.test_week_calendar
-	python3 -m unittest tests.test_week_state
-	python3 -m unittest tests.test_week_stale
-	python3 -m unittest tests.test_source_health_release
-	python3 -m unittest tests.test_roster_convention
-	python3 -m unittest tests.test_bench_miss_rate
-	python3 -m unittest tests.test_razzball_outlier_guard
 
 test-core-shard-4:
 	python3 -m unittest tests.test_static_export
@@ -999,11 +1041,21 @@ test-core-shard-4:
 	python3 -m unittest tests.test_v2_phone_trade_actions_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_bench_share_readout_matches_reference
+	python3 -m unittest tests.test_bench_budget_cut_render
 	python3 -m unittest tests.test_position_weights_setter
+	python3 -m unittest tests.test_ddf_composite_value
+	python3 -m unittest tests.test_view_switch_hidden_defaults
 	python3 -m unittest tests.test_row_missing_reasons
+	python3 -m unittest tests.test_week_calendar
+	python3 -m unittest tests.test_week_state
+	python3 -m unittest tests.test_week_stale
+	python3 -m unittest tests.test_source_health_release
 	python3 -m unittest tests.test_two_qb_direction
 	python3 -m unittest tests.test_short_chart_waiver
+	python3 -m unittest tests.test_roster_convention
+	python3 -m unittest tests.test_bench_miss_rate
 	python3 -m unittest tests.test_roster_convention_parity
+	python3 -m unittest tests.test_razzball_outlier_guard
 	# JEG-1511 (Jeremy, 2026-11-05: "Just don't let this test block us at all"): the
 	# one-player perturbation tests run in test-unit (reported, not blocking) until
 	# JEG-1511 fixes the ES-parts coupling; band math and end-to-end stay in the gate.
@@ -1032,6 +1084,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_edit_league
 	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
 	python3 -m unittest tests.test_entry_sticky_bar
+	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
+	python3 -m unittest tests.test_sleeper_entry
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe
@@ -1052,6 +1106,11 @@ test-render-sweep:
 # tests/test_render_sweep_shards.py fails otherwise, so a module added to test-render-extra must also
 # be added to one shard. Balanced by the per-module times of run 40287913420 (about 25 minutes each;
 # modules that run had not reached, at 80 s assumed, are spread by that guess).
+# JEG-1546: render-sweep.yml runs a shard through run_suite.py (keeps going past a red module and lists every failed
+# one), so one red module no longer hides the rest of its shard. `make test-render-sweep-N` still stops at the first red.
+test-render-sweep-shard:
+	python3 tests/run_suite.py test-render-sweep-$(SHARD)
+
 test-render-sweep-1:
 	# JEG-1389: settings reload regression, previously missing from all run lists.
 	python3 -m unittest tests.test_jeg1389_link_settings_reload_render
@@ -1116,6 +1175,8 @@ test-render-sweep-3:
 	# shard, because a make recipe stops at its first red module and this one would otherwise never run.
 	python3 -m unittest tests.test_compare_evidence_view_render
 	python3 -m unittest tests.test_v2_consistency_render
+	# JEG-1546: JEG-1403 added this to test-render-extra but to no shard (test_render_sweep_shards red); 18 tests, about 3 min, green on 2026-11-08 (Mac).
+	python3 -m unittest tests.test_uso_site_journey_render
 	python3 -m unittest tests.test_v2_a11y_batch1_render
 	python3 -m unittest tests.test_v2_a11y_batch2_render
 	python3 -m unittest tests.test_v2_chart_height_render
@@ -1134,6 +1195,10 @@ test-render-sweep-3:
 	python3 -m unittest tests.test_jeg1249_league_site_render
 	python3 -m unittest tests.test_league_problems_render
 	python3 -m unittest tests.test_v2_league_phone_render
+
+# JEG-1546 (2026-11-08): shard 3 hit its 60-minute timeout on the first full run (run 42536442898; 59.8 min at its
+# 25th of 31 modules, test_v2_league_tables_render alone 16.9 min while red, JEG-1584). Its tail moved here.
+test-render-sweep-4:
 	python3 -m unittest tests.test_v2_league_tables_render
 	python3 -m unittest tests.test_jeg1213_acceptance_render
 	python3 -m unittest tests.test_v2_overrides_basis_render

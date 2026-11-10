@@ -55,5 +55,118 @@
     "ticket": "JEG-1450",
     "reason": "Local setup error recorded in HANDOFF JEG-1176 Oct 30: sync cannot launch missing Playwright chromium_headless_shell-1208. JEG-1450 tracks attribution of this environment prerequisite; install the browser rather than excuse CI.",
     "signature": "Executable doesn't exist"
+  },
+  {
+    "test_id": "tests.test_v2_mobile_phase1_render.MobilePhase1RenderTest.test_phase1_guards_hold",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1581",
+    "reason": "JEG-1363 injury chip .v2-inj-chip is 11px (under the 12px phone floor) on trade-targets at 390/360/320. Product CSS fix pending on JEG-1581; found by JEG-1546 once the sweep ran past earlier reds.",
+    "signature": "SPAN.v2-inj-chip 11px"
+  },
+  {
+    "test_id": "tests.test_v2_mobile_phase1_render.MobilePhase1RenderTest.test_guard_fails_on_broken_builds",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1581",
+    "reason": "Its unbroken baseline subtest fails on the same 11px .v2-inj-chip (JEG-1581).",
+    "signature": "SPAN.v2-inj-chip 11px"
+  },
+  {
+    "test_id": "tests.test_v2_finder_fit_render.FinderFitRenderTest.test_fit",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1582",
+    "reason": "findTrades no longer yields the 1-for-2 Test Star RB package; root cause open on JEG-1582 (regression vs stale premise). Found by JEG-1546.",
+    "signature": "does not generate the 1-for-2 package"
+  },
+  {
+    "test_id": "tests.test_v2_finder_box_render.FinderBoxRenderTest.test_one_box_per_side",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1585",
+    "reason": "Finder box/groups render red on main, exposed by JEG-1546; open on JEG-1585."
+  },
+  {
+    "test_id": "tests.test_v2_finder_groups_render.FinderGroupsRenderTest.test_empty_receive_side_prints_no_null",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1585",
+    "reason": "Finder box/groups render red on main, exposed by JEG-1546; open on JEG-1585."
+  },
+  {
+    "test_id": "tests.test_v2_finder_groups_render.FinderGroupsRenderTest.test_guard_fails_on_broken_builds",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1585",
+    "reason": "Finder box/groups render red on main, exposed by JEG-1546; open on JEG-1585."
+  },
+  {
+    "test_id": "tests.test_v2_league_live_render.LeagueLiveRenderTest.test_settings_apply_live_and_find_reprocesses",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1584",
+    "reason": "v2 League tab render red on main, exposed when the sweep stopped hiding reds behind the first red module (JEG-1546); classification open on JEG-1584."
+  },
+  {
+    "test_id": "tests.test_v2_league_phone_render.LeaguePhoneRenderTest.test_phone_contrast_keyboard",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1584",
+    "reason": "v2 League tab render red on main, exposed when the sweep stopped hiding reds behind the first red module (JEG-1546); classification open on JEG-1584."
+  },
+  {
+    "test_id": "tests.test_v2_league_shared_roster_render.SharedRosterRenderTest.test_guard_fails_on_broken_builds",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1584",
+    "reason": "v2 League tab render red on main, exposed when the sweep stopped hiding reds behind the first red module (JEG-1546); classification open on JEG-1584."
+  },
+  {
+    "test_id": "tests.test_v2_league_shared_roster_render.SharedRosterRenderTest.test_one_my_roster",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1584",
+    "reason": "v2 League tab render red on main, exposed when the sweep stopped hiding reds behind the first red module (JEG-1546); classification open on JEG-1584."
+  },
+  {
+    "test_id": "tests.test_v2_league_status_render.LeagueStatusRenderTest.test_league_status_preview",
+    "where": [
+      "local",
+      "daily sweep"
+    ],
+    "first_seen_main_sha": "a0ee0afa1a5baf6b00be6537c0c91712cae38b36",
+    "ticket": "JEG-1584",
+    "reason": "v2 League tab render red on main, exposed when the sweep stopped hiding reds behind the first red module (JEG-1546); classification open on JEG-1584."
   }
 ]

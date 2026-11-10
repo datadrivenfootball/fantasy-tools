@@ -117,7 +117,7 @@
   const DEFAULT_ROSTER = Object.freeze({QB:1, RB:2, WR:2, TE:1, FLEX:1, SUPERFLEX:0, BENCH:7, K:1, DST:1});
   // Stepper bounds per roster key (setRosterSpot clamps to them).
   // JEG-565: K and DST (shown as DEF) are roster slots only; they carry no values.
-  const ROSTER_BOUNDS = Object.freeze({BENCH: [0, 14], SUPERFLEX: [0, 1], K: [0, 3], DST: [0, 3]});
+  const ROSTER_BOUNDS = Object.freeze({BENCH: [0, 14], SUPERFLEX: [0, 2], K: [0, 3], DST: [0, 3]});
   const rosterBounds = key => ROSTER_BOUNDS[key] || [1, 5];
   const DEFAULT_FLEX_ELIGIBLE = Object.freeze(["RB", "WR", "TE"]);
   const DEFAULT_BENCH_SHARE = 0.15;

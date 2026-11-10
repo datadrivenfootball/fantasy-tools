@@ -11,7 +11,9 @@ The page must show that tier (data-tier), the percent truncated to one decimal, 
 beats its floor, and no banned reader text. R4-CX-02: the "How this is sized" (i) prints the percent's denominator
 (starters in full + bench × bench weight), its per-position breakdown and the bench weights, all equal to the oracle, and
 gain ÷ denominator reproduces the percent. Phone and desktop: no horizontal overflow, the block is visible.
-Discrimination: test_guard_fails_on_shifted_threshold serves ddf-opportunity.js with the big line moved to 11%.
+Discrimination: test_guard_fails_on_shifted_threshold serves ddf-opportunity.js with one tier line moved just above a
+percent the page shows today, so the page must show a different tier. JEG-1609: the fixed mutant (big 10 -> 11%) only
+bit while some setting landed in [10, 11)%, which the 2026-11-09 data bake (daeeb2164) ended.
 """
 from __future__ import annotations
 
@@ -81,6 +83,16 @@ def shown(pct: float) -> str:
     return f"{math.floor(pct * 10 + 1e-9) / 10:.1f}%"
 
 
+def ratio_rounding_bound(gain: float, total: float) -> float:
+    """Most that 100 x gain ÷ total, both shown to 2 dp, can differ from the shown percent (2 dp).
+
+    JEG-1583: the old bar, 0.006, was below this, so an exact percent failed on some data
+    (2026-11-08, half PPR/12: 16.82 ÷ 178.44 x 100 = 9.4261 against a shown 9.42%).
+    """
+    low = total - 0.005
+    return 0.005 + 100 * 0.005 * (1 / low + (gain + 0.005) / (low * low)) + 1e-9
+
+
 NUM = r"(\d+\.\d+)"
 DENOM = re.compile(r"counted this way: " + NUM + r" = your starters " + NUM + r" in full \+ your bench " + NUM + r" at its bench weights")
 PART = re.compile(r"\b(QB|RB|WR|TE) " + NUM + r" × " + NUM + r"% = " + NUM)
@@ -117,14 +129,14 @@ def denom_errors(text: str, want: dict, gain: float) -> list[str]:
             out.append(f"no gain ÷ denominator line: {text[-160:]!r}")
         else:
             g, d, pct, shown_pct = map(float, r.groups())
-            if abs(100 * g / d - pct) > 0.006 or abs(g - gain) > 0.006 or shown(100 * gain / want["worth"]) != f"{shown_pct:.1f}%":
+            if abs(100 * g / d - pct) > ratio_rounding_bound(g, d) or abs(g - gain) > 0.006 or shown(100 * gain / want["worth"]) != f"{shown_pct:.1f}%":
                 out.append(f"{g} ÷ {d} = {pct}% shown {shown_pct}% does not recompute")
     elif r:
         out.append("a ratio line with no counted gain")
     return out
 
 
-def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False) -> list[str]:
+def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False, observed=None) -> list[str]:
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:  # noqa: BLE001
@@ -162,6 +174,8 @@ def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False) -> l
                     gain = max(want["trade"], want["waiver"])
                     pct = 100 * gain / want["worth"]
                     tier = tier_of(pct) if gain > 0 else "none"
+                    if observed is not None and gain > 0:
+                        observed.append((label, pct))
                     if got["tier"] != tier:
                         errors.append(f"{label}: tier page={got['tier']} engine={tier} (gain {gain:.2f} of {want['worth']:.2f})")
                     if tier != "none" and shown(pct) not in got["line"]:
@@ -200,11 +214,21 @@ class TeamOpportunityRenderTest(unittest.TestCase):
         src = (DIST / "ddf-opportunity.js").read_text() if (DIST / "ddf-opportunity.js").exists() else None
         if src is None:
             raise _render_env.unavailable("dist workspace pages are not built")
-        bad = src.replace('{id: "big", min: 10}', '{id: "big", min: 11}')
+        observed: list = []
+        baseline = run(observed=observed)
+        self.assertEqual(baseline, [], "\n".join(baseline[:20]))
+        # JEG-1609: move the line of the highest shown tier to the next whole percent above that case's percent, so
+        # the mutant changes the tier on whatever data is synced (a fixed 10 -> 11% move needs a case in [10, 11)%).
+        tiered = [(label, pct) for label, pct in observed if tier_of(pct) != "none"]
+        self.assertTrue(tiered, f"no setting has a tiered percent to move a line across: {observed}")
+        label, pct = max(tiered, key=lambda case: case[1])
+        line = {"big": 10, "medium": 6, "marginal": 3}[tier_of(pct)]
+        mutant = '{id: "%s", min: %d}' % (tier_of(pct), math.floor(pct) + 1)
+        bad = src.replace('{id: "%s", min: %d}' % (tier_of(pct), line), mutant)
         self.assertNotEqual(bad, src)
         errors = run({"ddf-opportunity.js": bad.encode()})
-        self.assertNotEqual(errors, [], "the check passes with the tier lines moved")
-
+        self.assertTrue(any(e.startswith(f"{label}: tier page=") for e in errors),
+                        f"the check passes with the {tier_of(pct)} line moved to {mutant} ({label} at {pct:.2f}%): {errors[:5]}")
 
 if __name__ == "__main__":
     unittest.main()

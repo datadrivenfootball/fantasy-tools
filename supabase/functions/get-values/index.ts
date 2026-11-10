@@ -317,6 +317,8 @@ function formatResponse(
 // --- Allowed origins for CORS -----------------------------------------------
 const ALLOWED_ORIGINS = new Set([
   "https://datadrivenfootball.com",
+  // The live site. Deployed v14 allows it but main did not, so a deploy from main would have dropped it (JEG-1571).
+  "https://datadrivenfootball.github.io",
   "https://jb-barrel-droid.github.io",
   "http://localhost:3000",
   "http://localhost:5173",

@@ -139,6 +139,32 @@ class CoverageManifestTest(unittest.TestCase):
         self.assertEqual([], coverage_problems(MANIFEST, load_workflows(), migrations_sql=all_migrations_sql(),
                                                migration_texts=all_migration_texts()))
 
+    def test_source_lateness_heartbeat_ignores_the_drill_and_non_main(self):
+        # JEG-1586 (E2): the GitHub-scheduled watchdog (it also runs the week-held tripwire) is recorded, so a silent stop is
+        # flagged `missed`; the week-held drill and branch runs must not count as a heartbeat.
+        entry = [p for p in MANIFEST["pipelines"] if p["workflow"] == "source-lateness.yml"]
+        self.assertEqual(["github_schedule"], [p["scheduler"] for p in entry])
+        self.assertNotIn("source-lateness.yml", MANIFEST["unmonitored_workflows"])
+        block = step_block((WORKFLOWS / "source-lateness.yml").read_text(encoding="utf-8"), STEP_NAME)
+        self.assertIsNotNone(block)
+        self.assertIn("always()", block)
+        self.assertIn("github.ref == 'refs/heads/main'", block)
+        self.assertIn("inputs.week_held_drill != 'true'", block)
+
+    def test_forced_weekly_chain_cron_jobs_are_manifested(self):
+        # JEG-1603: the JEG-1485 forced weekly chain runs (pg_cron, 20261108) dispatch rebuild-chain.yml, so they are
+        # proven by the same rebuild_chain check as rebuild-chain-bake-live; no new check_config row is needed.
+        by_job = {p["pg_cron_job"]: p for p in MANIFEST["pipelines"] if p.get("pg_cron_job")}
+        for job in ("rebuild-chain-weekly-tue-evening", "rebuild-chain-weekly-wed-morning"):
+            self.assertIn(job, by_job)
+            self.assertEqual("rebuild-chain.yml", by_job[job]["workflow"])
+            self.assertEqual("pg_cron", by_job[job]["scheduler"])
+            self.assertEqual(["rebuild_chain"], [r["check_id"] for r in by_job[job]["records"]])
+        _, jobs = audit.manifest_sets(MANIFEST)
+        live = {"checks": [{"check_id": c} for c in audit.manifest_sets(MANIFEST)[0]],
+                "cron_jobs": [{"jobname": j, "active": True} for j in jobs]}
+        self.assertEqual([], audit.audit(MANIFEST, live))
+
     def test_retired_pg_cron_job_in_the_manifest_is_caught(self):
         stale = json.loads(json.dumps(MANIFEST))
         stale["pipelines"].append({"workflow": "cbsros-supabase-sync.yml", "scheduler": "pg_cron",

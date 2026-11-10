@@ -1,3 +1,30 @@
+/* ===== Visit counter (JEG-1548): load the local wrapper analytics.js, which sends nothing unless its one setting (the
+   GoatCounter site code) is set. Until it loads, DDF.track(name) queues fixed event names (at most 20, in memory).
+   A connector link's ?src= tag is taken off the address bar here, right away and even when analytics.js is blocked, so
+   it never rides into a Bookmark link; only the src pair is removed (the rest of the query and the #s= hash stay
+   byte-for-byte). analytics.js checks the kept value against its allow-list. ===== */
+(function(){
+  window.DDF = window.DDF || {};
+  if(window.DDF.track) return;
+  try{
+    var raw = location.search.replace(/^\?/, ''), parts = raw ? raw.split('&') : [], kept = [], tag = null;
+    parts.forEach(function(x){ if(/^src=/.test(x)){ if(tag === null) tag = x.slice(4); } else kept.push(x); });
+    if(tag !== null){
+      try{ tag = decodeURIComponent(tag); }catch(e){ tag = ''; }
+      window.DDF._srcTag = tag.slice(0, 80);
+      history.replaceState(history.state, '', location.pathname + (kept.length ? '?' + kept.join('&') : '') + location.hash);
+    }
+  }catch(e){}
+  var queue = window.DDF._trackQueue = [];
+  window.DDF.track = function(name){ if(typeof name === 'string' && queue.length < 20) queue.push(name); };
+  try{
+    var me = document.currentScript, s = document.createElement('script');
+    s.src = me && /site\.js(\?|$)/.test(me.src) ? me.src.replace(/site\.js(\?|$)/, 'analytics.js$1') : 'analytics.js';
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
+  }catch(e){}
+})();
+
 document.addEventListener('click', function(e){
   var wrap = document.querySelector('.morewrap');
   if(!wrap) return;
@@ -7,6 +34,19 @@ document.addEventListener('click', function(e){
   var mb = wrap.querySelector(':scope > button');
   if(mb) mb.setAttribute('aria-expanded', String(wrap.classList.contains('open')));
 });
+/* JEG-1595: iOS Safari does not send a click to document for taps on plain page areas, so outside taps close the menu on pointerdown; Escape closes it too. */
+(function(){
+  function closeMore(refocus){
+    var wrap = document.querySelector('.morewrap');
+    if(!wrap) return;
+    var wasOpen = wrap.classList.contains('open');
+    wrap.classList.remove('open');
+    var mb = wrap.querySelector(':scope > button');
+    if(mb){ mb.setAttribute('aria-expanded', 'false'); if(refocus && wasOpen) mb.focus(); }
+  }
+  document.addEventListener('pointerdown', function(e){ if(!e.target.closest('.morewrap')) closeMore(false); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMore(true); });
+})();
 document.querySelectorAll('[data-copy]').forEach(function(b){
   b.addEventListener('click', function(){
     if(navigator.clipboard) navigator.clipboard.writeText(b.getAttribute('data-copy'));
@@ -285,6 +325,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   var TEAMS = [8, 10, 12, 14];
   var SLOT_KEYS = ['qb', 'rb', 'wr', 'te', 'flex', 'bench'];
   var SLOT_MAX = 20;
+  var SF_SLOTS_MAX = 2;   /* JEG-1571: QB-eligible flex (superflex) slots per team, 0-2 */
   var HEADER_LEN = 7, FORMAT_VERSION = 1;
   var ID_BITS = 10, ID_ESCAPE = 1023, ID_MAX = 1022;
   var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -340,9 +381,13 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(slots.some(function(n){ return !Number.isInteger(n) || n < 0 || n > SLOT_MAX; })) return null;
     if(slots[0] + slots[1] + slots[2] + slots[3] + slots[4] === 0) return null;
     var out = {scoring:scoring, teams:teams, superflex:sf, slots:slots};
+    /* JEG-1571: a league with two QB-eligible flex slots says superflexSlots:2 (JSON body only; the header bit stays
+       "at least one"). Absent = 1 slot when superflex, 0 when not, so old links decode as before. */
+    if(sf && Number(s.superflexSlots) === SF_SLOTS_MAX) out.superflexSlots = SF_SLOTS_MAX;
     if(s.extras && typeof s.extras === 'object' && !Array.isArray(s.extras)) out.extras = s.extras;
     return out;
   }
+  function superflexSlots(st){ return !st || !st.superflex ? 0 : (Number(st.superflexSlots) === SF_SLOTS_MAX ? SF_SLOTS_MAX : 1); }
   function settingsHeader(st){
     var h = new Uint8Array(HEADER_LEN);
     h[0] = (FORMAT_VERSION << 5) | (SCORING.indexOf(st.scoring) << 3) | (TEAMS.indexOf(st.teams) << 1) | (st.superflex ? 1 : 0);
@@ -539,7 +584,12 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     mapLists(body, function(l){ if((l || []).some(Number.isInteger)) hasIds = true; return l; });
     if(hasIds && !body.table) body.table = 1;
     if(!validBody(body)) return Promise.reject(new Error('format'));
-    if(st.extras) body.settings = {extras:body.settings.extras}; else delete body.settings;
+    if(st.extras || st.superflexSlots){
+      var bodyExtras = body.settings.extras;
+      body.settings = {};
+      if(st.extras) body.settings.extras = bodyExtras;
+      if(st.superflexSlots) body.settings.superflexSlots = st.superflexSlots;
+    } else delete body.settings;
     var ids = opts.pack === false ? [] : packAll(body);
     var pre = [].concat(Array.from(settingsHeader(st)), varint(ids.length), Array.from(bitsPack(ids)));
     var json = new TextEncoder().encode(JSON.stringify(body));
@@ -579,9 +629,10 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       var body = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(out));
       unpackAll(body, ids);
       if(!validBody(body)) return {error:'format'};
-      var extras = body.settings && body.settings.extras;
+      var extras = body.settings && body.settings.extras, sfSlots = body.settings && body.settings.superflexSlots;
       body.settings = h.settings;
       if(extras && typeof extras === 'object') body.settings.extras = extras;
+      if(h.settings.superflex && Number(sfSlots) === SF_SLOTS_MAX) body.settings.superflexSlots = SF_SLOTS_MAX;
       return normalizeContext(body, false);
     }).catch(function(){ return {error:'format'}; });
   }
@@ -673,6 +724,9 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   function pageFor(view){ return VIEW_PAGES[view] || 'team.html'; }
   function livePage(view){ var p = pageFor(view); return p.indexOf('#') >= 0 ? 'values.html' : p; }
+  /* JEG-1548: a connector link's ?src= tag rides along when connect.html forwards a link to its view's page */
+  /* not once this page has counted it (analytics.js sets DDF._srcCounted), so the visit counts once */
+  function srcParam(){ var t = DDF._srcCounted ? null : DDF._srcTag; return typeof t === 'string' && /^[a-z0-9_-]{1,40}$/.test(t) ? '?src=' + t : ''; }
   function isConnectPage(){ return /(^|\/)connect\.html$/.test(location.pathname) || document.body.classList.contains('connect'); }
 
   /* Pretty JSON with primitive arrays on one line, so a 12-team block stays readable in a chat. */
@@ -711,7 +765,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       var p = fence ? Promise.resolve(decodeJsonState(fence[1]))
         : /^[{]/.test(t) ? Promise.resolve(decodeJsonState(t))
         : decodeToken(fragmentToken((/#(.*)$/.exec(t) || [])[1] || '') || t.replace(/^s=/, ''));
-      return p.then(function(r){ if(r.error){ lastError = r.error; return r; } applyContext(r); return accept(r); });
+      return p.then(function(r){ if(r.error){ lastError = r.error; return r; } applyContext(r); if(DDF.track) DDF.track('league-added/link'); return accept(r); });
     },
     /* Adds the reader's overrides, basis and position weights unless state carries them (opts.context === false: as given). */
     encode: function(state, opts){
@@ -746,7 +800,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     applyRouting: function(){
       var s = current;
       if(!s || !fromLink || !isConnectPage()) return false;
-      location.replace(livePage(s.view) + location.hash);
+      location.replace(livePage(s.view) + srcParam() + location.hash);
       return true;
     },
     registerTable: function(version, rows){
@@ -759,8 +813,10 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     settingsLabel: function(st){
       st = st || DDF.link.settings();
       if(!st) return '';
-      return SCORING_LABEL[st.scoring] + ' · ' + st.teams + ' teams' + (st.superflex ? ' · Superflex' : '');
+      var sf = superflexSlots(st);
+      return SCORING_LABEL[st.scoring] + ' · ' + st.teams + ' teams' + (sf === 1 ? ' · Superflex' : sf > 1 ? ' · ' + sf + ' superflex' : '');
     },
+    superflexSlots: superflexSlots,
     copyForChat: function(statusEl){
       var s = DDF.link.current();
       if(!s){ if(statusEl) statusEl.textContent = 'Nothing from your chat to copy yet.'; return Promise.resolve(false); }
@@ -841,6 +897,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     setField(document.getElementById('scoring'), SCORING_LABEL[st.scoring]);
     setField(document.getElementById('teams'), st.teams);
     SLOT_KEYS.forEach(function(k, i){ setField(document.getElementById('lineup-' + k), st.slots[i]); });
+    setField(document.getElementById('lineup-sf'), superflexSlots(st));
     link.prefilled = link.at; DDF.state.set('link', link);
   }
 
@@ -1025,7 +1082,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   window.DDF.overrides = {
     get: read,
     value: function(name, fallback){ var o = read(); return Object.prototype.hasOwnProperty.call(o, name) ? o[name] : fallback; },
-    set: function(name, v){ var o = read(); o[name] = Number(v); write(o); },
+    set: function(name, v){ var o = read(); o[name] = Number(v); write(o); if(DDF.track) DDF.track('value-override-set'); },
     remove: function(name){ var o = read(); delete o[name]; write(o); },
     clear: function(){ write({}); },
     count: function(){ return Object.keys(read()).length; },
@@ -1112,6 +1169,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     dlg.querySelector('#ddf-sf-what').textContent = CLEARS;
     dlg.querySelector('.ddf-sf-keep').addEventListener('click', close);
     dlg.querySelector('.ddf-sf-go').addEventListener('click', function(){
+      if(DDF.track) DDF.track('start-fresh');
       wipe({overrides: dlg.querySelector('#ddf-sf-ov').checked});
       close(true);
       var onConnect = /(^|\/)connect\.html$/.test(location.pathname);
@@ -1373,7 +1431,9 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     try{
       var e = DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.engine.settings(), r = e && e.roster;
       if(!r) return null;
-      return {scoring: e.scoring, teams: e.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH].map(function(n){ return Number(n) || 0; })};
+      var out = {scoring: e.scoring, teams: e.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH].map(function(n){ return Number(n) || 0; })};
+      if((r.SUPERFLEX || 0) >= 2) out.superflexSlots = 2;   /* JEG-1571: two QB-eligible flex slots */
+      return out;
     }catch(err){ return null; }
   }
   /* JEG-1564: what the Bookmark link carries. The chat league when it has teams; otherwise the pasted or saved league's
@@ -1516,6 +1576,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   function onClick(){
     if(!linkState()) return;
+    if(DDF.track) DDF.track(changed ? 'bookmark-again' : 'bookmark-clicked');   /* JEG-1548: a fixed event name, nothing else */
     markWantDone();
     freshUrl().then(function(url){
       try{ history.replaceState(history.state, '', url); }catch(e){}
@@ -1553,15 +1614,21 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   function confirmSettings(){
     var g = function(id){ var e = document.getElementById(id); return e ? e.value : null; };
     if(!g('scoring')) return;
-    var form = {scoring:SC[g('scoring')] || g('scoring'), teams:Number(g('teams')), superflex:g('superflex') === 'true',
+    /* JEG-1571: the QB flex count (lineup-sf, 0-2) replaces the Superflex yes/no; 2 travels as superflexSlots */
+    var sfn = Math.max(0, Math.min(2, Number(g('lineup-sf')) || 0));
+    var form = {scoring:SC[g('scoring')] || g('scoring'), teams:Number(g('teams')), superflex:sfn > 0,
       slots:['qb','rb','wr','te','flex','bench'].map(function(k){ return Number(g('lineup-' + k)); })};
+    if(sfn === 2) form.superflexSlots = 2;
     try{
       var cur = DDF.link.current(), info = DDF.state.get('link', null);
       /* A hand-entered league stays 'manual' when re-confirmed (DDF.link.update would mark it as a chat league). */
-      if(cur && !(info && info.source === 'manual')) DDF.link.update({settings:Object.assign({}, cur.settings, form)});
-      else { DDF.state.set('league', Object.assign({v:1}, cur || {}, {settings:Object.assign({}, cur && cur.settings, form)})); DDF.state.set('link', {source:'manual', at:Date.now()}); }
+      var merged = Object.assign({}, cur && cur.settings, form);
+      if(!form.superflexSlots) delete merged.superflexSlots;
+      if(cur && !(info && info.source === 'manual')) DDF.link.update({settings:merged});
+      else { DDF.state.set('league', Object.assign({v:1}, cur || {}, {settings:merged})); DDF.state.set('link', {source:'manual', at:Date.now()}); }
     }catch(e){}
     sset(OK_KEY, '1');
+    if(DDF.track) DDF.track('settings-confirmed');
     if(DDF.leagueMeta) DDF.leagueMeta.want('settings', JSON.stringify(form));
     soon();
   }
