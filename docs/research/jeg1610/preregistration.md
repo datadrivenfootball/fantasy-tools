@@ -275,3 +275,10 @@ down.
     `cache/player_game_stats_2024_2026.json`. Correction of fact: the table **does** carry
     `fumbles_lost`; it is cached and used in the Standard-points reconstruction (display and coverage
     only; v3 itself reads only `std` and `ppr` from the actuals file).
+
+**2026-11-10, found on the first G1 run (it stopped with an error in week 5's companions before any
+G1 number was printed or written).** The 2026-only history window cannot reach 6 games before week
+7 (weeks `1 .. w - 1` hold at most `w - 1` games), so at weeks 5 and 6 every player is on the
+fallback and `q_p` (median over players with their own history) is undefined. Reading 17: that
+variant is reported as **undefined** for such chart-weeks (counted), not filled in another way. The
+primary chain and the other variants are unchanged. `v3_proj`'s levels entry is None by reading 10.

@@ -244,7 +244,11 @@ def g1(ctx, weeks, wkls):
                                   ("window_2026_only", history_mixes(ctx, w, dg["charts"][chart].keys(), s0, "2026_only")),
                                   ("window_2015_2026", history_mixes(ctx, w, dg["charts"][chart].keys(), s0, "2015_2026"))):
                     uv = unwind_chart(ctx, dg, chart, s0, w, mx)
-                    comp[vname] = g1_measures(ctx, wkl, keys, uw.rebuild(uv, s, x), inp, tgt)
+                    try:
+                        comp[vname] = g1_measures(ctx, wkl, keys, uw.rebuild(uv, s, x), inp, tgt)
+                    except ValueError as e:   # no player with a history mix at a position: q_p undefined
+                        comp[vname] = {"within": None, "levels": None, "xpos": None, "undefined": str(e),
+                                       "history_players": sum(r["basis"] == "history" for r in uv.records.values())}
                 cur_s = wk.current(s)
                 proj = uw.rebuild_proj(u, s, uw.maps_by_position(cur_s["pairs"]))
                 pv = {k: proj.get(k, 0.0) for k in keys}
@@ -274,7 +278,8 @@ def g1(ctx, weeks, wkls):
                                        "unchanged": {w: cell[w]["unchanged"][meas] for w in WEEKS}}
             for v in ("projected_mix", "window_2026_only", "window_2015_2026", "v3_proj"):
                 a = [better(meas, cell[w]["companions"][v][meas], cell[w]["unchanged"][meas]) for w in WEEKS]
-                variants.setdefault(v, {})[f"{name}|{meas}"] = None if any(x is None for x in a) else sum(a)
+                variants.setdefault(v, {})[f"{name}|{meas}"] = {
+                    "weeks_won": sum(bool(x) for x in a), "weeks_undefined": sum(x is None for x in a)}
         mp = [(cell[w]["companions"]["mixed_pairs_history_share"]["RB+TE"]) for w in WEEKS]
         variants.setdefault("mixed_pairs_RB+TE_weeks_won", {})[name] = sum(
             (m["v3"] or 0) > (m["unchanged"] or 0) for m in mp)
