@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-10T00:01:49.547950+00:00",
+  "run_at": "2026-11-10T00:52:23.790519+00:00",
   "nfl_week": 9,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -18,7 +18,7 @@
   "held": [
     "cbsros",
     "espn",
-    "razzball",
+    "fantasycalc",
     "usatoday"
   ],
   "hold_severity": "red",
@@ -36,6 +36,18 @@
       "hold_severity": "amber",
       "week": 9
     },
+    "fantasycalc": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "29/1146 values match exactly across 6 columns; 1117 values differ, 9 outside the movement band; 0 live players not stored, 2 stored players not live (above the list's churn line); 12 players entered or left the bottom of the list since the save (churn)",
+      "hold_severity": "red",
+      "week": 9
+    },
     "espn": {
       "reason": "fidelity: scrape_validity",
       "held_series": [
@@ -50,7 +62,7 @@
       "week": 9
     },
     "cbsros": {
-      "reason": "fidelity: scrape_validity",
+      "reason": "fidelity: stored_vs_chart",
       "held_series": [
         "cbsros",
         "cbsros_vorp"
@@ -58,20 +70,7 @@
       "sections": [
         "cbsros"
       ],
-      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 10.1 (expected 16 to 30)",
-      "hold_severity": "red",
-      "week": 9
-    },
-    "razzball": {
-      "reason": "fidelity: scrape_validity",
-      "held_series": [
-        "razzball",
-        "razzball_vorp"
-      ],
-      "sections": [
-        "razzball"
-      ],
-      "detail": "player count dropped vs week 8: stored QB 101->88 (the publisher's own list dropped too (88)), stored TE 141->131, chart QB 101->84 (the publisher's own list dropped too (88)), chart RB 149->140, chart WR 206->184, chart TE 141->128",
+      "detail": "1026/1083 chart values equal stored snapshot 2026-11-09 (per game, 3 decimals); 57 chart values differ from the stored snapshot, 6 stored players not on the chart, 6 chart players not stored",
       "hold_severity": "red",
       "week": 9
     }
@@ -271,9 +270,9 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
+    "fantasycalc": "fidelity: publisher_vs_stored",
     "espn": "fidelity: scrape_validity",
-    "cbsros": "fidelity: scrape_validity",
-    "razzball": "fidelity: scrape_validity"
+    "cbsros": "fidelity: stored_vs_chart"
   },
   "post_rebuild_validation": {
     "status": "failed",
@@ -283,15 +282,15 @@
       "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_the_replay_is_a_transition"
     ],
     "assertions": [
-      "AssertionError: Lists differ: [\"('ppr', 12, 'null') fantasycalc: 1854 in[440 chars]3}]\"] != []",
-      "AssertionError: 7 not found in [9, 8] : (('ppr', 12), {'week': 8, 'selected': False, 'default_week': 8, 'newest': 9, 'previous': 8, 'transition': True, 'weeks': [9, 8], 'on_newest': 2, 'total': 4, 'views': {'8': {'sources': ['cbs', 'fantasycalc', 'fantasypros', 'usatoday'], 'missing_sources': []}, '9': {'sources': ['fantasycalc', 'fantasypros'], 'missing_sources': ['cbs', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 9, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 8, 'fantasypros': 9, 'cbs': 8}, 'missingSaved': {}})"
+      "AssertionError: Lists differ: [\"('ppr', 12, 'null') fantasycalc: 1854 in[441 chars]5}]\"] != []",
+      "AssertionError: 7 not found in [9, 8] : (('ppr', 12), {'week': 8, 'selected': False, 'default_week': 8, 'newest': 9, 'previous': 8, 'transition': True, 'weeks': [9, 8], 'on_newest': 2, 'total': 4, 'views': {'8': {'sources': ['cbs', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '9': {'sources': ['fantasypros', 'razzball'], 'missing_sources': ['cbs', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 9, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 8, 'fantasypros': 9, 'cbs': 8}, 'missingSaved': {}})"
     ],
     "breaches": [],
     "make_targets": [
       "Makefile:680: data-gate"
     ],
-    "detail": "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_lagging_charts_keep_order_in_their_own_week\nFAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_the_replay_is_a_transition\nAssertionError: Lists differ: [\"('ppr', 12, 'null') fantasycalc: 1854 in[440 chars]3}]\"] != []\nAssertionError: 7 not found in [9, 8] : (('ppr', 12), {'week': 8, 'selected': False, 'default_week': 8, 'newest': 9, 'previous': 8, 'transition': True, 'weeks': [9, 8], 'on_newest': 2, 'total': 4, 'views': {'8': {'sources': ['cbs', 'fantasycalc', 'fantasypros', 'usatoday'], 'missing_sources': []}, '9': {'sources': ['fantasycalc', 'fantasypros'], 'missing_sources': ['cbs', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 9, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 8, 'fantasypros': 9, 'cbs': 8}, 'missingSaved': {}})",
-    "recorded_at": "2026-11-10T00:28:08.696059+00:00",
+    "detail": "FAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_lagging_charts_keep_order_in_their_own_week\nFAIL tests.test_rank_guard.TestEngineKeepsOrderInTransition.test_the_replay_is_a_transition\nAssertionError: Lists differ: [\"('ppr', 12, 'null') fantasycalc: 1854 in[441 chars]5}]\"] != []\nAssertionError: 7 not found in [9, 8] : (('ppr', 12), {'week': 8, 'selected': False, 'default_week': 8, 'newest': 9, 'previous': 8, 'transition': True, 'weeks': [9, 8], 'on_newest': 2, 'total': 4, 'views': {'8': {'sources': ['cbs', 'fantasypros', 'razzball', 'usatoday'], 'missing_sources': []}, '9': {'sources': ['fantasypros', 'razzball'], 'missing_sources': ['cbs', 'usatoday']}}, 'servedWeeks': {'espn': 9, 'cbsros': 9, 'razzball': 9, 'fantasycalc': 9, 'usatoday': 8, 'fantasypros': 9, 'cbs': 8}, 'missingSaved': {}})",
+    "recorded_at": "2026-11-10T01:09:54.483370+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
