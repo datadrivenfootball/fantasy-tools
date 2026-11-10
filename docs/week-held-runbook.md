@@ -126,9 +126,14 @@ agreement on the data is not lost when these move out of the gate: it is
 hides a chart from DDF Value, so with three projection holds only 2 of 4
 counted charts served the newest week, the default view fell back a week and
 the replay failed on its own premise (chain runs 42704839004, 42720406111).
-That was not a data failure. If a replay sentinel fails, first check its
-premise (`week`, `on_newest`, `total` in the assertion) against the live
-holds in `dist/modules/fidelity-pulse.json`.
+The same fallen-back view also showed a real page defect: charts already on
+the newest week are priced on their saved previous week, but
+`getNativeRanks` ranked them on the served week (a newer rank next to an older
+value). JEG-1606 fixes `nativeRanksFor`, and
+`TestEngineKeepsOrderWhenTheDefaultFallsBack` keeps that view covered. If a
+replay sentinel fails, check its premise (`week`, `on_newest`, `total` in the
+assertion) against the live holds in `dist/modules/fidelity-pulse.json`. Also
+check whether the failing state is one a reader can reach.
 
 Rules for the list: every `data-gate` line is also in test-core, and
 `tests/test_chain_data_gate.py` pins the exact list (change the test, this

@@ -1020,7 +1020,8 @@ def newest_week(exclude=("cbs", "usatoday")):
                if k not in exclude and isinstance(v.get("week"), int))
 
 
-def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None):
+def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None,
+                         keep_holds=False):
     """JEG-1177 sentinel: replay a week transition from committed data. The
     `lagging` charts serve their saved Week `week` (default: the week before
     newest_week(); the served fixture carries exactly those natives and the
@@ -1039,7 +1040,9 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
     corrupt: a source whose served file has one player's value changed, so it
     no longer equals its own saved week.
     fixture: the built fixture document to replay (default: the one in dist/),
-    for a test that replays a chain state the committed data does not have."""
+    for a test that replays a chain state the committed data does not have.
+    keep_holds: keep the other charts' holds (only the lagging charts' are
+    cleared), to replay a chain state where the holds tip the default view."""
     if week is None:
         week = newest_week(lagging) - 1
     index = json.loads((DIST / "assets" / "history" / "index.json").read_text(encoding="utf-8"))
@@ -1049,7 +1052,7 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
     for slug, key in sorted((fixture.get("player_keys") or {}).items()):
         slug_of.setdefault(int(key), slug)
     saved = _week(week)
-    for section in fixture["sources"].values():
+    for section in ([] if keep_holds else fixture["sources"].values()):
         if isinstance(section, dict):
             for field in ("validationHold", "promotionHold"):
                 section.pop(field, None)
