@@ -256,3 +256,46 @@ verdict.
   interpretable; the dev calibration (iteration 5, item 7) is the usable one.
 - `pub_cbs` and `pub_usatoday` have identical `closer / E[r^2]` against the mean reference by
   construction (each publisher sits the same distance from their average).
+
+## Lead's reading and the decision for Jeremy (2026-11-10)
+
+**Verdict by the frozen rule: v4 does not pass** (T5 fails; T3, T6, T8 inconclusive on two weeks;
+week 10 is the deciding run, same runner, same rule). What the iteration programme established:
+
+1. **The logic is implementable exactly.** Steps 2-4 and 7 are an exact identity (520 chart-week
+   combinations, max diff 0; current DDF reproduced). The allocation can be held fixed and the
+   scoring delta applied once. None of the earlier failures was an unwind or rebuild bug.
+2. **Step 5/6 needs shrinkage, and the data say how much.** A player's raw history mix overshoots
+   his realized rest-of-season move by 1.4-5x (RB 0.73, WR 0.21-0.24, TE 0.30-0.33 of the raw move
+   survives). The empirical-Bayes share model, fitted forward-only on 2015-2025 actuals, converts a
+   calibrated Full forecast to Standard better than not converting in 8 of 8 forward seasons.
+   This is the part of Jeremy's logic that the data support unambiguously.
+3. **v4 still moves 1.5-1.8x as far as CBS Sports and USA Today** within a position (SD ratio of
+   percentile moves) and lies beyond both publishers on cross-position levels in 33 of 36 cells.
+   The publishers each apply a stable scoring response of their own (self-agreement 0.82-0.84 week
+   to week) that the other does not share (0.29 between them; WR and TE near 0); they agree with
+   each other on position levels (value per point at Full 0.65-0.88 of Standard, within 0.04 of
+   each other) and DDF's own pricing agrees with them (0.90 / 0.69 / 0.71). v4 held the chart-points-
+   per-VORP rate fixed across scorings; the `v4_ddfrate` variant, which lets the rate fall at Full
+   as DDF's own pricing does, removes the level overshoot entirely (0 of 36 cells beyond the
+   publishers) but lands short of them (median ratios 0.92-1.06 against 1.06-1.29) and leaves the
+   within-position size unchanged (T5 still fails).
+4. **Realized points cannot adjudicate** the charts on the available 2026 sample (T8 could not be
+   computed on weeks 8-9; on dev weeks nothing, including the publishers' own columns, beat the
+   unchanged chart). Chart-implied points are not a calibrated forecast (RB slope 0.2-0.5, TE
+   1.1-1.7, like the projections themselves).
+
+**Options (recommendation first):**
+- **A. Close v4 as "does not pass"; keep current DDF Value; carry one durable change into the
+  article and docs:** the charts' own scoring columns move about half as far as a data-driven
+  rebuild does, and the two publishers do not share a within-position standard. Week 10 can be run
+  for the record (`run_v4.py --weeks 10`) when the charts arrive; the expected verdict is the same.
+- **B. One more pre-registered iteration, judged on week 10 onward only:** `v4_ddfrate` for levels
+  plus a within-position move sized to the publishers' own SD ratio. The second part is a fit to
+  the publishers (the data-driven size is 1.5-1.8x theirs), so it is a product choice ("match the
+  publishers"), not a finding; it needs Jeremy's explicit go.
+- **C. Smallest honest adjustment:** keep FantasyCalc's own per-position switch only (closest to the
+  references on levels); leave within-position order as published.
+
+**FantasyCalc anchor:** Full (assumed) in every primary run; the Half-anchor run gives the same
+Tier 1 verdicts; exclusion is Jeremy's call (G3 "worse" also holds with it dropped).
