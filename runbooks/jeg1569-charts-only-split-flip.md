@@ -44,9 +44,14 @@ Do not merge it without that go.
 7. Pages builds and publishes. `value-model.js?v=<build>` busts the browser cache. Spot-check the Values page at
    Half PPR 12 superflex: Josh Allen about 67.9 and the QB share 27.4% (week 9 numbers; re-read them on the day).
 8. MCP / get-values: no code deploy is needed. It loads the published `value-model.js` and follows within its
-   5-minute bundle cache, the per-instance answer cache (5 minutes) and `Cache-Control: max-age=300`. Deploying the
-   get-values `split` parameter (PR 1 code) is a separate Supabase step and needs Jeremy's yes. Until it is
-   deployed, a `split` or `league.split` argument is ignored by the live function.
+   5-minute bundle cache, the per-instance answer cache (5 minutes) and `Cache-Control: max-age=300` (old numbers for
+   up to about 15 minutes after Pages publishes). The `split` parameter is already live: get-values v15 (deployed
+   2026-11-08 13:15 CT) equals this PR's `supabase/functions/get-values` except one comment line in `league.ts`, and on
+   2026-11-09 `split=charts` answered the charts split, `split=all` the live split and `split=bogus` a 400. A redeploy
+   (`supabase functions deploy get-values --project-ref iskiybsimubiujwuchsl --no-verify-jwt`, from the repo root) is
+   optional and comment-only. Rollback copy of v15: `ddf-handoff 2/09-mcp-server/engine-local/rollback-2026-11-10/`.
+   After Pages publishes, check (no `split`): Half PPR 12 superflex QB share about 27.5% (was 34.8%); `split=all`
+   still answers the old split.
 9. The local MCP copy `09-mcp-server/engine-local/site/value-model*.js` (handoff folder): refresh it before parity runs.
 
 ## What a reader sees change
@@ -68,5 +73,12 @@ Do not merge it without that go.
   - The article quotes its own script output, rerun in step 5.
 - **Week over week:** the prior week is repriced on the same split, so the "since last week" deltas stay consistent.
 
+## Order against the weekly rollover
+Merge only when main is green and no rebuild chain is running. A merge during a chain run publishes that run's week
+(validated on the old split) beside the flip's code without the chain's validate on the pair; the Pages gate then
+re-validates, and a red there leaves the site on the old week. Best: after the week's cutover is verified.
+
 ## Back out
-Set `DDF_VALUE_SPLIT_DEFAULT = "all"` (and the Python default), then merge. Nothing is stored server-side.
+Set `DDF_VALUE_SPLIT_DEFAULT = "all"` (and the Python and spec defaults), re-freeze the
+`tests/fixtures/baseline_main_771c3422` engine and regenerate the worked example, then merge; or revert the merge
+commit of this PR. Nothing is stored server-side. Until then, `split=all` on get-values serves the old split.
