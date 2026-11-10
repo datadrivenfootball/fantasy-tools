@@ -225,3 +225,20 @@ Reading of iteration 4 (v4 at weeks 5-7):
 
 Decision: no further implementation iteration on dev; write the pass rule (`pass-rule.md`,
 with the expected verdict stated in advance), run the adversarial reviews, then the holdout.
+
+## Iteration 6 (2026-11-10): test-retest of the publishers' moves (review objection B)
+
+Reviewer B asked whether each publisher's within-position move is noise or a standard the other
+does not share. `publisher_moves_followup.py` item 8 (commit 1e04aab9c), weeks 5->6 and 6->7, 151
+player pairs: CBS agrees with its own move next week at 0.82 [0.70, 0.91] (RB 0.89, WR 0.83, TE
+0.49), USA Today at 0.84 [0.76, 0.90]; the two agree with each other in the same week at 0.29
+[0.08, 0.49] (RB 0.75, WR -0.05, TE 0.00). Dropping players whose columns were carried over
+unchanged leaves self-agreement at 0.72 / 0.81. Reading: **each publisher applies a stable
+within-position scoring response of its own; the two responses agree only at RB.** So the
+within-position target is not noise; it is two different formulas. A method can match at most one
+of them at WR and TE, and the mean reference is a blend of the two. This replaces "mostly noise"
+in iteration 1's decision; the no-harm form of T3 stands.
+
+Corrections after round 1: "size is now right" (4b) is withdrawn (SD ratio about 1.7); "the
+publishers' damping is explained by data" (iteration 2) compared an SD ratio with an OLS slope and
+is withdrawn; `closer` is passable in principle but undetectable here.
