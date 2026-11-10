@@ -1020,7 +1020,7 @@ def newest_week(exclude=("cbs", "usatoday")):
                if k not in exclude and isinstance(v.get("week"), int))
 
 
-def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None):
+def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None):
     """JEG-1177 sentinel: replay a week transition from committed data. The
     `lagging` charts serve their saved Week `week` (default: the week before
     newest_week(); the served fixture carries exactly those natives and the
@@ -1028,16 +1028,31 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None):
     2026-10-27 (USA Today and CBS on Week 7, the rest on Week 8). Any hold on
     a lagging chart is cleared: the replay serves its saved week, and a red
     hold would hide it from the view lists (a test that wants one adds it).
+    Holds on the other charts are cleared too (2026-11-09, chain runs
+    42704839004 / 42720406111): a red hold hides a chart from DDF Value, so
+    with ESPN, CBS ROS and Razzball held only 2 of 4 counted charts served
+    the newest week, the default view fell back to the previous week and the
+    replay was no longer a transition. A held section keeps its values
+    (fidelity_hold sets the flag only), so the replay is the 5-of-7
+    transition whatever the live data holds; live holds are the fidelity
+    gate's job, not this sentinel's.
     corrupt: a source whose served file has one player's value changed, so it
-    no longer equals its own saved week."""
+    no longer equals its own saved week.
+    fixture: the built fixture document to replay (default: the one in dist/),
+    for a test that replays a chain state the committed data does not have."""
     if week is None:
         week = newest_week(lagging) - 1
     index = json.loads((DIST / "assets" / "history" / "index.json").read_text(encoding="utf-8"))
-    fixture = json.loads((DIST / FIXTURE_ASSET).read_text(encoding="utf-8"))
+    fixture = (json.loads(json.dumps(fixture)) if fixture is not None
+               else json.loads((DIST / FIXTURE_ASSET).read_text(encoding="utf-8")))
     slug_of = {}
     for slug, key in sorted((fixture.get("player_keys") or {}).items()):
         slug_of.setdefault(int(key), slug)
     saved = _week(week)
+    for section in fixture["sources"].values():
+        if isinstance(section, dict):
+            for field in ("validationHold", "promotionHold"):
+                section.pop(field, None)
     for src in lagging:
         entry = saved["sources"][src]
         index["served"][src] = {"week": week, "version": "snapshot", "fingerprint": entry["fingerprint"],

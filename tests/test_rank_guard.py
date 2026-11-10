@@ -373,6 +373,32 @@ class TestEngineKeepsOrderWithHeldLaggingChart(TestEngineKeepsOrderInTransition)
             self.assertNotIn("cbs", view["missing_sources"], (setting, state))
 
 
+class TestEngineKeepsOrderWithLiveHolds(TestEngineKeepsOrderInTransition):
+    """Chain runs 42704839004 and 42720406111 (2026-11-09): the built fixture
+    had ESPN, CBS ROS and Razzball on red fidelity holds. The replay kept
+    those holds, so only FantasyCalc and FantasyPros (2 of 4 counted charts)
+    served the newest week, the default view fell back to the previous week
+    and both transition tests failed on the sentinel's own premise. The
+    replay now clears every hold (transition_overrides); this replays that
+    chain state and must stay a transition."""
+
+    LIVE_HELD = ("espn", "cbsros", "razzball")
+
+    @classmethod
+    def _overrides(cls, W):
+        doc = json.loads((W.DIST / W.FIXTURE_ASSET).read_text(encoding="utf-8"))
+        for key in cls.LIVE_HELD:
+            doc["sources"][key]["validationHold"] = {"reason": "fidelity: scrape_validity", "hold_level": "red"}
+        return W.transition_overrides(fixture=doc)
+
+    def test_the_replay_clears_the_live_holds(self):
+        from tests import test_week_history as W
+        doc = json.loads(self.overrides[W.FIXTURE_ASSET])
+        held = {k for k, s in doc["sources"].items()
+                if isinstance(s, dict) and (s.get("validationHold") or s.get("promotionHold"))}
+        self.assertEqual(held, set())
+
+
 class TestLaggingWeek(unittest.TestCase):
     STATE = {"week": 8, "weeks": [8, 7],
              "servedWeeks": {"cbs": 7, "espn": 8, "old": 6, "gone": None, "held": 7, "ahead": 9},

@@ -118,6 +118,18 @@ reasons; `test_market_bench` checks config, not build output; and
 agreement on the data is not lost when these move out of the gate: it is
 `value-check-compare --strict`.
 
+**Synthetic replays inside data tests must not inherit live holds**
+(JEG-1606, 2026-11-09). The week-transition replay
+(`test_week_history.transition_overrides`, used by `test_rank_guard`,
+`test_week_history` and `test_bench_budget_cut_render`) clears every
+`validationHold`/`promotionHold` before it builds the transition. A red hold
+hides a chart from DDF Value, so with three projection holds only 2 of 4
+counted charts served the newest week, the default view fell back a week and
+the replay failed on its own premise (chain runs 42704839004, 42720406111).
+That was not a data failure. If a replay sentinel fails, first check its
+premise (`week`, `on_newest`, `total` in the assertion) against the live
+holds in `dist/modules/fidelity-pulse.json`.
+
 Rules for the list: every `data-gate` line is also in test-core, and
 `tests/test_chain_data_gate.py` pins the exact list (change the test, this
 section and the Makefile together). Move a test into
