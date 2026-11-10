@@ -40,6 +40,18 @@ natives the charts are compared on (G1, G2) carry the shift, and the re-derived 
 inherit the reordering and the zeros. Not a coding error: it is the delta form "at the anchor" as
 pre-registered. 69 rebuilt values in the G1 scored sets are 0 (floored).
 
+**Lead's correction (2026-11-10): `g_p` explains the size of the level failure, not the
+within-position failure.** The `v3_proj` variant does not use `g_p`: it re-derives replacement at
+the target scoring in points and prices through the projections' own maps there. It also loses
+every week on within-position and cross-position agreement (0 of 40; for example CBS Standard to
+Full within 0.93-0.98 against unchanged 0.99-1.00, and identical to v3 in that direction). RB and
+WR, where flooring does not happen, lose too (CBS Full to Standard, RB 0.981-0.993 against
+unchanged 0.997). So the deeper cause is the one v1 and v2 found. Applying the full change in the
+reception weight to each player's implied points moves the order far more than the publishers'
+own columns move it, whatever the mix source (history or projected) and whichever way points go
+back to value (chart curve at the anchor, or projection pricing at the target). `g_p` makes the
+levels much worse on top of that.
+
 ## G1: weeks won by v3 over "unchanged" (of 5)
 
 | Cell | within | levels (MALE) | xpos |
@@ -152,7 +164,8 @@ inflate at Full. Week 9 examples: Rachaad White (history share 0.26) FantasyCalc
 - **The chart's own cross-position level**: each chart's Adjusted share by position equals `W`'s
   exactly (FantasyCalc week 9: RB 0.418, WR 0.426 Adjusted and `W`; its native shares were 0.398 /
   0.406). It survives only as one vote in `W`.
-- **Native scale**: replaced by `g_p`, which is where the failure comes from.
+- **Native scale**: replaced by `g_p`, which is where most of the level error comes from (the
+  within-position loss does not depend on it; see the lead's correction under Root cause).
 - Adjusted is monotone in the native within every position (0 violations); VORP display vs Adjusted
   Spearman 0.96-1.00.
 
@@ -162,7 +175,8 @@ inflate at Full. Week 9 examples: Rachaad White (history share 0.26) FantasyCalc
   within-position agreement, `closer` and levels; the one measure where it is better is the
   extremes' sign agreement (0.66 vs 0.60 / 0.59), i.e. direction, not size.
 - Replacing the projected mix with each player's history changes nothing material (projected-mix v3
-  also wins 1 of 60). The mix is not the problem; rebuilding natives at the anchor's waiver line is.
+  also wins 1 of 60). The mix is not the problem. Rebuilding natives at the anchor's waiver line
+  makes the levels far worse. The within-position loss stays without it (`v3_proj`, 0 of 40).
 - The pre-registered hope that inheriting the anchor `W` would help levels is refuted: levels are the
   worst measure (G1 MALE 3-10x unchanged; G2 and G3 levels move away 5 of 5 weeks).
 - The secondary realized-points check shows no difference.
