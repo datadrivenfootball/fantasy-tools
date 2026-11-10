@@ -278,6 +278,13 @@ def page_runs(overrides=None, settings=None):
                         runs.append((f"{setting} week {run['week']}",
                                      {"pie": None, "error": "the bench-share override did not reach the pipeline"}))
                         continue
+                    priced = [k for k, s in (run.get("sources") or {}).items() if s.get("weights")]
+                    if week is not None and week != state.get("week") and len(priced) < 2:
+                        # JEG-1618: early in a transition the newest week's view (not the default) can hold one
+                        # source (2026-11-10: CBS ROS alone on Week 10); nothing to compare, so a note. The
+                        # default view must still compare two or more (check_run).
+                        notes.append(f"{setting} week {week}: only {priced} priced (not the default view); not compared")
+                        continue
                     runs.append((f"{setting} week {run['week']}", run))
                 served = (state or {}).get("servedWeeks") or {}
                 lagging = sorted(k for k, w in served.items()

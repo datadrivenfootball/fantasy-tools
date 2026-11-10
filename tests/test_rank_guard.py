@@ -398,9 +398,12 @@ class TestEngineKeepsOrderWithLiveHolds(TestEngineKeepsOrderInTransition):
     def test_the_replay_clears_the_live_holds(self):
         from tests import test_week_history as W
         doc = json.loads(self.overrides[W.FIXTURE_ASSET])
-        held = {k for k, s in doc["sources"].items()
+        # The only holds left are the replay's own (a chart off the replay's
+        # newest week, JEG-1618), never a live one.
+        held = {k: (s.get("validationHold") or s.get("promotionHold")) for k, s in doc["sources"].items()
                 if isinstance(s, dict) and (s.get("validationHold") or s.get("promotionHold"))}
-        self.assertEqual(held, set())
+        live = {k for k, h in held.items() if not str(h.get("reason", "")).startswith("transition replay:")}
+        self.assertEqual(live, set(), held)
 
 
 class TestEngineKeepsOrderWhenTheDefaultFallsBack(TestEngineKeepsOrderWithLiveHolds):
