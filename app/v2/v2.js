@@ -3693,9 +3693,14 @@
       if (prior) {
         const isChart = items.some(item => sourceMeta(item.key).method === "indexed");
         const noun = isChart ? "chart" : "projections";
-        return {pub, name, week: base?.week, status: "prior", text: "Prior week",
-          reason: view.refWeek && base?.week
-            ? `${name} has not posted its Week ${view.refWeek} ${noun} yet; this page shows its Week ${base.week} ${noun}.` : ""};
+        // The week the source has not posted is the board's current week: the calendar week once it runs ahead
+        // of the data (the Tuesday flip), else the reference week. Same logic as the header's calendarNote.
+        const target = Math.max(view.calendarWeek || 0, view.refWeek || 0);
+        const shownWeek = base?.week;
+        const reason = target && shownWeek && target > shownWeek
+          ? `Week ${target} ${noun} not posted yet; showing Week ${shownWeek}.`
+          : shownWeek ? `Has not posted this week's ${noun} yet; showing Week ${shownWeek}.` : "";
+        return {pub, name, week: shownWeek, status: "prior", text: "Prior week", reason};
       }
       // Fail closed: Current only when this source's own rows say freshness_ok === true. A missing
       // or unreadable file, or a missing row, is "Freshness unknown", never a green tick.

@@ -274,11 +274,15 @@ WEEK_BEHIND_FIXTURE = """(() => {
   try { if (sessionStorage.getItem('contractAllCurrent') === '1') return; } catch (e) {}
   const trap = (name, patch) => window.__contractPatches[name].push(patch);
   const behind = week => Number.isFinite(week) && week > 1 ? week - 1 : null;
+  // One clock for both patches: the week the data reaches (first_load_reference_week), never the calendar week.
+  const dataWeek = () => {
+    try { return window.TradeValueProductData.getSourceFreshness().first_load_reference_week; } catch (e) { return null; }
+  };
   trap('TradeValueCurveControls', C => {
     const original = C.getSourceInfo;
     if (typeof original !== 'function') return;
     C.getSourceInfo = (...args) => original.apply(C, args).map(item => item && item.key === KEY
-      ? {...item, stale: true, week: behind(C.getReferenceWeek && C.getReferenceWeek()) || item.week} : item);
+      ? {...item, stale: true, week: behind(dataWeek()) || item.week} : item);
   });
   trap('TradeValueProductData', P => {
     const original = P.getSourceFreshness;
@@ -288,7 +292,7 @@ WEEK_BEHIND_FIXTURE = """(() => {
       if (!f) return f;
       const s = (f.series && f.series[KEY]) || {};
       return {...f, series: {...(f.series || {}), [KEY]: {...s, is_older_week: true,
-        vintage_week: behind(f.current_content_week) || s.vintage_week}}};
+        vintage_week: behind(f.first_load_reference_week) || s.vintage_week}}};
     };
   });
 })();""" % STALE_CHART
@@ -1896,6 +1900,9 @@ def ct02(S):
 def _badge_errors(where, keys, badges_for, weeks):
     """Each stale chart among `keys` carries "Week N" (its week) in `where`; a current one carries none."""
     errors = []
+    keys = list(keys)
+    if keys and all((weeks.get(key) or {}).get("stale") for key in keys):
+        errors.append(f"{where}: every chart is stale, so a current chart's missing badge was not checked")
     for key in keys:
         info = weeks.get(key) or {}
         texts = [b["text"] for b in badges_for(key)]

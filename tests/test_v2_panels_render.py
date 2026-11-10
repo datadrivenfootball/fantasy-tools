@@ -434,7 +434,7 @@ def check_freshness(page) -> list[str]:
     usat = rows.get("usatoday") or {}
     if usat.get("status") == "prior":
         text = usat.get("text", "")
-        if not re.search(r"USA Today has not posted its Week \d+ chart yet; this page shows its Week \d+ chart\.", text) or "published" in text:
+        if not re.search(r"(Week \d+ chart not posted yet; showing Week \d+\.|Has not posted this week's chart yet; showing Week \d+\.)", text) or "published" in text:
             errors.append(f"freshness: prior-week reason reads {text!r}")
     else:
         errors.append(f"freshness: USA Today a week behind is not 'prior': {usat}")
@@ -486,13 +486,77 @@ def check_freshness(page) -> list[str]:
     return errors
 
 
+# Page clock and source weeks, set absolutely: (calendar week, first-load reference week, week the stale
+# sources show, week the posted sources show, publishers that have not posted).
+FLIP_PATCH = """([calendar, ref, staleWeek, freshWeek, stalePubs]) => {
+  const C = window.TradeValueCurveControls, pd = window.TradeValueProductData;
+  const origInfo = C.getSourceInfo.bind(C), origFresh = pd.getSourceFreshness.bind(pd);
+  const pubOf = k => k.replace(/_(vorp|adjusted)$/, '');
+  C.getSourceInfo = (...args) => origInfo(...args).map(i => {
+    const stale = stalePubs.includes(pubOf(i.key));
+    return i.available ? {...i, stale, week: stale ? staleWeek : freshWeek} : i;
+  });
+  pd.getSourceFreshness = () => ({...(origFresh() || {}), first_load_reference_week: ref, current_content_week: calendar});
+  window.TradeValueV2.setShown(window.TradeValueV2.shown());
+}"""
+
+
+def _pipeline_healthy(behind_pubs):
+    """Every import and comparison row healthy; the named publishers a week behind."""
+    def handler(route, *_):
+        doc = _freshness_doc()
+        for item in doc.get("items", []):
+            key = str(item.get("key", ""))
+            if key.startswith(("source_import.", "comparison.")):
+                item["freshness_ok"] = True
+                if "weeks_behind" in item:
+                    item["weeks_behind"] = 1 if key.removeprefix("comparison.source.") in behind_pubs else 0
+        route.fulfill(status=200, json=doc)
+    return handler
+
+
+def check_freshness_rows(page) -> list[str]:
+    """JEG-1613: each popover row says which week the page shows for that source and whether the publisher has
+    posted the board's current week, without contradicting itself. Three states: normal (everything on the
+    current week), the Tuesday flip (page clock on N+1, every source still on N) and mixed (some posted N+1)."""
+    errors = []
+    roots = page.evaluate(ROOTS_JS)
+    live = sorted(pub for pub, want in roots.items() if not want.get("paused") and not want.get("held"))
+    n = page.evaluate("() => window.TradeValueV2.view().refWeek")
+    # name: (calendar, reference week, stale week, posted week, publishers behind)
+    states = {
+        "normal": (n, n, n, n, []),
+        "tuesday flip": (n + 1, n, n, n, live),
+        "mixed": (n + 1, n + 1, n, n + 1, live[:1]),
+    }
+    for name, (calendar, ref, stale_week, fresh_week, behind) in states.items():
+        args = json.dumps([calendar, ref, stale_week, fresh_week, behind])
+        rows, label = _freshness_with(page, _pipeline_healthy(behind), patch_js=f"({FLIP_PATCH})({args})")
+        for pub in live:
+            row = rows.get(pub) or {}
+            text = row.get("text", "")
+            if pub in behind:
+                m = re.search(r"Week (\d+) (?:chart|projections) not posted yet; showing Week (\d+)\.", text)
+                if row.get("status") != "prior" or not m:
+                    errors.append(f"freshness rows ({name}): {pub} reads {row}, want 'Week {calendar} ... not posted yet; showing Week {stale_week}.'")
+                elif (int(m.group(1)), int(m.group(2))) != (calendar, stale_week):
+                    errors.append(f"freshness rows ({name}): {pub} says {text!r}, want Week {calendar} not posted, showing Week {stale_week}")
+            elif row.get("status") != "current" or "not posted" in text:
+                errors.append(f"freshness rows ({name}): {pub} reads {row}, want current")
+        if name == "tuesday flip" and f"data through Week {n}" not in label:
+            errors.append(f"freshness rows ({name}): header reads {label!r}")
+    if not live:
+        errors.append("freshness rows: no live source to check")
+    return errors
+
+
 def _freshness_doc() -> dict:
     """The built freshness record, read from disk (a route.fetch round trip to the test server
     was refused intermittently on Windows)."""
     return json.loads((DIST / "assets" / "reference-freshness.json").read_text(encoding="utf-8"))
 
 
-def _freshness_with(page, handler, calendar_ahead=0):
+def _freshness_with(page, handler, calendar_ahead=0, patch_js=None):
     """Load Player values with reference-freshness.json served by handler; return the rows and the chip."""
     other = page.context.browser.new_page(viewport={"width": 1440, "height": 1000})
     other.route(lambda u: not u.startswith("http://127.0.0.1"), lambda route: route.abort())
@@ -508,6 +572,9 @@ def _freshness_with(page, handler, calendar_ahead=0):
         other.evaluate("""(ahead) => { const pd = window.TradeValueProductData, orig = pd.getSourceFreshness.bind(pd);
           pd.getSourceFreshness = () => { const f = orig() || {}; return {...f, current_content_week: (f.first_load_reference_week || 0) + ahead}; };
           window.TradeValueV2.setShown(window.TradeValueV2.shown()); }""", calendar_ahead)
+        other.wait_for_timeout(300)
+    if patch_js:
+        other.evaluate(patch_js)
         other.wait_for_timeout(300)
     other.click("#v2Freshness")
     rows = other.evaluate("""() => Object.fromEntries([...document.querySelectorAll('#v2Popover tr[data-source]')].map(tr =>
@@ -929,7 +996,7 @@ def run_checks(v2_js=None, v2_css=None, viewports=((1440, 900), (1366, 768), (39
                         errors += [tag + e for e in check(page)]
                 if full and width == 1440:
                     errors += [tag + e for e in check_sources(page, width)]
-                    for check in (check_league, check_weights, check_freshness):
+                    for check in (check_league, check_weights, check_freshness, check_freshness_rows):
                         errors += [tag + e for e in check(page)]
                 if width <= 390:
                     if full:
@@ -984,7 +1051,7 @@ class PanelsRenderTest(unittest.TestCase):
             "shares not applied": {"v2_js": v2.replace(
                 "          const result = C.setPositionWeights(edited);", "          const result = {ok: true};", 1)},
             "prior-week reason uses the old wording": {"v2_js": v2.replace(
-                "has not posted its Week", "has not published Week", 1)},
+                "not posted yet; showing", "not published yet; showing", 1)},
             "share range unchecked": {"v2_js": v2.replace(
                 "n >= lo * 100 - 1e-9 && n <= hi * 100 + 1e-9", "true", 1)},
             "pipeline failure ignored": {"v2_js": v2.replace(
