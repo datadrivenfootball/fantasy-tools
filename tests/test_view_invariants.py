@@ -36,6 +36,7 @@ import unittest
 
 from tests.test_published_league_settings_render import APP, _server
 from tests import _render_env  # noqa: E402
+from tests._week_view import own_week_reads  # noqa: E402
 
 
 def setUpModule():
@@ -131,10 +132,28 @@ def _sweep(settings, overrides=None, views=("indexed", "vorp", "adj")):
                 if share is not None:
                     page.evaluate("(s) => window.TradeValueCurveControls.setBenchShare(s)", share)
                 label = _label(scoring, teams, roster, share)
-                out[label] = {}
-                for view in views:
-                    page.locator(f'#viewModeTabs [data-view-mode="{view}"]').click()
-                    out[label][view] = page.evaluate(READ)
+
+                def read_views(keys=None):
+                    got = {}
+                    for view in views:
+                        page.locator(f'#viewModeTabs [data-view-mode="{view}"]').click()
+                        res = page.evaluate(READ)
+                        if keys is not None:
+                            res["maps"] = {k: m for k, m in res["maps"].items() if k.replace("_vorp", "") in keys}
+                        got[view] = res
+                    return got
+
+                out[label] = read_views()
+                # JEG-1176 / JEG-1614: a chart serving an older week is left out
+                # of the default week view. Read it in its own week's view
+                # (tests/_week_view.py); with no view for its week it is lagging.
+                vorp_maps = out[label].get("vorp", next(iter(out[label].values())))["maps"]
+                absent = [k for k in PUBLISHED + PROJECTIONS
+                          if not vorp_maps.get(k) and not vorp_maps.get(f"{k}_vorp")]
+                own = own_week_reads(page, absent, read_views, label, "view invariants not checked in the browser")
+                for week, got in own["reads"].items():
+                    out[f"{label}/week{week}"] = got
+                out.setdefault("_lagging", {})[label] = set(own["lagging"])
                 page.close()
         finally:
             browser.close()
@@ -212,8 +231,15 @@ class ViewInvariants(unittest.TestCase):
         # views are not measured; count only the sources the fixture does not hold.
         sources = json.loads((_render_env.ROOT / "data/fixtures/current/comparison-sources-data.json").read_text(encoding="utf-8"))["sources"]
         held = {k for k, v in sources.items() if isinstance(v, dict) and v.get("validationHold")}
-        live = lambda keys: sum(1 for k in keys if k.replace("_vorp", "") not in held)
-        self.assertGreaterEqual(len(measured), len(SETTINGS) * (live(PUBLISHED) * 3 + live(RAW_VORP) + live(PROJECTIONS)))
+        # JEG-1614: a lagging chart is measured in its own week's view (counted under that
+        # view's label); only one whose week has no view is left out, noted on stderr.
+        lagging = swept.get("_lagging", {})
+        expected = 0
+        for setting in SETTINGS:
+            skip = held | lagging.get(_label(*setting), set())
+            live = lambda keys: sum(1 for k in keys if k.replace("_vorp", "") not in skip)
+            expected += live(PUBLISHED) * 3 + live(RAW_VORP) + live(PROJECTIONS)
+        self.assertGreaterEqual(len(measured), expected)
         self.assertEqual(problems, [], "\n".join(problems[:25]))
 
     def test_guard_fails_on_broken_engines(self):
