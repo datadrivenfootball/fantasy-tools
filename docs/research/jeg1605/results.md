@@ -88,3 +88,15 @@ snapshots. Python: `/usr/bin/python3` 3.9.6 with numpy (the venv in the brief ha
 - Re-deriving the league allocation per scoring swings RB/WR rostered depth by 12 players at
   12 teams and moves the RB replacement level a lot; any scoring rebuild has to face this.
 - Within-position mix direction from projections is right on extreme pass-catcher pairs.
+
+## Superseding test (2026-11-10): chart-to-chart scoring response
+
+Jeremy replaced the realized-points benchmark with a chart-to-chart test (adjusted FantasyCalc and
+FantasyPros scored against CBS Sports and USA Today). Spec `response-preregistration.md`, results
+`response-results.md`: v1 and v2 both FAIL; the direction of the within-position move is right
+(corr +0.4 with the references' moves) but about twice too spread out, and levels move away.
+
+- Learning: the publishers' Standard-to-Full within-position moves are about one place in 36; a
+  projection-ratio adjuster needs roughly 0.15-0.3 of its own move to match them (descriptive).
+- Learning: ESPN non-zero future weeks exist only from content week 7 (`source_projection_captures`);
+  swapping them in for CBS `gp` changes games for most players but not within-position order.
