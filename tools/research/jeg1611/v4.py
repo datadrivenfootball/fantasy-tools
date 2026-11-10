@@ -41,7 +41,7 @@ SKILL = ("RB", "WR", "TE")
 SEASON = 2026
 MIN_B_NODES = 4
 MIX_MODELS = ("share", "raw", "recg", "assumed")
-FORMS = ("delta", "mult", "tail", "chartzero")
+FORMS = ("delta", "mult", "tail", "chartzero", "ddfrate")
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +176,7 @@ def chart_zero(u: U4) -> dict:
     return out
 
 
-def rebuild4(u: U4, s: str, natives0: dict, Rs: dict, form: str = "delta") -> dict:
+def rebuild4(u: U4, s: str, natives0: dict, Rs: dict, form: str = "delta", rate_ratio: dict | None = None) -> dict:
     """Chart natives at s. natives0 = the chart's whole input list; every
     non-invertible player keeps x_i (form 'tail': moved by the position's
     median invertible ratio of the delta form)."""
@@ -204,7 +204,11 @@ def rebuild4(u: U4, s: str, natives0: dict, Rs: dict, form: str = "delta") -> di
         V0, Vs = P0 - Z0[p], Ps - Rs[p]
         x = rec["x"]
         delta = max(0.0, x + bp * (Vs - V0))
-        if form == "mult":
+        if form == "ddfrate":
+            # Iteration 7: the slope at the target is b_p(s0) x rate_p(s) / rate_p(s0)
+            rr = (rate_ratio or {}).get(p)
+            out[i] = max(0.0, x + ((bp * rr) * Vs - bp * V0)) if rr is not None else x
+        elif form == "mult":
             out[i] = x * (max(0.0, Vs) / V0) if V0 > 0 else x
         else:
             out[i] = delta
@@ -316,6 +320,21 @@ def run_fixed(ctx, natives_by_src: dict, s: str, mix: list, drop=()) -> dict:
     return vr._blend_runs(mix, runs, m)
 
 
+def ddf_rate(dg: dict) -> dict:
+    """DDF's own value per point at a run's scoring: per position, the mean over
+    the projections in I of the OLS slope of Adjusted on ppg (Adjusted > 0)."""
+    out = {}
+    for p in POSITIONS:
+        sl = []
+        for j, by in dg["pairs"].items():
+            pr = [(x, a) for x, a in by.get(p, []) if a > 0]
+            b = uw.ols_slope([x for x, _ in pr], [a for _, a in pr])
+            if b is not None:
+                sl.append(b)
+        out[p] = sum(sl) / len(sl) if sl else None
+    return out
+
+
 def digest4(ctx, res: dict, s: str) -> dict:
     d = R3.digest(ctx, res, s)
     projs = [j for j in uw.PROJ if j in res["included"]]
@@ -410,8 +429,13 @@ class Week4(R3.Week):
 
     def v4_list(self, chart, s, s0=None, variant="primary", drop=(), mixkind="share", form="delta"):
         u, x, dg, tag = self.unwound(chart, s0, variant, drop, mixkind)
-        Rs = self.fixed(dg, tag, s, drop)["R"]
-        return rebuild4(u, s, x, Rs, form), u, Rs
+        fx = self.fixed(dg, tag, s, drop)
+        Rs = fx["R"]
+        rr = None
+        if form == "ddfrate":
+            r0, rs = ddf_rate(self.fixed(dg, tag, u.s0, drop)), ddf_rate(fx)
+            rr = {p: (rs[p] / r0[p] if rs[p] is not None and r0[p] else None) for p in POSITIONS}
+        return rebuild4(u, s, x, Rs, form, rr), u, Rs
 
 
 def v4_natives(wk: Week4, s, fc_variant="primary", drop=(), mixkind="share", form="delta"):

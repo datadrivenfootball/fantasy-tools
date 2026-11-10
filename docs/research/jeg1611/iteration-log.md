@@ -284,3 +284,44 @@ the calibration (7) uses ROS points per game.
    R^2 is lower for `P_i(s0)` than for the projections in 16 of 18 chart-positions, Spearman in 15 of 18.
    Neither is a calibrated forecast: both compress RB (and stretch TE). The chart's implied points are
    a slightly noisier version of the projections, on the same miscalibrated scale.
+
+## Iteration 7 (2026-11-10): confirmation run, weeks 8-9
+
+Before the run: one reported (Tier 2) variant `v4_ddfrate` (`v4.py` form `ddfrate`): slope at the target
+`b_p(s) = b_p(s0) rate_p(s) / rate_p(s0)`, `rate_p` = mean over the projections in `I` of the OLS slope of
+Adjusted on ppg (Adjusted > 0) from the fixed-allocation run at that scoring; delta `x + (b_p(s) V(s) -
+b_p(s0) V(s0))` (reading: the slope applies to the target VORP, the anchor term keeps its own slope, so
+identity at `s = s0` is exact; tested, 15 tests pass). Runner additions, no change to any statistic: `--out`,
+`--weeks 8 9`, T2 exactness on the run weeks, `closer / E[r^2]`, overshoot per method, guards for thin
+realized truth (a T8 week enters only with >= 3 realized players at every position; medians skip
+non-positive values, which only the new variants produce). Outputs `out/v4/holdout/weeks_8_9/` and
+`out/v4/holdout/dev_weeks_5_6_7/` (dev re-run with `v4_ddfrate`; every earlier dev number reproduced).
+Results `docs/research/jeg1611/results.md` (built from the JSON by `build_results.py`).
+
+Tier 1 on weeks 8-9 (frozen rule):
+- T1 PASS (rolling-origin, +0.026 [+0.013, +0.038], 8 of 8; fixed). T2 PASS (520 identity combinations,
+  max diff 0; current DDF and the fixed-allocation anchor reproduced).
+- T3 INCONCLUSIVE in all four cells: CBS S->F -0.0037 [-0.0298, +0.0060], CBS F->S -0.0186 [-0.1071,
+  +0.0032], USA Today S->F -0.0104 [-0.0526, +0.0044], F->S -0.0004 [-0.0131, +0.0076]; TE losses below
+  -0.01 in 5 of 8 week-cells (CBS F->S week 8 -0.071).
+- T4 PASS: corr FantasyCalc +0.392 [+0.225, +0.545] (placebo p95 +0.168), FantasyPros +0.282 [+0.110,
+  +0.445] (p95 +0.157).
+- T5 FAIL: sd ratio 1.540 [1.147, 2.023] and 1.588 [1.285, 2.035] (dev 1.72 / 1.77).
+- T6 INCONCLUSIVE: G2 (a) Standard FantasyCalc +0.022 [-0.042, +0.118], FantasyPros -0.013 [-0.063,
+  +0.007]; G3 (a) Standard -0.002 to +0.002, every interval crossing 0 (dev: FAIL, FantasyPros).
+- T8 INCONCLUSIVE (undefined): at week 8 only 10-12 set players have 2 realized games (week 9 has 36 rows
+  in the actuals file), at week 9 none; no week has 3 per position.
+- **Overall by the rule: v4 does not pass** (T5 fails; T3, T6, T8 inconclusive). The amended prediction
+  (fail T3, T5, T6) held for T5; T3 and T6 came out inconclusive rather than harm.
+
+Tier 2 on weeks 8-9: G1 original measures 3 of 24 weeks won (v4_ddfrate 6, v4_mult 5); levels_norm 0
+for v4; overshoot 33 of 36 same-side cells (dev 51 of 58); level moves FantasyCalc WR/RB +0.223, TE/RB
++0.207, FantasyPros +0.120 / +0.173 against CBS +0.099 / +0.141 and USA Today -0.014 / -0.009; G2 FAIL,
+levels move away; G3 worse in the primary and every robustness run (FantasyCalc dropped and allocation
+fixed at Half: not shown on the FantasyCalc set); DDF value per point Full / Standard: projections RB
+0.908, WR 0.703, TE 0.711; v4 charts 0.686 / 0.816 / 0.792.
+
+`v4_ddfrate`: native median ratios 0.92-1.06 in every cell on both sets of weeks (published 0.78-1.29),
+level moves +0.110 / +0.050 (FantasyCalc) and +0.110 / +0.066 (FantasyPros) on weeks 8-9, overshoot 0 of
+36 (dev 2 of 58); paired within and the G2 sd ratio equal v4's to the third decimal (1.52 / 1.59); Tier 1
+the same as v4 (T5 FAIL). It moves levels short of both publishers instead of beyond them.

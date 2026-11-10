@@ -31,7 +31,7 @@ G1_CHARTS, G1_DIRECTIONS, G1_MEASURES = R3.G1_CHARTS, R3.G1_DIRECTIONS, R3.G1_ME
 # name -> (mixkind, form) of the native-list variants
 LIST_VARIANTS = {"v4": ("share", "delta"), "v4_mult": ("share", "mult"), "v4_tail": ("share", "tail"),
                  "v4_raw": ("raw", "delta"), "v4_recg": ("recg", "delta"), "v4_assumed": ("assumed", "delta"),
-                 "v4_chartzero": ("share", "chartzero")}
+                 "v4_chartzero": ("share", "chartzero"), "v4_ddfrate": ("share", "ddfrate")}
 r4, rnd = R3.r4, R3.rnd
 G1_MEASURES_ALL = G1_MEASURES + ("levels_norm", "levels_norm_pos")
 LOWER_BETTER = ("levels", "levels_norm", "levels_norm_pos")
@@ -258,7 +258,7 @@ def g2(ctx, weeks, W):
 
 G3_PAIRS = {"primary": ("v4", "current"), "fchalf": ("v4_fchalf", "current"),
             "noFC": ("v4_noFC", "current_noFC"), "alloc_fixed_half": ("v4_alloc_half", "current"),
-            "chartzero": ("v4_chartzero", "current")}
+            "chartzero": ("v4_chartzero", "current"), "ddfrate": ("v4_ddfrate", "current")}
 
 
 def g3_lists(ctx, weeks, W, scorings=("standard", "ppr")):
@@ -270,7 +270,8 @@ def g3_lists(ctx, weeks, W, scorings=("standard", "ppr")):
                     "current_noFC": wk.current(s, drop=("fantasycalc",)),
                     "v4_noFC": v4.v4_run(wk, s, drop=("fantasycalc",)),
                     "v4_alloc_half": v4.v4_run(wk, s, alloc="half_fixed"),
-                    "v4_chartzero": v4.v4_run(wk, s, form="chartzero")} for s in scorings}
+                    "v4_chartzero": v4.v4_run(wk, s, form="chartzero"),
+                    "v4_ddfrate": v4.v4_run(wk, s, form="ddfrate")} for s in scorings}
         for R in R3.G3_REFS:
             lists[(w, R)] = {m: {s: R3.ddf_minus(runs[s][m], R) for s in scorings} for m in runs[scorings[0]]}
         ddf_full[w] = {s: {"current": runs[s]["current"]["ddf"], "v4": runs[s]["v4"]["ddf"]} for s in scorings}
@@ -341,7 +342,7 @@ def g3(ctx, weeks, W):
         verdicts[label] = {"by_set": by_set,
                            "overall": "worse" if "worse" in vs else "better" if vs == {"better"} else "not shown"}
     hinge = {}
-    for label in ("fchalf", "noFC", "alloc_fixed_half", "chartzero"):
+    for label in ("fchalf", "noFC", "alloc_fixed_half", "chartzero", "ddfrate"):
         for key, row in res.items():
             p, q = row["primary"]["a_standard_diff"]["est"], row[label]["a_standard_diff"]["est"]
             hinge[f"{label}|{key}"] = bool(p is not None and q is not None and (p > 0) != (q > 0))
@@ -639,7 +640,8 @@ def g2_size(ctx, worlds, lists, W):
             unit = {k: i for i, k in enumerate(units)}
             Wb = boot(len(units))
             meths = [m for m in SIZE_METHODS if m in lists[W[0]][subj]]
-            acc = {m: {"sd_ratio": [], "slope_ref_on_method": []} for m in meths + ["pub_cbs", "pub_usatoday"]}
+            acc = {m: {"sd_ratio": [], "slope_ref_on_method": [], "closer_norm": []}
+                   for m in meths + ["pub_cbs", "pub_usatoday"]}
             for w in W:
                 wk, sets = worlds[w], sets_w[w]
                 ks_all = [k for p in rtest.POS for k in sets[p]]
@@ -652,6 +654,8 @@ def g2_size(ctx, worlds, lists, W):
                         movers[f"pub_{pub}"] = np.concatenate([pct_move(wk["natives"][pub], sets[p]) for p in rtest.POS])
                 for m, mv in movers.items():
                     acc[m]["sd_ratio"].append(wsd(mv, ww) / wsd(rm, ww))
+                    er2 = rtest.wmean(rm * rm, ww)
+                    acc[m]["closer_norm"].append((er2 - rtest.wmean((mv - rm) ** 2, ww)) / er2)
                     mm, mr = rtest.wmean(mv, ww)[:, None], rtest.wmean(rm, ww)[:, None]
                     cov = (ww * (mv - mm) * (rm - mr)).sum(1)
                     var = (ww * (mv - mm) ** 2).sum(1)
@@ -729,9 +733,15 @@ def t8_score(ctx, W, sets_w, lists_w, real_w, comps):
     unit = {k: i for i, k in enumerate(units)}
     Wb = boot(len(units))
     vals = {}
+    # a week enters only when every position has >= 3 players with realized points
+    Wk = [w for w in W if all(sum(pos_of[k] == p for k in sets_w[w] if k in real_w[w]) >= 3 for p in SHARE_POS)]
+    n_by_week = {w: sum(k in real_w[w] for k in sets_w[w]) for w in W}
+    if not Wk:
+        return {"undefined": "no week with >= 3 realized players at every position", "n_by_week": n_by_week,
+                "weeks_used": []}
     for m in lists_w[W[0]]:
         per_w, per_p = [], {p: [] for p in SHARE_POS}
-        for w in W:
+        for w in Wk:
             ks_w = [k for k in sets_w[w] if k in real_w[w]]
             pp = []
             for p in SHARE_POS:
@@ -744,7 +754,8 @@ def t8_score(ctx, W, sets_w, lists_w, real_w, comps):
         vals[m] = {"all": np.mean(per_w, axis=0), **{p: np.mean(v, axis=0) for p, v in per_p.items()}}
     out = {m: {k: est_ci(v) for k, v in d.items()} for m, d in vals.items()}
     out["diffs"] = {f"{a}-{b}": {k: est_ci(vals[a][k] - vals[b][k]) for k in vals[a]} for a, b in comps}
-    out["n_by_week"] = {w: sum(k in real_w[w] for k in sets_w[w]) for w in W}
+    out["n_by_week"] = n_by_week
+    out["weeks_used"] = Wk
     return out
 
 
@@ -792,7 +803,7 @@ def t8(ctx, weeks, wkls, W):
     return out
 
 
-def overshoot(ctx, weeks, W, G1, G2):
+def overshoot(ctx, weeks, W, G1, G2, meth="v4"):
     """4. Cells where both publishers' own moves lie on the same side: does v4
     lie beyond both? (Standard-to-Full orientation.)"""
     items = []
@@ -803,15 +814,17 @@ def overshoot(ctx, weeks, W, G1, G2):
             for q in ("WR/RB", "TE/RB"):
                 a, b = bw["ref_move"]["cbs"][q], bw["ref_move"]["usatoday"][q]
                 items.append({"kind": "level_move", "week": w, "subject": subj, "measure": q, "cbs": a,
-                              "usatoday": b, "v4": bw[f"{subj}|v4"]["move"][q]})
+                              "usatoday": b, "v4": bw[f"{subj}|{meth}"]["move"][q]})
             # median Full/Standard ratio per position over the subject's G2 mean set
             world = rtest.week_world(ctx, w)
             st = rtest.player_set(ctx, world, subj, "mean")
-            v_std, v_ppr = weeks[w].v4_list(subj, "standard")[0], weeks[w].v4_list(subj, "ppr")[0]
+            kind, form = LIST_VARIANTS[meth]
+            v_std = weeks[w].v4_list(subj, "standard", mixkind=kind, form=form)[0]
+            v_ppr = weeks[w].v4_list(subj, "ppr", mixkind=kind, form=form)[0]
             nat = weeks[w].natives
             for p in rtest.POS:
                 ks = st[p]
-                med = lambda d1, d2: statistics.median(d2[k] / d1[k] for k in ks)
+                med = lambda d1, d2: statistics.median(d2[k] / d1[k] for k in ks if d1[k] > 0 and d2[k] > 0)
                 items.append({"kind": "median_ratio", "week": w, "subject": subj, "measure": p,
                               "cbs": med(nat["cbs"]["standard"], nat["cbs"]["ppr"]),
                               "usatoday": med(nat["usatoday"]["standard"], nat["usatoday"]["ppr"]),
@@ -821,7 +834,7 @@ def overshoot(ctx, weeks, W, G1, G2):
         for s0, s in G1_DIRECTIONS:
             pub = {c: G1["cells"][f"{c}|{s0}->{s}"][w]["published_median_ratio"] for c in G1_CHARTS}
             for c in G1_CHARTS:
-                reb = G1["cells"][f"{c}|{s0}->{s}"][w]["v4"]["median_ratio_to_input"]
+                reb = G1["cells"][f"{c}|{s0}->{s}"][w][meth]["median_ratio_to_input"]
                 for p in SHARE_POS:
                     inv = (lambda x: x) if s == "ppr" else (lambda x: 1.0 / x)
                     items.append({"kind": f"G1_median_ratio|{c}|{s0}->{s}", "week": w, "subject": c, "measure": p,
@@ -944,12 +957,46 @@ def calibration(ctx, weeks, W):
                     sp_p.append(float(s4.spearman(pw, yw)[0]))
             row = {"n": len(ys)}
             for lab, xs, sp in (("chart_P0", xs_c, sp_c), ("projections_mean_ppg", xs_p, sp_p)):
-                b, a, r2 = v4.ols(xs, ys)
+                b, a, r2 = v4.ols(xs, ys) if len(ys) >= 3 else (None, None, None)
                 row[lab] = {"slope": b, "intercept": a, "r2": r2, "spearman_mean_over_weeks": statistics.fmean(sp)
                             if sp else None, "mean_x": statistics.fmean(xs) if xs else None}
             row["mean_realized"] = statistics.fmean(ys) if ys else None
             out[f"{chart}|{weeks[W[0]].unwound(chart, s0)[0].s0}|{p}"] = row
     return out
+
+
+def exactness(ctx, weeks, W):
+    """T2 on the weeks run: identity at s = s0 on every chart-week, mix model and
+    form; current DDF reproduced at s0; the fixed-allocation run reproduces the anchor."""
+    worst, n, bad = 0.0, 0, []
+    ddf_ok = fixed_ok = True
+    for w in W:
+        wk = weeks[w]
+        cases = [(c, s0, "primary") for c in ("cbs", "usatoday", "fantasycalc", "fantasypros")
+                 for s0 in R3.SCORINGS] + [("fantasycalc", None, "fchalf")]
+        for c, s0, var in cases:
+            for kind in v4.MIX_MODELS:
+                u, x, _dg, _tag = wk.unwound(c, s0, var, (), kind)
+                for form in v4.FORMS:
+                    out = wk.v4_list(c, u.s0, s0, var, (), kind, form)[0]
+                    d = max(abs(out[k] - x[k]) for k in x)
+                    worst = max(worst, d)
+                    n += 1
+                    if out != x:
+                        bad.append([w, c, s0, var, kind, form])
+        for s in R3.SCORINGS:
+            nat = R3.current_natives(wk.natives, s)
+            for c in R3.CHARTS:
+                nat[c] = wk.v4_list(c, s, s0=s)[0]
+            ddf_ok &= v4.digest4(ctx, R3.run_at(ctx, nat, s), s)["ddf"] == wk.current(s)["ddf"]
+            cur = wk.current(s)
+            fx = wk.fixed(cur, f"current_{s}", s)
+            fixed_ok &= fx["ddf"] == cur["ddf"] and fx["adj"] == cur["adj"] and fx["waiver"] == cur["waiver"]
+        ddf_ok &= wk.v4_list("fantasycalc", "ppr")[0] == wk.natives["fantasycalc"]["ppr"]
+        ddf_ok &= wk.v4_list("fantasypros", "half_ppr")[0] == wk.natives["fantasypros"]["half_ppr"]
+    return {"identity_combinations": n, "identity_max_abs_diff": worst, "identity_not_bitwise": bad,
+            "current_ddf_reproduced": bool(ddf_ok), "fixed_allocation_reproduces_anchor": bool(fixed_ok),
+            "pass": bool(not bad and ddf_ok and fixed_ok)}
 
 
 def review1(ctx, weeks, W, G1, G2):
@@ -959,6 +1006,9 @@ def review1(ctx, weeks, W, G1, G2):
     print("review: lists", flush=True)
     return {"weeks": list(W), "g2_size": g2_size(ctx, worlds, lists, W), "g1_within_paired": g1_paired(ctx, weeks, wkls, W),
             "t8_realized": t8(ctx, weeks, wkls, W), "overshoot": overshoot(ctx, weeks, W, G1, G2),
+            "overshoot_by_method": {m: {k: v for k, v in overshoot(ctx, weeks, W, G1, G2, m).items() if k.startswith("n_")}
+                                    for m in LIST_VARIANTS},
+            "exactness": exactness(ctx, weeks, W),
             "publisher_move_sd": publisher_move_sd(G2, W), "value_per_point": value_per_point(ctx, weeks, W),
             "calibration": calibration(ctx, weeks, W)}
 
@@ -983,7 +1033,10 @@ def summary_review1(W, RV):
     L += ["", "### 3. T8 realized ROS points (2026 weeks w..9, >= 2 games), within-position Spearman", "",
           "| Test | list values (RB/WR/TE mean) | diffs |", "| --- | --- | --- |"]
     for k, d in RV["t8_realized"].items():
-        vals = ", ".join(f"{m} {d[m]['all']['est']:.3f}" for m in d if m not in ("diffs", "n_by_week"))
+        if "undefined" in d:
+            L.append(f"| {k} | undefined: {d['undefined']} (n by week {d['n_by_week']}) | |")
+            continue
+        vals = ", ".join(f"{m} {d[m]['all']['est']:.3f}" for m in d if m not in ("diffs", "n_by_week", "weeks_used"))
         diffs = "; ".join(f"{dk} {ci(dv['all'])}" for dk, dv in d["diffs"].items())
         L.append(f"| {k} | {vals} | {diffs} |")
     o = RV["overshoot"]
@@ -1004,11 +1057,13 @@ def summary_review1(W, RV):
     L += ["", "### 7. Calibration: realized ROS ppg at s0 on chart-implied P_i(s0) vs on the projections' mean ppg", "",
           "| Chart, s0, pos | n | P0 slope | P0 intercept | P0 R^2 | P0 Spearman | proj slope | proj intercept | proj R^2 | proj Spearman | mean P0 / proj / realized |",
           "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    g = lambda x, f=".3f": "n/a" if x is None else format(x, f)
     for k, d in RV["calibration"].items():
         c, q = d["chart_P0"], d["projections_mean_ppg"]
-        L.append(f"| {k} | {d['n']} | {c['slope']:.3f} | {c['intercept']:+.2f} | {c['r2']:.3f} | {c['spearman_mean_over_weeks']:.3f} | "
-                 f"{q['slope']:.3f} | {q['intercept']:+.2f} | {q['r2']:.3f} | {q['spearman_mean_over_weeks']:.3f} | "
-                 f"{c['mean_x']:.2f} / {q['mean_x']:.2f} / {d['mean_realized']:.2f} |")
+        L.append(f"| {k} | {d['n']} | {g(c['slope'])} | {g(c['intercept'], '+.2f')} | {g(c['r2'])} | "
+                 f"{g(c['spearman_mean_over_weeks'])} | {g(q['slope'])} | {g(q['intercept'], '+.2f')} | {g(q['r2'])} | "
+                 f"{g(q['spearman_mean_over_weeks'])} | {g(c['mean_x'], '.2f')} / {g(q['mean_x'], '.2f')} / "
+                 f"{g(d['mean_realized'], '.2f')} |")
     L.append("")
     return L
 
@@ -1021,12 +1076,15 @@ def _int_weeks(d):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--weeks", default="5,6,7")
+    ap.add_argument("--weeks", nargs="+", default=["5,6,7"])
     ap.add_argument("--only", default=None, choices=("g1", "g2", "g3", "cov", "review"))
+    ap.add_argument("--out", default=None, help="output directory (default out/v4 or out/v4/weeks_<list>)")
     a = ap.parse_args(argv)
-    W = tuple(int(x) for x in a.weeks.split(","))
+    W = tuple(int(x) for x in ",".join(a.weeks).split(",") if x)
     out = HERE / "out" / "v4"
-    if W != DEV_WEEKS:
+    if a.out:
+        out = Path(a.out)
+    elif W != DEV_WEEKS:
         out = out / ("weeks_" + "_".join(map(str, W)))
     out.mkdir(parents=True, exist_ok=True)
     ctx = R3.load_world()

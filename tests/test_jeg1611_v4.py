@@ -118,6 +118,21 @@ def test_chartzero_zero_and_move():
             assert out[i] == pytest.approx(max(0.0, r["x"] + b * ((Ps - Zs) - (r["P0"] - z["zero"]))))
 
 
+def test_ddfrate_identity_and_slope():
+    recs, maps, mixes, R0 = synth_case(8)
+    x = {i: r[1] for i, r in recs.items()}
+    u = v4.unwind4(recs, maps, mixes, R0, "ppr")
+    one = {p: 1.0 for p in v4.POSITIONS}
+    assert v4.rebuild4(u, "ppr", x, dict(R0), "ddfrate", one) == x
+    Rs = {p: 4.5 for p in v4.POSITIONS}
+    out = v4.rebuild4(u, "standard", x, Rs, "ddfrate", {p: 1.25 for p in v4.POSITIONS})
+    b = u.b["WR"]["b"]
+    for i, r in u.records.items():
+        if r["label"] == "invertible":
+            Ps = r["P0"] / (1 + r["mix"].sh)
+            assert out[i] == pytest.approx(max(0.0, r["x"] + 1.25 * b * (Ps - 4.5) - b * (r["P0"] - 6.0)))
+
+
 def test_qb_untouched_synthetic():
     recs, maps, mixes, R0 = synth_case(5, pos="QB")
     x = {i: r[1] for i, r in recs.items()}
