@@ -1,0 +1,46 @@
+<!--
+Patch for the review page https://claude.ai/artifact/KLkB8rvrUBJvoiTurYHAru (JEG-1610, 2026-11-10).
+For the lead to apply and publish. Uses the page's existing classes; no new CSS.
+
+1. In <p class="meta">, replace "draft PRs #1405 and #1408" with "draft PRs #1405, #1408, #1414 and #1415".
+2. In the .verdict box, insert block A after the "Update, 2026-11-10." paragraph.
+3. Insert block B (a new section) immediately before <h2>Why it failed</h2>.
+4. In "Options from here", replace the three .box divs with block C.
+5. In "Where the work lives", append block D to the paragraph.
+-->
+
+<!-- A -->
+<p><b>Update, version 3 (2026-11-10).</b> We built your new prescription: start from the Adjusted values DDF averages, unwind them to value above waivers and points, take each player's mix from his own 2024 to 2026 games, and rebuild every scoring through DDF. It failed the first gate in every cell and every week, and failed your chart-to-chart test as well. See "Version 3".</p>
+
+<!-- B -->
+<h2>Version 3: unwinding DDF's own values</h2>
+<p>Your prescription of 2026-11-10 replaced the earlier one. We applied it only to FantasyPros (assumed Half) and FantasyCalc (its Full list, assumed). CBS Sports and USA Today are used as published. The tests were committed before any code.</p>
+<ol class="steps">
+<li data-n="1"><b>Third-party trade charts</b>Each chart's saved list at its anchor scoring.</li>
+<li data-n="2"><b>The value that feeds DDF</b>That value is the chart's Adjusted value. Indexed is display only: it is the published list times one number, so unwinding it just gives the list back.</li>
+<li data-n="3"><b>Unwind to value above waivers</b>Within a position, Adjusted rises with the chart's value, so it can be inverted exactly for every player above the chart's waiver line. The position weights and the pie are the same for every source, so they cancel in step 4. Two things are lost. Players at or below waivers have an Adjusted value of 0, and we only know they sit at or below the line (128 FantasyCalc and 160 FantasyPros player-weeks). The chart's own view of position levels is also lost, because every source's Adjusted total at a position equals the pie times DDF's weight. That view survives only as one of seven votes in the weights.</li>
+<li data-n="4"><b>Expected points</b>For each player, the points per game at which DDF prices a projection at the same Adjusted value, from the same run.</li>
+<li data-n="5"><b>How he earns his points</b>Receptions per game and other points per game over his 2024 to 2026 games, from weekly actuals (at least 6 games). 91 to 95% of priced players have their own history. Rookies and players with fewer games use their position's median mix, labelled (12 to 15 players in each scored set).</li>
+<li data-n="6"><b>Implied stats</b>His implied points split in his own proportions: receptions, and yards and touchdowns by category.</li>
+<li data-n="7"><b>Rebuild each scoring and average</b>Rescore the implied stats, convert back to the chart's units, run DDF unchanged at that scoring, and average the four charts as DDF does. Games do not enter: DDF prices per game, so ESPN's games count has nothing to change.</li>
+</ol>
+<div class="tbl"><table>
+<thead><tr><th>Test</th><th>Verdict</th><th>Key number</th></tr></thead>
+<tbody>
+<tr><td>G1: CBS Sports' and USA Today's own Standard column pushed to Full, and Full to Standard, against their published column. Needed 3 of 5 weeks in each of 12 cells (order within position, levels, order across positions)</td><td><span class="tag fail">Fail</span></td><td>0 of 5 weeks in all 12 cells. Within position 0.88 to 0.98 against 0.99 for leaving the list unchanged</td></tr>
+<tr><td>G2: your chart-to-chart test (adjusted FantasyPros and FantasyCalc against CBS Sports and USA Today)</td><td><span class="tag fail">Fail</span></td><td>Direction right (correlation +0.43 FantasyCalc, +0.31 FantasyPros). Size wrong: not moving is closer (-0.004 [-0.007, -0.003] and [-0.006, -0.003]). FantasyPros agreement at Standard -0.033 [-0.081, -0.010]. Levels move away in 5 of 5 weeks</td></tr>
+<tr><td>G3: v3 DDF Value against current DDF Value, each reference left out of the average it is scored against</td><td><span class="tag fail">Worse</span></td><td>The "closer" measure falls in every case, for example -0.003 [-0.005, -0.002] against CBS Sports. The result is the same with FantasyCalc at Half and with FantasyCalc dropped</td></tr>
+<tr><td>Realized points (secondary)</td><td><span class="tag ns">Not shown</span></td><td>Standard +0.023 [-0.002, +0.058]; Full -0.001 [-0.014, +0.010]</td></tr>
+</tbody></table></div>
+<div class="two">
+<div class="box"><h3>Why it failed</h3><p>The same reason as versions 1 and 2. Giving each player the full change in what a catch is worth moves the order much more than the publishers' own columns do. Swapping each player's history for the projections' mix changes nothing (1 of 60 cell-weeks). The same is true if we re-derive the waiver line at the new scoring instead of using the chart's curve (0 of 40). Converting back through the chart's curve at the anchor also wrecks levels. At Standard, most tight ends fall below the anchor's waiver line and go to 0.</p></div>
+<div class="box"><h3>Extreme players</h3><p>Pass-catching backs move up more than other backs, as at CBS Sports and USA Today, but 3 to 4 times too far (FantasyCalc +0.67 against about +0.16). Tight ends all move far too much, whatever their mix. Rushing quarterbacks keep their chart value, which is right. But DDF v3 still lowers them from Standard to Full almost 3 times as much as current DDF, because every other position's rebuilt values grow.</p></div>
+</div>
+
+<!-- C -->
+<div class="box"><h3>A. Close all three versions</h3><p>Keep current DDF Value. Nothing live changes. Say in the article that the charts' own format columns move far less than any stat rebuild predicts. Recommended.</p></div>
+<div class="box"><h3>B. Test one damping factor, out of sample</h3><p>Fit on CBS Sports, test on USA Today, judged on weeks 10 onward. This breaks the no-tuning rule, so it needs your go.</p></div>
+<div class="box"><h3>C. Keep only FantasyCalc's own switch</h3><p>Its per-position switch is already the closest to the references on levels. Leave order within a position as published.</p></div>
+
+<!-- D -->
+Version 3: draft PR #1415 (docs/research/jeg1610, tools/research/jeg1610), Linear JEG-1610.
