@@ -148,6 +148,44 @@ class CbsDiscoveryTest(unittest.TestCase):
         self.assertEqual(tables[0]["headers"], ["Player", "tm", "1QB-4", "1QB-6", "2QB"])
 
 
+CBS_W9 = ("https://www.cbssports.com/fantasy/football/news/"
+          "dave-richards-week-9-fantasy-football-trade-chart-rest-of-season-rankings/")
+
+
+class CbsWrappedTableMarkupTest(unittest.TestCase):
+    """2026-11-09 (JEG-1485 diagnosis): CBS now wraps each table in TableBase
+    divs and the table class is "TableBuilder TableBase-table". The exact
+    `<table class="TableBuilder">` match rejected every article, so the source
+    probe gave up ("no CBS week 8 trade chart found") and Week 10 would not
+    ingest. The fixture is the live Week 9 article, trimmed."""
+
+    def setUp(self):
+        self.page = read("cbs-week-9-article-2026-11-09.html")
+        self.assertNotIn('<table class="TableBuilder">', self.page)  # the new shape only
+
+    def test_the_new_markup_passes_the_article_check(self):
+        site = cbs_site(extra={CBS_W9: self.page})
+        self.assertIsNone(pull_cbs.check_article(CBS_W9, 9, site))
+
+    def test_the_new_markup_parses_four_position_tables(self):
+        tables = pull_cbs.parse_tables(self.page)
+        self.assertEqual([t["title"] for t in tables],
+                         ["Quarterback trade values", "Running back trade values",
+                          "Wide receiver trade values", "Tight end trade values"])
+        self.assertEqual(tables[0]["headers"], ["PLAYER", "TM", "1QB-4", "1QB-6", "2QB"])
+        self.assertEqual(tables[1]["headers"], ["PLAYER", "TM", "NON", "0.5", "PPR"])
+        self.assertEqual(tables[0]["rows"][0], ["Josh Allen", "BUF", "21", "21", "46"])
+        self.assertEqual([len(t["rows"]) for t in tables], [34, 43, 49, 16])
+
+    def test_the_old_markup_still_parses(self):
+        self.assertEqual(len(pull_cbs.parse_tables(read("cbs-week-5-article-2026-10-08.html"))), 4)
+
+    def test_a_page_without_trade_tables_is_still_rejected(self):
+        bare = re.sub(r"<table\b.*?</table>", "", self.page, flags=re.S)
+        site = cbs_site(extra={CBS_W9: bare})
+        self.assertEqual(pull_cbs.check_article(CBS_W9, 9, site), "no TableBuilder tables")
+
+
 class CbsLlmFallbackTest(unittest.TestCase):
     """The LLM only nominates a listing link; the page checks decide."""
 
