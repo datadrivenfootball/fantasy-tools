@@ -59,7 +59,6 @@ NEWS_PATH = "/fantasy/football/news/"
 # 2026-11-09). Both shapes are accepted; the cells are unchanged (the Week 9
 # page parses to the stored Week 9 rows exactly).
 TABLE_MARK_RE = re.compile(r'<table class="TableBuilder(?:\s[^"]*)?"')
-TABLE_MARK = 'class="TableBuilder'
 TABLE_RE = re.compile(
     r"<h2>\s*(.*?)\s*</h2>\s*(?:<div\b[^>]*>\s*)*"
     r"<table class=\"TableBuilder(?:\s[^\"]*)?\">(.*?)</table>", re.S)
