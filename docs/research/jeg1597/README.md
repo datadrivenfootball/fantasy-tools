@@ -33,3 +33,10 @@ Research only; nothing here is live. Read in this order:
 - v2 round trip (JEG-1605, `docs/research/jeg1605/`): value is about linear in VORP (fit against
   VORP, not points); re-deriving replacement and the allocation per scoring moves position levels
   further from the publishers' own columns, and the chain fails the labelled gate L.
+- v3 (JEG-1610, `docs/research/jeg1610/`): unwinding DDF's own Adjusted values to points (matched to
+  the projections priced on the same weights and pie) and using each player's 2024-2026 reception
+  mix also fails the labelled gate, 0 of 5 weeks in all 12 cells. The mix source (history or
+  projected) and the way back to value (chart curve or projection pricing at the target) do not
+  matter. Full-strength rescoring of each player's points overshoots the publishers' columns.
+  Adjusted erases a chart's own position levels (each source's position total = pie x W), and
+  games do not enter a per-game rebuild.
