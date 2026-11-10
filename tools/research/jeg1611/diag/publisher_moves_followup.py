@@ -137,6 +137,69 @@ def item7(ctx, weeks):
     return out
 
 
+# ---------------------------------------------------------------------------
+# Item 8: test-retest (own move next week) vs cross-publisher (same week)
+# ---------------------------------------------------------------------------
+
+def item8(rows, rng):
+    """Players in the common set in both week w and w + 1 (pairs 5->6, 6->7).
+    Moves are de-meaned within (pair, position) on that paired set."""
+    by = {(r["w"], r["k"]): r for r in rows}
+    pairs = []
+    for w in DEV[:-1]:
+        for (wk, k), a in by.items():
+            b = by.get((w + 1, k))
+            if wk == w and b is not None:
+                pairs.append({"w": w, "k": k, "pos": a["pos"], "g": f"{w}|{a['pos']}", "a": a, "b": b})
+    out = {"n_pairs": len(pairs), "cells": {}}
+    specs = {
+        "self_cbs_w_vs_w+1": (lambda r: r["a"]["cbs"]["m"], lambda r: r["b"]["cbs"]["m"]),
+        "self_usatoday_w_vs_w+1": (lambda r: r["a"]["usatoday"]["m"], lambda r: r["b"]["usatoday"]["m"]),
+        "cross_week_w_cbs_vs_usatoday": (lambda r: r["a"]["usatoday"]["m"], lambda r: r["a"]["cbs"]["m"]),
+        "cross_week_w+1_cbs_vs_usatoday": (lambda r: r["b"]["usatoday"]["m"], lambda r: r["b"]["cbs"]["m"]),
+    }
+    labs = [f"{w}->{w + 1}" for w in DEV[:-1]] + ["pooled"]
+    for name, (xf, yf) in specs.items():
+        out["cells"][name] = {}
+        for lab in labs:
+            rs = pairs if lab == "pooled" else [r for r in pairs if r["w"] == int(lab.split("->")[0])]
+            out["cells"][name][lab] = pm.corr_block(rs, xf, yf, rng, slope=False)
+    # robustness: drop players whose S and F are both carried over unchanged by that publisher
+    for q in PUBS:
+        keep = [r for r in pairs if not (r["a"][q]["S"] == r["b"][q]["S"] and r["a"][q]["F"] == r["b"][q]["F"])]
+        out["cells"][f"self_{q}_w_vs_w+1_excl_carried_over"] = {
+            "pooled": pm.corr_block(keep, lambda r, q=q: r["a"][q]["m"], lambda r, q=q: r["b"][q]["m"], rng, slope=False)}
+    ident = {}
+    for q in PUBS:
+        ident[q] = {}
+        for p in POS + ("ALL",):
+            rs = [r for r in pairs if p == "ALL" or r["pos"] == p]
+            ident[q][p] = {"n": len(rs),
+                           "share_identical_move": pm.r4(np.mean([abs(r["a"][q]["m"] - r["b"][q]["m"]) < 1e-9 for r in rs])),
+                           "share_identical_S_and_F": pm.r4(np.mean([r["a"][q]["S"] == r["b"][q]["S"]
+                                                                    and r["a"][q]["F"] == r["b"][q]["F"] for r in rs]))}
+    out["identical_consecutive"] = ident
+    out["note"] = ("common set (l_gate scored set, all four columns > 0) in both weeks; de-meaned within position on "
+                   "the paired set; pooled stacks both pairs, player-clustered bootstrap.")
+    return out
+
+
+def item8_md(F8):
+    L = ["", "## 8. Test-retest vs cross-publisher (de-meaned move, common set in both weeks)", "", F8["note"],
+         f"Pairs: {F8['n_pairs']} player-week pairs.", "",
+         "| Cell | Weeks | Pos | n | Spearman | Pearson |", "| --- | --- | --- | --- | --- | --- |"]
+    for name, by in F8["cells"].items():
+        for lab, d in by.items():
+            for p in POS + ("ALL",):
+                L.append(f"| {name} | {lab} | {p} | {d[p]['n']} | {pm.fmt(d[p].get('spearman'))} | "
+                         f"{pm.fmt(d[p].get('pearson'))} |")
+    L += ["", "| Pub | Pos | n | share identical move | share identical S and F |", "| --- | --- | --- | --- | --- |"]
+    for q, by in F8["identical_consecutive"].items():
+        for p, d in by.items():
+            L.append(f"| {q} | {p} | {d['n']} | {d['share_identical_move']} | {d['share_identical_S_and_F']} |")
+    return "\n".join(L) + "\n"
+
+
 def to_md(F):
     L = ["", "# Follow-up (items 6-7)", "", "## 6. G2 'closer' ceiling (percentile move, common set)", "",
          F["item6"]["note"], "",
@@ -163,7 +226,8 @@ def to_md(F):
                      f"{d['proj_top_ratio_F_over_S_pub_top']} | {d['proj_top_ratio_F_over_S_proj_own_top']} |")
     L.append("\nTop-N: 12 for RB and WR, 6 for TE. Slopes: OLS of chart value on mean projected ppg at that "
              "scoring (projection lines as l_gate loads them), players listed > 0 in both columns.")
-    return "\n".join(L) + "\n"
+    out = "\n".join(L) + "\n"
+    return out + (item8_md(F["item8"]) if "item8" in F else "")
 
 
 def main():
@@ -171,6 +235,7 @@ def main():
     rng = np.random.default_rng(pm.SEED)
     common = pm.build_rows(ctx, weeks, hist, ros, "common")
     F = {"item6": item6(common, rng), "item7": item7(ctx, weeks)}
+    F["item8"] = item8(common, rng)
     jp, mp = pm.OUT / "publisher_moves.json", pm.OUT / "publisher_moves.md"
     J = json.loads(jp.read_text())
     J["followup"] = F

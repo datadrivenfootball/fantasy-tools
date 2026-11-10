@@ -146,3 +146,78 @@ Scale: mean r^2 of each publisher's own percentile move (the upper bound of clos
 | usatoday | TE | 1.0684 | 1.066 | 5.8327 | 3.7661 | 0.6455 | 1.6469 | 1.6564 |
 
 Top-N: 12 for RB and WR, 6 for TE. Slopes: OLS of chart value on mean projected ppg at that scoring (projection lines as l_gate loads them), players listed > 0 in both columns.
+
+## 8. Test-retest vs cross-publisher (de-meaned move, common set in both weeks)
+
+common set (l_gate scored set, all four columns > 0) in both weeks; de-meaned within position on the paired set; pooled stacks both pairs, player-clustered bootstrap.
+Pairs: 151 player-week pairs.
+
+| Cell | Weeks | Pos | n | Spearman | Pearson |
+| --- | --- | --- | --- | --- | --- |
+| self_cbs_w_vs_w+1 | 5->6 | RB | 33 | 0.879 [0.672, 0.989] | 0.860 [0.666, 0.976] |
+| self_cbs_w_vs_w+1 | 5->6 | WR | 33 | 0.861 [0.650, 0.970] | 0.723 [0.406, 0.951] |
+| self_cbs_w_vs_w+1 | 5->6 | TE | 10 | 0.847 [0.437, 0.990] | 0.859 [0.721, 0.965] |
+| self_cbs_w_vs_w+1 | 5->6 | ALL | 76 | 0.860 [0.745, 0.942] | 0.791 [0.618, 0.926] |
+| self_cbs_w_vs_w+1 | 6->7 | RB | 33 | 0.967 [0.913, 0.991] | 0.966 [0.928, 0.991] |
+| self_cbs_w_vs_w+1 | 6->7 | WR | 32 | 0.832 [0.602, 0.963] | 0.720 [0.406, 0.947] |
+| self_cbs_w_vs_w+1 | 6->7 | TE | 10 | 0.132 [-0.699, 0.922] | 0.172 [-0.606, 0.833] |
+| self_cbs_w_vs_w+1 | 6->7 | ALL | 75 | 0.789 [0.606, 0.916] | 0.649 [0.386, 0.902] |
+| self_cbs_w_vs_w+1 | pooled | RB | 66 | 0.888 [0.754, 0.941] | 0.915 [0.811, 0.976] |
+| self_cbs_w_vs_w+1 | pooled | WR | 65 | 0.833 [0.571, 0.953] | 0.721 [0.373, 0.939] |
+| self_cbs_w_vs_w+1 | pooled | TE | 20 | 0.486 [-0.091, 0.836] | 0.474 [-0.101, 0.863] |
+| self_cbs_w_vs_w+1 | pooled | ALL | 151 | 0.824 [0.704, 0.910] | 0.717 [0.521, 0.898] |
+| self_usatoday_w_vs_w+1 | 5->6 | RB | 33 | 0.916 [0.793, 0.968] | 0.887 [0.803, 0.971] |
+| self_usatoday_w_vs_w+1 | 5->6 | WR | 33 | 0.913 [0.808, 0.963] | 0.833 [0.721, 0.936] |
+| self_usatoday_w_vs_w+1 | 5->6 | TE | 10 | 0.735 [0.225, 0.978] | 0.655 [0.269, 0.959] |
+| self_usatoday_w_vs_w+1 | 5->6 | ALL | 76 | 0.901 [0.839, 0.939] | 0.842 [0.767, 0.906] |
+| self_usatoday_w_vs_w+1 | 6->7 | RB | 33 | 0.784 [0.511, 0.962] | 0.507 [0.201, 0.982] |
+| self_usatoday_w_vs_w+1 | 6->7 | WR | 32 | 0.828 [0.593, 0.956] | 0.894 [0.764, 0.956] |
+| self_usatoday_w_vs_w+1 | 6->7 | TE | 10 | 0.425 [-0.393, 1.000] | 0.540 [-0.455, 0.990] |
+| self_usatoday_w_vs_w+1 | 6->7 | ALL | 75 | 0.774 [0.625, 0.893] | 0.605 [0.339, 0.938] |
+| self_usatoday_w_vs_w+1 | pooled | RB | 66 | 0.847 [0.696, 0.933] | 0.631 [0.335, 0.946] |
+| self_usatoday_w_vs_w+1 | pooled | WR | 65 | 0.866 [0.721, 0.932] | 0.856 [0.737, 0.922] |
+| self_usatoday_w_vs_w+1 | pooled | TE | 20 | 0.573 [0.177, 0.802] | 0.606 [0.293, 0.855] |
+| self_usatoday_w_vs_w+1 | pooled | ALL | 151 | 0.839 [0.756, 0.898] | 0.696 [0.480, 0.890] |
+| cross_week_w_cbs_vs_usatoday | 5->6 | RB | 33 | 0.776 [0.579, 0.883] | 0.699 [0.578, 0.807] |
+| cross_week_w_cbs_vs_usatoday | 5->6 | WR | 33 | -0.106 [-0.490, 0.294] | 0.150 [-0.434, 0.545] |
+| cross_week_w_cbs_vs_usatoday | 5->6 | TE | 10 | -0.043 [-0.850, 0.749] | 0.011 [-0.762, 0.633] |
+| cross_week_w_cbs_vs_usatoday | 5->6 | ALL | 76 | 0.259 [0.019, 0.473] | 0.319 [0.069, 0.538] |
+| cross_week_w_cbs_vs_usatoday | 6->7 | RB | 33 | 0.677 [0.423, 0.845] | 0.649 [0.446, 0.815] |
+| cross_week_w_cbs_vs_usatoday | 6->7 | WR | 32 | -0.016 [-0.394, 0.361] | 0.125 [-0.363, 0.530] |
+| cross_week_w_cbs_vs_usatoday | 6->7 | TE | 10 | 0.221 [-0.521, 0.787] | 0.053 [-0.583, 0.548] |
+| cross_week_w_cbs_vs_usatoday | 6->7 | ALL | 75 | 0.305 [0.068, 0.520] | 0.317 [0.068, 0.530] |
+| cross_week_w_cbs_vs_usatoday | pooled | RB | 66 | 0.745 [0.549, 0.857] | 0.669 [0.535, 0.792] |
+| cross_week_w_cbs_vs_usatoday | pooled | WR | 65 | -0.045 [-0.390, 0.314] | 0.138 [-0.370, 0.505] |
+| cross_week_w_cbs_vs_usatoday | pooled | TE | 20 | -0.004 [-0.607, 0.508] | 0.027 [-0.651, 0.475] |
+| cross_week_w_cbs_vs_usatoday | pooled | ALL | 151 | 0.287 [0.080, 0.485] | 0.316 [0.090, 0.517] |
+| cross_week_w+1_cbs_vs_usatoday | 5->6 | RB | 33 | 0.722 [0.498, 0.866] | 0.686 [0.507, 0.841] |
+| cross_week_w+1_cbs_vs_usatoday | 5->6 | WR | 33 | -0.032 [-0.419, 0.349] | 0.124 [-0.363, 0.533] |
+| cross_week_w+1_cbs_vs_usatoday | 5->6 | TE | 10 | 0.221 [-0.553, 0.744] | 0.053 [-0.581, 0.546] |
+| cross_week_w+1_cbs_vs_usatoday | 5->6 | ALL | 76 | 0.316 [0.088, 0.522] | 0.333 [0.099, 0.544] |
+| cross_week_w+1_cbs_vs_usatoday | 6->7 | RB | 33 | 0.533 [0.210, 0.793] | 0.353 [0.107, 0.744] |
+| cross_week_w+1_cbs_vs_usatoday | 6->7 | WR | 32 | 0.106 [-0.288, 0.459] | 0.253 [-0.150, 0.565] |
+| cross_week_w+1_cbs_vs_usatoday | 6->7 | TE | 10 | 0.067 [-0.590, 0.650] | -0.061 [-0.440, 0.496] |
+| cross_week_w+1_cbs_vs_usatoday | 6->7 | ALL | 75 | 0.281 [0.064, 0.474] | 0.232 [0.073, 0.469] |
+| cross_week_w+1_cbs_vs_usatoday | pooled | RB | 66 | 0.594 [0.303, 0.791] | 0.465 [0.236, 0.767] |
+| cross_week_w+1_cbs_vs_usatoday | pooled | WR | 65 | 0.047 [-0.287, 0.398] | 0.187 [-0.194, 0.522] |
+| cross_week_w+1_cbs_vs_usatoday | pooled | TE | 20 | 0.064 [-0.312, 0.442] | -0.008 [-0.344, 0.316] |
+| cross_week_w+1_cbs_vs_usatoday | pooled | ALL | 151 | 0.299 [0.091, 0.484] | 0.271 [0.097, 0.469] |
+| self_cbs_w_vs_w+1_excl_carried_over | pooled | RB | 41 | 0.871 [0.674, 0.945] | 0.870 [0.697, 0.965] |
+| self_cbs_w_vs_w+1_excl_carried_over | pooled | WR | 47 | 0.711 [0.403, 0.898] | 0.555 [0.177, 0.887] |
+| self_cbs_w_vs_w+1_excl_carried_over | pooled | TE | 17 | 0.459 [-0.179, 0.861] | 0.452 [-0.178, 0.854] |
+| self_cbs_w_vs_w+1_excl_carried_over | pooled | ALL | 105 | 0.721 [0.525, 0.870] | 0.603 [0.332, 0.851] |
+| self_usatoday_w_vs_w+1_excl_carried_over | pooled | RB | 51 | 0.830 [0.660, 0.926] | 0.613 [0.316, 0.941] |
+| self_usatoday_w_vs_w+1_excl_carried_over | pooled | WR | 48 | 0.835 [0.647, 0.918] | 0.838 [0.690, 0.913] |
+| self_usatoday_w_vs_w+1_excl_carried_over | pooled | TE | 14 | 0.319 [-0.049, 0.739] | 0.398 [0.051, 0.696] |
+| self_usatoday_w_vs_w+1_excl_carried_over | pooled | ALL | 113 | 0.811 [0.702, 0.882] | 0.663 [0.431, 0.886] |
+
+| Pub | Pos | n | share identical move | share identical S and F |
+| --- | --- | --- | --- | --- |
+| cbs | RB | 66 | 0.5152 | 0.3788 |
+| cbs | WR | 65 | 0.2769 | 0.2769 |
+| cbs | TE | 20 | 0.15 | 0.15 |
+| cbs | ALL | 151 | 0.3642 | 0.3046 |
+| usatoday | RB | 66 | 0.3182 | 0.2273 |
+| usatoday | WR | 65 | 0.3077 | 0.2615 |
+| usatoday | TE | 20 | 0.35 | 0.3 |
+| usatoday | ALL | 151 | 0.3179 | 0.2517 |
