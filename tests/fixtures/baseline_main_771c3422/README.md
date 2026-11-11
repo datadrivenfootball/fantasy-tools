@@ -44,3 +44,6 @@ Re-frozen 2026-11-09 (JEG-1569 flip, PR #1367; Jeremy 2026-11-07 option A "chart
 merges (as for JEG-1142). Before the copy the frozen engine equalled origin/main e14995fff byte for byte, so the only
 difference was `DDF_VALUE_SPLIT_DEFAULT = "all"` -> `"charts"`, a deliberate change to default values at every league
 setting. curve-widget.js was already identical and is unchanged.
+
+Re-copied 2026-11-11 (JEG-1569, PR #1367, Jeremy's go "Flip now" 2026-11-11): comment-only change on the
+`DDF_VALUE_SPLIT_DEFAULT` line (the dated go); the frozen engine still equals the PR head byte for byte.

@@ -509,7 +509,7 @@ that day). JEG-1393 R4 (OP-01, OP-11).
    held ones too, so this is the main route by which projection inputs move
    the chart DDF Value (VP-6.3, "How projections price the chart DDF
    Value").
-6. **Charts-only split (JEG-1569; live since 2026-11-09, Jeremy's go "Flip all now.").** Jeremy, 2026-11-07
+6. **Charts-only split (JEG-1569; live from 2026-11-11, Jeremy's go "Flip now", 2026-11-11, after "Flip all now.", 2026-11-09).** Jeremy, 2026-11-07
    (multiple choice on the JEG-1569 report): option A, "charts-only becomes the
    new default for DDF Value's position split", shipped with the trade value
    audit article and flipped only on his explicit go; DDF Projections gets its
