@@ -105,8 +105,10 @@ class AuditData(unittest.TestCase):
         self.assertEqual("Weak", card["usatoday"]["curve"]["label"])
         self.assertEqual("Weak", card["usatoday"]["depth"]["label"])  # reaching past counts like stopping short
         self.assertEqual("Strong", card["cbs"]["superflex"]["label"])  # coverage: superflex values for 24+ QBs
-        self.assertEqual("Weak", card["cbs"]["qb_sf"]["label"])        # but its QB share is Far from DDF Value
-        self.assertEqual("Strong", card["fantasypros"]["qb_sf"]["label"])
+        # QB share in superflex, on each chart's published numbers: all four sit 5 to 10 points under DDF Value
+        for k in audit.CHARTS:
+            self.assertEqual("OK", card[k]["qb_sf"]["label"], k)
+            self.assertLess(self.fresh["superflex"][k]["qb_share_sf"], self.fresh["superflex"]["ddf_value"]["qb_share_sf"])
         for k in audit.CHARTS:
             listed, ros = self.fresh["sources"][k]["listed"], self.fresh["sources"][k]["rostered"]
             gap = sum(abs(listed[p] - ros[p]) / ros[p] for p in ("QB", "RB", "WR", "TE")) / 4
@@ -198,6 +200,40 @@ class AuditData(unittest.TestCase):
             self.assertGreaterEqual(bw[k]["ratio"], bw["ratio_min"])
             self.assertLessEqual(bw[k]["ratio"], bw["ratio_max"])
 
+    def test_position_figure_shows_each_chart_as_published(self):
+        """Each chart's bar is its own published numbers summed by position over the players it
+        lists (unlisted players add nothing); the analyst row is the plain mean of three of them;
+        DDF Value's row is the engine's position budget, not a mean of the bars."""
+        inp = audit.load()
+        cases = {"half_ppr/12/1qb": ("half_ppr", 0), "half_ppr/12/sf": ("half_ppr", 1),
+                 "standard/12/1qb": ("standard", 0), "ppr/12/1qb": ("ppr", 0)}
+        for cid, (sc, sf) in cases.items():
+            s = audit.setting(inp, sc, 12, sf)
+            case = self.fresh["position_weighting"][cid]
+            for k in audit.CHARTS:
+                nat = s.natives(k)
+                tot = {p: sum(v for i, v in nat.items() if s.pos_of.get(i) == p) for p in audit.POS}
+                for p in audit.POS:
+                    self.assertAlmostEqual(case["sources"][k][p], 100 * tot[p] / sum(tot.values()), delta=0.051,
+                                           msg=(cid, k, p))
+            for p in audit.POS:
+                mean3 = sum(case["sources"][k][p] for k in audit.ANALYST) / 3
+                self.assertAlmostEqual(case["analyst_charts_mean"][p], mean3, delta=0.1)  # mean of rounded shares
+            w = s.diagnostics()["ddfWeights"]
+            for p in audit.POS:
+                self.assertAlmostEqual(case["ddf_value"][p], 100 * (w[f"{p}|starter"] + w[f"{p}|bench"]), delta=0.051)
+        # FantasyPros prints one number for every format, so its published mix cannot move with scoring.
+        pw = self.fresh["position_weighting"]
+        self.assertEqual(pw["standard/12/1qb"]["sources"]["fantasypros"], pw["ppr/12/1qb"]["sources"]["fantasypros"])
+
+    def test_chart_waiver_line_is_its_own_number(self):
+        """Grades use the chart's own number at the first rank past the rostered count, 0 when
+        its list stops short (CBS Sports at every position), never the engine's filled-in line."""
+        for p in audit.POS:
+            self.assertEqual(0, self.fresh["waiver_line"]["cbs"][p])
+        self.assertEqual(self.fresh["headline"]["pairs_raw"]["cbs"], self.fresh["headline"]["pairs_after_waiver"]["cbs"])
+        self.assertGreater(self.fresh["cbs_filled_in_waiver_rb_pct"], 0)  # DDF Value's fill-in, reported separately
+
     def test_curve_readout_names_line_up_with_values(self):
         for sc, lines in self.fresh["curves"].items():
             for k, vals in lines.items():
@@ -222,9 +258,13 @@ class ChartsOnlyVariant(unittest.TestCase):
 
     def test_split_is_the_four_charts(self):
         data = json.loads(self.DATA.read_text(encoding="utf-8"))
-        sf = [data["superflex"][k]["qb_share_sf"] for k in audit.CHARTS]
-        self.assertAlmostEqual(sum(sf) / 4, data["superflex"]["ddf_value"]["qb_share_sf"], delta=0.15)
-        self.assertLess(data["ddf_mix_vs_chart_mean"]["max_gap_pts"], 0.1)  # mix = mean of the four charts (VP-4)
+        for k in audit.CHARTS:  # published superflex shares; on this split all four sit within 5 points (Close)
+            self.assertEqual(data["superflex"][k]["qb_share_sf"], data["position_weighting"]["half_ppr/12/sf"]["sources"][k]["QB"])
+            self.assertEqual("Strong", data["scorecard"][k]["qb_sf"]["label"])
+        # VP-4 / ES-15.1: DDF Value's mix is the mean of the charts' mixes AFTER its adjustments ...
+        self.assertLess(data["ddf_mix_vs_chart_mean"]["adjusted_max_gap_pts"], 0.1)
+        # ... not of the mixes they publish, which is what the figure shows for each chart.
+        self.assertGreater(data["ddf_mix_vs_chart_mean"]["original_max_gap_pts"], 5)
         self.assertTrue(data["bench_weight"]["all_over"])
         text = self.PAGE.read_text(encoding="utf-8")
         self.assertNotIn("three sevenths", text)

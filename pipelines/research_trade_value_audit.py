@@ -42,6 +42,7 @@ WEEKS = (5, 6, 7, 8, 9)
 POS = vr.POSITIONS
 FLEX = ("RB", "WR", "TE")
 CHARTS = ("cbs", "usatoday", "fantasypros", "fantasycalc")
+ANALYST = ("cbs", "usatoday", "fantasypros")  # the "Avg of Analyst charts" row
 PROJ = ("espn", "cbsros", "razzball")
 NAMES = {"cbs": "CBS Sports", "usatoday": "USA Today", "fantasypros": "FantasyPros",
          "fantasycalc": "FantasyCalc", "espn": "ESPN", "cbsros": "CBS rest-of-season projections",
@@ -101,8 +102,36 @@ def setting(inp, scoring="half_ppr", teams=12, superflex=0):
 
 
 def pos_shares(diag_src: dict) -> dict:
+    """A chart's position mix after DDF's adjustments (VP-3 / ES-15.1 weights: value above the
+    engine's waiver line, unlisted rostered players filled in, starter and bench parts).
+    DDF Value's own mix is the mean of these; never used to grade a chart."""
     w = diag_src["weights"] or {}
     return {p: w.get(f"{p}|starter", 0.0) + w.get(f"{p}|bench", 0.0) for p in POS}
+
+
+def native_shares(nat: dict, pos_of: dict) -> dict:
+    """A chart's original position mix: its published numbers summed by position over the
+    players it lists, as a share of everything it lists (no price is an implied 0)."""
+    tot = {p: sum(v for i, v in nat.items() if pos_of.get(i) == p) for p in POS}
+    total = sum(tot.values())
+    return {p: tot[p] / total for p in POS}
+
+
+def native_waivers(nat: dict, pos_of: dict, rostered: dict) -> dict:
+    """A chart's own waiver line at each position: its published number for the first player
+    past the league's rostered count (VP-2), or 0 when its list stops before then (no price is
+    an implied 0). Unlike the engine's line, no unlisted player is filled in and no fractional
+    seat is blended."""
+    out = {}
+    for p in POS:
+        vals = sorted((v for i, v in nat.items() if pos_of.get(i) == p), reverse=True)
+        out[p] = vals[rostered[p]] if len(vals) > rostered[p] else 0.0
+    return out
+
+
+def rostered_counts(diag: dict) -> dict:
+    """Players a league rosters at each position (the same for every source in a setting)."""
+    return {p: diag["sources"]["cbs"]["positions"][p]["rostered"] for p in POS}
 
 
 def mean_shares(list_of: list) -> dict:
@@ -152,15 +181,35 @@ def position_weighting(inp) -> dict:
     }
     out = {}
     for cid, (sc, t, sf) in cases.items():
-        diag = setting(inp, sc, t, sf).diagnostics()
-        shares = {k: pos_shares(diag["sources"][k]) for k in CHARTS}
+        s = setting(inp, sc, t, sf)
+        diag = s.diagnostics()
+        # Each chart as published (the superflex setting reads its superflex list, Setting.natives).
+        shares = {k: native_shares(s.natives(k), s.pos_of) for k in CHARTS}
+        adjusted = {k: pos_shares(diag["sources"][k]) for k in CHARTS}
+        ros = rostered_counts(diag)
+        # Middle step: each chart's own numbers above its own waiver line (nothing filled in, no
+        # starter/bench weighting), to show how much of DDF's move is the waiver line alone.
+        above_line = {}
+        for k in CHARTS:
+            nat = s.natives(k)
+            wl = native_waivers(nat, s.pos_of, ros)
+            above_line[k] = native_shares({i: max(0.0, v - wl[s.pos_of[i]]) for i, v in nat.items()
+                                           if s.pos_of.get(i) in POS}, s.pos_of)
         w = diag["ddfWeights"]
         ddf = {p: w[f"{p}|starter"] + w[f"{p}|bench"] for p in POS}  # DDF Value's position budget (VP-4)
         out[cid] = {
             "sources": {k: pct(v) for k, v in shares.items()},
             "ddf_value": pct(ddf),
-            "analyst_charts_mean": pct(mean_shares([shares[k] for k in ("cbs", "usatoday", "fantasypros")])),
+            "analyst_charts_mean": pct(mean_shares([shares[k] for k in ANALYST])),
+            "charts_mean": pct(mean_shares([shares[k] for k in CHARTS])),
             "gap_vs_ddf": {k: r(l1_points(shares[k], ddf), 1) for k in CHARTS},
+            "analyst_mean_gap_vs_ddf": r(l1_points(mean_shares([shares[k] for k in ANALYST]), ddf), 1),
+            "charts_mean_gap_vs_ddf": r(l1_points(mean_shares([shares[k] for k in CHARTS]), ddf), 1),
+            "charts_mean_above_own_waiver": pct(mean_shares([above_line[k] for k in CHARTS])),
+            "rostered": ros,
+            "starters": {p: diag["sources"]["cbs"]["positions"][p]["starters"] for p in POS},
+            # The same charts after DDF's adjustments; DDF Value's mix is their mean (VP-4, ES-15.1).
+            "sources_after_adjustment": {k: pct(v) for k, v in adjusted.items()},
         }
     return out
 
@@ -254,7 +303,7 @@ def curves(inp) -> dict:
         order = overall_order(nat, s.pos_of)
         top = nat[order[0]]
         pos_top = {p: max(v for i, v in nat.items() if s.pos_of[i] == p) for p in POS}
-        waiver = {p: diag["sources"][k]["positions"][p]["waiver"] for p in POS}
+        waiver = native_waivers(nat, s.pos_of, rostered_counts(diag))
         at = lambda n: r(100 * nat[order[n - 1]] / top, 0) if len(order) >= n else None  # noqa: E731
         out["stats"][k] = {
             "listed_total": len(order),
@@ -279,14 +328,15 @@ def consolidation(inp) -> dict:
     """2-for-1 test at half PPR: of all pairs of players ranked 25-60 on a
     chart, the share whose summed chart value is strictly greater than each top-12 player's, raw
     and after each piece's own waiver-line value is subtracted (the receiving
-    team cuts a waiver-level player to make room)."""
+    team cuts a waiver-level player to make room). The waiver line is the chart's own
+    published number at that rank (native_waivers: 0 where its list stops short)."""
     s = setting(inp)
     diag = s.diagnostics()
     out = {}
     for k in CHARTS:
         nat = s.natives(k)
         order = overall_order(nat, s.pos_of)
-        waiver = {p: diag["sources"][k]["positions"][p]["waiver"] for p in POS}
+        waiver = native_waivers(nat, s.pos_of, rostered_counts(diag))  # the chart's own line
         vaw = {i: max(0.0, nat[i] - waiver[s.pos_of[i]]) for i in order}
         stars, mids = order[:12], order[24:60]
         pairs = list(combinations(mids, 2))
@@ -350,7 +400,7 @@ def player_rows(inp) -> tuple[list, dict]:
     nat = {k: s.natives(k) for k in CHARTS}
     top = {k: max(nat[k].values()) for k in CHARTS}
     pos_rank = {k: avg_pos_ranks(nat[k], pos_of) for k in CHARTS}
-    waiver = {k: {p: diag["sources"][k]["positions"][p]["waiver"] for p in POS} for k in CHARTS}
+    waiver = {k: native_waivers(nat[k], pos_of, rostered_counts(diag)) for k in CHARTS}
     ddf = ddf_values(s)
     ranked = sorted(ddf, key=lambda i: (-ddf[i], i))[:TRADE_POOL]
     rows = []
@@ -438,15 +488,15 @@ def weekly(inp) -> dict:
 # ---------------------------------------------------------------------------
 
 RULES = {
-    "balance": "Position mix vs DDF Value: share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
+    "balance": "Position mix vs DDF Value: the chart's own published numbers summed by position, as a share of everything it lists; the score is the share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
-    "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all value in a 12-team Half PPR superflex league and DDF Value's. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
+    "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all the value it publishes for superflex (its superflex numbers where it has them, its one-QB numbers otherwise; Half PPR) and DDF Value's quarterback share in a 12-team Half PPR superflex league. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
     "depth": "Depth: how far down the chart's list goes compared with how many players a 12-team league rosters. None of the four charts states a roster size, so each is measured against the waiver line of a 12-team league with our lineup. For each position, the gap between players listed and players rostered, as a share of players rostered, counting stopping short and reaching past alike; averaged over the four positions. Strong up to 10%, OK up to 30%, Weak above 30%.",
     "curve": "Curve shape: average distance, in percentage points of each chart's own #1 player, between the chart's value curve and DDF Value's over overall ranks 1 to 100 (Half PPR). Close up to 5, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
     "freshness": "Weekly change: Strong when each of the four week-to-week changes in our saved weekly snapshots (weeks 5 to 9) is a distinct capture and moves last week's top 24 per position by at least a quarter of a rank on average; OK when one week did not; Weak otherwise.",
-    "consolidation": "2-for-1 sense: the share of mid-tier pairs (ranks 25-60) that the raw chart says beat a top-12 player, minus the share once each player's waiver-level value is subtracted. Strong up to 10 points of difference, OK up to 25, Weak above 25.",
+    "consolidation": "2-for-1 sense: the share of mid-tier pairs (ranks 25-60) that the raw chart says beat a top-12 player, minus the share once each player's waiver-level value is subtracted (the chart's own number for the first player past a 12-team league's rostered count at his position; 0 where its list stops before then). Strong up to 10 points of difference, OK up to 25, Weak above 25.",
 }
 LEVEL = {3: "Strong", 2: "OK", 1: "Weak", None: "Not measured"}
 
@@ -609,7 +659,7 @@ def depth_vs_waiver(inp, data: dict) -> dict:
             for p in POS:
                 order = sorted((i for i in nat if pos_of.get(i) == p), key=lambda i: (-nat[i], i))
                 ros = out["rostered"][t][p]
-                waiver = diag["sources"][k]["positions"][p]["waiver"]
+                waiver = native_waivers(nat, pos_of, out["rostered"][t])[p]
                 top = nat[order[0]]
                 last = order[-1]
                 beyond = order[ros:]
@@ -772,6 +822,7 @@ def headline(d: dict) -> dict:
     base = pw["half_ppr/12/1qb"]
     wr_tilt = {k: r(base["sources"][k]["WR"] - base["ddf_value"]["WR"], 1) for k in CHARTS}
     rb_tilt = {k: r(base["sources"][k]["RB"] - base["ddf_value"]["RB"], 1) for k in CHARTS}
+    te_tilt = {k: r(base["sources"][k]["TE"] - base["ddf_value"]["TE"], 1) for k in CHARTS}
     return {
         "reorder_avg_pct": reorder,
         "fantasypros_numbers_changed_pct": max(sc["fantasypros"][p]["changed_pct"] for p in POS),
@@ -785,7 +836,7 @@ def headline(d: dict) -> dict:
         "superflex_chart_mean_1qb": r(sum(sfx[k]["qb_share_1qb"] for k in CHARTS) / len(CHARTS), 1),
         "unpriced_cbs_12": sum(d["depth_vs_waiver"]["sources"]["cbs"][12][p]["unpriced"] for p in POS),
         "superflex_cbs_gap": r(sfx["ddf_value"]["qb_share_sf"] - sfx["cbs"]["qb_share_sf"], 1),
-        "wr_tilt_vs_ddf": wr_tilt, "rb_tilt_vs_ddf": rb_tilt,
+        "wr_tilt_vs_ddf": wr_tilt, "rb_tilt_vs_ddf": rb_tilt, "te_tilt_vs_ddf": te_tilt,
         "pairs_raw": {k: cons[k]["raw_beats_star_pct"] for k in CHARTS},
         "pairs_after_waiver": {k: cons[k]["after_waiver_beats_star_pct"] for k in (*CHARTS, "ddf")},
         "top_te_pct": {k: cs[k]["position_top_pct"]["TE"] for k in (*CHARTS, "ddf")},
@@ -856,30 +907,53 @@ def build() -> dict:
     data["replacement_qb"] = replacement_qb(inp)
     data["realized_scoring"] = realized_scoring_benchmark()
     data["rules"] = {**data["rules"], "scoring": data["rules"]["scoring"].format(realized=int(data["realized_scoring"]["pooled"]))}
-    data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)
+    data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)  # on its own numbers (0: list stops short)
+    # DDF Value's fill-in for CBS Sports: the engine's waiver-level running back, % of its #1.
+    data["cbs_filled_in_waiver_rb_pct"] = r(100 * base_diag["sources"]["cbs"]["positions"]["RB"]["waiver"] / cbs_top, 1)
     data["bench_weight"] = bench_weight(inp)
     data["ddf_mix_vs_chart_mean"] = ddf_mix_vs_chart_mean(data)
     return data
 
 
 def bench_weight(inp) -> dict:
-    """How much of each chart's value above the waiver line goes to players who would sit on a
+    """How much of each chart's value above its own waiver line goes to players who would sit on a
     12-team bench (ranks past the starters, up to the rostered count; default lineup, Half PPR),
     taken at face value, against the share those same players deliver once each player's value
     is weighted by his expected starts (ES-5 parts: missed-game rates 2015-2025, byes and
-    projection spread from config/lineup_parameters.json; methodology ES-1, ES-5, ES-14)."""
-    res = setting(inp).result()
+    projection spread from config/lineup_parameters.json; methodology ES-1, ES-5, ES-14).
+    Both sides use only the chart's listed numbers and its own waiver line (native_waivers)."""
+    s = setting(inp)
+    res, diag = s.result(), s.diagnostics()
+    lineup_cfg, sigma = res["lineup"], res["chart_sigma"]
+    teams = BASE["teams"]
     out = {}
     for k in CHARTS:
-        rows = [row for row in res["sources"][k]["players"].values() if row["role"] != "waiver"]
-        face = sum(row["vorp"] for row in rows)
-        face_bench = sum(row["vorp"] for row in rows if row["role"] == "bench")
-        lineup = sum(row["bench_slice"] + row["starter_slice"] for row in rows)
-        lineup_bench = sum(row["bench_slice"] + row["starter_slice"] for row in rows if row["role"] == "bench")
+        # The chart's own listed numbers and its own waiver line (unlisted players add nothing);
+        # the expected-starts parts are the model's ES-3 / ES-4 applied to that list.
+        nat = s.natives(k)
+        waiver = native_waivers(nat, s.pos_of, rostered_counts(diag))
+        face = face_bench = lineup = lineup_bench = 0.0
+        for p in POS:
+            pi = diag["sources"][k]["positions"][p]
+            n_rost, n_start = pi["rostered"], pi["starters"]
+            xs = sorted((v for i, v in nat.items() if s.pos_of.get(i) == p), reverse=True)
+            w = waiver[p]
+            line = vr._convention_starter_line(xs, n_start)
+            line = w if line is None else max(line, w)
+            lp = lineup_cfg["positions"][p]
+            sig_rel = sigma[p]["sigma_rel"] * lineup_cfg.get("projection_confidence", 1.0)
+            parts = vr._expected_start_parts(xs, n_start, teams, w, line, lp["m"], lineup_cfg["bye"],
+                                             sig_rel, 0.0)["parts"]
+            for rank, (x, pt) in enumerate(zip(xs, parts), start=1):
+                if rank > n_rost:
+                    break
+                v, lv = max(0.0, x - w), pt["fill_in_part"] + pt["start_worthy_part"]
+                face, lineup = face + v, lineup + lv
+                if rank > n_start:
+                    face_bench, lineup_bench = face_bench + v, lineup_bench + lv
         face_pct, es_pct = 100 * face_bench / face, 100 * lineup_bench / lineup
         out[k] = {"face_pct": r(face_pct, 1), "expected_starts_pct": r(es_pct, 1),
-                  "ratio": r(face_pct / es_pct, 1),
-                  "filled_in_players": sum(1 for row in rows if row["imputed"])}
+                  "ratio": r(face_pct / es_pct, 1)}
     ratios = [out[k]["ratio"] for k in CHARTS]
     out["ratio_min"], out["ratio_max"] = min(ratios), max(ratios)
     out["all_over"] = all(out[k]["face_pct"] > out[k]["expected_starts_pct"] for k in CHARTS)
@@ -888,15 +962,15 @@ def bench_weight(inp) -> dict:
 
 
 def ddf_mix_vs_chart_mean(data: dict) -> dict:
-    """VP-4: DDF Value's position mix is the mean of the included charts' own position mixes
-    (value above the waiver line). The largest gap, in percentage points, between DDF Value's
-    share and the plain mean of the four charts' shares, over the figure's four settings."""
-    gaps = []
-    for case in data["position_weighting"].values():
-        for p in POS:
-            mean4 = sum(case["sources"][k][p] for k in CHARTS) / len(CHARTS)
-            gaps.append(abs(case["ddf_value"][p] - mean4))
-    return {"max_gap_pts": r(max(gaps), 2)}
+    """VP-4 / ES-15.1: DDF Value's position mix is the mean of the included charts' mixes AFTER
+    DDF's adjustments (value above the engine's waiver line, unlisted rostered players filled in,
+    starter and bench parts), not of the mixes the charts publish. Largest gap, in percentage
+    points, between DDF Value's share and the plain four-chart mean on each basis, over the
+    figure's four settings."""
+    def max_gap(basis):
+        return r(max(abs(case["ddf_value"][p] - sum(case[basis][k][p] for k in CHARTS) / len(CHARTS))
+                     for case in data["position_weighting"].values() for p in POS), 2)
+    return {"adjusted_max_gap_pts": max_gap("sources_after_adjustment"), "original_max_gap_pts": max_gap("sources")}
 
 
 def dump(data: dict) -> str:
