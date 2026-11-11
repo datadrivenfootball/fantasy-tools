@@ -114,9 +114,10 @@ READ_TABLE_JS = """() => {
   const rows = [];
   document.querySelectorAll('#rows tr[data-i]').forEach(tr => {
     const cells = [...tr.querySelectorAll('td')];
-    /* player name from aria-label: "PlayerName, details on focus" or "PlayerName, your override, details on focus" */
+    /* player name from aria-label: "PlayerName, details on focus", "PlayerName, your override, details on focus", and in the flat (default) layout
+       "PlayerName, QB[, your override], details on focus" */
     const rawLabel = tr.getAttribute('aria-label') || '';
-    const name = rawLabel.replace(/(, your override)?, details on focus$/, '');
+    const name = rawLabel.replace(/(, [A-Z]{1,3})?(, your override)?, details on focus$/, '');
     const rec = nameMap.get(name);
     if (!rec) return;
     const key = String(rec.key);

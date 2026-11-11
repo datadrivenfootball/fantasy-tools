@@ -134,7 +134,6 @@ class CompactValuesTableTest(unittest.TestCase):
             page.wait_for_function(LIVE, timeout=60000)
             page.wait_for_timeout(500)
             self._check_layout(page.evaluate(FACTS))
-            page.keyboard.press("Tab")
             page.focus("#group-pos")
             page.keyboard.press("Space")
             page.wait_for_timeout(300)
