@@ -1,0 +1,48 @@
+name: tmp noapt probe (JEG-1623, delete before merge)
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tmp-noapt-probe.yml"
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Env
+        run: |
+          cat /etc/os-release | head -3
+          (time getent hosts archive.ubuntu.com) 2>&1 | tail -4 || echo "DNS probe failed"
+          which google-chrome || echo "no google-chrome"
+          google-chrome --version || true
+      - name: pip install playwright
+        run: python3 -m pip install --quiet playwright==1.49.1
+      - name: "Variant A: install chromium WITHOUT --with-deps, launch bundled"
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          python3 -m playwright install chromium
+          python3 - <<'PY'
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              pg = b.new_page()
+              pg.set_content("<title>probe-ok</title><p>hi</p>")
+              print("VARIANT_A_TITLE", pg.title())
+              b.close()
+          PY
+      - name: "Variant B: preinstalled Google Chrome (channel chrome), no install"
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          python3 - <<'PY'
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              b = p.chromium.launch(channel="chrome")
+              pg = b.new_page()
+              pg.set_content("<title>probe-ok</title><p>hi</p>")
+              print("VARIANT_B_TITLE", pg.title())
+              b.close()
+          PY
