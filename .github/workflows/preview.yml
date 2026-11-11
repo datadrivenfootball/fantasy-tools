@@ -136,7 +136,7 @@ jobs:
       - name: Browser for the render tests
         run: |
           python3 -m pip install --quiet playwright==1.49.1
-          python3 -m playwright install --with-deps chromium
+          bash .github/scripts/retry-browser-install.sh python3 -m playwright install --with-deps chromium
           echo "RENDER_TESTS_REQUIRED=1" >> "$GITHUB_ENV"
       - name: Validation coverage and workflow guards
         run: python3 -m unittest tests.test_validate_shards tests.test_preview_workflow_matches_pages tests.test_deploy_gate_unconditional tests.test_ci_speedup_workflows
@@ -278,7 +278,7 @@ jobs:
       - name: Browser for the render tests
         run: |
           python3 -m pip install --quiet playwright==1.49.1
-          python3 -m playwright install --with-deps chromium
+          bash .github/scripts/retry-browser-install.sh python3 -m playwright install --with-deps chromium
           echo "RENDER_TESTS_REQUIRED=1" >> "$GITHUB_ENV"
       - run: make reference
       - run: make sync
