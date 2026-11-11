@@ -5,7 +5,7 @@
 #
 # Usage: retry-browser-install.sh python3 -m playwright install --with-deps chromium
 #
-# 1. Tells apt to retry each fetch (Acquire::Retries) so short blips are absorbed.
+# 1. Tells apt to retry each fetch once with a 15s timeout, and caps each attempt at 5 minutes.
 # 2. Runs the command up to 4 times, sleeping 20s, 40s, 60s between attempts.
 # 3. If every attempt fails and the command used --with-deps, makes one last
 #    try without it. With a warm ~/.cache/ms-playwright (actions/cache) that
@@ -18,12 +18,14 @@ if [ "$#" -eq 0 ]; then
   exit 2
 fi
 
-echo 'Acquire::Retries "3";' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null 2>&1 || true
+# Short apt timeouts: with DNS down, apt retries each mirror and one attempt
+# otherwise ran ~6 minutes (a 4-attempt run hung a job for 29 minutes).
+printf 'Acquire::Retries "1";\nAcquire::http::Timeout "15";\nAcquire::https::Timeout "15";\n' | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null 2>&1 || true
 
 max_attempts=4
 for attempt in $(seq 1 "$max_attempts"); do
   echo "::group::browser install attempt ${attempt}/${max_attempts}"
-  "$@"
+  timeout 300 "$@"
   rc=$?
   echo "::endgroup::"
   if [ "$rc" -eq 0 ]; then
@@ -43,7 +45,7 @@ for arg in "$@"; do
 done
 if [ "${#fallback[@]}" -ne "$#" ]; then
   echo "::warning::apt unavailable after ${max_attempts} attempts; trying the install without --with-deps (needs a warm Playwright cache and OS libraries already on the runner)"
-  "${fallback[@]}"
+  timeout 300 "${fallback[@]}"
   exit $?
 fi
 exit "$rc"
