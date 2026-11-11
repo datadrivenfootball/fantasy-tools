@@ -1059,6 +1059,8 @@
     $("v2FreshnessShort").textContent = view.refWeek ? `Week ${view.refWeek}${flagged ? " ⚠" : ""}` : $("v2FreshnessLabel").textContent;
     $("v2Freshness").classList.toggle("is-older", older || behind > 0 || unknown > 0 || held > 0);
     $("v2Freshness").classList.toggle("is-failing", stuck > 0);
+    // JEG-1620: the phone row drops the dot when the short form carries the warning mark (both say "needs attention").
+    $("v2Freshness").classList.toggle("is-flagged", flagged);
     $("v2Freshness").setAttribute("aria-label", `Source freshness: ${$("v2FreshnessLabel").textContent}`);
 
     // JEG-474 / JEG-466: one "Showing: …" line, a compact legend (not buttons) and one Customize control.
