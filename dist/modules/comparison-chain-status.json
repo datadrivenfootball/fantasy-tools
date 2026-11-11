@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-11T06:44:42.418759+00:00",
+  "run_at": "2026-11-11T07:29:16.814846+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -14,7 +14,6 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
-    "cbsros",
     "espn",
     "usatoday"
   ],
@@ -43,19 +42,6 @@
         "espn"
       ],
       "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 5.56 to 15.15), Puka Nacua 0 (expected 9.61 to 26.21)",
-      "hold_severity": "red",
-      "week": 10
-    },
-    "cbsros": {
-      "reason": "fidelity: scrape_validity",
-      "held_series": [
-        "cbsros",
-        "cbsros_vorp"
-      ],
-      "sections": [
-        "cbsros"
-      ],
-      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 10.1 (expected 16 to 30)",
       "hold_severity": "red",
       "week": 10
     }
@@ -110,7 +96,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (4404 values)",
+      "detail": "snapshot 2026-11-11 -> 12 DDF legs -> section; review passed (4404 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -118,7 +104,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (6264 values)",
+      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (6276 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -159,7 +145,7 @@
       "lagging_one_week": false
     },
     "cbsros": {
-      "content_vintage": "2026-11-10",
+      "content_vintage": "2026-11-11",
       "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
@@ -186,7 +172,7 @@
     "cbsros": {
       "served_week": 10,
       "label_week": 10,
-      "published_at": "2026-11-10",
+      "published_at": "2026-11-11",
       "basis": "section_label",
       "expected_week": 10,
       "weeks_behind": 0,
@@ -255,7 +241,6 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
-    "espn": "fidelity: scrape_validity",
-    "cbsros": "fidelity: scrape_validity"
+    "espn": "fidelity: scrape_validity"
   }
 }
