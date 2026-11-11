@@ -11,3 +11,4 @@ Contract: Pages run 42942807394 (main 676afdf18, Week 10) failed test-core shard
 ### Claimed, not confirmed
 - CI's default font behaves like DejaVu Sans (it failed both subtests). Confirmed only by the PR's preview shards.
 - Phones narrower than 375 px (for example 360 px Android) may still clip the summary when a source is held. Not in the test's widths.
+- `tests.test_jeg1249_league_site_render` (render-tests journey, also red on main b2bd8a710 and 676afdf18): a premise tied to the week. The league list opens on its top 10 (JEG-1098). In Week 10 the first trade with a throw-in was row 11 of 2970, so it had no Details button (diagnostic: `idx` 10, 10 buttons rendered). PICK now reaches a lower trade with "Show 10 more", the way a reader would. The assertion is unchanged. `tests.test_uso_site_journey_render` and `tests.test_jeg1249_league_site_render` pass locally.
