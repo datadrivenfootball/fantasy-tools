@@ -54,6 +54,7 @@ TOP_N = 50          # model-free position mix: the source's own top 50
 CURVE_N = 120       # overall curve length drawn on the page
 TRADE_POOL = 150    # players offered in the trade-it-yourself box
 SCORING_TOP = 36    # players per position compared across scoring formats
+SCORING_STRONG_PCT = 42  # Strong at or above this average share reordered (about half the 84% real outcomes reorder)
 WEEKLY_TOP = 24     # players per position followed week to week
 OUTLIER_DEPTH = 36  # an outlier must be a top-36 player at his position on that chart or by the others
 
@@ -489,7 +490,7 @@ def weekly(inp) -> dict:
 
 RULES = {
     "balance": "Position mix vs DDF Value: the chart's own published numbers summed by position, as a share of everything it lists; the score is the share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
-    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 20% of those players change places on average; OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
+    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 42% of those players change places on average (about half of the real-outcomes figure below); OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
     "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all the value it publishes for superflex (its superflex numbers where it has them, its one-QB numbers otherwise; Half PPR) and DDF Value's quarterback share in a 12-team Half PPR superflex league. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
@@ -512,7 +513,7 @@ def grade(x, strong, ok, higher_is_better=False):
 def scoring_level(sc_k):
     moved = [sc_k[p]["order_changed_pct"] or 0 for p in FLEX]
     changed = [sc_k[p]["changed_pct"] or 0 for p in FLEX]
-    if sum(moved) / len(moved) >= 20:
+    if sum(moved) / len(moved) >= SCORING_STRONG_PCT:
         return 3
     return 2 if sum(changed) / len(changed) >= 50 else 1
 
