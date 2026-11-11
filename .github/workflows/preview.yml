@@ -104,7 +104,7 @@ jobs:
   preview-build:
     needs: [docs-only, pr-state]
     if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # JEG-1169: the default is 6 hours. A normal run is ~45 minutes.
     timeout-minutes: 60
     steps:
@@ -243,7 +243,7 @@ jobs:
   preview-shard:
     needs: [docs-only, pr-state]
     if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
