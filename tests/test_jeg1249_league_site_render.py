@@ -81,9 +81,13 @@ ROWS = """(jsn) => { const rows = window.TradeValueLeague.ui.result.rows;
   return {count: rows.length, jsn: rows.filter(r => r.give.some(p => String(p.player_key) === jsn)).length,
     equal: pack(rows.find(r => !thrown(r))), unequal: pack(rows.find(thrown))}; }"""
 
-# Open a trade's details row and read its handoff: the Compare link, or the hold.
-PICK = """([id]) => { const b = document.querySelector(`[data-details-for="${id}"]`);
-  if (!b) return false; if (b.getAttribute('aria-expanded') !== 'true') b.click(); return true; }"""
+# Open a trade's details row and read its handoff: the Compare link, or the hold. The list opens on its top 10
+# (JEG-1098), so a trade further down is reached the way a reader reaches it, with "Show 10 more" (JEG-1620: in
+# Week 10 the first trade with a throw-in was the 11th).
+PICK = """async ([id]) => { const find = () => document.querySelector(`[data-details-for="${id}"]`);
+  for (let i = 0; !find() && i < 400; i++) { const more = document.getElementById('v2LgOppsMore'); if (!more) break;
+    more.click(); await new Promise(r => setTimeout(r, 0)); }
+  const b = find(); if (!b) return false; if (b.getAttribute('aria-expanded') !== 'true') b.click(); return true; }"""
 HANDOFF = """() => { const panel = document.querySelector('.v2-lg-detail-body'); const a = panel && panel.querySelector('a[href^="#compare-trade"]');
   const held = panel && panel.querySelector('[data-hold="league-pricing"]');
   return {href: a ? a.getAttribute('href') : null, held: held ? held.textContent : null}; }"""
