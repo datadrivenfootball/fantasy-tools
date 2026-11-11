@@ -41,6 +41,25 @@ TWO_QB = {"scoring": "ppr", "teams": 12, "roster": {"QB": 2}}
 TOL = 0.06  # value_check's tolerance
 
 
+# JEG-1569 (flip): the live split is "charts", where the 2-QB rule is the charts' mean
+# (tests/test_jeg1569_charts_only_split.py). These tests keep the JEG-1366 rule covered on the
+# "all" split it still runs on; the env var reaches the Python reference and the engine under Node.
+_SPLIT_BEFORE = None
+
+
+def setUpModule():
+    global _SPLIT_BEFORE
+    _SPLIT_BEFORE = os.environ.get("DDF_VALUE_SPLIT")
+    os.environ["DDF_VALUE_SPLIT"] = "all"
+
+
+def tearDownModule():
+    if _SPLIT_BEFORE is None:
+        os.environ.pop("DDF_VALUE_SPLIT", None)
+    else:
+        os.environ["DDF_VALUE_SPLIT"] = _SPLIT_BEFORE
+
+
 def data_today() -> str:
     from tests.test_week_history import _fixture_today
     return _fixture_today()
@@ -227,7 +246,9 @@ class SpecWeights(unittest.TestCase):
 class SpecWiring(unittest.TestCase):
     """run_week passes the league's own QB and superflex counts to VP-4."""
 
-    def calls(self, slots_qb, superflex):
+    def calls(self, slots_qb, superflex, split="all"):
+        # JEG-1569 flip: the JEG-1366 rule lives on the old "all" split, so it is pinned there.
+        import dataclasses
         from unittest import mock
         from spec_reference import worked_example as we
         fx = json.loads(we.FIXTURE.read_text(encoding="utf-8"))
@@ -235,14 +256,18 @@ class SpecWiring(unittest.TestCase):
         s = json.loads(json.dumps(fx["setting"]))
         s["slots"] = {**s["slots"], "QB": slots_qb}
         s["superflex"] = superflex
+        setting = dataclasses.replace(spec.Setting.from_fixture(s), ddf_split=split)
         with mock.patch.object(spec, "ddf_weights", wraps=spec.ddf_weights) as dw:
-            spec.run_week(spec.Setting.from_fixture(s), inp["pos_of"], inp["sources"], inp["included"],
-                          names=inp["names"])
+            spec.run_week(setting, inp["pos_of"], inp["sources"], inp["included"], names=inp["names"])
         return [c.args[4] if len(c.args) > 4 else c.kwargs.get("two_qb_native", False) for c in dw.call_args_list]
 
     def test_two_qb_league_takes_the_native_share(self):
         self.assertTrue(self.calls(2, 0))
         self.assertTrue(all(self.calls(2, 0)))
+
+    def test_charts_split_has_no_two_qb_rule(self):
+        # JEG-1569 decision 4 (Jeremy, 2026-11-07): on the charts split the charts' 2-QB lists set the QB share.
+        self.assertFalse(any(self.calls(2, 0, split="charts")))
 
     def test_superflex_and_one_qb_do_not(self):
         self.assertFalse(any(self.calls(2, 1)))

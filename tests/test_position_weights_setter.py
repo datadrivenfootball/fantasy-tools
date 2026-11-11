@@ -12,7 +12,7 @@ Checks, on the build-only engine page (the old chart dashboard, served at /class
    by a reset (null). The pre-change widget gave the same 148,716 values as
    this one with no setter call (before/after sweep in the PR).
 2. Direction. Raising one position's share raises that position's share of
-   the ESPN anchor's total and lowers every other position's; its top value
+   the anchor's total (ESPN on the old "all" split; DDF Value on the JEG-1569 charts-only split) and lowers every other position's; its top value
    does not fall and no other position's top value rises (the 70/max display
    scale can leave the top unchanged). fixedPieIndexed holds.
 3. Bounds and clamping. Out-of-bounds shares clamp into
@@ -49,10 +49,20 @@ HELPERS = """
     }));
     return out;
   };
+  // JEG-1569: the setter's defaults are DDF Value's split. On the charts-only split a projection such as ESPN starts on
+  // its own split (W_proj) and a custom share replaces it, so ESPN's other positions can rise; the anchor there is DDF
+  // Value itself (the charts' Adjusted average, on the setter's split). On the old "all" split it stays ESPN.
+  const chartsSplit = () => {
+    const vp = c.getInspection && c.getInspection().valuePipeline;
+    return !!(vp && vp.ddfSplit === 'charts');
+  };
+  const anchorValue = (r, charts) => charts
+    ? (r.ddfByVersion && r.ddfByVersion.blended ? r.ddfByVersion.blended.value : null)
+    : r.values.espn;
   const espnByPos = () => {
-    const total = {}, top = {};
+    const total = {}, top = {}, charts = chartsSplit();
     c.getAllRows().forEach(r => {
-      const v = r.values.espn;
+      const v = anchorValue(r, charts);
       if (typeof v !== 'number' || !P.includes(r.pos)) return;
       total[r.pos] = (total[r.pos] || 0) + v;
       top[r.pos] = Math.max(top[r.pos] || 0, v);

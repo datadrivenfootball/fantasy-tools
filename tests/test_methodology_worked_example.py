@@ -49,9 +49,10 @@ class MethodologyWorkedExampleTests(unittest.TestCase):
                   row["ddf_projections"]["value"], res["indexed"]["c5"]["factor"]):
             self.assertIn(gen.f(x), self.block)
         self.assertIn("Starter line 12 = the midpoint", self.block)
-        self.assertIn("**DDF Value** is **52.165616**", self.block)
-        self.assertIn("48.084613", self.block)
-        self.assertIn("0.525453", self.block)
+        # JEG-1569 flip: the charts-only split (was 52.165616, 48.084613, 0.525453 on the all-source split).
+        self.assertIn("**DDF Value** is **56.584455**", self.block)
+        self.assertIn("40.074907", self.block)
+        self.assertIn("0.525244", self.block)
         for stale in ("48.511113", "0.519241", "0.785708", "3.054707", "starter line 10"):
             self.assertFalse(stale in self.doc, f"stale worked-example text {stale!r} is still in the doc")
 
@@ -62,13 +63,13 @@ class MethodologyWorkedExampleTests(unittest.TestCase):
 
     def test_stale_text_fails(self):
         # A hand edit inside the block is caught.
-        broken = self.doc.replace("**52.165616**", "**48.511113**", 1)
+        broken = self.doc.replace("**56.584455**", "**48.511113**", 1)
         self.assertNotEqual(gen.current_block(broken), self.block)
         # A doc without markers is caught (main before JEG-1397).
         with self.assertRaises(SystemExit):
             gen.current_block(self.doc.replace(gen.BEGIN, ""))
         # A second, stale block is caught too, by the check and by splice.
-        doubled = self.doc + "\n" + self.block.replace("**52.165616**", "**48.511113**") + "\n"
+        doubled = self.doc + "\n" + self.block.replace("**56.584455**", "**48.511113**") + "\n"
         with self.assertRaises(SystemExit):
             gen.current_block(doubled)
         with self.assertRaises(SystemExit):

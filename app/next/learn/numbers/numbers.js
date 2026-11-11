@@ -530,7 +530,10 @@
     if (!wi) return '';
     var n = wi.rows.length, q = wi.twoQb, sh = wi.shares;
     var meanOf = function (rows) { return '(' + rows.map(function (x) { return label(x.source) + ' ' + pct2(x.share); }).join(' + ') + ') ÷ ' + rows.length; };
-    var plainMean = 'the mean of the ' + n + ' included sources’ own ' + pos + ' ' + role + ' shares (held sources too): ' + meanOf(wi.rows) + ' = ' + pct2(wi.mean);
+    /* JEG-1569 (VP-4.6): on the charts-only split the mean is over the included trade charts. */
+    var who = wi.split === 'charts' ? 'trade charts' : wi.split === 'projections' ? 'projections' : 'sources';
+    var plainMean = 'the mean of the ' + n + ' included ' + who + '’ own ' + pos + ' ' + role + ' shares (held ones too): ' + meanOf(wi.rows) + ' = ' + pct2(wi.mean) +
+      (wi.split === 'projections' ? ' (on the charts-only split a projection is priced on the projections’ own weights)' : '');
     var renorm = function () { return Math.abs(wi.total - 1) > 5e-6 ? ', ÷ ' + pct2(wi.total) + ' (the 8 groups’ means summed, so the weights add up to 100%)' : ''; };
     if (!wi.verified) {
       /* A setting the derivation below does not reproduce: name the gap instead of a reason. */

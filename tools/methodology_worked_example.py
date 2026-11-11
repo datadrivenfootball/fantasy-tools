@@ -203,8 +203,28 @@ def _weights_lines(res: dict) -> list:
         f"Starter mix mean {', '.join(f'{p} {f(smm[p])}' for p in POS)}; bench mix mean "
         f"{', '.join(f'{p} {f(bmm[p])}' for p in POS)}. So `W` = "
         + ", ".join(f"{p} starter {f(W[f'{p}|starter'])}, {p} bench {f(W[f'{p}|bench'])}" for p in POS)
-        + f" (the bench groups sum to {f(bench_total)}; bench share applied {f(res['bench_share_applied'])}).",
+        + f" (the bench groups sum to {f(bench_total)}; bench share applied {f(res['bench_share_applied'])})."
+        + _proj_weights_text(res),
     ]
+
+
+def _proj_weights_text(res: dict) -> str:
+    # JEG-1569 (VP-4.6): on the charts-only split the mixes above are the included charts' means, and the
+    # projections are priced on their own split W_proj (the same average over the included projections).
+    Wp = res.get("ddf_weights_projections")
+    if res.get("ddf_split") != "charts" or not Wp:
+        return ""
+    return (" These are the included charts' means (the charts-only split, VP-4.6). The projections are priced on"
+            " their own split, `W_proj` = "
+            + ", ".join(f"{p} starter {f(Wp[f'{p}|starter'])}, {p} bench {f(Wp[f'{p}|bench'])}" for p in POS) + ".")
+
+
+def _split_weights(c: "Ctx", res: dict, src: str) -> dict:
+    """The weight set that prices `src`: W_proj for a projection on the charts-only split (VP-4.6), else W."""
+    Wp = res.get("ddf_weights_projections")
+    if res.get("ddf_split") == "charts" and Wp and src in c.projs:
+        return Wp
+    return res["ddf_weights"]
 
 
 def _work(c: Ctx, res: dict, s: str, p: str) -> list:
@@ -309,7 +329,7 @@ def legacy(c: Ctx) -> list:
     k = _work(c, res, src, p)[0]
     pl = res["sources"][src]["players"][k]
     lines, info = _lines_text(c, res, src, p, k)
-    G, R, W = res["sources"][src]["groups"], res["sources"][src]["rates"], res["ddf_weights"]
+    G, R, W = res["sources"][src]["groups"], res["sources"][src]["rates"], _split_weights(c, res, src)
     gb, gs = f"{p}|bench", f"{p}|starter"
     out += [f"**Hand-check one value (legacy slices).** `{src}`, {c.nm(k)}: native {f(pl['native'])}. "
             + lines
@@ -424,7 +444,7 @@ def current(c: Ctx) -> list:
     v = pl["vorp"]
     bands = "; ".join(f"depth {b['depth']} `({f(b['lo'])}, {f(b['hi'])}]` fill {f(b['fill'])}" for b in info["bands"])
     fill_prob = pl["bench_slice"] / (info["avail"] * v) if v else 0.0
-    G, R, W = res["sources"][src]["groups"], res["sources"][src]["rates"], res["ddf_weights"]
+    G, R, W = res["sources"][src]["groups"], res["sources"][src]["rates"], _split_weights(c, res, src)
     gb, gs = f"{p}|bench", f"{p}|starter"
     out += [f"**Hand-check one value (expected starts).** `{src}`, {c.nm(k)}: native {f(pl['native'])}. "
             + lines

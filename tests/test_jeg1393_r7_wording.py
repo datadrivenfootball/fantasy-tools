@@ -107,7 +107,10 @@ class RenderedWording(unittest.TestCase):
             page.wait_for_timeout(400)
             rows = page.evaluate("() => [...document.querySelectorAll('#bu-worked tr')].map(t => t.innerText)")
             eng = page.evaluate("""() => { const vp = DDFNumbers.snapshot().inspection.valuePipeline;
-              const proj = vp.included.filter(k => vp.sources[k].family === 'projection');
+              // JEG-1569: on the charts-only split (the default) the 2-QB QB weight is the included charts' mean;
+              // the JEG-1366 projections rule is the old "all" split's.
+              const fam = vp.ddfSplit === 'charts' ? 'chart' : 'projection';
+              const proj = vp.included.filter(k => vp.sources[k].family === fam && !(vp.sources[k].positions.QB && vp.sources[k].positions.QB.method === 'no_players'));
               return {W: vp.ddfWeights['QB|starter'], shares: proj.map(k => vp.sources[k].weights['QB|starter']),
                 mix: (vp.allocationMix || []).map(m => m.weight)}; }""")
             overflow = page.evaluate("() => document.documentElement.scrollWidth - document.documentElement.clientWidth")
@@ -116,10 +119,12 @@ class RenderedWording(unittest.TestCase):
         self.assertLessEqual(overflow, 0)
         starter = next(r for r in rows if r.startswith("Starter rate"))
         self.assertNotIn("rescales", starter)
-        self.assertIn("come from the included projections only", starter)
+        # JEG-1569 decision 4 (2026-11-07): the 2-QB rule uses the charts only, so no projections clause.
+        self.assertNotIn("come from the included projections only", starter)
+        self.assertIn("included trade charts’ own QB starter shares", starter)
         mean = sum(eng["shares"]) / len(eng["shares"])
-        self.assertAlmostEqual(mean, eng["W"], places=9)
-        m = re.search(r"\) ÷ 3 = ([\d.]+)%", starter)
+        self.assertAlmostEqual(mean, eng["W"], places=6)
+        m = re.search(r"\) ÷ %d = ([\d.]+)%%" % len(eng["shares"]), starter)
         self.assertTrue(m, starter)
         self.assertAlmostEqual(float(m.group(1)), round(mean * 100, 2), places=6)
         alloc = next(r for r in rows if r.startswith("QB league allocations"))

@@ -265,10 +265,10 @@ class League:
     # mean points per game. None = SEAT_SIGMA; 0 = the hard cutoffs.
     seat_sigma: float | None = None
     # JEG-1569 (VP-4.6): which sources set the DDF weights. "all" = every
-    # source in I (live); "charts" = the trade charts in I (and the projections
-    # their own split). Setting resolves it (argument, then the DDF_VALUE_SPLIT
+    # source in I (the old split); "charts" = the trade charts in I (and the
+    # projections their own split; live since the flip). Setting resolves it (argument, then the DDF_VALUE_SPLIT
     # environment variable); a League built directly takes this default.
-    ddf_split: str = "all"
+    ddf_split: str = "charts"   # JEG-1569 flip (Jeremy's go: "Flip all now.", 2026-11-09 CT; "Flip now", 2026-11-11)
 
     @property
     def starting_slots(self) -> int:

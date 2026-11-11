@@ -1,9 +1,9 @@
 """JEG-1569: DDF_VALUE_SPLIT=charts builds DDF Value's position split (VP-4) from
 the trade charts in I only, and DDF Projections' from the projections in I only.
-Default off (DDF_VALUE_SPLIT_DEFAULT "all"); the flip waits for Jeremy's go.
+Live since the flip (DDF_VALUE_SPLIT_DEFAULT "charts"); "all" is the old split.
 
 Checks, on the week-9 fixture at half PPR 12 teams, 1QB and superflex:
-- the default (no flag) equals ddf_split="all" exactly;
+- the default (no flag) equals ddf_split="charts" exactly (the flip);
 - with the flag the weights equal the mean of the included charts' own
   ES-15.1 weights (the projections contribute nothing to the split);
 - the flag moves nothing else upstream: allocation and waiver lines are equal;
@@ -43,7 +43,7 @@ class ChartsOnlySplit(unittest.TestCase):
     def test_split(self):
         for sf in (0, 1):
             default, live, charts = self._pair(sf)
-            self.assertEqual(default["ddfWeights"], live["ddfWeights"])
+            self.assertEqual(default["ddfWeights"], charts["ddfWeights"])  # the flip: default is "charts"
             inc = [k for k in charts["included"]
                    if vr.FAMILY[k] == "chart" and charts["sources"][k]["weights"] is not None]
             self.assertGreaterEqual(len(inc), 1)
@@ -70,6 +70,7 @@ class ChartsOnlySplit(unittest.TestCase):
         for sf in (0, 1):
             _default, live, charts = self._pair(sf)
             self.assertNotIn("ddfWeightsProjections", live)
+            self.assertIn("ddfWeightsProjections", _default)
             live_res = vr.Setting(self.inp, "half_ppr", 12, sf, ddf_split="all").result()
             for key in ("ddf_split", "ddf_weights_projections", "group_budgets_projections"):
                 self.assertNotIn(key, live_res)
@@ -174,13 +175,16 @@ class EngineEqualsReferenceOnTheChartsSplit(unittest.TestCase):
                 self.assertEqual(bad[:10], [], f"{len(bad)} players differ")
 
     def test_default_request_is_the_live_split(self):
-        got = self.edge({"scoring": "ppr", "teams": 12}, "--dump-weights", "1")
+        # The flip: a request with no split is on "charts"; split=all is the old split, with none of the new keys.
+        default = self.edge({"scoring": "ppr", "teams": 12}, "--dump-weights", "1")
+        self.assertEqual(default.get("ddf_split"), "charts")
+        got = self.edge({"scoring": "ppr", "teams": 12, "split": "all"}, "--dump-weights", "1")
         self.assertNotIn("ddf_split", got)
         res = vr.Setting(self.inp, "ppr", 12, ddf_split="all").result()
         for g, v in res["ddf_weights"].items():
             self.assertAlmostEqual(got["ddf_weights"][g], v, places=9, msg=g)
         bogus = self.edge({"scoring": "ppr", "teams": 12, "split": "projections"}, "--dump-weights", "1")
-        self.assertEqual(bogus, got)
+        self.assertEqual(bogus, default)
 
 
 if __name__ == "__main__":

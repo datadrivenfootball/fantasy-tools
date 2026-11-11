@@ -50,3 +50,21 @@ The flip is a separate PR that stays unmerged until Jeremy says go.
   and DDF Projections at 3 settings, in both modes.
 - On identical inputs, the spec's live output (`pipeline_live.build`, 13 settings) hashes the same as main's
   (`80a628a4...`).
+
+### 2026-11-09: the flip PR (#1367) brought up to date and made merge-ready
+Jeremy's go, 2026-11-09 CT (relayed by the lead): "Flip all now."
+- Merged origin/main (e14995fff) as a normal merge commit. #1366 had landed as a squash, so main's copies of the
+  split-flag files were taken and only the flip delta was re-applied.
+- Worked example regenerated on the charts split: the `expected` and `variant_bench_share_0_10` numbers from the spec
+  reference, the expected-starts variants with `tools/worked_example_expected_starts.py`, the doc block with
+  `tools/methodology_worked_example.py`. The engine and the Python reference reproduce it (0 mismatches at 1e-6). The
+  generator now prints `W_proj` for a projection's hand-check (it printed the charts' `W` beside rates built on
+  `W_proj`).
+- Tests that assumed one shared weight set now compare a source with its own family's budgets on the charts split:
+  `tests/test_bench_budget_cut_render.py` (pie x W_proj for a projection) and the audit pie's "positions" and
+  "totals" checks (`app/v2/audit-pie.js`, compared within a weight set).
+- `tests/fixtures/baseline_main_771c3422/value-model.js` re-frozen from the PR head (README paragraph): a deliberate
+  default-value change.
+- Still open (not blocking): the projection-influence ledger and `test_build_waiver_board` fail on main too (an
+  old hook signature and a week-8 board vs week-9 data). Post 09 numbers and the JEG-1562 opportunity calibration are
+  follow-ups.
