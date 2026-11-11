@@ -116,12 +116,22 @@ function render(){
  $('count').textContent=D.length?n+' of '+D.length+' in view'+cap:(document.body.classList.contains('values-live')?'No players':'Loading values…');
  if(cardIdx!==null){if(pinned!==null&&shown[cardIdx]&&anchorEl&&anchorEl.closest('tbody'))placeAfter();else hideCard(true)}
 }
+/* Group by position: off (default) = one flat list by the sort column with a position chip; on = position header rows (JEG-1621). */
+const GROUP_KEY='ddf:values:groupByPosition';
+let groupByPos=false;
+try{groupByPos=localStorage.getItem(GROUP_KEY)==='1'}catch(e){}
+function syncGroupBtn(){const b=$('group-pos');if(b)b.setAttribute('aria-pressed',String(groupByPos))}
+const gb=$('group-pos');
+if(gb)gb.addEventListener('click',()=>{groupByPos=!groupByPos;try{localStorage.setItem(GROUP_KEY,groupByPos?'1':'0')}catch(e){}syncGroupBtn();hideCard(true);renderTable()});
+syncGroupBtn();
 function cols(){const c=[['ddf','DDF'],['cbs','CBS (indexed)']];if($('fantasycalc').checked)c.push(['fc','Live market (FantasyCalc, indexed)']);EXTRA.forEach(([k])=>{const b=$('src-'+k);if(b&&b.checked)c.push([k,NAMES[k]])});if($('vaw-on').checked)c.push(['vaw','<span class="vaw-wide">Value above waivers</span><span class="vaw-narrow" aria-hidden="true">Above waivers</span>']);c.push(['dcbs','DDF vs CBS']);return c}
 function renderTable(){
  const c=cols();if(!c.some(k=>k[0]===sortKey))sortKey='ddf';
  $('head').innerHTML='<tr><th scope="col" class="pl">Player</th>'+c.map(([k,t])=>`<th scope="col" class="num" aria-sort="${k===sortKey?'descending':'none'}"><button type="button" class="sort" data-key="${k}">${t} <span class="arrow" aria-hidden="true">${k===sortKey?'▼':''}</span></button></th>`).join('')+'<th scope="col" class="ovcol">Override</th></tr>';
  const rows=shown.map((o,i)=>({o,i})).sort((a,b)=>val(b.o.p,sortKey)-val(a.o.p,sortKey));
- const rowHtml=({o,i})=>{const p=o.p;return `<tr data-i="${i}" tabindex="0" class="${p.n===hl?'values-hl':''}${p.ov?' ov-row':''}" aria-label="${p.n}${p.ov?', your override':''}, details on focus"><td class="pl"><span class="pn">${p.star?'<span class="pstar" aria-label="Your player">★</span> ':''}${p.n}</span></td>`+c.map(([k])=>k==='ddf'&&p.ov?`<td class="num ovcell"><span class="ov-was">DDF ${p.base.toFixed(1)} →</span> <span class="ov-now">Yours ${p.ddf.toFixed(1)}</span></td>`:k==='dcbs'?`<td class="num ${dCbs(p)===null?'':dCbs(p)>=0?'dpos':'dneg'}">${sg(dCbs(p))}</td>`:k==='vaw'?`<td class="num vaw-cell${vawOf(p)===null?' vaw-na':''}"${vawOf(p)===null?' title="No trade chart prices this player"':''}>${vawTxt(p)}</td>`:`<td class="num">${fx(p[k])}</td>`).join('')+ovCell(p)+'</tr>'};
+ const grouped=groupByPos;
+ const rowHtml=({o,i})=>{const p=o.p;return `<tr data-i="${i}" tabindex="0" class="${p.n===hl?'values-hl':''}${p.ov?' ov-row':''}" aria-label="${p.n}${grouped?'':', '+p.pos}${p.ov?', your override':''}, details on focus"><td class="pl"><span class="pn">${p.star?'<span class="pstar" aria-label="Your player">★</span> ':''}${p.n}</span>${grouped?'':` <span class="pos pos-${p.pos}">${p.pos}</span>`}</td>`+c.map(([k])=>k==='ddf'&&p.ov?`<td class="num ovcell"><span class="ov-was">DDF ${p.base.toFixed(1)} →</span> <span class="ov-now">Yours ${p.ddf.toFixed(1)}</span></td>`:k==='dcbs'?`<td class="num ${dCbs(p)===null?'':dCbs(p)>=0?'dpos':'dneg'}">${sg(dCbs(p))}</td>`:k==='vaw'?`<td class="num vaw-cell${vawOf(p)===null?' vaw-na':''}"${vawOf(p)===null?' title="No trade chart prices this player"':''}>${vawTxt(p)}</td>`:`<td class="num">${fx(p[k])}</td>`).join('')+ovCell(p)+'</tr>'};
+ if(!grouped){$('rows').innerHTML=rows.map(rowHtml).join('');return}
  const groups=[...new Set(rows.map(r=>r.o.p.pos))].sort((a,b)=>{const x=POS_ORDER.indexOf(a),y=POS_ORDER.indexOf(b);return (x<0?99:x)-(y<0?99:y)||String(a).localeCompare(String(b))});
  $('rows').innerHTML=groups.map(g=>{const gr=rows.filter(r=>r.o.p.pos===g);return `<tr class="pos-grp"><th scope="rowgroup" colspan="${c.length+2}" class="pos-${g}">${g} <span class="pos-n">${gr.length}</span></th></tr>`+gr.map(rowHtml).join('')}).join('');
 }
