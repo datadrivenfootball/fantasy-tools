@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-10T23:02:35.771202+00:00",
+  "run_at": "2026-11-10T23:34:55.264049+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -16,10 +16,9 @@
   "success": false,
   "outcome": "failed",
   "held": [
-    "razzball",
     "usatoday"
   ],
-  "hold_severity": "red",
+  "hold_severity": "amber",
   "list_changes": {
     "fantasycalc": [
       "fantasycalc-full-12-qb1-section full_12_qb1/QB list 34 -> 35: dropped none; added deshaun watson",
@@ -61,19 +60,6 @@
       ],
       "detail": "927/927 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
-      "week": 10
-    },
-    "razzball": {
-      "reason": "fidelity: stored_vs_chart",
-      "held_series": [
-        "razzball",
-        "razzball_vorp"
-      ],
-      "sections": [
-        "razzball"
-      ],
-      "detail": "1527/1599 chart values equal stored snapshot 2026-11-09 (per game, 1 decimals); 31 stored players are left off the chart by its own rule (missed-games guard, JEG-555): Alec Pierce, CJ Daniels, Carson Wentz, Corey Kiner, Darnell Mooney, De'Zhaun Stribling, Demarcus Robinson, Deshaun Watson, Devin Sin",
-      "hold_severity": "red",
       "week": 10
     }
   },
@@ -153,7 +139,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (4416 values)",
+      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (4404 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -161,7 +147,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-09 -> 12 DDF legs -> section; review passed (6324 values)",
+      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (6264 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -208,8 +194,8 @@
       "lagging_one_week": false
     },
     "razzball": {
-      "content_vintage": "2026-11-09",
-      "content_week": 9,
+      "content_vintage": "2026-11-10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     }
@@ -271,15 +257,15 @@
       "stale_after": null
     },
     "razzball": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-09",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-10",
       "basis": "section_label",
       "expected_week": 10,
-      "weeks_behind": 1,
-      "state": "lagging",
+      "weeks_behind": 0,
+      "state": "current",
       "stale": false,
-      "stale_after": "2026-11-12T12:00:00-06:00"
+      "stale_after": null
     },
     "usatoday": {
       "served_week": 9,
@@ -296,13 +282,11 @@
   "stale_sources": [],
   "lagging_sources": [
     "cbs",
-    "razzball",
     "usatoday"
   ],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored",
-    "razzball": "fidelity: stored_vs_chart"
+    "usatoday": "fidelity: publisher_vs_stored"
   },
   "post_rebuild_validation": {
     "status": "failed",
@@ -311,14 +295,14 @@
       "FAIL tests.test_view_invariants.ViewInvariants.test_every_view_holds_its_invariant"
     ],
     "assertions": [
-      "AssertionError: 150 not greater than or equal to 195"
+      "AssertionError: 180 not greater than or equal to 225"
     ],
     "breaches": [],
     "make_targets": [
       "Makefile:681: data-gate"
     ],
-    "detail": "FAIL tests.test_view_invariants.ViewInvariants.test_every_view_holds_its_invariant\nAssertionError: 150 not greater than or equal to 195",
-    "recorded_at": "2026-11-10T23:31:35.094246+00:00",
+    "detail": "FAIL tests.test_view_invariants.ViewInvariants.test_every_view_holds_its_invariant\nAssertionError: 180 not greater than or equal to 225",
+    "recorded_at": "2026-11-11T00:06:46.791767+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
