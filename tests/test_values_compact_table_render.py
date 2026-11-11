@@ -17,10 +17,19 @@ FACTS = """() => {
   const heads = [...document.querySelectorAll('#head th')].map(t => t.textContent.trim());
   const groups = [...document.querySelectorAll('#rows tr.pos-grp th')].map(t => t.textContent.trim().split(/\\s+/)[0]);
   const rows = [...document.querySelectorAll('#rows tr[data-i]')];
+  const posOf = n => (DDFValues.D.find(r => r.n === n) || {}).pos;
+  const blocks = []; let cur = null;
+  document.querySelectorAll('#rows tr').forEach(tr => {
+    if (tr.classList.contains('pos-grp')) {
+      const th = tr.querySelector('th');
+      cur = {pos: th.textContent.trim().split(/\\s+/)[0], scope: th.getAttribute('scope'), count: +th.querySelector('.pos-n').textContent, rowPos: []};
+      blocks.push(cur);
+    } else if (cur) cur.rowPos.push(posOf(tr.querySelector('.pn').textContent.replace('★', '').trim()));
+  });
   const first = rows[0];
   const own = first.querySelector('td.ovcol button[data-act=own]');
   return {
-    heads, groups, nrows: rows.length,
+    heads, groups, blocks, nrows: rows.length,
     posPillInPlayerCell: !!document.querySelector('#rows td.pl .pos'),
     actsInPlayerCell: !!document.querySelector('#rows td.pl .vp-acts, #rows td.pl .vp-act'),
     ownButtons: document.querySelectorAll('#rows td.ovcol button[data-act=own]').length,
@@ -66,7 +75,19 @@ class CompactValuesTableTest(unittest.TestCase):
     def _check_layout(self, f):
         self.assertEqual("Override", f["heads"][-1], "Override is the last column")
         self.assertEqual("Player", f["heads"][0])
-        self.assertTrue({"QB", "RB", "WR", "TE"} <= set(f["groups"]), f["groups"])
+        order = ["QB", "RB", "WR", "TE"]
+        shown = f["blocks"]
+        self.assertTrue(shown, "at least one position group is shown")
+        heads = [b["pos"] for b in shown]
+        self.assertEqual(len(heads), len(set(heads)), "one header per position")
+        known = [h for h in heads if h in order]
+        self.assertEqual(sorted(known, key=order.index), known, "groups follow QB, RB, WR, TE order")
+        for b in shown:
+            self.assertEqual("rowgroup", b["scope"])
+            self.assertGreaterEqual(len(b["rowPos"]), 1, f"{b['pos']} header has no player rows")
+            self.assertEqual({b["pos"]}, set(b["rowPos"]), f"rows under {b['pos']} are all {b['pos']}")
+            self.assertEqual(b["count"], len(b["rowPos"]), f"{b['pos']} header count matches its rows")
+        self.assertEqual(sum(len(b["rowPos"]) for b in shown), f["nrows"], "every player row sits under a header")
         self.assertFalse(f["posPillInPlayerCell"], "positions are group rows, not a pill per row")
         self.assertFalse(f["actsInPlayerCell"], "no per-row action links in the Player cell")
         self.assertEqual(f["nrows"], f["ownButtons"], "one override button per player row")
@@ -84,12 +105,25 @@ class CompactValuesTableTest(unittest.TestCase):
             self.assertGreaterEqual(f["btnH"], 44)
             self.assertGreaterEqual(f["btnW"], 44)
 
+    def test_sticky_override_cell_follows_row_highlight(self):
+        with self._session(1440, 900) as (page, f):
+            bg = "(sel) => getComputedStyle(document.querySelector(sel)).backgroundColor"
+            row = "#rows tr[data-i]"
+            page.hover(row)
+            page.wait_for_timeout(300)
+            self.assertEqual(page.evaluate(bg, row + " td.num"), page.evaluate(bg, row + " td.ovcol"), "hover")
+            page.evaluate("() => document.querySelector('#rows tr[data-i]').classList.add('values-hl')")
+            page.mouse.move(0, 0)
+            page.wait_for_timeout(300)
+            self.assertEqual(page.evaluate(bg, row + " td.num"), page.evaluate(bg, row + " td.ovcol"), "highlight")
+
     def test_override_button_opens_overrides_and_applies(self):
         with self._session(1440, 900) as (page, f):
+            clicked = page.evaluate("() => document.querySelector('#rows tr[data-i] .pn').textContent.replace('★', '').trim()")
             page.click("#rows tr[data-i] td.ovcol button[data-act=own]")
             page.wait_for_function("() => !document.getElementById('panel-ov').hidden", timeout=15000)
             name = page.evaluate("() => document.getElementById('ov-name').textContent.trim()")
-            self.assertTrue(name, "the Overrides tab opens on the clicked player")
+            self.assertEqual(clicked, name, "the Overrides tab opens on the clicked player")
             page.fill("#ov-num", "99")
             page.dispatch_event("#ov-num", "input")
             page.click("#ov-apply")
