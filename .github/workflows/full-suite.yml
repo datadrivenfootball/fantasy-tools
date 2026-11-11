@@ -64,7 +64,7 @@ jobs:
       - name: Browser for the render tests
         run: |
           python3 -m pip install --quiet playwright==1.49.1
-          python3 -m playwright install --with-deps chromium
+          bash .github/scripts/retry-browser-install.sh python3 -m playwright install --with-deps chromium
           npm ci --prefix tests/rendered_gate
           echo "RENDER_TESTS_REQUIRED=1" >> "$GITHUB_ENV"
       - name: Build
