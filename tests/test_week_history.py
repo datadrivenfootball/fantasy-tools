@@ -1011,13 +1011,22 @@ SCORING_PREFIX = {"ppr": "full", "half_ppr": "half", "standard": "standard"}
 
 
 def newest_week(exclude=("cbs", "usatoday")):
-    """The newest week the built dist/ serves, over the charts not in
-    `exclude`. Committed data and a chain rebuild differ here (on 2026-10-28
-    the chain built Week 8 while the committed dist/ served Week 7), so the
-    transition replay is set relative to it, not to a fixed week."""
+    """The week the transition replay treats as newest: the week most of the
+    charts not in `exclude` serve in the built dist/ (ties: the newer week).
+    Committed data and a chain rebuild differ here (on 2026-10-28 the chain
+    built Week 8 while the committed dist/ served Week 7), so the replay is set
+    relative to it, not to a fixed week.
+
+    Not the max (JEG-1618): on Tuesday 2026-11-10 CBS ROS alone served Week 10
+    while everything else served Week 9, the max made the replay lag CBS and USA
+    Today to Week 9 (their real week, so no lag), the page defaulted to Week 9
+    and every transition sentinel failed (chain runs 42765640563, 42769574724).
+    transition_overrides hides the charts off this week."""
+    from collections import Counter
     index = json.loads((DIST / "assets" / "history" / "index.json").read_text(encoding="utf-8"))
-    return max(v["week"] for k, v in index["served"].items()
-               if k not in exclude and isinstance(v.get("week"), int))
+    weeks = Counter(v["week"] for k, v in index["served"].items()
+                    if k not in exclude and isinstance(v.get("week"), int))
+    return max(weeks, key=lambda w: (weeks[w], w))
 
 
 def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None,
@@ -1056,6 +1065,25 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
         if isinstance(section, dict):
             for field in ("validationHold", "promotionHold"):
                 section.pop(field, None)
+    # JEG-1618: a chart serving another week than the replay's newest (one
+    # source already on the next week, or still a week behind) is hidden with a
+    # red hold, so the replay is exactly "the rest on week+1, the lagging charts
+    # on week". A red hold takes a chart out of DDF Value and the week lists.
+    on_newest = 0
+    for key, served in index["served"].items():
+        if key in lagging or not isinstance(served.get("week"), int):
+            continue
+        if served["week"] == week + 1:
+            on_newest += 1
+            continue
+        for sec in (key, f"{key}_adjusted", f"{key}_vorp"):
+            if isinstance(fixture["sources"].get(sec), dict):
+                fixture["sources"][sec]["validationHold"] = {
+                    "reason": f"transition replay: serves Week {served['week']}, not the replay's Week {week + 1}",
+                    "hold_level": "red", "root": key}
+    assert 2 * on_newest > on_newest + len(lagging), (
+        f"transition replay: only {on_newest} chart(s) serve Week {week + 1} against {len(lagging)} lagging; "
+        "the committed data cannot form a transition with the newest week as the default view")
     for src in lagging:
         entry = saved["sources"][src]
         index["served"][src] = {"week": week, "version": "snapshot", "fingerprint": entry["fingerprint"],

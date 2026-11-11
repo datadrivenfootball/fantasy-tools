@@ -237,6 +237,9 @@ body.v2 > :not(.v2-app):not(script):not(.legacy-engine) { display: none !importa
   .v2-context.is-open .v2-ctx-league strong { display: none; }
   /* Leave room for the full summary and a two-digit week in wider fallback fonts at 375px; retain 44px hit heights. */
   .v2-context .v2-ctx-freshness { gap: 4px; padding-inline: 2px; flex-shrink: 0; }
+  /* JEG-1620: "Week 10 ⚠" (a source held) clipped the summary by 8 to 10 px at 375 px in DejaVu Sans and Verdana.
+     The warning mark already flags the chip, so the dot (8 px plus its 4 px gap) goes while it shows. */
+  .v2-context .v2-ctx-freshness.is-flagged .v2-dot { display: none; }
   /* Anchor the overflow menu to the row: on tabs without Customize, ⋯ is too far left for a 240px right-aligned menu. */
   .v2-context-inner { position: relative; column-gap: 4px; }
   .v2-context .v2-ctx-menuwrap { position: static; }

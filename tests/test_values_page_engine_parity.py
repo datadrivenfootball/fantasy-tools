@@ -114,9 +114,10 @@ READ_TABLE_JS = """() => {
   const rows = [];
   document.querySelectorAll('#rows tr[data-i]').forEach(tr => {
     const cells = [...tr.querySelectorAll('td')];
-    /* player name from aria-label: "PlayerName, details on focus" or "PlayerName, your override, details on focus" */
+    /* player name from aria-label: "PlayerName, details on focus", "PlayerName, your override, details on focus", and in the flat (default) layout
+       "PlayerName, QB[, your override], details on focus" */
     const rawLabel = tr.getAttribute('aria-label') || '';
-    const name = rawLabel.replace(/(, your override)?, details on focus$/, '');
+    const name = rawLabel.replace(/(, [A-Z]{1,3})?(, your override)?, details on focus$/, '');
     const rec = nameMap.get(name);
     if (!rec) return;
     const key = String(rec.key);
@@ -375,7 +376,10 @@ class ValuesPageEngineParityTest(unittest.TestCase):
 
     def test_card_gap_label_names_its_charts(self):
         """R6-CX-02: the player card's gap label names the charts the gap used (both, CBS only or FantasyCalc only), and
-        the number is DDF Value minus those, read from the engine (TradeValueCurveControls), not the page model."""
+        the number is DDF Value minus those, read from the engine (TradeValueCurveControls), not the page model.
+        JEG-1620: the two examples come from the week's data (the highest DDF Value player with both charts' own
+        numbers, and the highest with exactly one), not fixed names: Rico Dowdle had only one chart in Week 9 and both
+        in Week 10."""
         try:
             from playwright.sync_api import sync_playwright
         except Exception as exc:
@@ -386,6 +390,19 @@ class ValuesPageEngineParityTest(unittest.TestCase):
           /* An estimate is not the chart's own number, so the page shows a dash for it (Sources & methodology). */
           const own = s => { const p = ins.players[s] && ins.players[s][String(r.player_key)]; return p && p.estimated ? null : n(ir.indexed && ir.indexed[s]); };
           return {ddf: r.ddfByVersion.blended.value, cbs: own('cbs'), fc: own('fantasycalc')}; }"""
+        # The highest-DDF player with both own chart numbers and the highest with exactly one, among names that no
+        # other row's name contains (the search box matches substrings, and the test clicks the first match).
+        pick_js = """() => { const C = TradeValueCurveControls, ins = C.getInspection(), rows = C.getAllRows();
+          const n = v => (typeof v === 'number' && isFinite(v) ? v : null);
+          const own = (r, s) => { const ir = ins.rows[String(r.player_key)] || {}; const p = ins.players[s] && ins.players[s][String(r.player_key)];
+            return p && p.estimated ? null : n(ir.indexed && ir.indexed[s]); };
+          const names = rows.map(r => String(r.name || '').toLowerCase());
+          const unique = r => { const me = String(r.name || '').toLowerCase(); return me && names.filter(x => x.includes(me)).length === 1; };
+          const priced = rows.filter(r => n(r.ddfByVersion && r.ddfByVersion.blended && r.ddfByVersion.blended.value) !== null && unique(r))
+            .sort((a, b) => b.ddfByVersion.blended.value - a.ddfByVersion.blended.value);
+          const count = r => (own(r, 'cbs') !== null) + (own(r, 'fantasycalc') !== null);
+          const pick = k => { const r = priced.find(r => count(r) === k); return r ? r.name : null; };
+          return {both: pick(2), one: pick(1)}; }"""
         card_js = """() => { const c = document.getElementById('values-card'); if (!c || c.hidden) return null;
           return Object.fromEntries([...c.querySelectorAll('dt')].map(dt => [dt.textContent.trim(), dt.nextElementSibling.textContent.trim()])); }"""
         got = {}
@@ -398,7 +415,10 @@ class ValuesPageEngineParityTest(unittest.TestCase):
             page.add_init_script('(function(){ try { localStorage.clear(); sessionStorage.clear(); } catch(_){} })()')
             page.goto(f'{base_url}/values.html', wait_until='networkidle', timeout=60000)
             page.wait_for_function(READY_EXPR, timeout=20000)
-            for name in ('Rico Dowdle', 'Jahmyr Gibbs'):
+            examples = page.evaluate(pick_js)
+            self.assertTrue(examples.get('both'), 'no priced player has both CBS and FantasyCalc numbers this week')
+            self.assertTrue(examples.get('one'), 'no priced player has exactly one of CBS and FantasyCalc this week')
+            for name in (examples['one'], examples['both']):
                 page.fill('#search', name)
                 page.dispatch_event('#search', 'input')
                 page.wait_for_timeout(300)

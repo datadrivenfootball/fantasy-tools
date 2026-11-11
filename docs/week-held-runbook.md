@@ -134,6 +134,11 @@ value). JEG-1606 fixes `nativeRanksFor`, and
 replay sentinel fails, check its premise (`week`, `on_newest`, `total` in the
 assertion) against the live holds in `dist/modules/fidelity-pulse.json`. Also
 check whether the failing state is one a reader can reach.
+The replay's newest week is the week most non-lagging charts serve, not the
+max (JEG-1618, 2026-11-10). On Tuesday morning CBS ROS alone was on Week 10,
+the max made the replay "lag" CBS and USA Today to their real week, and every
+sentinel failed (chain runs 42765640563, 42769574724). Charts off the replay
+week are hidden with a red hold whose reason starts "transition replay:".
 
 Rules for the list: every `data-gate` line is also in test-core, and
 `tests/test_chain_data_gate.py` pins the exact list (change the test, this
