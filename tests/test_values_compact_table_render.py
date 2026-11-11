@@ -1,6 +1,9 @@
-"""JEG-1621: the Values player table is compact, positions are group rows, overrides sit in one end column.
+"""JEG-1621: the Values player table is compact, overrides sit in one end column, and "Group by position" toggles layout.
 
-Drives the real page: no per-row "Set your own value" text or position pill in the Player cell, a position group row
+Default is one flat list sorted by DDF Value with a position chip per row; the toggle (persisted in localStorage) switches
+to position group rows.
+
+Drives the real page (grouped mode): no per-row "Set your own value" text or position pill in the Player cell, a position group row
 per position, an Override column last, the button still opens the Overrides tab on the same player and an applied
 override still shows on the table row; at 375px the page does not scroll sideways and the buttons stay tappable.
 """
@@ -27,9 +30,14 @@ FACTS = """() => {
     } else if (cur) cur.rowPos.push(posOf(tr.querySelector('.pn').textContent.replace('★', '').trim()));
   });
   const first = rows[0];
+  const ddfOf = tr => { const r = DDFValues.D.find(r => r.n === tr.querySelector('.pn').textContent.replace('★', '').trim()); return r ? r.ddf : null; };
+  const ddfs = rows.map(ddfOf);
   const own = first.querySelector('td.ovcol button[data-act=own]');
   return {
-    heads, groups, blocks, nrows: rows.length,
+    heads, groups, blocks, ddfs,
+    chips: rows.map(tr => { const c = tr.querySelector('td.pl .pos'); const r = DDFValues.D.find(r => r.n === tr.querySelector('.pn').textContent.replace('★', '').trim()); return c ? [c.textContent.trim(), r && r.pos] : null; }),
+    pressed: document.getElementById('group-pos').getAttribute('aria-pressed'),
+    toggleH: Math.round(document.getElementById('group-pos').getBoundingClientRect().height), nrows: rows.length,
     posPillInPlayerCell: !!document.querySelector('#rows td.pl .pos'),
     actsInPlayerCell: !!document.querySelector('#rows td.pl .vp-acts, #rows td.pl .vp-act'),
     ownButtons: document.querySelectorAll('#rows td.ovcol button[data-act=own]').length,
@@ -48,7 +56,7 @@ def setUpModule():
 
 class CompactValuesTableTest(unittest.TestCase):
     @contextlib.contextmanager
-    def _session(self, width, height):
+    def _session(self, width, height, grouped=False):
         try:
             from playwright.sync_api import Error as PlaywrightError, sync_playwright
         except Exception as exc:
@@ -61,6 +69,8 @@ class CompactValuesTableTest(unittest.TestCase):
             try:
                 ctx = browser.new_context(viewport={"width": width, "height": height})
                 ctx.route(lambda u: not u.startswith("http://127.0.0.1"), lambda r: r.abort())
+                if grouped:
+                    ctx.add_init_script("try{localStorage.setItem('ddf:values:groupByPosition','1')}catch(e){}")
                 page = ctx.new_page()
                 errors = []
                 page.on("pageerror", lambda e: errors.append(str(e)))
@@ -72,9 +82,24 @@ class CompactValuesTableTest(unittest.TestCase):
             finally:
                 browser.close()
 
-    def _check_layout(self, f):
+    def _check_common(self, f):
         self.assertEqual("Override", f["heads"][-1], "Override is the last column")
         self.assertEqual("Player", f["heads"][0])
+        self.assertEqual(f["nrows"], f["ownButtons"], "one override button per player row")
+        self.assertIn(f["ownText"], ("Set", "Edit"))
+
+    def _check_flat(self, f):
+        self._check_common(f)
+        self.assertEqual("false", f["pressed"], "toggle is off by default")
+        self.assertEqual([], f["groups"], "no position header rows in the mixed ranking")
+        self.assertGreater(f["nrows"], 1)
+        self.assertEqual(sorted(f["ddfs"], reverse=True), f["ddfs"], "one flat list sorted by DDF Value, high to low")
+        self.assertTrue(all(c and c[0] == c[1] for c in f["chips"]), "every row shows its position chip")
+        self.assertGreater(len({c[0] for c in f["chips"]}), 1, "positions are mixed in the list")
+
+    def _check_layout(self, f):
+        self._check_common(f)
+        self.assertEqual("true", f["pressed"], "toggle is on")
         order = ["QB", "RB", "WR", "TE"]
         shown = f["blocks"]
         self.assertTrue(shown, "at least one position group is shown")
@@ -90,20 +115,45 @@ class CompactValuesTableTest(unittest.TestCase):
         self.assertEqual(sum(len(b["rowPos"]) for b in shown), f["nrows"], "every player row sits under a header")
         self.assertFalse(f["posPillInPlayerCell"], "positions are group rows, not a pill per row")
         self.assertFalse(f["actsInPlayerCell"], "no per-row action links in the Player cell")
-        self.assertEqual(f["nrows"], f["ownButtons"], "one override button per player row")
-        self.assertIn(f["ownText"], ("Set", "Edit"))
 
-    def test_desktop_layout(self):
+    def test_default_is_flat_mixed_ranking(self):
         with self._session(1440, 900) as (page, f):
+            self._check_flat(f)
+            self.assertFalse(f["actsInPlayerCell"])
+            self.assertLessEqual(f["rowH"], 36, "compact row height")
+
+    def test_toggle_groups_persists_and_ungroups(self):
+        with self._session(1440, 900) as (page, f):
+            self._check_flat(f)
+            page.focus("#group-pos")
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(300)
+            self._check_layout(page.evaluate(FACTS))
+            self.assertEqual("1", page.evaluate("() => localStorage.getItem('ddf:values:groupByPosition')"))
+            page.reload(wait_until="domcontentloaded")
+            page.wait_for_function(LIVE, timeout=60000)
+            page.wait_for_timeout(500)
+            self._check_layout(page.evaluate(FACTS))
+            page.keyboard.press("Tab")
+            page.focus("#group-pos")
+            page.keyboard.press("Space")
+            page.wait_for_timeout(300)
+            self._check_flat(page.evaluate(FACTS))
+            self.assertEqual("0", page.evaluate("() => localStorage.getItem('ddf:values:groupByPosition')"))
+
+    def test_desktop_grouped_layout(self):
+        with self._session(1440, 900, grouped=True) as (page, f):
             self._check_layout(f)
             self.assertLessEqual(f["rowH"], 36, "compact row height")
 
     def test_phone_layout_and_tap_targets(self):
-        with self._session(375, 812) as (page, f):
-            self._check_layout(f)
-            self.assertEqual(0, f["pageScroll"], "no horizontal page scroll at 375px")
-            self.assertGreaterEqual(f["btnH"], 44)
-            self.assertGreaterEqual(f["btnW"], 44)
+        for grouped in (False, True):
+            with self._session(375, 812, grouped=grouped) as (page, f):
+                (self._check_layout if grouped else self._check_flat)(f)
+                self.assertEqual(0, f["pageScroll"], f"no horizontal page scroll at 375px (grouped={grouped})")
+                self.assertGreaterEqual(f["toggleH"], 44)
+                self.assertGreaterEqual(f["btnH"], 44)
+                self.assertGreaterEqual(f["btnW"], 44)
 
     def test_sticky_override_cell_follows_row_highlight(self):
         with self._session(1440, 900) as (page, f):
@@ -118,7 +168,11 @@ class CompactValuesTableTest(unittest.TestCase):
             self.assertEqual(page.evaluate(bg, row + " td.num"), page.evaluate(bg, row + " td.ovcol"), "highlight")
 
     def test_override_button_opens_overrides_and_applies(self):
-        with self._session(1440, 900) as (page, f):
+        for grouped in (False, True):
+            self._override_roundtrip(grouped)
+
+    def _override_roundtrip(self, grouped):
+        with self._session(1440, 900, grouped=grouped) as (page, f):
             clicked = page.evaluate("() => document.querySelector('#rows tr[data-i] .pn').textContent.replace('★', '').trim()")
             page.click("#rows tr[data-i] td.ovcol button[data-act=own]")
             page.wait_for_function("() => !document.getElementById('panel-ov').hidden", timeout=15000)
