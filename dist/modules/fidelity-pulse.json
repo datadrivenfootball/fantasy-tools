@@ -1,7 +1,7 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-11T12:49:31.071609Z",
- "run_id": "41d8b086-1a5d-4edc-bb5f-e2832787e0ff",
+ "checked_at": "2026-11-11T12:50:52.730287Z",
+ "run_id": "28dedc4c-f617-4da0-aff8-342298c018d6",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
@@ -45,7 +45,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "fcwk10_2026-11-11t1205_v1",
    "measured_site": "2026-11-11T05:05:26+00:00",
-   "since": "2026-11-11T12:49:31.071609Z",
+   "since": "2026-11-11T12:50:52.730287Z",
    "summary": "1176/1176 chart values equal stored bake fcwk10_2026-11-11t0505_v1; newer stored bake fcwk10_2026-11-11t1205_v1 (week 10, saved 2026-11-11T12:05:38.216332Z) is not on the chart yet: 1127 values changed, 18 added, 19 dropped"
   },
   "espn": {
@@ -69,7 +69,7 @@
    "reason": "fidelity: scrape_validity",
    "identity": "2026-11-11@2026-11-11T07:26:04.256182Z",
    "measured_site": "2026-11-11",
-   "since": "2026-11-11T12:49:31.071609Z",
+   "since": "2026-11-11T12:50:52.730287Z",
    "summary": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 10.1 (expected 16 to 30)"
   },
   "draftsharks": {
@@ -81,7 +81,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-11@2026-11-11T04:45:35.858532Z",
    "measured_site": null,
-   "since": "2026-11-11T12:49:31.071609Z",
+   "since": "2026-11-11T12:50:52.730287Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -93,7 +93,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-11@2026-11-11T12:18:32.929507Z",
    "measured_site": null,
-   "since": "2026-11-11T12:49:31.071609Z",
+   "since": "2026-11-11T12:50:52.730287Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -342,13 +342,13 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "amber",
-     "summary": "983/1174 values match exactly across 6 columns; 191 of 1174 values moved since the save at 2026-11-11T12:05:38.216332Z (largest 233%; 2 outside the max(25%, 50) band: Fernando Mendoza, Tank Dell); 2 players entered or left the bottom of the list since the save (churn)",
+     "summary": "795/1173 values match exactly across 6 columns; 378 of 1173 values moved since the save at 2026-11-11T12:05:38.216332Z (largest 400%; 4 outside the max(25%, 50) band: Corey Kiner, Fernando Mendoza, Tank Dell); 2 players entered or left the bottom of the list since the save (churn)",
      "counts": {
       "publisher_players": 197,
       "stored_players": 196,
-      "compared": 1174,
-      "matched": 983,
-      "mismatched": 191,
+      "compared": 1173,
+      "matched": 795,
+      "mismatched": 378,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
@@ -364,9 +364,9 @@
       "full|1": {
        "left": 196,
        "right": 196,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 187,
+       "missing": 1,
+       "extra": 1
       },
       "full|2": {
        "left": 196,
@@ -414,6 +414,16 @@
        "left": "5199",
        "right": 5438.0,
        "delta": 239.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|1",
+       "player_key": 4181,
+       "name": "Tank Dell",
+       "pos": "WR",
+       "left": "768",
+       "right": 531.0,
+       "delta": -237.0
       },
       {
        "type": "value_mismatch",
@@ -474,16 +484,6 @@
        "left": "673",
        "right": 488.0,
        "delta": -185.0
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|2",
-       "player_key": 1110,
-       "name": "James Cook",
-       "pos": "RB",
-       "left": "6036",
-       "right": 6219.0,
-       "delta": 183.0
       }
      ],
      "outside_universe": [],
@@ -649,6 +649,17 @@
     {
      "stage": "publisher_vs_stored",
      "type": "value_mismatch",
+     "grain": "full|1",
+     "player_key": 4181,
+     "name": "Tank Dell",
+     "pos": "WR",
+     "left": "768",
+     "right": 531.0,
+     "delta": -237.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
      "grain": "full|2",
      "player_key": 217,
      "name": "Bijan Robinson",
@@ -711,17 +722,6 @@
      "left": "673",
      "right": 488.0,
      "delta": -185.0
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|2",
-     "player_key": 1110,
-     "name": "James Cook",
-     "pos": "RB",
-     "left": "6036",
-     "right": 6219.0,
-     "delta": 183.0
     }
    ],
    "held": null,
@@ -734,7 +734,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "fcwk10_2026-11-11t1205_v1",
     "measured_site": "2026-11-11T05:05:26+00:00",
-    "since": "2026-11-11T12:49:31.071609Z",
+    "since": "2026-11-11T12:50:52.730287Z",
     "summary": "1176/1176 chart values equal stored bake fcwk10_2026-11-11t0505_v1; newer stored bake fcwk10_2026-11-11t1205_v1 (week 10, saved 2026-11-11T12:05:38.216332Z) is not on the chart yet: 1127 values changed, 18 added, 19 dropped"
    }
   },
@@ -1723,7 +1723,7 @@
     "reason": "fidelity: scrape_validity",
     "identity": "2026-11-11@2026-11-11T07:26:04.256182Z",
     "measured_site": "2026-11-11",
-    "since": "2026-11-11T12:49:31.071609Z",
+    "since": "2026-11-11T12:50:52.730287Z",
     "summary": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 10.1 (expected 16 to 30)"
    }
   },
@@ -2260,7 +2260,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-11@2026-11-11T04:45:35.858532Z",
     "measured_site": null,
-    "since": "2026-11-11T12:49:31.071609Z",
+    "since": "2026-11-11T12:50:52.730287Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -2328,7 +2328,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-11@2026-11-11T12:18:32.929507Z",
     "measured_site": null,
-    "since": "2026-11-11T12:49:31.071609Z",
+    "since": "2026-11-11T12:50:52.730287Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -2366,5 +2366,5 @@
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
  "resyncs": {},
- "holds_changed": true
+ "holds_changed": false
 }
