@@ -30,6 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import nfl_week  # noqa: E402
+from lib.timestamps import parse_iso_timestamp  # noqa: E402
 
 REPO = "datadrivenfootball/fantasy-tools"
 SITE = "https://datadrivenfootball.github.io/fantasy-tools"
@@ -79,7 +80,7 @@ def check_chain(runs: list[dict], now: datetime) -> tuple[str, str]:
     newest = finished[0]
     since = now - timedelta(hours=12)
     window = [r for r in finished
-              if datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= since][::-1]
+              if parse_iso_timestamp(r["createdAt"]) >= since][::-1]
     turns = sum(1 for older, newer in zip(window, window[1:])
                 if older.get("conclusion") == "success" and newer.get("conclusion") == "failure")
     failed = sum(1 for r in window if r.get("conclusion") == "failure")
