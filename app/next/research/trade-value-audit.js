@@ -496,13 +496,15 @@
       var m = el('div', { class: 'meter', 'aria-hidden': 'true' }), fill = el('div', { class: 'fill' });
       m.appendChild(el('div', { class: 'mid' })); m.appendChild(fill);
       var text;
-      if (giveV == null || getV == null || giveV <= 0) { text = 'Not on this chart'; }
+      if (giveV == null || getV == null) { text = 'Not on this chart'; }
+      else if (giveV <= 0 && getV <= 0) { text = 'About even: both sides are at or below the waiver line'; }
       else {
-        var pct = (getV - giveV) / giveV * 100, capped = Math.max(-100, Math.min(100, pct));
+        /* a player at or below the waiver line is worth 0 after the subtraction: any positive return is ahead */
+        var pct = giveV <= 0 ? 100 : (getV - giveV) / giveV * 100, capped = Math.max(-100, Math.min(100, pct));
         fill.style.background = c;
         fill.style.left = (capped < 0 ? 50 + capped / 2 : 50) + '%';
         fill.style.width = Math.abs(capped) / 2 + '%';
-        text = Math.abs(pct) <= 5 ? 'About even' : (pct > 0 ? 'Your side ahead by ' : 'Your side behind by ') + Math.round(Math.abs(pct)) + '%';
+        text = giveV <= 0 ? 'Your side ahead: the player you give is at or below the waiver line' : Math.abs(pct) <= 5 ? 'About even' : (pct > 0 ? 'Your side ahead by ' : 'Your side behind by ') + Math.round(Math.abs(pct)) + '%';
       }
       row.appendChild(m);
       row.appendChild(el('div', { class: 'vtext' }, text));
