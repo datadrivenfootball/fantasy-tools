@@ -245,11 +245,27 @@ class TestEngineKeepsOrderEverySetting(unittest.TestCase):
         self.assertEqual(order_problems(self.swept), [])
 
     def test_native_rank_is_the_publishers(self):
+        # The publisher's ranks for the week the page read FantasyCalc in. On a
+        # Tuesday FantasyCalc can serve the new week while the default view is
+        # still the previous one; the page then prices and ranks it on its saved
+        # previous week (JEG-1606), so that saved week is the publisher's order
+        # here (JEG-1628: replayed on chain run 42779961289's inputs, this
+        # assertion read the served week and would have held the week).
+        res = self.swept[("ppr", 12, "null")]
         doc = _fixture()
         keys = doc["player_keys"]
-        combo = doc["sources"]["fantasycalc"]["combos"]["full_12_qb1"]
-        expected = native_ranks({keys[s]: float(v) for s, v in combo["native"].items() if s in keys})
-        ranks = self.swept[("ppr", 12, "null")]["ranks"]["fantasycalc"]
+        read_week = res["weeks"].get("fantasycalc")
+        index = json.loads((REPO / "data/history/index.json").read_text(encoding="utf-8"))
+        served_week = (index.get("served", {}).get("fantasycalc") or {}).get("week")
+        if isinstance(read_week, int) and isinstance(served_week, int) and read_week != served_week:
+            saved = json.loads((REPO / f"data/history/week-{read_week}.json").read_text(encoding="utf-8"))
+            natives = saved["sources"]["fantasycalc"]["natives"]["ppr"]
+            expected = native_ranks({int(k): float(v) for k, v in natives.items()
+                                     if int(k) in set(keys.values())})
+        else:
+            combo = doc["sources"]["fantasycalc"]["combos"]["full_12_qb1"]
+            expected = native_ranks({keys[s]: float(v) for s, v in combo["native"].items() if s in keys})
+        ranks = res["ranks"]["fantasycalc"]
         top = sorted(expected, key=lambda k: expected[k])[:10]
         self.assertEqual({k: ranks.get(str(k)) for k in top}, {k: expected[k] for k in top})
 
