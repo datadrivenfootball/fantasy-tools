@@ -47,12 +47,23 @@ class ChainCheck(unittest.TestCase):
         self.assertEqual(P.check_chain([self.run_("failure", 1), self.run_("success", 2)], NOW)[0], "FAIL")
 
     def test_flapping_chain_fails_even_when_newest_is_green(self):
-        # 2026-11-12: the chain alternated green and red for eight hours.
-        runs = [self.run_("success", 1)] + [self.run_("failure", h) for h in (2, 3, 4)]
+        # 2026-11-12: commit 2ec76ac19 went green (43148154825) then red (43148183220).
+        runs = [self.run_(c, h) for c, h in (("success", 1), ("failure", 2), ("success", 3), ("failure", 4), ("success", 5))]
         self.assertEqual(P.check_chain(runs, NOW)[0], "FAIL")
 
-    def test_old_failures_do_not_count(self):
-        runs = [self.run_("success", 1)] + [self.run_("failure", h) for h in (13, 14, 15)]
+    def test_a_fixed_red_streak_passes(self):
+        runs = [self.run_("success", 1), self.run_("success", 2)] + [self.run_("failure", h) for h in (3, 4, 5, 6)] + [self.run_("success", 7)]
+        verdict, msg = P.check_chain(runs, NOW)
+        self.assertEqual(verdict, "PASS")
+        self.assertIn("4 failed, 1 green-to-red", msg)
+
+    def test_cancelled_runs_are_skipped(self):
+        runs = [self.run_("cancelled", 1), self.run_("success", 2)]
+        self.assertEqual(P.check_chain(runs, NOW)[0], "PASS")
+        self.assertEqual(P.check_chain([self.run_("cancelled", 1), self.run_("failure", 2)], NOW)[0], "FAIL")
+
+    def test_old_turns_do_not_count(self):
+        runs = [self.run_("success", 1)] + [self.run_(c, h) for c, h in (("failure", 13), ("success", 14), ("failure", 15), ("success", 16))]
         self.assertEqual(P.check_chain(runs, NOW)[0], "PASS")
 
     def test_no_runs_fails(self):
@@ -63,17 +74,22 @@ class LiveAndConnector(unittest.TestCase):
     STATUS = {"nfl_week": 10, "held": ["espn"], "run_at": "t",
               "source_weeks": {"cbs": {"served_week": 10}, "fantasypros": {"served_week": 10}}}
 
-    def test_previous_week_fully_live_before_the_flip_passes(self):
-        self.assertEqual(P.check_live(self.STATUS, 11)[0], "PASS")
+    TUE, THU = 1, 3
+
+    def test_previous_week_fully_live_on_tuesday_passes(self):
+        self.assertEqual(P.check_live(self.STATUS, 11, self.TUE)[0], "PASS")
+
+    def test_previous_week_on_thursday_fails(self):
+        self.assertEqual(P.check_live(self.STATUS, 11, self.THU)[0], "FAIL")
 
     def test_a_source_two_weeks_behind_fails(self):
         status = {**self.STATUS, "source_weeks": {"cbs": {"served_week": 9}, "fantasypros": {"served_week": 10}}}
-        verdict, msg, _ = P.check_live(status, 11)
+        verdict, msg, _ = P.check_live(status, 11, self.TUE)
         self.assertEqual(verdict, "FAIL")
         self.assertIn("cbs", msg)
 
     def test_holds_are_reported_not_failed(self):
-        verdict, msg, week = P.check_live(self.STATUS, 10)
+        verdict, msg, week = P.check_live(self.STATUS, 10, self.THU)
         self.assertEqual((verdict, week), ("PASS", 10))
         self.assertIn("espn", msg)
 

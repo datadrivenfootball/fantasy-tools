@@ -10,7 +10,7 @@ Run every Tuesday around 14:00 Central, before CBS and USA Today publish (Week 1
 python3 pipelines/rollover_preflight.py
 ```
 
-Read-only. It checks that the newest finished Pages deploy on main deployed, that the chain on main is green and not flapping (more than two failed runs in 12 hours is a FAIL), that the live site and the connector (get-values) serve the same week with no source more than a week behind, and prints the pg_cron SQL to run with Supabase `execute_sql` (expect 8 active rows, including `rebuild-chain-weekly-tue-evening` and `rebuild-chain-weekly-wed-morning`). Any FAIL is fixed that afternoon: a red chain on Tuesday holds every source that publishes that day (Week 10 retro, 2026-11-12, `docs/engineering-notes.md`).
+Read-only. It checks that the newest finished Pages deploy on main deployed, that the chain on main is green and not flapping (two or more green-to-red turns in 12 hours is a FAIL), that the live site names the current week (the previous one is allowed Tuesday and Wednesday), that the connector (get-values) serves the same week, and that no source is more than a week behind, and prints the pg_cron SQL to run with Supabase `execute_sql` (expect 8 active rows, including `rebuild-chain-weekly-tue-evening` and `rebuild-chain-weekly-wed-morning`). Any FAIL is fixed that afternoon: a red chain on Tuesday holds every source that publishes that day (Week 10 retro, 2026-11-12, `docs/engineering-notes.md`).
 
 ## 1. What week is it
 

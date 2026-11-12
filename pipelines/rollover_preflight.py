@@ -8,10 +8,10 @@ time to fix it (retro of the Week 10 rollover, 2026-11-12).
 
 Checks (all reads, nothing dispatched or written):
 1. Pages: the newest completed run on main whose deploy job finished deployed.
-2. Chain: the newest completed rebuild-chain run on main succeeded, and the
-   last 12 hours hold no more than two failed runs.
+2. Chain: the newest finished rebuild-chain run on main succeeded, and the
+   chain did not flap (two or more green-to-red turns in the last 12 hours).
 3. Live site: the served status file names the current content week (or the
-   week before, before the flip) and no source serves more than a week behind.
+   week before on Tuesday and Wednesday) and no source serves more than a week behind.
 4. Connector: get-values answers with the same week as the live site.
 5. Supabase pg_cron: printed as SQL to run (the script has no database access).
 
@@ -42,8 +42,10 @@ CRON_SQL = """select jobname, schedule, active from cron.job
 
 
 def _gh_json(args: list[str]):
-    out = subprocess.run(["gh", *args, "-R", REPO], check=True, capture_output=True, text=True).stdout
-    return json.loads(out)
+    proc = subprocess.run(["gh", *args, "-R", REPO], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError(f"gh {' '.join(args[:2])} failed: {proc.stderr.strip()[:200]}")
+    return json.loads(proc.stdout)
 
 
 def _get_json(url: str):
@@ -66,27 +68,41 @@ def check_pages(runs_with_jobs: list[dict]) -> tuple[str, str]:
 
 
 def check_chain(runs: list[dict], now: datetime) -> tuple[str, str]:
-    """runs: newest first, completed only, each {databaseId, conclusion, createdAt}."""
-    if not runs:
-        return "FAIL", "no completed rebuild-chain run found"
-    newest = runs[0]
+    """runs: newest first, completed only, each {databaseId, conclusion, createdAt}.
+    Cancelled runs are skipped. FAIL when the newest finished run failed, or
+    when the chain flapped: two or more green-to-red turns in the last 12 hours
+    (2026-11-12: the same commit 2ec76ac19 went green in 43148154825 and red in
+    43148183220). A red streak that has since been fixed passes."""
+    finished = [r for r in runs if r.get("conclusion") not in (None, "", "cancelled", "skipped")]
+    if not finished:
+        return "FAIL", "no finished rebuild-chain run found"
+    newest = finished[0]
     since = now - timedelta(hours=12)
-    recent_fail = [r for r in runs if r.get("conclusion") == "failure"
-                   and datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= since]
-    msg = f"newest run {newest['databaseId']} -> {newest.get('conclusion')}; {len(recent_fail)} failed in the last 12 h"
-    if newest.get("conclusion") != "success" or len(recent_fail) > 2:
+    window = [r for r in finished
+              if datetime.fromisoformat(r["createdAt"].replace("Z", "+00:00")) >= since][::-1]
+    turns = sum(1 for older, newer in zip(window, window[1:])
+                if older.get("conclusion") == "success" and newer.get("conclusion") == "failure")
+    failed = sum(1 for r in window if r.get("conclusion") == "failure")
+    msg = (f"newest run {newest['databaseId']} -> {newest.get('conclusion')}; last 12 h: "
+           f"{failed} failed, {turns} green-to-red turns")
+    if newest.get("conclusion") != "success" or turns >= 2:
         return "FAIL", msg
     return "PASS", msg
 
 
-def check_live(status: dict, week: int) -> tuple[str, str, int | None]:
+def check_live(status: dict, week: int, weekday: int) -> tuple[str, str, int | None]:
+    """weekday: Monday 0 (New York calendar, nfl_week.today_ny). The site may
+    still name the previous week on Tuesday and Wednesday, while the new week's
+    charts are publishing; from Thursday it must name the current week. A source
+    may serve one week behind (stale only after Thursday noon, JEG-1176)."""
     served = {k: (v or {}).get("served_week") for k, v in (status.get("source_weeks") or {}).items()}
     live_week = status.get("nfl_week")
+    floor = week - 1 if weekday in (1, 2) else week
     behind = sorted(k for k, w in served.items() if not isinstance(w, int) or w < week - 1)
     held = status.get("held") or []
-    msg = (f"site week {live_week} (content week now {week}); served {served}; "
+    msg = (f"site week {live_week} (content week now {week}, needs {floor} or later); served {served}; "
            f"held {held or 'none'}; status run_at {status.get('run_at')}")
-    ok = isinstance(live_week, int) and live_week >= week - 1 and not behind
+    ok = isinstance(live_week, int) and live_week >= floor and not behind
     return ("PASS" if ok else "FAIL"), msg + (f"; more than a week behind: {behind}" if behind else ""), live_week
 
 
@@ -123,7 +139,8 @@ def run(now: datetime | None = None) -> list[dict]:
     live: dict = {}
 
     def site():
-        verdict, msg, live["week"] = check_live(_get_json(f"{SITE}/modules/comparison-chain-status.json"), week)
+        verdict, msg, live["week"] = check_live(_get_json(f"{SITE}/modules/comparison-chain-status.json"), week,
+                                                nfl_week.today_ny().weekday())
         return verdict, msg
 
     add("pages deploy on main", pages)
