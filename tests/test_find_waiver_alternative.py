@@ -182,10 +182,19 @@ class FindWaiverAlternativeTest(unittest.TestCase):
     def test_find_cards(self):
         league = _league()
         long_name = "YoungLove, 1 in a McMillian (a long team name)"
-        league["teams"][3]["name"] = long_name
         with serve(DIST) as base, self.sync_playwright() as pw:
             browser = _launch(pw)
             try:
+                # Rename the partner of the top offer, read from this week's data, not a fixed team:
+                # a fixed index stops having an offer when the weekly refresh moves values (JEG-1624).
+                page, _ = _find_page(browser, base, 1440, 900, league)
+                page.select_option("#partner", "all")
+                page.wait_for_timeout(200)
+                top = page.evaluate("() => (document.querySelector('[data-offer]') || {dataset: {}}).dataset.partner")
+                page.close()
+                names = [t["name"] for t in league["teams"]]
+                self.assertIn(top, names, "the seeded league has no offer cards (fixture drifted)")
+                league["teams"][names.index(top)]["name"] = long_name
                 for w, h in ((1440, 900), (390, 844)):
                     page, errors = _find_page(browser, base, w, h, league)
                     page.select_option("#partner", label=long_name)
