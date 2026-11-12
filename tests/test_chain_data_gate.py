@@ -53,7 +53,7 @@ def _defines(module: str, rest: list[str]) -> bool:
 # checks. Each of these held a new week on its own premise (retro of the Week 10
 # rollover, 2026-11-12): transition replays (JEG-1606, JEG-1618, JEG-1626), seeded
 # per-source holds and lags (test_fantasycalc_lagging, Tue 2026-11-10), and the view
-# invariants' exact coverage count (150 of 225, Tue 2026-11-10).
+# invariants' per-series coverage minimum (150 of 225, Tue 2026-11-10).
 REPLAYS = (
     "tests.test_rank_guard.TestEngineKeepsOrderInTransition",
     "tests.test_rank_guard.TestEngineKeepsOrderWithHeldLaggingChart",

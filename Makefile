@@ -674,7 +674,7 @@ validate-base: reference sync guard-harness value-check-compare test-integration
 # data is value-check-compare (strict) in validate-base. Every data-gate line is
 # also in test-core (a class or test line is covered by its module's test-core line).
 # JEG-1628 (Jeremy, 2026-11-12): synthetic replays built from the week's data
-# (transition replays, seeded holds, exact coverage counts) are code tests only,
+# (transition replays, seeded holds, per-series coverage counts) are code tests only,
 # so a new week's data cannot hold the rollover on a replay's premise.
 # Definitions and the list's rules: docs/week-held-runbook.md.
 validate-data: validate-base data-gate

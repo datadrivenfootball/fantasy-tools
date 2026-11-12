@@ -146,8 +146,8 @@ week are hidden with a red hold whose reason starts "transition replay:".
 
 **Synthetic replays are code tests, not data checks** (JEG-1628, Jeremy
 2026-11-12). A test that builds a scenario from the week's data and asserts its
-premise (a transition replay, a seeded per-source hold or lag, an exact coverage
-count) runs only in test-core: PRs and the nightly deploy. The Week 10 rollover
+premise (a transition replay, a seeded per-source hold or lag, a per-series
+coverage count) runs only in test-core: PRs and the nightly deploy. The Week 10 rollover
 was held about 39 hours, then 8 more, by four such premises, none a data fault
 (retro 2026-11-12). The data gate keeps the checks that hold for any week:
 published order, the view invariants on the real build, prior-week values,

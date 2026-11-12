@@ -1093,9 +1093,10 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
                     "reason": f"transition replay: serves Week {served['week']}, not the replay's Week {week + 1}",
                     "hold_level": "red", "root": key}
     if not 2 * on_newest > on_newest + len(lagging):
-        raise ReplayPremiseUnavailable(
-            f"transition replay: only {on_newest} chart(s) serve Week {week + 1} against {len(lagging)} lagging; "
-            "the current data cannot form a transition with the newest week as the default view")
+        why = (f"transition replay: only {on_newest} chart(s) serve Week {week + 1} against {len(lagging)} lagging; "
+               "the current data cannot form a transition with the newest week as the default view")
+        print(f"::warning title=replay skipped::{why}")  # visible in CI, not a silent skip
+        raise ReplayPremiseUnavailable(why)
     for src in lagging:
         entry = saved["sources"][src]
         index["served"][src] = {"week": week, "version": "snapshot", "fingerprint": entry["fingerprint"],
