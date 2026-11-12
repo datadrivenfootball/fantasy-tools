@@ -210,6 +210,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_weekly_fantasypros_contract
 	python3 -m unittest tests.test_source_probe
 	python3 -m unittest tests.test_source_lateness
+	# Week 10 rollover retro (2026-11-12): the Tuesday pre-flight's verdicts (no network).
+	python3 -m unittest tests.test_rollover_preflight
 	# JEG-1512: week-held escalation and the JEG-1194 alert (non-blocking: an alert test never holds data).
 	python3 -m unittest tests.test_week_held_alert tests.test_chain_stuck_alert
 	# JEG-1485 decision A: the chain and the deploy gate on data-gate; it stays inside test-core.

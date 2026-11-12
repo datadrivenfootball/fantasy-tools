@@ -103,3 +103,15 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
 - A week view never mixes weeks: a source on an earlier week is left out (named in `missing_sources`); a source on a later week is priced on its own saved copy of the view's week. `curve-widget.js resolveWeekView`/`computePipeline` and `value_reference.Setting.week_view`/`state` must stay twins (value_check compare). `setWeek(w)` / `getWeekState()` on `TradeValueCurveControls` select and report the view.
 - Week-history validation checks every source in the view of its own served week (`tests/test_week_history.py by_served_week`). Lag is not a failure; a served file that differs from its own saved week still is. Before this fix the page priced lagging charts against the other week's blend, and the guard failed with one constant factor across the source (0.99946 for CBS on 2026-10-27): a constant ratio means a blend/anchor difference, not a corrupted file.
 - One calendar: `nfl_week.today_ny()` (America/New_York) with `set_clock()` / `DDF_NOW` for tests and replays. Never use the UTC date for a content week.
+
+## Week 10 rollover retro: where the hours went (2026-11-12, JEG-1625)
+
+- Week 10 went live Tue 2026-11-10 20:37 Central (Pages deployment of 676afdf18 at 02:37 UTC 11-11). Sources: FantasyPros 08:00, CBS 16:07, USA Today 17:45 Central (`public.source_probe_log.signals` date_modified / lastmod are the publish evidence).
+- Largest cause: the chain's data gate was red about 39 hours on replay tests whose premises depended on the week's data (rank guard transition replay, seeded FantasyCalc lagging, view invariants), each fixed by its own PR after the data landed. FantasyPros waited 12.6 hours. A data-gate test that builds a synthetic scenario from live data is a code test in disguise (JEG-1628).
+- Detection: the trade-chart probe runs every 3 hours (`35 */3 * * 1-4`), so CBS waited 2 h 28 min (JEG-1627).
+- Publish conflict: a finished Week 10 build was discarded because the Fidelity pulse bot committed `dist/modules/fidelity-pulse.json` during the run (cost 42 min, JEG-1522).
+- Read a Pages run by its `deploy` job, not its conclusion: under decision A an automated data commit deploys with red test-core shards, so `gh run list` shows "failure" for runs that published.
+- Decision B pg_cron jobs (`rebuild-chain-weekly-*`, jobids 51/52) are applied and fired on 11-11. `net._http_response` keeps rows only hours, so dispatch HTTP status is gone by the next day; use GitHub run lists as the record.
+- Floor with today's runtimes: probe interval + chain (about 40 min) + Pages (about 35 min). Even with a 20-minute probe that is about 1.5 hours from publish to live.
+- Tuesday pre-flight: `python3 pipelines/rollover_preflight.py` (runbooks/weekly-refresh.md step 0).
+- Local render tests on this Mac need the repo venv (Python 3.12; the system 3.9 cannot parse Supabase offset timestamps) and `CHROMIUM_PATH` set to the cached chromium_headless_shell-1208 (risk register GAP-PLAYWRIGHT-BROWSER-MISMATCH).
