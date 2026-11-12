@@ -223,24 +223,48 @@ def _widget():
 
 
 class ViewInvariants(unittest.TestCase):
+    """JEG-1628 (Jeremy, 2026-11-12): the data gate runs only
+    test_every_view_holds_its_invariant, whose assertions hold for any week:
+    every measured view totals its pie, and every setting is measured in the
+    VORP and Adjusted tabs (the projections and the charts both draw there).
+    The per-series coverage minimum (test_every_unheld_series_is_measured) is
+    computed from the week's holds and lagging charts, and that accounting
+    held Week 10 for 9 hours on Tuesday 2026-11-10 (150 of 225 measured,
+    problems=0), so it is a code test in test-core."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.swept = _sweep(SETTINGS)
+        cls.problems, cls.measured = verify(cls.swept)
+        print(f"\n[views-audit/2] settings={len(SETTINGS)} checks={len(cls.measured)} problems={len(cls.problems)}")
+
     def test_every_view_holds_its_invariant(self):
-        swept = _sweep(SETTINGS)
-        problems, measured = verify(swept)
-        print(f"\n[views-audit/2] settings={len(SETTINGS)} checks={len(measured)} problems={len(problems)}")
+        # Week-agnostic: no measured view breaks its invariant, and no setting
+        # went unmeasured in the VORP or Adjusted tab (a page that drew nothing
+        # would otherwise pass). A lagging chart counts under "<label>/week<N>".
+        self.assertEqual(self.problems, [], "\n".join(self.problems[:25]))
+        unmeasured = [f"{_label(*s)} [{tab}]" for s in SETTINGS for tab in ("vorp", "adj")
+                      if not any((label == _label(*s) or label.startswith(_label(*s) + "/week")) and view == tab
+                                 for label, view, _name in self.measured)]
+        self.assertEqual(unmeasured, [], "settings with no measured series in a tab")
+
+    def test_every_unheld_series_is_measured(self):
         # JEG-569 part 2: a held source (validationHold in the fixture) is absent from the output, so its
         # views are not measured; count only the sources the fixture does not hold.
         sources = json.loads((_render_env.ROOT / "data/fixtures/current/comparison-sources-data.json").read_text(encoding="utf-8"))["sources"]
-        held = {k for k, v in sources.items() if isinstance(v, dict) and v.get("validationHold")}
+        # The page hides a section on either hold field unless the hold is amber (JEG-726).
+        held = {k for k, v in sources.items() if isinstance(v, dict)
+                and any(isinstance(v.get(f), dict) and v[f].get("hold_level", "red") != "amber"
+                        for f in ("validationHold", "promotionHold"))}
         # JEG-1614: a lagging chart is measured in its own week's view (counted under that
         # view's label); only one whose week has no view is left out, noted on stderr.
-        lagging = swept.get("_lagging", {})
+        lagging = self.swept.get("_lagging", {})
         expected = 0
         for setting in SETTINGS:
             skip = held | lagging.get(_label(*setting), set())
             live = lambda keys: sum(1 for k in keys if k.replace("_vorp", "") not in skip)
             expected += live(PUBLISHED) * 3 + live(RAW_VORP) + live(PROJECTIONS)
-        self.assertGreaterEqual(len(measured), expected)
-        self.assertEqual(problems, [], "\n".join(problems[:25]))
+        self.assertGreaterEqual(len(self.measured), expected)
 
     def test_guard_fails_on_broken_engines(self):
         from tests.test_published_league_settings_render import APP as _APP

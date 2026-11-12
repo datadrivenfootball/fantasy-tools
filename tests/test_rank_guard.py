@@ -245,11 +245,27 @@ class TestEngineKeepsOrderEverySetting(unittest.TestCase):
         self.assertEqual(order_problems(self.swept), [])
 
     def test_native_rank_is_the_publishers(self):
+        # The publisher's ranks for the week the page read FantasyCalc in. On a
+        # Tuesday FantasyCalc can serve the new week while the default view is
+        # still the previous one; the page then prices and ranks it on its saved
+        # previous week (JEG-1606), so that saved week is the publisher's order
+        # here (JEG-1628: replayed on chain run 42779961289's inputs, this
+        # assertion read the served week and would have held the week).
+        res = self.swept[("ppr", 12, "null")]
         doc = _fixture()
         keys = doc["player_keys"]
-        combo = doc["sources"]["fantasycalc"]["combos"]["full_12_qb1"]
-        expected = native_ranks({keys[s]: float(v) for s, v in combo["native"].items() if s in keys})
-        ranks = self.swept[("ppr", 12, "null")]["ranks"]["fantasycalc"]
+        read_week = res["weeks"].get("fantasycalc")
+        index = json.loads((REPO / "data/history/index.json").read_text(encoding="utf-8"))
+        served_week = (index.get("served", {}).get("fantasycalc") or {}).get("week")
+        if isinstance(read_week, int) and isinstance(served_week, int) and read_week != served_week:
+            saved = json.loads((REPO / f"data/history/week-{read_week}.json").read_text(encoding="utf-8"))
+            natives = saved["sources"]["fantasycalc"]["natives"]["ppr"]
+            expected = native_ranks({int(k): float(v) for k, v in natives.items()
+                                     if int(k) in set(keys.values())})
+        else:
+            combo = doc["sources"]["fantasycalc"]["combos"]["full_12_qb1"]
+            expected = native_ranks({keys[s]: float(v) for s, v in combo["native"].items() if s in keys})
+        ranks = res["ranks"]["fantasycalc"]
         top = sorted(expected, key=lambda k: expected[k])[:10]
         self.assertEqual({k: ranks.get(str(k)) for k in top}, {k: expected[k] for k in top})
 
@@ -385,8 +401,14 @@ class TestEngineKeepsOrderWithLiveHolds(TestEngineKeepsOrderInTransition):
     LIVE_HELD = ("espn", "cbsros", "razzball")
 
     @classmethod
-    def _live_held_fixture(cls, W):
-        doc = json.loads((W.DIST / W.FIXTURE_ASSET).read_text(encoding="utf-8"))
+    def _live_held_fixture(cls, W, doc=None):
+        """The fixture with exactly LIVE_HELD held. Every other hold is cleared first
+        (JEG-1626, chain runs 43129080024 to 43187634152): the subclass keeps holds,
+        so a live red fidelity hold on FantasyCalc hid it from DDF Value and the replay
+        was 1 of 3 charts on the newest week, not the 2 of 4 it names."""
+        from tests._holds import without_holds
+        doc = without_holds(doc if doc is not None
+                            else json.loads((W.DIST / W.FIXTURE_ASSET).read_text(encoding="utf-8")))
         for key in cls.LIVE_HELD:
             doc["sources"][key]["validationHold"] = {"reason": "fidelity: scrape_validity", "hold_level": "red"}
         return doc
@@ -453,6 +475,26 @@ class TestEngineKeepsOrderWhenTheDefaultFallsBack(TestEngineKeepsOrderWithLiveHo
         indexed[first], indexed[second] = indexed[second], indexed[first]
         problems = order_problems({setting: res})
         self.assertTrue([p for p in problems if " fantasycalc: " in p and "inversions" in p], problems)
+
+
+class TestLiveHeldFixtureIsPinned(unittest.TestCase):
+    """JEG-1626 regression (no browser): the replay's holds are exactly the
+    class's LIVE_HELD, whatever the live fixture holds. Fails before the fix:
+    the FantasyCalc red fidelity hold the chain wrote on 2026-11-12 survived."""
+
+    def test_a_live_hold_outside_live_held_is_cleared(self):
+        from tests import test_week_history as W
+        live = {"sources": {
+            "fantasycalc": {"validationHold": {"reason": "fidelity: publisher_vs_stored", "hold_level": "red",
+                                               "root": "fantasycalc"}},
+            "usatoday": {"validationHold": {"reason": "fidelity: publisher_vs_stored", "hold_level": "amber"}},
+            "cbs": {"promotionHold": {"reason": "chain hold: review hold"}},
+            "fantasypros": {}, "espn": {}, "cbsros": {}, "razzball": {}}}
+        for cls in (TestEngineKeepsOrderWithLiveHolds, TestEngineKeepsOrderWhenTheDefaultFallsBack):
+            doc = cls._live_held_fixture(W, doc=live)
+            held = {k for k, s in doc["sources"].items() if s.get("validationHold") or s.get("promotionHold")}
+            self.assertEqual(held, set(cls.LIVE_HELD), cls.__name__)
+        self.assertIn("validationHold", live["sources"]["fantasycalc"], "the input fixture is not mutated")
 
 
 class TestLaggingWeek(unittest.TestCase):

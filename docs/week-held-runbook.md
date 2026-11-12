@@ -90,8 +90,10 @@ site would be wrong. It covers:
   file), `guard-harness` (the ESPN anchor guard), `value-check-compare --strict`
   (engine vs Python reference on every value) and `test-integration`.
 - **Shape and published-number protection**: `test_static_export`,
-  `test_seeded_hold_build`, `test_rank_guard` (published order),
-  `test_view_invariants` (equal pies and same-scale views), `test_kdst_removed`,
+  `test_rank_guard.TestSavedValues` and
+  `test_rank_guard.TestEngineKeepsOrderEverySetting` (published order),
+  `test_view_invariants.ViewInvariants.test_every_view_holds_its_invariant`
+  (equal pies and same-scale views, every setting measured), `test_kdst_removed`,
   `test_player_scenario_matrix` (starter, bench and waiver boundaries ordered on
   current players).
 - **Source coverage and identity joins**: `test_comparison_source_integrity`,
@@ -99,7 +101,9 @@ site would be wrong. It covers:
 - **Bake-to-section consistency**: `test_games_remaining`, `test_ppg_tie_parity`,
   `test_bake_on_change`, `test_razzball_refresh`, `test_razzball_one_save`.
 - **Week label, freshness and history**: `test_lineup_content_week_advance`,
-  `test_week_history` (the engine-side check of the prior-week values and the
+  `test_week_history.WeekFileSchemaTest` and
+  `test_week_history.DeltaRecomputeTest.test_prior_week_is_engine_math_on_saved_inputs`
+  (the engine-side check of the prior-week values and the
   week-over-week change the site shows).
 - **The built site**: `test_published_surfaces`, `test_verify_live`,
   `test_page_load_no_404`, `test_site_noindex`.
@@ -140,7 +144,22 @@ the max made the replay "lag" CBS and USA Today to their real week, and every
 sentinel failed (chain runs 42765640563, 42769574724). Charts off the replay
 week are hidden with a red hold whose reason starts "transition replay:".
 
-Rules for the list: every `data-gate` line is also in test-core, and
+**Synthetic replays are code tests, not data checks** (JEG-1628, Jeremy
+2026-11-12). A test that builds a scenario from the week's data and asserts its
+premise (a transition replay, a seeded per-source hold or lag, a per-series
+coverage count) runs only in test-core: PRs and the nightly deploy. The Week 10 rollover
+was held about 39 hours, then 8 more, by four such premises, none a data fault
+(retro 2026-11-12). The data gate keeps the checks that hold for any week:
+published order, the view invariants on the real build, prior-week values,
+history schema. `tests/test_chain_data_gate.py` lists the replays (`REPLAYS`)
+and fails if one is put back in the gate. A replay whose premise the current
+data cannot form skips (`test_week_history.ReplayPremiseUnavailable`) and runs
+again once the data can form it. A replay pins the holds it names instead of
+inheriting live ones (JEG-1626: a live red FantasyCalc fidelity hold made the
+fallen-back replay 1 of 3 charts on the newest week, not 2 of 4; it held the
+chain whenever a run imported the FantasyCalc save the pulse had judged).
+
+Rules for the list: every `data-gate` test is also in test-core (a class or test line is covered by its module's line), and
 `tests/test_chain_data_gate.py` pins the exact list (change the test, this
 section and the Makefile together). Move a test into
 `data-gate` only if it reads the build's artifacts and its failure means
