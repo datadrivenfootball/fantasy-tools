@@ -74,7 +74,7 @@ class AuditData(unittest.TestCase):
 
     def test_data_file_equals_a_fresh_run(self):
         if not self.same_snapshot:
-            self.skipTest("fixture moved past the week 9 snapshot; reproduce at the publishing commit")
+            self.skipTest("fixture moved past the week 9 snapshot; reproduce in a dd7821006 worktree with this commit's pipelines/")
         self.assertEqual(self.fresh, self.saved, "run: python3 pipelines/research_trade_value_audit.py")
 
     def test_every_quoted_number_equals_the_script(self):

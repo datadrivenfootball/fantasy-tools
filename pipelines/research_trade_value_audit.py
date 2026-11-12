@@ -28,8 +28,9 @@ from pathlib import Path
 import os
 
 REPO = Path(__file__).resolve().parents[1]
-# AUDIT_ENGINE_DIR: run the article on another checkout's value model (e.g. one with the
-# charts-only position split, DDF_VALUE_SPLIT=charts) while reading this branch's week 9 inputs.
+# AUDIT_ENGINE_DIR: run the article on another checkout's value model while reading this
+# checkout's inputs. The week 9 inputs live at dd7821006 (main has moved on); to reproduce the
+# data file, use a worktree at dd7821006 and `git checkout <publishing commit> -- pipelines`.
 ENGINE_DIR = Path(os.environ.get("AUDIT_ENGINE_DIR") or (REPO / "pipelines"))
 sys.path.insert(0, str(ENGINE_DIR))
 import value_reference as vr  # noqa: E402
@@ -796,7 +797,7 @@ def realized_scoring_benchmark() -> dict:
                 for (s_, pid, pos), weeks in pts.items():
                     if s_ != season or pos != p:
                         continue
-                    # fsum: exact totals, so equal point totals tie (then break by id) on every Python
+                    # fsum: correctly rounded totals, so the sort and tie-break are the same on every Python
                     std = math.fsum(x[1] for x in weeks if x[0] >= w)
                     ppr = math.fsum(x[2] for x in weeks if x[0] >= w)
                     if ppr > 0:
