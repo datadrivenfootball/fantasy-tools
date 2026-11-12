@@ -60,7 +60,11 @@ def has_if_clause(step_block):
 
 
 ARTIFACT_NAME = "github-pages-${{ github.sha }}-${{ github.run_attempt }}"
-SUCCESS_GUARD = '[ "$BUILD_RESULT" = "success" ] && [ "$SHARD_RESULT" = "success" ]'
+# JEG-1485 decision A (Jeremy, 2026-11-08): the build (validate-base + data-gate)
+# must pass for every deploy; the test-core matrix must also pass unless the head
+# commit is an automated data commit ("Automated ...").
+SUCCESS_GUARD = '[ "$BUILD_RESULT" = "success" ]'''
+CODE_GUARD = '*) [ "$SHARD_RESULT" = "success" ] ;;'
 
 
 def pages_problems(text):
@@ -86,7 +90,7 @@ def pages_problems(text):
                 problems.append(f"{name} checks must block on failure")
     problems += shard_problems(text, "validate-shard")
     problems += matrix_problems((ROOT / "Makefile").read_text(encoding="utf-8"), text, "pages.yml")
-    for command in (WORKFLOW_GUARDS, "make validate-base"):
+    for command in (WORKFLOW_GUARDS, "make validate-base", "make data-gate"):
         if (command, False) not in build_steps(build):
             problems.append(f"build must run blocking {command}")
     gate = get_step(steps(build), "tests/rendered_gate/gate.mjs")
@@ -118,12 +122,14 @@ def pages_problems(text):
     if "continue-on-error" in deploy:
         problems.append("deploy must block on any failed check")
     deploy_blocks = steps(deploy)
-    if len(deploy_blocks) != 2 or SUCCESS_GUARD not in deploy_blocks[0]:
+    if len(deploy_blocks) != 2 or SUCCESS_GUARD not in deploy_blocks[0] or CODE_GUARD not in deploy_blocks[0]:
         problems.append("deploy must check success first and then publish without rebuilding")
     else:
         guard, publish = deploy_blocks
         for binding in ("BUILD_RESULT: ${{ needs.build.result }}",
-                        "SHARD_RESULT: ${{ needs.validate-shard.result }}"):
+                        "SHARD_RESULT: ${{ needs.validate-shard.result }}",
+                        "HEAD_MESSAGE: ${{ github.event.head_commit.message }}",
+                        "HEAD_AUTHOR: ${{ github.event.head_commit.author.name }}"):
             if binding not in guard:
                 problems.append("deploy must check the actual build and matrix results")
         if "uses: actions/deploy-pages@v4" not in publish:
@@ -160,7 +166,8 @@ class PagesParallelValidationTest(unittest.TestCase):
                                       "unconditionally and block")
 
     def test_conditional_or_allowed_failure_checks_are_caught(self):
-        for command in (WORKFLOW_GUARDS, "make validate-base", "make test-core-shard-${{ matrix.shard }}"):
+        for command in (WORKFLOW_GUARDS, "make validate-base", "make data-gate",
+                        "make test-core-shard-${{ matrix.shard }}"):
             for field in ("if: false", "continue-on-error: true"):
                 with self.subTest(command=command, field=field):
                     self.assertCaught(PAGES.replace(f"run: {command}\n", f"run: {command}\n        {field}\n", 1),
@@ -190,7 +197,10 @@ class PagesParallelValidationTest(unittest.TestCase):
         for old, new, fragment in (("needs: [build, validate-shard]", "needs: [build]", "full shard matrix"),
                                    ("if: always()", "if: success()", "skipped dependencies"),
                                    (SUCCESS_GUARD, "true", "check success first"),
+                                   ("BUILD_RESULT: ${{ needs.build.result }}", "BUILD_RESULT: success", "actual build and matrix"),
                                    ("SHARD_RESULT: ${{ needs.validate-shard.result }}", "SHARD_RESULT: success", "actual build and matrix"),
+                                   (CODE_GUARD, "*) true ;;", "check success first"),
+                                   ("      - run: make data-gate\n", "", "blocking make data-gate"),
                                    ("        uses: actions/deploy-pages@v4", "        if: always()\n        uses: actions/deploy-pages@v4", "bypass the success guard")):
             with self.subTest(fragment=fragment):
                 self.assertCaught(PAGES.replace(old, new, 1), fragment)
@@ -198,12 +208,22 @@ class PagesParallelValidationTest(unittest.TestCase):
     def test_actual_deploy_guard_rejects_every_non_success_result(self):
         guard = steps(job(PAGES, "deploy"))[0].split("        run: |\n", 1)[1]
         script = "\n".join(line[10:] for line in guard.splitlines())
+        messages = ("Automated comparison rebuild (GitHub Actions)",
+                    "Automated chain status (chain failed; fixture not updated)",
+                    "JEG-1 a code change (#1)", "Revert \"Automated comparison rebuild\"",
+                    "", "x; Automated comparison rebuild")
         for build in ("success", "failure", "cancelled", "skipped"):
             for shard in ("success", "failure", "cancelled", "skipped"):
-                with self.subTest(build=build, shard=shard):
-                    result = subprocess.run(["bash", "-e", "-c", script], capture_output=True,
-                                            env={**os.environ, "BUILD_RESULT": build, "SHARD_RESULT": shard})
-                    self.assertEqual(result.returncode == 0, build == shard == "success")
+                for message in messages:
+                  for author in ("github-actions[bot]", "Jeremy Burstyn", "", "github-actions[bot] x"):
+                    with self.subTest(build=build, shard=shard, message=message, author=author):
+                        result = subprocess.run(["bash", "-e", "-c", script], capture_output=True,
+                                                env={**os.environ, "BUILD_RESULT": build, "SHARD_RESULT": shard,
+                                                     "HEAD_MESSAGE": message, "HEAD_AUTHOR": author})
+                        # A squash or rebase of a human PR titled "Automated ..." has a human author.
+                        data_commit = message.startswith("Automated ") and author == "github-actions[bot]"
+                        self.assertEqual(result.returncode == 0,
+                                         build == "success" and (shard == "success" or data_commit))
 
     def test_artifact_must_come_from_the_rendered_build(self):
         upload = get_step(steps(job(PAGES, "build")), "uses: actions/upload-pages-artifact@")

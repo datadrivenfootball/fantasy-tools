@@ -70,10 +70,14 @@ from tests._holds import pin_holds_in_dist  # noqa: E402
 
 
 def _fixture_today():
-    """The date the built fixture belongs to, so the page's content-week clock
-    matches the data it serves (JEG-675, JEG-787)."""
-    fixture = json.loads((DIST / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
-    return fixture["built_at"][:10]
+    """A date in the served data's content week, so the page's content-week
+    clock matches the data it serves (JEG-675, JEG-787). The shared pin
+    (tests.test_week_history._fixture_today), not built_at: a chain build
+    after the Tuesday flip (00:00 UTC) has built_at in week N+1 while every
+    chart is still week N, and the page then called every source "Prior week",
+    so GL-05 found no Current row (JEG-1612, 2026-11-10, built_at 2026-11-10T01:13Z)."""
+    from tests.test_week_history import _fixture_today as data_week_today
+    return data_week_today()
 
 
 def setUpModule():
@@ -270,11 +274,15 @@ WEEK_BEHIND_FIXTURE = """(() => {
   try { if (sessionStorage.getItem('contractAllCurrent') === '1') return; } catch (e) {}
   const trap = (name, patch) => window.__contractPatches[name].push(patch);
   const behind = week => Number.isFinite(week) && week > 1 ? week - 1 : null;
+  // One clock for both patches: the week the data reaches (first_load_reference_week), never the calendar week.
+  const dataWeek = () => {
+    try { return window.TradeValueProductData.getSourceFreshness().first_load_reference_week; } catch (e) { return null; }
+  };
   trap('TradeValueCurveControls', C => {
     const original = C.getSourceInfo;
     if (typeof original !== 'function') return;
     C.getSourceInfo = (...args) => original.apply(C, args).map(item => item && item.key === KEY
-      ? {...item, stale: true, week: behind(C.getReferenceWeek && C.getReferenceWeek()) || item.week} : item);
+      ? {...item, stale: true, week: behind(dataWeek()) || item.week} : item);
   });
   trap('TradeValueProductData', P => {
     const original = P.getSourceFreshness;
@@ -284,7 +292,7 @@ WEEK_BEHIND_FIXTURE = """(() => {
       if (!f) return f;
       const s = (f.series && f.series[KEY]) || {};
       return {...f, series: {...(f.series || {}), [KEY]: {...s, is_older_week: true,
-        vintage_week: behind(f.current_content_week) || s.vintage_week}}};
+        vintage_week: behind(f.first_load_reference_week) || s.vintage_week}}};
     };
   });
 })();""" % STALE_CHART
@@ -1892,6 +1900,9 @@ def ct02(S):
 def _badge_errors(where, keys, badges_for, weeks):
     """Each stale chart among `keys` carries "Week N" (its week) in `where`; a current one carries none."""
     errors = []
+    keys = list(keys)
+    if keys and all((weeks.get(key) or {}).get("stale") for key in keys):
+        errors.append(f"{where}: every chart is stale, so a current chart's missing badge was not checked")
     for key in keys:
         info = weeks.get(key) or {}
         texts = [b["text"] for b in badges_for(key)]

@@ -16,6 +16,8 @@
  *   unmatched reason: 'look' (more than one player fits) | 'missing' (no player found) | 'kdef' (kicker or defense, not evaluated;
  *   carries the live roster key "x:POS:..." and team)
  * DDF.leaguePaste.readWithNames(text, names, rows, opts)   same, with team names the reader typed (the edit-names box)
+ *   (read / readWithNames add superflexSlots 1-2 when the paste prints QB-eligible flex slot labels, JEG-1571)
+ * DDF.leaguePaste.qbFlexSlots(text, teamCount) -> 0-2 QB flex slots per team from the paste's slot labels, or null
  * opts.table: player table rows ("Name|POS|TEAM|player_key"), for the table id of each player (DDF.link IDs).
  */
 (function (root) {
@@ -124,6 +126,18 @@
   function matchedIn(teams) { return teams.reduce(function (a, t) { return a + t.players.length; }, 0); }
   function withPlayers(teams) { return teams.filter(function (t) { return t.players.length > 0; }).length; }
 
+  /* JEG-1571: QB-eligible flex (superflex) slots per team, from the slot labels a rosters page prints on their own line
+     (Yahoo Q/W/R/T, ESPN OP, SUPERFLEX, SFLX, QWRT, W/R/T/Q). Each team lists its own, so the count is the labels over the
+     teams read, 1-2 (the paste's count replaces the reader's). null when the paste shows fewer than one label per two
+     teams: the reader's own setting stays (a missing label is not a 0, and a stray label is not a slot). */
+  var QB_FLEX_LINE = /^\s*(?:\|\s*)?(Q\/W\/R\/T|W\/R\/T\/Q|QWRT|SUPER[ _-]?FLEX|SFLX|OP)\d?\s*(?:[\t|].*)?$/i;
+  function qbFlexSlots(text, teamCount) {
+    var n = 0, teams = Number(teamCount) || 0;
+    if (teams < 1) return null;
+    String(text || "").split(/\r?\n/).forEach(function (l) { if (QB_FLEX_LINE.test(l)) n++; });
+    if (n / teams < 0.5) return null;
+    return Math.min(2, Math.round(n / teams));
+  }
   function read(text, rows, opts) {
     opts = opts || {};
     var raw = String(text || ""), out = {ok: false, reason: "empty", site: "unknown", strategy: "none", names: [], teams: []};
@@ -134,6 +148,7 @@
     var liveTeams = (live.teams || []).map(function (t) { return team(t.teamName, t.players, t.unmatched, byKey, ids); });
     var parsed = r ? r.parse(raw, {players: opts.table}) : {teams: [], strategy: "none"};
     out.names = (parsed.teams || []).map(function (t) { return t.name; });
+    out.league = r && r.league ? r.league(raw, {teams: parsed.teams || []}) : null;
     var named = out.names.length > 1 ? byNames(raw, out.names, rows, byKey, ids) : [];
     var pick = null;
     if (withPlayers(liveTeams) >= 2) pick = {teams: liveTeams, how: "live"};
@@ -142,6 +157,8 @@
     if (pick) {
       out.ok = true; out.reason = null; out.strategy = pick.how; out.teams = pick.teams;
       if (!out.names.length || pick.how === "live") out.names = pick.teams.map(function (t) { return t.name; });
+      var sf = qbFlexSlots(raw, out.teams.length);
+      if (sf !== null) out.superflexSlots = sf;
       return summarize(out);
     }
     /* one team's page (the reader copied My Team instead of the rosters page) */
@@ -160,6 +177,7 @@
     var list = (names || []).map(function (n) { return String(n).replace(/\s+/g, " ").trim(); }).filter(Boolean);
     var byKey = rowsByKey(rows), ids = tableIds(opts.table);
     var out = {ok: false, reason: "unreadable", site: P() ? P().detectSite(String(text || "")) : "unknown", strategy: "edited-names", names: list, teams: []};
+    out.league = R() && R().league ? R().league(String(text || ""), {teams: list.map(function (n) { return {name: n}; })}) : null;
     if (list.length < 2) return summarize(out);
     var teams = byNames(text, list, rows, byKey, ids);
     var found = {};
@@ -169,16 +187,40 @@
     out.teams = teams;
     out.ok = teams.length >= 2;
     out.reason = out.ok ? null : "unreadable";
+    var sf = out.ok ? qbFlexSlots(text, teams.length) : null;
+    if (sf !== null) out.superflexSlots = sf;
     return summarize(out);
   }
 
   /* the sessionStorage record setup.html and the workspace pages read (ddf:pasted) */
+  function today() { var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  /* JEG-1564: enteredAt = the local date of this read; suggestedName / leagueId / platform from the page header
+     (rosterparse league()). The name is only a suggestion: setup.html saves `name` when the reader confirms it.
+     leagueId stays on this device (never in links or titles). */
   function record(result, source) {
-    return {v: 1, source: source || "paste", site: result.site || "unknown", me: null,
+    var lg = result.league || {};
+    return {v: 1, source: source || "paste", site: result.site || "unknown", me: null, enteredAt: today(),
+      suggestedName: lg.leagueName || null, leagueId: lg.leagueId || null, platform: lg.platform || null,
       teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; })};
   }
 
-  var api = {read: read, readWithNames: readWithNames, record: record, _blocks: blocks};
+  /* teams given as their own blocks of lines ({name, text}), read by the live matcher one team at a time: the same
+     reading as a paste, without finding team names in one long text (JEG-1570, Sleeper) */
+  function fromBlocks(list, rows, opts) {
+    opts = opts || {};
+    var p = P(), byKey = rowsByKey(rows), ids = tableIds(opts.table);
+    var out = {ok: false, reason: "unreadable", site: opts.site || "unknown", strategy: opts.strategy || "blocks", names: [], teams: []};
+    out.teams = (list || []).map(function (b) {
+      var ex = p && p.extractPlayers ? p.extractPlayers(String(b.text || ""), rows) : {players: [], unmatched: []};
+      return team(b.name, ex.players, ex.unmatched, byKey, ids);
+    });
+    out.names = out.teams.map(function (t) { return t.name; });
+    out.ok = out.teams.length >= 2;
+    out.reason = out.ok ? null : "unreadable";
+    return summarize(out);
+  }
+
+  var api = {read: read, readWithNames: readWithNames, fromBlocks: fromBlocks, record: record, qbFlexSlots: qbFlexSlots, _blocks: blocks};
   root.DDF = root.DDF || {};
   root.DDF.leaguePaste = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

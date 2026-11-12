@@ -3,7 +3,7 @@
 The redesign lives in app/next/ (served as the private /next/ preview by build_next_preview.py). A page moves to the
 live root in its swap step by being listed in ROOT_PAGES. Per listed page the build:
 
-- writes dist/<page> from app/next/<page> (no noindex: it is a public page);
+- writes dist/<page> from app/next/<page> (no noindex of its own; sync's last step adds the site-wide one, JEG-1567);
 - for a page whose source carries <!-- ddf-engine --> (values.html and learn.html must), injects the live value engine exactly as the v2 front door carries it: the build-only engine page's
   body (hidden, inert) and its scripts and data islands (build_v2_page.ENGINE_SCRIPT_MARKER to </body>), at the page's
   <!-- ddf-engine --> marker, before the page's own deferred scripts. No second copy of the value math: the page reads
@@ -48,18 +48,37 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               "learn/render.js", "learn/posts.json", "learn/posts",
               "learn/numbers/learn-engine.js", "learn/numbers/numbers.js",
               # Workspace pages (JEG-1539).
-              "actionbar.js", "actionbar.css", "legacy-routes.js",
+              "actionbar.js", "actionbar.css", "caveats.js", "legacy-routes.js",
               # Lane "team" (JEG-1539): the shared league adapter (DDF.league) for team/explore/partners/settings/find/waivers.
               "ddf-league.js",
               # Lane "find" (JEG-1539): the recommendation and waiver searches, and the two pages' scripts.
               "find-engine.js", "find-page.js", "waivers-page.js",
+              # JEG-1558: opportunity size and the roster-improvement percent (team page, Why panel, trade messages).
+              "ddf-opportunity.js",
+              # JEG-1561 (lane partners-ranking): the shared "Why" panel for a trade (DDFWhy).
+              "ddf-why.js",
               # waivers.html how-to slides (the provider walkthrough).
               # Build a Trade (JEG-1537): the page script, the trade chart component.
-              "build-trade.js", "tradechart.js", "tradechart.css",
+              "build-offer.js", "build-trade.js", "tradechart.js", "tradechart.css",
               "assets/howto/slides",
               # Entry pages (JEG-1538): paste reader, page scripts, league ID screenshots (actionbar.* listed above).
               "rosterparse.js", "league-paste.js", "connect-entry.js", "setup-entry.js",
-              "img/league-id")
+              "img/league-id",
+              # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
+              "sleeper-import.js",
+              # JEG-1548: the visit counter wrapper site.js loads (sends nothing until its site code is set).
+              "analytics.js")
+# JEG-1570: Sleeper player id -> [name, pos, team], from the pipeline's Sleeper identity table, written beside the pages.
+SLEEPER_IDENTITY = ROOT / "data" / "inputs" / "sleeper_identity_base.json"
+SLEEPER_PLAYERS = "sleeper-players.json"
+
+
+def sleeper_players(identity: Path = SLEEPER_IDENTITY) -> dict:
+    import json
+    data = json.loads(identity.read_text(encoding="utf-8"))
+    players = {str(k): [v.get("name") or "", v.get("pos") or "", v.get("team") or ""]
+               for k, v in sorted(data.get("by_sleeper_id", {}).items(), key=lambda kv: kv[0]) if v.get("name")}
+    return {"v": 1, "pulled_at": data.get("meta", {}).get("pulled_at"), "p": players}
 # JEG-1539: the get-values edge function (supabase/functions/get-values/index.ts) and the MCP tools read the
 # players-data island from the site root page (PAGE_URL = <origin>/). The front door has no engine, so it carries that
 # island alone (inert JSON, nothing reads it on the page) until get-values reads the data from another address.
@@ -184,6 +203,11 @@ def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, engi
             out.write_text(rewrite_links(src.read_text(encoding="utf-8"), root_pages), encoding="utf-8")
         else:
             shutil.copy2(src, out)
+        written.append(out)
+    if "connect.html" in root_pages and SLEEPER_IDENTITY.exists():
+        import json
+        out = dist / SLEEPER_PLAYERS
+        out.write_text(json.dumps(sleeper_players(), separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
         written.append(out)
     for name in root_pages:
         out = dist / name

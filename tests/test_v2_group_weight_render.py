@@ -67,25 +67,9 @@ READ = """() => {
 }"""
 
 
-@contextlib.contextmanager
-def _served(js_patch=None, drop_weight=False):
-    if not (DIST / "index.html").exists():
-        raise _render_env.unavailable("dist/index.html is not built")
-    with tempfile.TemporaryDirectory() as tmp:
-        dist = Path(tmp) / "dist"
-        shutil.copytree(DIST, dist)
-
-        class QuietHandler(http.server.SimpleHTTPRequestHandler):
-            def log_message(self, format, *args):
-                pass
-        handler = functools.partial(QuietHandler, directory=str(dist))
-        with socketserver.ThreadingTCPServer(("127.0.0.1", 0), handler) as server:
-            server.daemon_threads = True
-            threading.Thread(target=server.serve_forever, daemon=True).start()
-            try:
-                yield f"http://127.0.0.1:{server.server_address[1]}/v2/"
-            finally:
-                server.shutdown()
+# JEG-1586 (group B): since JEG-1539 dist/v2/ is a redirect stub; the shared harness serves the build-only v2 shell at
+# /v2-app.html (with held sources pinned), as #1386 did for the names harness.
+from tests.test_v2_names_render import _served  # noqa: E402
 
 
 def recompute(snap: dict) -> dict:

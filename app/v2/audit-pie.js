@@ -127,6 +127,12 @@
         budgets[g] = ddfWeights[g] * pie;
       });
     }
+    // JEG-1569 (VP-4.6): on the charts-only split the projections are paid pie x W_proj, their own family's split.
+    var budgetsProj = null;
+    if (vp.ddfWeightsProjections) {
+      budgetsProj = {};
+      Object.keys(vp.ddfWeightsProjections).forEach(function (g) { budgetsProj[g] = vp.ddfWeightsProjections[g] * pie; });
+    }
     var allocation = vp.allocation || {};
     var players = inspection.players || {};
     var engineRows = inspection.rows || null;
@@ -138,6 +144,7 @@
       var s = sources[src];
       var ps = players[src] || {};
       var groups = s.groups || {};
+      var weightSet = budgetsProj && s.family === "projection" ? "projection" : "shared";
 
       // JEG-871: the Adjusted total counts estimated players (fill-ins) and always
       // equals the pie. Split it into the source's own posted values and the filled-in
@@ -175,7 +182,7 @@
       var posData = [];
       var totalListed = 0, totalRostered = 0, totalEstimated = 0;
       var totalAdjusted = 0, totalRawSlice = 0;
-      var starterTotal = 0, benchTotal = 0;
+      var starterTotal = 0, benchTotal = 0, waiverTotal = 0;
       var starterRawTotal = 0, benchRawTotal = 0;
 
       POSITIONS.forEach(function (pos) {
@@ -190,8 +197,11 @@
         var starterRaw = groups[pos + "|starter"] || 0;
         var benchRaw = groups[pos + "|bench"] || 0;
 
-        // Adjusted: sum from per-player data (the rescaled values)
-        var starterAdj = 0, benchAdj = 0;
+        // Adjusted: sum from per-player data (the rescaled values), by the player's labelled role.
+        // JEG-1393 (R1-CX-03): the position total counts every priced player. Under fractional allocations a
+        // player whose heaviest allocation labels him waiver can still carry a positive averaged value, so the
+        // waiver-role remainder is kept and added: starter + bench + waiver = the position total.
+        var starterAdj = 0, benchAdj = 0, waiverAdj = 0;
         Object.keys(ps).forEach(function (key) {
           var p = ps[key];
           if (p.pos !== pos) return;
@@ -199,12 +209,16 @@
             starterAdj += p.adjusted || 0;
           } else if (p.role === "bench") {
             benchAdj += p.adjusted || 0;
+          } else {
+            waiverAdj += p.adjusted || 0;
           }
         });
 
-        var posAdj = starterAdj + benchAdj;
+        var posAdj = starterAdj + benchAdj + waiverAdj;
         var posRaw = starterRaw + benchRaw;
-        var budget = (budgets[pos + "|starter"] || 0) + (budgets[pos + "|bench"] || 0);
+        // JEG-1569: on the "charts" split a projection is paid its own family's budgets.
+        var srcBudgets = s.budgets || (weightSet === "projection" ? budgetsProj : budgets);
+        var budget = (srcBudgets[pos + "|starter"] || 0) + (srcBudgets[pos + "|bench"] || 0);
 
         totalListed += listed;
         totalRostered += rostered;
@@ -213,6 +227,7 @@
         totalRawSlice += posRaw;
         starterTotal += starterAdj;
         benchTotal += benchAdj;
+        waiverTotal += waiverAdj;
         starterRawTotal += starterRaw;
         benchRawTotal += benchRaw;
 
@@ -226,6 +241,7 @@
           estShare: rostered > 0 ? nEstimated / rostered : null,
           starterAdj: starterAdj,
           benchAdj: benchAdj,
+          waiverAdj: waiverAdj,
           posAdj: posAdj,
           starterRaw: starterRaw,
           benchRaw: benchRaw,
@@ -239,6 +255,7 @@
       rows.push({
         src: src,
         family: s.family,
+        weightSet: weightSet,
         included: s.included,
         positions: posData,
         totalListed: totalListed,
@@ -254,6 +271,7 @@
         totalRawSlice: totalRawSlice,
         starterTotal: starterTotal,
         benchTotal: benchTotal,
+        waiverTotal: waiverTotal,
         starterRawTotal: starterRawTotal,
         benchRawTotal: benchRawTotal,
         perListed: totalListed > 0 ? totalAdjusted / totalListed : null,
@@ -412,9 +430,22 @@
     });
 
     // 2. Positions agree (RB, WR, TE; QB is shown on its own row).
+    // JEG-1569: sources are compared with the sources paid on the same weight set (on the charts-only split the
+    // projections have their own position budgets, so a charts-vs-projections gap is by design).
+    var weightSets = rows.map(function (r) { return r.weightSet || "shared"; })
+      .filter(function (v, i, a) { return a.indexOf(v) === i; });
+    function setRows(ws) { return rows.filter(function (r) { return (r.weightSet || "shared") === ws; }); }
+    function worstInfo(pick) {
+      var best = null;
+      weightSets.forEach(function (ws) {
+        var info = spreadInfo(setRows(ws), pick);
+        if (!best || info.spread > best.spread) best = info;
+      });
+      return best;
+    }
     var posInfo = {};
     POSITIONS.forEach(function (pos, pi) {
-      posInfo[pos] = spreadInfo(rows, function (r) { return r.positions[pi].starterAdj; });
+      posInfo[pos] = worstInfo(function (r) { return r.positions[pi].starterAdj; });
     });
     var flaggedPos = ["RB", "WR", "TE"].filter(function (pos) { return posInfo[pos].spread > T.positionStarterSpread; });
     flaggedPos.sort(function (a, b) { return posInfo[b].spread - posInfo[a].spread; });
@@ -456,7 +487,9 @@
     // 5. Totals add up: every source's total is the pie; a position's total is the same across sources.
     var off = rows.filter(function (r) { return Math.abs(r.totalAdjusted - data.pie) > T.pieDelta; });
     var badPos = POSITIONS.filter(function (pos, pi) {
-      return spread(rows.map(function (r) { return r.positions[pi].posAdj; }).filter(Number.isFinite)) > T.positionTotalSpread;
+      return weightSets.some(function (ws) {
+        return spread(setRows(ws).map(function (r) { return r.positions[pi].posAdj; }).filter(Number.isFinite)) > T.positionTotalSpread;
+      });
     });
     var slotOff = rows.filter(function (r) { return r.flagPerRosterable; });
     var totalsFlag = off.length || badPos.length || slotOff.length;

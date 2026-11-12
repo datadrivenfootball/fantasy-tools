@@ -149,6 +149,18 @@ def _read(path: Path) -> dict:
         return {}
 
 
+def committed_history(rev: str = "HEAD") -> dict:
+    """data/history/index.json at `rev` ({} when git or the file is unavailable)."""
+    import subprocess
+    try:
+        out = subprocess.run(["git", "show", f"{rev}:{HISTORY.relative_to(REPO).as_posix()}"], cwd=REPO,
+                             capture_output=True, text=True, timeout=30, check=True).stdout
+        doc = json.loads(out)
+        return doc if isinstance(doc, dict) else {}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return {}
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--chain-outcome", required=True)
@@ -157,7 +169,12 @@ def main(argv=None) -> int:
     ap.add_argument("--history", default=str(HISTORY))
     args = ap.parse_args(argv)
     now = datetime.now(timezone.utc)
-    status, history = _read(Path(args.status)), _read(Path(args.history))
+    status = _read(Path(args.status))
+    # JEG-1512: by default read the history index as committed. The chain's
+    # `make validate` runs `make sync`, which rewrites the working-tree index
+    # with the unpublished candidate's built_at, so the fixture always looked
+    # minutes old and this alert never opened (Nov 1-5, 2026: ~113 h red).
+    history = _read(Path(args.history)) if args.history != str(HISTORY) else (committed_history() or _read(HISTORY))
     try:
         action = decide(args.chain_outcome, history.get("fixture_built_at"), now, published=args.published == "true")
         text = body(status, history, now) if action == "open" else ""

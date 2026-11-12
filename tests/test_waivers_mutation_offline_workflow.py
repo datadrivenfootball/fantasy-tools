@@ -164,8 +164,9 @@ class Mutations(unittest.TestCase):
         self.assertCaught(re.sub(r"    timeout-minutes: \d+\n", "", self.wf), "timeout")
 
     def test_required_check_dependency_is_caught(self):
-        preview = read(WF / "preview.yml").replace("needs: [pr-state, preview-build, preview-shard]",
-                                                    "needs: [pr-state, preview-build, preview-shard, waivers-mutation-offline]", 1)
+        # JEG-1593: needs list now includes docs-only.
+        preview = read(WF / "preview.yml").replace("needs: [docs-only, pr-state, preview-build, preview-shard]",
+                                                    "needs: [docs-only, pr-state, preview-build, preview-shard, waivers-mutation-offline]", 1)
         problems = gate_problems(preview, read(WF / "pages.yml"), read(ROOT / "Makefile"))
         self.assertTrue(any("preview.yml" in p for p in problems), problems)
 

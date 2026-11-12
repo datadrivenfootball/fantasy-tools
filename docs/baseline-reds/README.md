@@ -66,3 +66,9 @@ to the opportunities failure. HANDOFF's Oct 30 JEG-1176 report at 168aba93
 records missing chromium_headless_shell-1208 during week-history setup.
 JEG-1450 owns that environment attribution row pending a dedicated environment
 ticket. All are local-only observations; none excuse CI or nightly reds.
+
+Frozen engine baseline (JEG-1588, 2026-11-08): tests/test_basis_overrides_render.py compares the live engine with
+copies in tests/fixtures/baseline_main_771c3422/ (last frozen from origin/main 1292e8fa). When it goes red after a
+merged, deliberate default-value change, re-freeze by copying app/trade-value-chart/assets/value-model.js and
+curve-widget.js from origin/main into that folder (exact commands in its README), with a dated README paragraph and a
+claude-log entry. That is a decision, not a registry entry: do not register the default-path test as a known red.

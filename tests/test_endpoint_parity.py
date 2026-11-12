@@ -188,14 +188,16 @@ PAGE_VALUE_CONTEXT = """([scoring, basis, overrides]) => {
 
 
 def value_context_cases(top):
-    """(basis= text, ov= text, the page's basis record, the page's overrides) for the parity cases."""
+    """(basis= text, ov= text, the page's basis record, the page's overrides) for the parity cases.
+
+    JEG-1586: override keys are strings; Playwright 1.58 rejects the integer keys older versions coerced."""
     a, b, c = top
     blend = {"mode": "blend", "sources": ["espn", "razzball"], "weights": {"espn": 60, "razzball": 40}}
     return [
         ("fantasycalc", None, {"mode": "single", "source": "fantasycalc"}, {}),
         ("blend:espn.60_razzball.40", f"{a}:58,{b}:+5,{c}:-3", blend,
-         {a: 58, b: {"type": "adjustment", "delta": 5}, c: {"type": "adjustment", "delta": -3}}),
-        (None, f"{a}:58,{b}:+5", None, {a: 58, b: {"type": "adjustment", "delta": 5}}),
+         {str(a): 58, str(b): {"type": "adjustment", "delta": 5}, str(c): {"type": "adjustment", "delta": -3}}),
+        (None, f"{a}:58,{b}:+5", None, {str(a): 58, str(b): {"type": "adjustment", "delta": 5}}),
     ]
 
 

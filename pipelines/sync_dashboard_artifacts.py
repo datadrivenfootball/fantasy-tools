@@ -574,6 +574,28 @@ def main() -> int:
         from build_values_explainer import main as build_values_explainer
         build_values_explainer(["--skip-sync", "--out", str(DIST / "value-logic" / "index.html")])
 
+    # JEG-1543: the answers version (/answers/, noindex, linked from no public page): DDF outputs only, from the
+    # pre-built grid of answer tables, checked by the privacy check. It never stops the full site: on any failure
+    # (a privacy finding, or node that cannot run the edge function's .ts modules) dist/answers is removed, so nothing
+    # unchecked is published, and tests/test_answers_site.py fails in CI where the tree is required.
+    from build_answers_pages import AnswersBuildError, build as build_answers_pages, node_ready
+    reason = node_ready()
+    if reason is None:
+        try:
+            build_answers_pages(DIST, tag)
+        except AnswersBuildError as exc:
+            reason = str(exc)
+    if reason is not None:
+        shutil.rmtree(DIST / "answers", ignore_errors=True)
+        print(f"sync: WARNING answers/ not published: {reason[:2000]}")
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=answers/ not published::{reason.splitlines()[0][:300]}")
+
+    # JEG-1567: last step, after every page (including value-logic) is written.
+    from site_noindex import apply_site_noindex
+    noindexed = apply_site_noindex(DIST)
+    print(f"noindex: {len(noindexed)} html files marked (site_noindex.SITE_NOINDEX)")
+
     print(f"Dashboard artifacts synced to app/trade-value-chart and dist{f' (build {tag})' if tag else ''}.")
     return 0
 

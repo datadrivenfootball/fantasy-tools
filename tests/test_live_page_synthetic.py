@@ -2,13 +2,13 @@
 
 tests/rendered_gate/live.mjs (run by .github/workflows/live-page-synthetic.yml,
 dispatched by pg_cron live-page-synthetic-live) checks the root build tag, then
-each v2 tab on the root, the /v2/ copy, /classic/ (a redirect to the root since
+each redesigned root page (JEG-1539), the legacy-route redirects, /classic/ (a redirect to the root since
 JEG-453) and the 404 page. This test serves the built dist/ under /fantasy-tools/ (as GitHub
 Pages does) and requires:
 
 - the real build passes;
-- each simulated broken state fails, naming the broken page: a v2 tab section
-  missing, an empty Player values table, /classic/ still serving the old chart
+- each simulated broken state fails, naming the broken page: a page whose <main>
+  never shows, an empty values table, /classic/ still serving the old chart
   dashboard (no redirect), /classic/ redirecting to another build, and a 404
   that is not the site's own page.
 
@@ -94,32 +94,34 @@ class LivePageSyntheticPagesTest(unittest.TestCase):
         report = _run_live(DIST)
         self.assertTrue(report["passed"], report["problems"])
         names = [p["name"] for p in report["pages"]]
-        self.assertEqual(names, ["root", "v2", "classic-redirect", "not-found"])
-        classic = report["pages"][2]
+        # JEG-1539: the redesigned root pages and the legacy-route redirects replaced the v2 tab list.
+        self.assertEqual(names, ["root", "values.html", "learn.html", "build.html", "team.html", "explore.html",
+                                 "partners.html", "find.html", "waivers.html", "settings.html", "ai.html", "connect.html",
+                                 "redirect v2/", "redirect #player-values", "redirect v2/#find-trade",
+                                 "redirect #compare-trade", "redirect #waivers", "redirect #writing/manifesto",
+                                 "redirect #s=AAAA", "classic-redirect", "not-found"])
+        classic = {p["name"]: p for p in report["pages"]}["classic-redirect"]
         self.assertEqual(200, classic["httpStatus"])
         self.assertEqual(classic["landedAt"].split("#")[0], report["url"])
-        tabs = [t["hash"] for t in report["pages"][0]["tabs"]]
-        self.assertEqual(tabs, ["#player-values", "#trade-targets", "#risers-fallers",
-                                "#compare-trade", "#find-trade", "#writing/how-values", "#value-overrides", "#values-auditing"])
 
-    def test_missing_v2_tab_section_fails(self):
+    def test_hidden_page_content_fails(self):
         def edit(d):
-            p = d / "index.html"
-            # The section stays in the DOM (no script error) but never shows.
+            p = d / "find.html"
+            # The page stays in the DOM (no script error) but its <main> never shows.
             p.write_text(p.read_text(encoding="utf-8").replace(
-                "</head>", "<style>#v2Risers{display:none!important}</style></head>", 1))
-        page = self._failed_page(_run_live(self._mutated(edit)), "root")
-        self.assertTrue(any("#risers-fallers" in s for s in page["problems"]), page["problems"])
+                "</head>", "<style>main{display:none!important}</style></head>", 1))
+        page = self._failed_page(_run_live(self._mutated(edit)), "find.html")
+        self.assertTrue(any("<main> not visible" in s for s in page["problems"]), page["problems"])
 
     def test_empty_values_table_fails(self):
         def edit(d):
-            p = d / "index.html"
+            p = d / "values.html"
             # The values table renders, then loses its rows (no script error).
             p.write_text(p.read_text(encoding="utf-8").replace(
-                "</body>", "<script>setInterval(function () { var t = document.getElementById('v2Table');"
+                "</body>", "<script>setInterval(function () { var t = document.getElementById('rows');"
                 " if (t) t.innerHTML = ''; }, 50);</script></body>", 1))
-        page = self._failed_page(_run_live(self._mutated(edit)), "root")
-        self.assertTrue(any("#player-values" in s for s in page["problems"]), page["problems"])
+        page = self._failed_page(_run_live(self._mutated(edit)), "values.html")
+        self.assertTrue(any("DDF Value" in s for s in page["problems"]), page["problems"])
 
     def test_classic_still_serving_old_dashboard_fails(self):
         def edit(d):

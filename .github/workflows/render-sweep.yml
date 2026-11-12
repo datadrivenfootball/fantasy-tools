@@ -5,7 +5,7 @@ name: Render sweep
 # preview suite runs (`make test-render-extra`, about 75 minutes of tests in all).
 # JEG-1117 (Jeremy, 2026-10-26: "Split into 3 parallel jobs"): the single-job
 # sweep hit the 60-minute timeout on its first run, so the modules now run as a
-# matrix of three shards (`make test-render-sweep-1/2/3`, about 25 minutes of
+# matrix of shards (`make test-render-sweep-1/2/3/4` since JEG-1546), about 25 minutes of
 # tests each). tests/test_render_sweep_shards.py pins that the shards together
 # are exactly test-render-extra. It is a warning, never a gate: no deploy
 # workflow calls it, so a failure here shows as a red run plus a warning
@@ -33,31 +33,37 @@ env:
 
 jobs:
   render-sweep:
-    name: Render sweep shard ${{ matrix.shard }} of 3
+    name: Render sweep shard ${{ matrix.shard }} of 4
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-1.49.1
       - name: Browser for the render tests
         run: |
           python3 -m pip install --quiet playwright==1.49.1
-          python3 -m playwright install --with-deps chromium
+          bash .github/scripts/retry-browser-install.sh python3 -m playwright install --with-deps chromium
           echo "RENDER_TESTS_REQUIRED=1" >> "$GITHUB_ENV"
       - run: make sync
       - name: Render sweep shard (one module at a time)
         run: |
           set -o pipefail
           rc=0
-          make test-render-sweep-${{ matrix.shard }} 2>&1 | tee "$RUNNER_TEMP/shard.log" || rc=$?
+          # JEG-1546: through run_suite.py, so a red module does not stop the rest of the shard.
+          make test-render-sweep-shard SHARD=${{ matrix.shard }} 2>&1 | tee "$RUNNER_TEMP/shard.log" || rc=$?
           {
-            echo "### Render sweep shard ${{ matrix.shard }} of 3"
+            echo "### Render sweep shard ${{ matrix.shard }} of 4"
             ran=$(grep -c '^python3 -m unittest ' "$RUNNER_TEMP/shard.log" || true)
             failed=$(grep -c '^run_suite: failed: ' "$RUNNER_TEMP/shard.log" || true)
             echo

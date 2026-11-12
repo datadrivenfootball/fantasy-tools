@@ -68,6 +68,10 @@
       var mine = Number.isInteger(rec.me) && teams[rec.me] ? teams[rec.me].id : null;
       var ws = ours ? Object.assign({}, prev) : {id: newId("league"), name: "My league", settings: null, createdAt: now};
       ws.teams = teams; ws.myTeamId = mine; ws.updatedAt = now;
+      /* JEG-1564: the league's name, roster date and (this device only) league ID */
+      ws.name = rec.name || "My league";
+      if (rec.enteredAt) ws.enteredAt = rec.enteredAt;
+      if (rec.leagueId) ws.leagueId = String(rec.leagueId); else delete ws.leagueId;
       localStorage.setItem(WS_KEY, JSON.stringify({v: 1, workspaces: [ws], activeId: ws.id}));
       DDF.state.set("bridgedWs", ws.id);
       return "written";
@@ -100,6 +104,13 @@
       if (intro) intro.textContent = "Add your league's rosters first, then confirm which team is yours.";
       return;
     }
+    /* After "Edit league" (JEG-1568): the team you had is preselected when the new paste has a team of that name, and the
+       saved league is replaced without asking (the reader chose to replace it) */
+    var prev = DDF.state.get("editprev", null);
+    if (prev && prev.team && src.kind === "pasted" && src.me < 0) {
+      var at = src.teams.map(function (t) { return t.name; }).indexOf(prev.team);
+      if (at >= 0) { src.me = at; src.rec.me = at; DDF.state.set("pasted", src.rec); }
+    }
     box.innerHTML = src.teams.map(function (t, i) {
       var sel = i === src.me;
       return '<label class="setup-option ddf-pop ddf-lift' + (sel ? " selected" : "") + '"><input type="radio" name="team" value="' + esc(t.name) + '" data-i="' + i + '" required' + (sel ? " checked" : "") + "><span><strong>" + esc(t.name) + "</strong>"
@@ -109,15 +120,42 @@
     if (intro) intro.textContent = "We found these " + src.teams.length + " teams in your " + (src.kind === "link" ? "league" : "paste") + ". Confirm the one you manage so we can show your roster.";
     var nb = document.getElementById("continue-btn");
     if (nb) nb.setAttribute("data-summary", src.me >= 0 ? "Team: " + src.teams[src.me].name : "Confirm your team");
+    /* "Name this league" (JEG-1564): the saved name, else the name found in the paste as a suggestion, else empty
+       ("My league" is the default). Saved only when the reader edits it or presses Next, never on its own. */
+    var nameBox = document.getElementById("setup-name-box"), nameIn = document.getElementById("league-name"), note = document.getElementById("league-name-note");
+    var curLink = null; try { curLink = DDF.link && DDF.link.current && DDF.link.current(); } catch (e) { curLink = null; }
+    var savedName = src.kind === "pasted" ? src.rec.name : curLink && curLink.name;
+    var suggested = src.kind === "pasted" ? src.rec.suggestedName : null;
+    var fromPrev = !savedName && !suggested && prev && prev.name ? prev.name : null;
+    if (nameBox && nameIn) {
+      nameBox.hidden = false;
+      nameIn.value = savedName || suggested || fromPrev || "";
+      note.textContent = savedName ? "Used in your bookmark and page titles." : fromPrev ? "Your current league's name. Keep it or change it." : suggested
+        ? "We found this name in your paste" + (src.rec.leagueId ? " (ID# " + src.rec.leagueId + ")" : "") + ". Keep it or change it."
+        : "Used in your bookmark and page titles. Leave it empty to use \u201cMy league\u201d.";
+    }
+    function saveName() {
+      if (!nameIn) return;
+      var v = Array.from(nameIn.value.replace(/\s+/g, " ").trim()).slice(0, 40).join("").trim() || null;
+      if (src.kind === "pasted") { src.rec.name = v; DDF.state.set("pasted", src.rec); if (Number.isInteger(src.rec.me) && (DDF.state.get("bridgedWs", null) || prev)) bridge(src.rec, prev ? {replace: true} : null); }
+      else if (DDF.link && DDF.link.update) { try { var cur = DDF.link.current(); if (cur) { DDF.link.update({name: v || undefined}); } } catch (e) { /* the name still shows */ } }
+      if (DDF.leagueMeta) DDF.leagueMeta.refresh();
+    }
+    if (nameIn) nameIn.addEventListener("change", saveName);
+    var nextBtns = [document.getElementById("continue-btn"), document.getElementById("continue-top")];
+    nextBtns.forEach(function (b) { if (b) b.addEventListener("click", saveName, true); });
+    /* the edit is done once the team is confirmed with Next: later visits ask again before replacing a saved league */
+    nextBtns.forEach(function (b) { if (b) b.addEventListener("click", function () { if (b.getAttribute("href")) DDF.state.remove("editprev"); }); });
     /* Enter in the form must not submit it: at the root its action is a live hash route */
     form.addEventListener("submit", function (e) { e.preventDefault(); var b = document.getElementById("continue-btn"); if (b && b.getAttribute("href")) b.click(); });
     form.addEventListener("change", function (e) {
       var i = e.target && e.target.dataset ? e.target.dataset.i : undefined;
       if (i === undefined) return;
       i = Number(i);
+      if (DDF.leagueMeta) DDF.leagueMeta.want("team", i + ":" + src.teams[i].name);
       if (src.kind === "pasted") {
         src.rec.me = i; DDF.state.set("pasted", src.rec);
-        if (bridge(src.rec) === "ask" && !DDF.state.get("bridgeKeep", false)) offerReplace(src.rec);
+        if (bridge(src.rec, prev ? {replace: true} : null) === "ask" && !DDF.state.get("bridgeKeep", false)) offerReplace(src.rec);
       }
       else if (DDF.link && DDF.link.update) { try { DDF.link.update({me: i}); } catch (err) { /* the choice still shows */ } }
     });

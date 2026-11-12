@@ -18,6 +18,7 @@ Rendered checks (dist/, Chromium):
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 
@@ -30,7 +31,7 @@ FIXTURES = ROOT / "tests" / "fixtures" / "entry_paste"
 IPHONE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) "
              "Version/18.0 Mobile/15E148 Safari/604.1")
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste"
-STATIC_SAMPLE = "12 teams found. 164 players matched"
+STATIC_SAMPLE = "Found 12 teams and 164 players"
 
 # LINK-FORMAT.md section 6 (Chrome bytes) and 6.1 (with reader context).
 VECTOR_6 = ("LAECAwEBBgMBf_AwHclLCoAgFAXQrcRt6sSavSVEmzC7qPRFxAixtUed6SnIEK2QAy8IrKddoJDMtPKPFM1MSIELmRC03TMwcgu38c14ZELBMX2joXCa"
@@ -115,7 +116,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         return page
 
     def connect(self, page):
-        page.goto(f"{self.base}/connect.html", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/connect.html", wait_until="domcontentloaded", timeout=60000)
         page.wait_for_function(ENGINE_READY, timeout=60000)
 
     def paste(self, page, text):
@@ -129,7 +130,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.paste(page, (FIXTURES / "02-yahoo-markdown.txt").read_text(encoding="utf-8"))
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
         summary = page.text_content("#recognition-summary")
-        self.assertTrue(summary.startswith("3 teams found."), summary)
+        self.assertTrue(summary.startswith("Found 3 teams and "), summary)
         self.assertNotIn(STATIC_SAMPLE, page.content())
         teams = page.eval_on_selector_all(".recognition-team > summary", "els => els.map(e => e.textContent)")
         self.assertEqual([t.split(" · ")[0] for t in teams], ["Fourth Down Club", "Hail Marys", "Kingdom of Caleb"])
@@ -144,7 +145,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.connect(page)
         self.paste(page, "Alpha Squad\nfoo bar\nBeta Crew\nbaz qux")
         page.wait_for_selector("#edit-names:not([hidden])", timeout=20000)
-        self.assertIn("could not read the teams", page.text_content("#entry-status"))
+        self.assertIn("could not find any teams in that paste", page.text_content("#entry-status"))
         self.assertTrue(page.is_hidden("#recognized"))
         self.assertEqual(page.get_attribute("#connect-next", "aria-disabled"), "true")
         page.fill("#rosters", "zzz\nGG!\nJosh Allen\nBijan Robinson\nTT!\nJordan Love\nSaquon Barkley\n")
@@ -162,7 +163,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.connect(page)
         self.paste(page, (FIXTURES / "01-yahoo-iphone.txt").read_text(encoding="utf-8"))
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
-        page.click("#connect-next")
+        page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         names = page.eval_on_selector_all("input[name=team]", "els => els.map(e => e.value)")
         self.assertEqual(names, ["Fourth Down Club", "Hail Marys", "Bijan Mustard Robinson", "Ricky and the Bobbys"])
@@ -186,7 +187,8 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.assertEqual(again["id"], live["id"])
         self.assertEqual(again["myTeamId"], ids[2])
         page.evaluate("sessionStorage.clear()")
-        page.reload(wait_until="networkidle")
+        page.reload(wait_until="domcontentloaded")
+        page.wait_for_selector("#setup-empty", state="visible", timeout=60000)   # readiness: the empty state is drawn
         self.assertTrue(page.is_visible("#setup-empty"))
         self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.length"), 0)
 
@@ -198,7 +200,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.connect(page)
         self.paste(page, (FIXTURES / "03-espn.txt").read_text(encoding="utf-8"))
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
-        page.click("#connect-next")
+        page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         page.click("label.setup-option >> nth=0")
         self.assertTrue(page.is_visible("#bridge-ask"))
@@ -219,7 +221,8 @@ class EntryPagesRenderTest(unittest.TestCase):
                  "teams": [{"name": "Link A", "players": ["Josh Allen"]}, {"name": "Link B", "players": ["Jordan Love"]}]}
         page.evaluate("s => DDF.link.decodeBlock(JSON.stringify(s))", state)
         self.assertIsNone(page.evaluate("sessionStorage.getItem('ddf:pasted')"))
-        page.goto(f"{self.base}/setup.html", wait_until="networkidle")
+        page.goto(f"{self.base}/setup.html", wait_until="domcontentloaded")
+        page.wait_for_selector("input[name=team]", timeout=60000)   # readiness: the team choices are drawn
         self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.map(e => e.value)"), ["Link A", "Link B"])
 
     def test_link_codec_vectors_and_round_trip(self):
@@ -243,15 +246,21 @@ class EntryPagesRenderTest(unittest.TestCase):
 
     def test_routes_into_entry_pages(self):
         page = self.page()
-        page.goto(f"{self.base}/index.html#s=abc", wait_until="networkidle", timeout=60000)
+        # Navigation waits for DOMContentLoaded, then for the redirect to land and the page's own readiness signal, not
+        # 'networkidle' (JEG-1586, as PR #1358 did for the zero-override test): the engine pages are 1.3 MB and keep fetching.
+        page.goto(f"{self.base}/index.html#s=abc", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_url(re.compile(r"/connect\.html#s=abc$"), timeout=60000)
+        page.wait_for_selector("#paste-link", state="visible", timeout=60000)
         self.assertTrue(page.url.endswith("/connect.html#s=abc"), page.url)
         self.assertTrue(page.is_visible("#paste-link"), "a broken token shows the paste-your-block notice")
-        page.goto(f"{self.base}/next/connect.html?x=1#paste", wait_until="networkidle")
+        page.goto(f"{self.base}/next/connect.html?x=1#paste", wait_until="domcontentloaded")
+        page.wait_for_url(re.compile(r"/connect\.html\?x=1#paste$"), timeout=60000)
         self.assertTrue(page.url.endswith("/connect.html?x=1#paste") and "/next/" not in page.url, page.url)
-        page.goto(f"{self.base}/next/setup.html", wait_until="networkidle")
+        page.goto(f"{self.base}/next/setup.html", wait_until="domcontentloaded")
+        page.wait_for_url(re.compile(r"/setup\.html$"), timeout=60000)
         self.assertTrue(page.url.endswith("/setup.html") and "/next/" not in page.url, page.url)
         # a chat link for Build a Trade (view check, live since JEG-1537): build.html with the token and its overrides
-        page.goto(f"{self.base}/index.html#s={VECTOR_61}", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/index.html#s={VECTOR_61}", wait_until="domcontentloaded", timeout=90000)   # the redirect chain ends on an engine page; the waits below are the real checks
         page.wait_for_function("() => /build\\.html#s=/.test(location.href)", timeout=20000)
         league = json.loads(page.evaluate("sessionStorage.getItem('ddf:league')"))
         self.assertEqual(league["trade"], VECTOR_6_STATE["trade"])
@@ -262,7 +271,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         token = page.evaluate("""() => DDF.link.encodeToken({v: 1, view: 'team', settings: {scoring: 'ppr', teams: 10, superflex: false,
             slots: [1, 2, 2, 1, 1, 6]}, teams: [{name: 'A', players: ['Josh Allen']}, {name: 'B', players: ['Jordan Love']}],
             overrides: {'Josh Allen': 80}})""")
-        page.goto(f"{self.base}/index.html#s={token}", wait_until="networkidle", timeout=60000)
+        page.goto(f"{self.base}/index.html#s={token}", wait_until="domcontentloaded", timeout=90000)   # the redirect chain ends on an engine page; the waits below are the real checks
         page.wait_for_function("() => /team\\.html#s=/.test(location.href)", timeout=20000)
         page.wait_for_function("() => DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.engine.overrides.count() > 0", timeout=60000)
         self.assertEqual(page.evaluate("DDF.engine.overrides.count()"), 1)

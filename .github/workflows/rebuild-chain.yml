@@ -102,6 +102,8 @@ jobs:
       - name: Record workflow start time (JEG-137 R10)
         run: |
           echo "WORKFLOW_STARTED_AT=$(date -u +%FT%TZ)" >> $GITHUB_ENV
+          # JEG-1512: the published commit, for the week-held alert when this run does not push.
+          echo "CHECKOUT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
           echo 'Concurrency policy: same-ref pending runs may be replaced by a newer dispatch; running runs are not cancelled. Branch proofs have a separate slot. Job timeout: 120 minutes.' | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-python@v5
         with:
@@ -110,12 +112,17 @@ jobs:
       # one they skipped and validate passed with them unrun (until
       # 2026-10-08). RENDER_TESTS_REQUIRED=1 makes a missing browser or build
       # an error for every later step instead of a silent skip.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-1.49.1
       - name: Browser for the render tests
         env:
           SUPABASE_BYTES_CALLER: rebuild-chain:browser-for-the-render-tests
         run: |
           python3 -m pip install --quiet playwright==1.49.1
-          python3 -m playwright install --with-deps chromium
+          bash .github/scripts/retry-browser-install.sh python3 -m playwright install --with-deps chromium
           echo "RENDER_TESTS_REQUIRED=1" >> "$GITHUB_ENV"
 
       - name: Install standalone Supabase client
@@ -339,7 +346,7 @@ jobs:
             || echo "::warning title=fidelity-hold::the fidelity hold step failed; see the log"
           echo "initial_validate_start $(date -u +%FT%TZ)" >> output/chain-phase-timing.txt
           set +e
-          env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate > output/post-rebuild-validate.log 2>&1
+          env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate-data > output/post-rebuild-validate.log 2>&1
           rc=$?
           set -e
           echo "initial_validate_end $(date -u +%FT%TZ) rc=$rc" >> output/chain-phase-timing.txt
@@ -358,7 +365,7 @@ jobs:
             # Re-run the COMPLETE gate once on the rolled-back fixture. Never
             # rerun the source chain or publish before confirm succeeds.
             set +e
-            env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate > output/post-rebuild-validate-retry.log 2>&1
+            env -u SUPABASE_URL -u SUPABASE_SERVICE_KEY python3 pipelines/candidate_evidence.py run --kind validation -- make validate-data > output/post-rebuild-validate-retry.log 2>&1
             retry_rc=$?
             set -e
             echo "retry_validate_end $(date -u +%FT%TZ) rc=$retry_rc" >> output/chain-phase-timing.txt
@@ -845,6 +852,26 @@ jobs:
           SUPABASE_BYTES_CALLER: rebuild-chain:alert-when-the-board-stops-publishing-jeg-1194
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 pipelines/chain_stuck_alert.py --chain-outcome "${{ steps.chain.outcome }}" --published "${{ steps.push.outputs.pushed }}"
+
+      # JEG-1512 (never-late guardrail): Week 9 had every source in Supabase by
+      # 2026-11-04 00:38Z and the site served Week 8 until 2026-11-05 17:54Z.
+      # When Supabase holds a newer week than the committed history serves and
+      # this run did not publish it, open the `week-held` GitHub issue and a
+      # Linear sub-issue of JEG-1512 in this run (no 6 h wait). Runbook:
+      # docs/week-held-runbook.md. Never fails the job.
+      # Unpushed run: HEAD may be this run's own unpublished commit, so compare
+      # with the checkout commit (what main served when the run started).
+      - name: Escalate a held new week (JEG-1512)
+        if: always() && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          PUSHED: ${{ steps.push.outputs.pushed }}
+        run: |
+          rev=HEAD
+          [ "$PUSHED" = "true" ] || rev="${CHECKOUT_SHA:-HEAD}"
+          python3 pipelines/week_held_alert.py --mode chain --chain-outcome "${{ steps.chain.outcome }}" --published "$PUSHED" --history-rev "$rev"
 
       - name: Fail the job if the chain failed
         if: steps.chain.outcome == 'failure'

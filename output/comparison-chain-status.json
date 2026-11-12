@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-11-07T09:43:05.115579+00:00",
-  "nfl_week": 9,
+  "run_at": "2026-11-11T22:20:30.323564+00:00",
+  "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
     "fantasycalc": "promoted 3/3",
@@ -15,8 +15,6 @@
   "outcome": "published_with_holds",
   "held": [
     "cbsros",
-    "espn",
-    "razzball",
     "usatoday"
   ],
   "hold_severity": "red",
@@ -30,25 +28,12 @@
       "sections": [
         "usatoday"
       ],
-      "detail": "927/927 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
+      "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
-      "week": 9
-    },
-    "espn": {
-      "reason": "fidelity: scrape_validity",
-      "held_series": [
-        "espn",
-        "espn_vorp"
-      ],
-      "sections": [
-        "espn"
-      ],
-      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 16 to 30)",
-      "hold_severity": "red",
-      "week": 9
+      "week": 10
     },
     "cbsros": {
-      "reason": "fidelity: publisher_vs_stored",
+      "reason": "fidelity: scrape_validity",
       "held_series": [
         "cbsros",
         "cbsros_vorp"
@@ -56,22 +41,9 @@
       "sections": [
         "cbsros"
       ],
-      "detail": "1101/1101 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 2 players at the page's last listed value swapped in or out (ties at the row cap: Eli Stowers, Kylen Granson); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['",
-      "hold_severity": "amber",
-      "week": 9
-    },
-    "razzball": {
-      "reason": "fidelity: scrape_validity",
-      "held_series": [
-        "razzball",
-        "razzball_vorp"
-      ],
-      "sections": [
-        "razzball"
-      ],
-      "detail": "player count dropped vs week 8: stored QB 101->88 (the publisher's own list dropped too (88)), stored TE 141->128, chart QB 101->84 (the publisher's own list dropped too (88)), chart RB 149->135, chart WR 206->179, chart TE 141->126",
+      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 10.1 (expected 16 to 30)",
       "hold_severity": "red",
-      "week": 9
+      "week": 10
     }
   },
   "runner": "github-actions",
@@ -107,7 +79,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7248 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7320 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -124,7 +96,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-07 -> 12 DDF legs -> section; review passed (4416 values)",
+      "detail": "snapshot 2026-11-11 -> 12 DDF legs -> section; review passed (4404 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -132,7 +104,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-06 -> 12 DDF legs -> section; review passed (6288 values)",
+      "detail": "snapshot 2026-11-10 -> 12 DDF legs -> section; review passed (6288 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -143,121 +115,121 @@
   },
   "source_vintages": {
     "usatoday": {
-      "content_vintage": "2026-11-03",
-      "content_week": 9,
+      "content_vintage": "2026-11-10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "fantasycalc": {
-      "content_vintage": "Week 9",
-      "content_week": 9,
+      "content_vintage": "Week 10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "fantasypros": {
-      "content_vintage": "2026-11-03",
-      "content_week": 9,
+      "content_vintage": "2026-11-10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "espn": {
-      "content_vintage": "2026-11-06",
-      "content_week": 9,
+      "content_vintage": "2026-11-11",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "cbs": {
-      "content_vintage": "Week 9",
-      "content_week": 9,
+      "content_vintage": "Week 10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "cbsros": {
-      "content_vintage": "2026-11-07",
-      "content_week": 9,
+      "content_vintage": "2026-11-11",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "razzball": {
-      "content_vintage": "2026-11-06",
-      "content_week": 9,
+      "content_vintage": "2026-11-10",
+      "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
     }
   },
   "source_weeks": {
     "cbs": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-04T00:35:42+00:00",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-11T21:35:36+00:00",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "cbsros": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-07",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-11",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "espn": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-06",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-11",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "fantasycalc": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-07T04:05:22+00:00",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-11T19:05:26+00:00",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "fantasypros": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-03",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-10",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "razzball": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-06",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-10",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "usatoday": {
-      "served_week": 9,
-      "label_week": 9,
-      "published_at": "2026-11-03",
+      "served_week": 10,
+      "label_week": 10,
+      "published_at": "2026-11-10",
       "basis": "section_label",
-      "expected_week": 9,
+      "expected_week": 10,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
@@ -269,8 +241,6 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
-    "espn": "fidelity: scrape_validity",
-    "cbsros": "fidelity: publisher_vs_stored",
-    "razzball": "fidelity: scrape_validity"
+    "cbsros": "fidelity: scrape_validity"
   }
 }

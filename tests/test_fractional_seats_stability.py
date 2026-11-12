@@ -20,6 +20,16 @@ projection by -1 PPG transfers a whole flex seat under sigma 0 and breaks the
 same bound. The fractional rule must smooth that exact crossing too. These
 controls do not depend on which players happen to be near today's cutoffs.
 
+JEG-1620: the bound is about seats. A player no chart lists gets a chart
+estimate only inside the fill set (the top rostered + 1 by mean PPG at his
+position, VP-2.4), and Jeremy kept that step (JEG-1336 option A, 2026-10-29:
+about 0 to 1.4 to 1.95 as he enters or leaves). When the moved fringe player
+swaps places with such a player at the fill cutoff, that player's own step is
+the accepted JEG-1336 step, not a seat move: Week 10 standard/14, Lan Larison
+ESPN -1 put Hunter Luepke (no chart lists him) into the fill set, 0.24 to 1.53,
+with the allocation unchanged. Those players are held to FILL_STEP_BOUND
+instead; every other player keeps the 1.0 bound.
+
 Heavy (about two minutes on four cores, live inputs); runs in test-core (shard 2).
 """
 from __future__ import annotations
@@ -38,6 +48,7 @@ import value_reference as VR  # noqa: E402
 
 BOUND = 1.0   # largest DDF Value move allowed for any other player
 PPG_STEP = 1.0
+FILL_STEP_BOUND = 2.0   # JEG-1336: a fill-set step is about 1.4 to 1.95 (docs/research/jeg1336-fill-in.md)
 
 # The two real leagues' roster shapes (as in tests/test_fractional_seats.py).
 LEAGUES = {
@@ -84,8 +95,28 @@ def _fringe(r):
     return keys
 
 
-def worst_move(name: str, sigma: float) -> tuple[float, str, int]:
-    """(largest other-player move, what moved it, runs) for one setting."""
+def _fill_weight(r) -> dict:
+    """{player: share of the allocation mix whose fill set holds him} (VP-2.4 fill set per vertex)."""
+    pos_of = {i: row["pos"] for i, row in r["rows"].items()}
+    m = r["mean_ppg"]
+    rank = {}
+    for p in VR.POSITIONS:
+        for n, i in enumerate(sorted((i for i in m if pos_of.get(i) == p), key=lambda i: (-m[i], i))):
+            rank[i] = n
+    mix = r.get("allocation_mix") or [{"weight": 1.0, "allocation": r["allocation"]}]
+    return {i: sum(v["weight"] for v in mix if rank[i] <= v["allocation"][pos_of[i]]["rostered"])
+            for i in rank}
+
+
+def _imputed(r) -> set:
+    """Players some chart prices only by estimate in this run."""
+    return {i for src in (r.get("sources") or {}).values() if src.get("family") == "chart"
+            for i, pl in (src.get("players") or {}).items() if isinstance(pl, dict) and pl.get("imputed")}
+
+
+def worst_move(name: str, sigma: float) -> tuple[float, str, int, float, str]:
+    """(largest other-player move, what moved it, runs, largest fill-set step, what moved it) for one setting.
+    A fill-set step is a player some chart only estimates whose fill-set share changed (JEG-1336)."""
     global _INPUTS
     if _INPUTS is None:
         _INPUTS = VR.Inputs.load()
@@ -94,7 +125,9 @@ def worst_move(name: str, sigma: float) -> tuple[float, str, int]:
     VR.SEAT_SIGMA = sigma
     try:
         base, r0, sc = _values(inp, name)
+        fill0, imp0 = _fill_weight(r0), _imputed(r0)
         worst, why, runs = 0.0, "", 0
+        fill_worst, fill_why = 0.0, ""
         for k in _fringe(r0):
             src = next((s for s in VR.PROJECTIONS
                         if VR._finite((inp.players[k].get(VR.PPG_FIELD[s]) or {}).get(sc))), None)
@@ -105,17 +138,21 @@ def worst_move(name: str, sigma: float) -> tuple[float, str, int]:
             for d in (-PPG_STEP, PPG_STEP):
                 rec[sc] = max(0.0, old + d)
                 try:
-                    v, _r, _ = _values(inp, name)
+                    v, r1, _ = _values(inp, name)
                 finally:
                     rec[sc] = old
                 runs += 1
+                fill1, imputed = _fill_weight(r1), imp0 | _imputed(r1)
                 for i, b in base.items():
                     if i == k or b is None or v.get(i) is None:
                         continue
                     mv = abs(v[i] - b)
-                    if mv > worst:
+                    if i in imputed and abs(fill1.get(i, 0.0) - fill0.get(i, 0.0)) > 1e-9:
+                        if mv > fill_worst:
+                            fill_worst, fill_why = mv, f"{k} {src} {d:+.0f} moved {i} across the fill cutoff"
+                    elif mv > worst:
                         worst, why = mv, f"{k} {src} {d:+.0f} moved {i}"
-        return worst, why, runs
+        return worst, why, runs, fill_worst, fill_why
     finally:
         VR.SEAT_SIGMA = saved
 
@@ -162,11 +199,14 @@ class FractionalSeatStability(unittest.TestCase):
         workers = max(1, min(len(SETTINGS), os.cpu_count() or 1))
         with ProcessPoolExecutor(max_workers=workers) as ex:
             out = dict(zip(SETTINGS, ex.map(worst_move, SETTINGS, [VR.SEAT_SIGMA] * len(SETTINGS))))
-        bad = {n: o for n, o in out.items() if o[0] > BOUND}
-        for n, (w, why, runs) in out.items():
+        bad = {n: o[:3] for n, o in out.items() if o[0] > BOUND}
+        fill_bad = {n: o[3:] for n, o in out.items() if o[3] > FILL_STEP_BOUND}
+        for n, (w, why, runs, _fw, _fwhy) in out.items():
             self.assertGreater(runs, 0, f"{n}: no fringe player had a projection to move")
         self.assertEqual(bad, {}, "a 1 PPG one-source change moved another player by more than "
                                   f"{BOUND} DDF Value: {bad}")
+        self.assertEqual(fill_bad, {}, "a fill-set step (JEG-1336) went past "
+                                       f"{FILL_STEP_BOUND} DDF Value: {fill_bad}")
 
     def test_hard_rule_fails_the_bound(self):
         before, after = _boundary_crossing(0.0)

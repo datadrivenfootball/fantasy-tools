@@ -12,8 +12,8 @@
 .team-page .segmented>button{flex:1;min-height:42px;cursor:pointer;font:inherit;font-weight:600;transition:background .15s,color .15s}
 .team-page .segmented>button:hover{background:#f3f7f4}
 .team-page .segmented>button[aria-pressed=true]{background:#e8f5ee;color:#176c4d}
-.team-page .st-slots{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px}
-.team-page .st-slots label{display:grid;gap:8px;font-weight:600;font-size:14px;color:#39413b}
+.team-page .st-slots{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:16px}
+.team-page .st-slots label{display:flex;flex-direction:column;min-width:0;gap:8px;font-weight:600;font-size:14px;color:#39413b}
 .team-page .stepper{display:flex;align-items:stretch;border:1px solid #bec8c1;border-radius:10px;overflow:hidden;background:#fff}
 .team-page .stepper button{width:36px;border:0;background:#fff;color:#176c4d;font-size:18px;font-weight:600;line-height:1;cursor:pointer;padding:0;border-radius:0}
 .team-page .stepper button:hover{background:#e8f5ee}
@@ -55,18 +55,21 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 
 .team-page .info summary{width:17px;height:17px;line-height:15px}
 .team-page .info[open] span{position:fixed;top:auto;left:50%;transform:translateX(-50%);width:min(330px,85vw);white-space:normal;text-align:left;background:white;color:#12202c}
-.team-page .st-lblrow{display:flex;align-items:center;gap:8px}.team-page .sf-info{display:inline-block}
+.team-page .st-lblrow{display:flex;align-items:center;gap:8px}
+.st-help{font-size:14px;color:#4c5650;line-height:1.4;margin:12px 0 0}
+/* JEG-1571 follow-up (Jeremy, 2026-11-08: "Show it as two different positions"): FLEX and SUPERFLEX are boxes in the grid, each with its eligibility */
+.team-page .st-slots label .st-elig{font-weight:400;font-size:12px;color:#4c5650;line-height:1.3;min-height:16px}.team-page .st-slots label .stepper{margin-top:auto;width:100%;box-sizing:border-box}.team-page .st-slots .stepper button,.team-page .st-slots .stepper input{min-height:44px}.team-page .st-slots .stepper button{min-width:44px}.team-page .st-slots .stepper input{padding-left:0;padding-right:0}@media(min-width:761px) and (max-width:1100px){.team-page .st-slots{grid-template-columns:repeat(4,minmax(0,1fr))}}.team-page .sf-info{display:inline-block}
 .team-page .info summary:focus-visible{outline:3px solid #7fbf9d;outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
-</style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
+</style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.st-actions{display:none}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
 <section id="settings">
 <h1>Confirm your league's settings</h1>
-<p class="muted">We filled in what we could read from your league. Correct anything that looks off.</p>
+<p class="muted">We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 7 bench), or the ones from your chat link or your last visit. Confirm each one.</p>
 <form id="editor">
-<section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div><div class="st-field"><div class="st-lblrow"><span class="st-lbl" id="lbl-superflex">Superflex</span><details class="info sf-info"><summary aria-label="About Superflex">&#9432;</summary><span role="note">Superflex means one extra starting spot that can be filled by a QB, RB, WR or TE. Most teams put a second quarterback there because QBs score the most, so quarterbacks become worth more. It is not the same as a 2-QB league, which requires you to start two quarterbacks. If your league has a 2-QB slot, set QB to 2 in your lineup and leave Superflex off. If it has a flex spot that lists QB as eligible, turn Superflex on.</span></details></div><select class="st-native" id="superflex" aria-labelledby="lbl-superflex" tabindex="-1"><option value="false" selected>No</option><option value="true">Yes</option></select></div></div></section>
+<section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
 <section class="card"><h2>Position counts</h2><div class="st-slots">
-<label>QB <input id="lineup-qb" type="number" min="0" max="20" value="1" required></label><label>RB <input id="lineup-rb" type="number" min="0" max="20" value="2" required></label><label>WR <input id="lineup-wr" type="number" min="0" max="20" value="2" required></label><label>TE <input id="lineup-te" type="number" min="0" max="20" value="1" required></label><label>FLEX <input id="lineup-flex" type="number" min="0" max="20" value="1" required></label><label>Bench <input id="lineup-bench" type="number" min="0" max="20" value="7" required></label>
-</div><span class="st-total" id="st-total" role="status"></span></section>
+<label>QB <input id="lineup-qb" type="number" min="0" max="20" value="1" required></label><label>RB <input id="lineup-rb" type="number" min="0" max="20" value="2" required></label><label>WR <input id="lineup-wr" type="number" min="0" max="20" value="2" required></label><label>TE <input id="lineup-te" type="number" min="0" max="20" value="1" required></label><label>FLEX <span class="st-elig" id="elig-flex">RB, WR or TE</span><input id="lineup-flex" type="number" min="0" max="20" value="1" required aria-describedby="elig-flex"></label><label>SUPERFLEX <span class="st-elig" id="elig-sf">QB, RB, WR or TE (QWRT, OP)</span><input id="lineup-sf" type="number" min="0" max="2" value="0" required aria-describedby="elig-sf" data-name="SUPERFLEX" data-short="SUPERFLEX"></label><label>Bench <input id="lineup-bench" type="number" min="0" max="20" value="7" required></label>
+</div><div class="st-help st-lblrow" id="sf-help"><span>A league that must start two QBs sets QB to 2 and SUPERFLEX to 0.</span><details class="info sf-info"><summary aria-label="About SUPERFLEX">&#9432;</summary><span role="note">SUPERFLEX is an extra starting spot that can be filled by a QB, RB, WR or TE. Most teams put a second quarterback there because QBs score the most, so quarterbacks become worth more. Sites call it Superflex, SUPER_FLEX, SFLX, OP, Q/W/R/T or QWRT. Most leagues have 0 or 1. It is not the same as a 2-QB league, which requires you to start two quarterbacks.</span></details></div><span class="st-total" id="st-total" role="status"></span></section>
 <p id="settings-status" class="notice" role="status"></p>
 <div class="row st-actions"><a class="button" href="setup.html">Back</a><a class="button primary" id="finish-setup" href="team.html" data-sticky-next data-back-href="setup.html" data-back-label="Back" data-next-label="Looks right, continue">Looks right, continue &rarr;</a><span id="gate-reason" class="gate-reason" role="status"></span></div>
 </form></section>
@@ -75,8 +78,7 @@ const more=document.querySelector('.morewrap'),moreButton=more?.querySelector('b
 if(moreButton)document.addEventListener('click',()=>moreButton.setAttribute('aria-expanded',String(more.classList.contains('open'))));
 if(moreButton)document.addEventListener('keydown',e=>{if(e.key==='Escape'&&more.classList.contains('open')){more.classList.remove('open');moreButton.setAttribute('aria-expanded','false');moreButton.focus();}});
 
-/* site.js fills scoring/teams/slots; superflex is filled here from the same link state, once per arrival */
-document.addEventListener('ddf:link',()=>{const st=DDF.link.settings(),el=document.getElementById('superflex');if(!st||!el)return;const l=DDF.state.get('link',{});if(l.sfPrefilled===l.at)return;el.value=String(!!st.superflex);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));l.sfPrefilled=l.at;DDF.state.set('link',l)});
+/* site.js fills scoring, teams and every count, the QB flex count (lineup-sf) included, from the link state (JEG-1571) */
 
 /* page enhancements: segmented controls, steppers, finish celebration */
 (function(){
@@ -92,17 +94,18 @@ document.addEventListener('ddf:link',()=>{const st=DDF.link.settings(),el=docume
     sel.addEventListener('change',sync);sel.addEventListener('input',sync);sync();
     setTimeout(sync,300);
   });
-  var keys=['qb','rb','wr','te','flex','bench'],total=document.getElementById('st-total');
+  var keys=['qb','rb','wr','te','flex','bench','sf'],total=document.getElementById('st-total');
+  function nameOf(k){var inp=document.getElementById('lineup-'+k);return inp.dataset.name||(k==='bench'?'Bench':k.toUpperCase());}
   function sumUp(){
     var v={};keys.forEach(function(k){v[k]=Math.max(0,parseInt(document.getElementById('lineup-'+k).value,10)||0);});
-    var starters=v.qb+v.rb+v.wr+v.te+v.flex;
+    var starters=v.qb+v.rb+v.wr+v.te+v.flex+v.sf;
     total.textContent=starters+' starters, '+v.bench+' bench';
   }
   keys.forEach(function(k){
     var inp=document.getElementById('lineup-'+k),wrap=document.createElement('div');wrap.className='stepper';
     var minus=document.createElement('button'),plus=document.createElement('button');
-    var lb=inp.closest('label'),nm=lb?lb.firstChild.textContent.trim():k.toUpperCase();inp.setAttribute('aria-label',nm);minus.type=plus.type='button';minus.textContent='\u2212';plus.textContent='+';
-    minus.setAttribute('aria-label','Decrease '+k.toUpperCase());plus.setAttribute('aria-label','Increase '+k.toUpperCase());
+    var lb=inp.closest('label'),nm=inp.dataset.name||(lb?lb.firstChild.textContent.trim():k.toUpperCase()),sh=inp.dataset.short||k.toUpperCase();inp.setAttribute('aria-label',nm);minus.type=plus.type='button';minus.textContent='\u2212';plus.textContent='+';
+    minus.setAttribute('aria-label','Decrease '+sh);plus.setAttribute('aria-label','Increase '+sh);
     inp.parentNode.insertBefore(wrap,inp);wrap.append(minus,inp,plus);
     function bump(d){var n=(parseInt(inp.value,10)||0)+d;n=Math.min(+inp.max,Math.max(+inp.min,n));inp.value=n;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));}
     minus.addEventListener('click',function(){bump(-1);});plus.addEventListener('click',function(){bump(1);});
@@ -111,7 +114,8 @@ document.addEventListener('ddf:link',()=>{const st=DDF.link.settings(),el=docume
   function barSummary(){
     if(!window.DDF||!DDF.actionBar)return;
     var g=function(id){return document.getElementById(id).value};
-    DDF.actionBar.setSummary(g('scoring')+', '+g('teams')+' teams, '+g('lineup-qb')+' QB, '+g('lineup-rb')+' RB, '+g('lineup-wr')+' WR, '+g('lineup-te')+' TE, '+g('lineup-flex')+' FLEX. Confirm to continue.');
+    var sf=parseInt(g('lineup-sf'),10)||0;
+    DDF.actionBar.setSummary(g('scoring')+', '+g('teams')+' teams, '+g('lineup-qb')+' QB, '+g('lineup-rb')+' RB, '+g('lineup-wr')+' WR, '+g('lineup-te')+' TE, '+g('lineup-flex')+' FLEX'+(sf>0?', '+sf+' SUPERFLEX':'')+'. Confirm to continue.');
   }
   document.getElementById('editor').addEventListener('input',barSummary);document.getElementById('editor').addEventListener('change',barSummary);
   document.addEventListener('ddf:link',function(){setTimeout(barSummary,0)});
@@ -136,7 +140,7 @@ document.addEventListener('ddf:link',()=>{const st=DDF.link.settings(),el=docume
       var starters=0;
       for(var i=0;i<keys.length&&!why;i++){
         var inp=document.getElementById('lineup-'+keys[i]),raw=inp.value.trim(),n=Number(raw);
-        if(raw===''||!/^\d+$/.test(raw)||n<+inp.min||n>+inp.max){why='Enter a whole number from 0 to 20 for '+(keys[i]==='bench'?'Bench':keys[i].toUpperCase())+' to continue';}
+        if(raw===''||!/^\d+$/.test(raw)||n<+inp.min||n>+inp.max){why='Enter a whole number from '+inp.min+' to '+inp.max+' for '+nameOf(keys[i])+' to continue';}
         else if(keys[i]!=='bench')starters+=n;
       }
       if(!why&&starters<1)why='Add at least one starter slot to continue';
@@ -178,20 +182,26 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     const tm = $('teams');
     if (![...tm.options].some(o => o.value === String(s.teams))) { const o = document.createElement('option'); o.textContent = String(s.teams); tm.appendChild(o); }
     tm.value = String(s.teams); fire(tm);
-    const sf = $('superflex'); sf.value = String(!!s.superflex); fire(sf);
+    const sf = $('lineup-sf'); sf.value = String(DDF.link && DDF.link.superflexSlots ? DDF.link.superflexSlots(s) : (s.superflex ? 1 : 0)); fire(sf);
     KEYS.forEach((k, i) => { const el = $('lineup-' + k); if (Number.isInteger(s.slots[i])) { el.value = s.slots[i]; fire(el); } });
   }
   function form() {
-    return {scoring: TOKEN[$('scoring').value] || $('scoring').value, teams: Number($('teams').value), superflex: $('superflex').value === 'true',
+    // JEG-1571: the QB flex count, 0-2; 2 travels as superflexSlots (LINK-FORMAT 2.1), 1 is the superflex flag alone
+    const sfn = Number($('lineup-sf').value);
+    const out = {scoring: TOKEN[$('scoring').value] || $('scoring').value, teams: Number($('teams').value), superflex: sfn > 0,
       slots: KEYS.map(k => Number($('lineup-' + k).value))};
+    if (sfn === 2) out.superflexSlots = 2;
+    return out;
   }
   function save() {
     const f = form();
     if (!f.slots.every(n => Number.isInteger(n) && n >= 0 && n <= 20)) return false;
+    const sfn = Number($('lineup-sf').value);
+    if (!Number.isInteger(sfn) || sfn < 0 || sfn > 2) return false;
     try { DDF.league.setSettings(f); return true; } catch (e) { console.error(e); return false; }
   }
   DDF.league.ready.then(c => {
-    const s = c ? c.settings : (function () { const e = DDF.engine.settings(), r = e.roster; return {scoring: e.scoring, teams: e.teams, superflex: r.SUPERFLEX > 0, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH]}; })();
+    const s = c ? c.settings : (function () { const e = DDF.engine.settings(), r = e.roster; return {scoring: e.scoring, teams: e.teams, superflex: r.SUPERFLEX > 0, superflexSlots: r.SUPERFLEX, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH]}; })();
     fill(s);
     if (!c) $('settings-status').innerHTML = 'No league added yet: these are the settings every page uses. <a href="connect.html">Add your league</a>';
   }, e => console.error(e));

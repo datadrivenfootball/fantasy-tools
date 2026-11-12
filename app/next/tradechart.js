@@ -12,6 +12,20 @@
   var lastName = function(n){ var parts = String(n).trim().split(/\s+/); return parts.length > 1 ? parts.slice(1).join(' ') : parts[0]; };
   var motionOK = function(){ return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: no-preference)').matches); };
 
+  /* R7-CX-03: the reader's value basis (Values > Overrides, "What DDF Value is built from"), read from the engine the
+     same way the Overrides tab does (DDF.engine.basisInfo); '' at the default. No computation. */
+  function basisNote(){
+    var E = window.DDF && window.DDF.engine, b = E && E.basisInfo ? E.basisInfo() : null;
+    if(!b || b.isDefault) return '';
+    if(b.fellBackToDefault) return ' None of the sources in your current basis is available this week, so the DDF Value shown uses the default.';
+    var names = {cbs: 'CBS Sports', usatoday: 'USA Today', fantasypros: 'FantasyPros', fantasycalc: 'FantasyCalc'};
+    (b.sourceStates || []).forEach(function(s){ if(!names[s.key]) names[s.key] = s.label; });
+    var nm = function(k){ return names[k] || k; };
+    if(b.mode === 'single') return ' Your current basis is ' + nm(b.source) + ' only, so the DDF Value shown here is ' + nm(b.source) + '’s adjusted value.';
+    var pc = b.percents || {}, keys = Object.keys(pc).filter(function(k){ return pc[k] > 0; }).sort(function(x, y){ return pc[y] - pc[x]; });
+    return ' Your current basis is a blend (' + keys.map(function(k){ return pc[k] + '% ' + nm(k); }).join(' + ') + '), so the DDF Value shown here is that weighted average of their adjusted values.';
+  }
+
   function summarize(src){
     var give = sum(src.give), receive = sum(src.receive);
     return {name: src.name, giveList: src.give, receiveList: src.receive, give: give, receive: receive, net: receive - give};
@@ -148,7 +162,7 @@
 
     var lo = scale.lo, hi = scale.hi;
     var table = '<section class="tc-table" aria-labelledby="' + id + '-t"><h3 id="' + id + '-t">Difference by source</h3>' +
-      '<p class="tc-sub">Receive − give · ' + rows.length + (rows.length === 1 ? ' source' : ' sources') + ' · values priced for your league settings. Every row shares one scale, ' + signed(lo).replace('+', '') + ' to ' + signed(hi).replace('+', '') + '; the line marks 0.' + (multi ? ' Open “Show players” to see each player.' : '') + '</p>' +
+      '<p class="tc-sub">Receive − give, by source. By default, DDF Value is the average of the four charts’ adjusted values (fitted to your league settings).' + esc(basisNote()) + ' It is not the average of the chart rows here: each chart row, and Analyst charts, uses indexed values, the chart’s published numbers on DDF Value’s scale, not adjusted to your league.' + (rows.some(function(r){ return /projections/.test(r.name); }) ? ' Projection rows are adjusted values.' : '') + ' Every row shares one scale, ' + signed(lo).replace('+', '') + ' to ' + signed(hi).replace('+', '') + '; the line marks 0.' + (multi ? ' Open “Show players” to see each player.' : '') + '</p>' +
       '<div class="tc-rows" role="table" aria-label="Difference by source">' + head + body + '</div>' +
       (data.note ? '<p class="tc-note">' + esc(data.note) + '</p>' : '') + '</section>';
 

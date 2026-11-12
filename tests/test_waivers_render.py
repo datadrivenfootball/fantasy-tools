@@ -287,7 +287,10 @@ def chrome_checks(page, tag) -> list[str]:
       active: document.querySelector('.v2-tab[aria-current=page]') && document.querySelector('.v2-tab[aria-current=page]').dataset.view})""")
     if not t["title"].startswith("Waivers"):
         errors.append(tag + f"title {t['title']!r}")
-    if t["tabs"].index("Waivers") != 5 or t["tabs"][4:7] != ["Risers and fallers", "Waivers", "Trade targets"] or t["active"] != "waivers":   # JEG-1106: Waivers sits in the Players group
+    # JEG-1106: Waivers sits in the Players group, between Risers and fallers and Trade targets. JEG-1578: checked by its
+    # neighbours, not by a fixed index (JEG-1263 added "Simplified site" before the group on 2026-11-02, moving it to 6).
+    at = t["tabs"].index("Waivers") if "Waivers" in t["tabs"] else -1
+    if at < 1 or t["tabs"][at - 1:at + 2] != ["Risers and fallers", "Waivers", "Trade targets"] or t["active"] != "waivers":
         errors.append(tag + f"nav {t}")
     return errors
 

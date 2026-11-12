@@ -646,9 +646,11 @@ class ChainConcurrencyTest(unittest.TestCase):
 
     def test_chain_has_one_queueing_group(self):
         text = (WF / "rebuild-chain.yml").read_text(encoding="utf-8")
-        m = re.search(r"(?m)^concurrency:\n  group: (\S+)\n  cancel-in-progress: (\S+)\n", text)
+        m = re.search(r"(?m)^concurrency:\n  group: (.+)\n  cancel-in-progress: (\S+)\n", text)
         self.assertIsNotNone(m, "rebuild-chain.yml needs a workflow-level concurrency group")
-        self.assertEqual(m.group(1), "rebuild-chain")  # one group: bake runs too
+        # JEG-1522: one group per ref, so a branch proof no longer holds main's slot; every main run still
+        # shares one group (bake runs too). A bare "rebuild-chain" or a per-run key would break that.
+        self.assertEqual(m.group(1), "rebuild-chain-${{ github.ref }}")
         self.assertEqual(m.group(2), "false")           # never cancel a running publish
 
     def test_every_chain_dispatch_coalesces(self):

@@ -79,7 +79,8 @@ SHIFT = 0.01
 
 # The mutation: one source funds 1% of each bench budget as starter budget
 # instead (pie-conserving, see the module docstring).
-FUND_ANCHOR = "Object.keys(budgets).forEach(function (g) { funded[g] = budgets[g]; });"
+# JEG-1569: srcBudgets = the source's family budgets (the shared budgets on the live "all" split).
+FUND_ANCHOR = "Object.keys(srcBudgets).forEach(function (g) { funded[g] = srcBudgets[g]; });"
 WIDGET = ROOT / "app" / "trade-value-chart" / "assets" / "curve-widget.js"
 GUARD_ANCHOR = "const groupsOk = Object.values(groups).every(g => Math.abs(g.total - g.budget) <= tolerance);"
 
@@ -133,27 +134,38 @@ def check_run(run: dict, label: str):
     if not isinstance(pie, (int, float)) or pie <= 0:
         return [f"{label}: no pie ({pie!r})"], [], notes
     tol = REL_TOL * max(1.0, pie)
-    budgets = {pos: pie * (run.get("ddfWeights") or {}).get(f"{pos}|bench", 0.0) for pos in POSITIONS}
+    # JEG-1569 (VP-4.6): on the charts-only split a projection's budget is pie x W_proj, its own family's
+    # weights; the charts (and every source on the "all" split) share pie x W.
+    w_proj = run.get("ddfWeightsProjections")
+    def budget_set(src):
+        w = w_proj if w_proj and src.get("family") == "projection" else (run.get("ddfWeights") or {})
+        return "projection" if w is w_proj else "shared", {pos: pie * w.get(f"{pos}|bench", 0.0) for pos in POSITIONS}
     priced = {k: s for k, s in (run.get("sources") or {}).items() if s.get("weights")}
     compared = sorted(priced)
     if len(compared) < 2:
-        problems.append(f"{label}: only {compared} priced, nothing to compare")
-    by_pos = {pos: {} for pos in POSITIONS}
+        if compared and compared == [run.get("single_source_view")]:
+            notes.append(f"{label}: only {compared} priced (the newest week's view, not the default); "
+                         "its own budget checked, nothing to compare")
+        else:
+            problems.append(f"{label}: only {compared} priced, nothing to compare")
+    # Keyed by (family_set, pos): on the charts-only split projections are compared only among themselves.
+    by_pos = {}
     for key in compared:
         src = priced[key]
         unfunded = unfunded_bench(src)
         totals = bench_totals(src)
+        family_set, budgets = budget_set(src)
         for pos in POSITIONS:
             if f"{pos}|bench" in unfunded:
                 notes.append(f"{label}: {key} {pos} bench budget {budgets[pos]:.3f} unfunded (engine-reported)")
                 want = 0.0
             else:
                 want = budgets[pos]
-                by_pos[pos][key] = totals[pos]
+                by_pos.setdefault((family_set, pos), {})[key] = totals[pos]
             if abs(totals[pos] - want) > tol:
                 problems.append(f"{label}: {key} {pos} budget-cut bench {totals[pos]:.6f}, "
-                                f"shared bench budget {want:.6f} (pie {pie} x W)")
-    for pos, vals in by_pos.items():
+                                f"{family_set} bench budget {want:.6f} (pie {pie} x W)")
+    for (_family_set, pos), vals in by_pos.items():
         if len(vals) >= 2 and max(vals.values()) - min(vals.values()) > tol:
             lo, hi = min(vals, key=vals.get), max(vals, key=vals.get)
             problems.append(f"{label}: {pos} budget-cut bench differs across sources: "
@@ -163,8 +175,9 @@ def check_run(run: dict, label: str):
 
 def from_driver(out: dict) -> dict:
     """tests/value_pipeline_driver.js output -> check_run's run shape."""
-    return {"pie": out["pie"], "ddfWeights": out["ddf_weights"], "sources": {
-        key: {"rates": s["rates"], "weights": s["weights"], "unfundedMoved": s["unfunded_moved"],
+    return {"pie": out["pie"], "ddfWeights": out["ddf_weights"],
+            "ddfWeightsProjections": out.get("ddf_weights_projections"), "sources": {
+        key: {"family": s.get("family"), "rates": s["rates"], "weights": s["weights"], "unfundedMoved": s["unfunded_moved"],
               "unfundedGroups": s["unfunded_groups"],
               "players": [[p["pos"], p["bench_slice"]] for p in s["players"].values()]}
         for key, s in out["sources"].items()}}
@@ -174,8 +187,9 @@ def from_reference(res: dict) -> dict:
     """value_reference.Setting.result() -> check_run's run shape. A source
     left out of the run (an older week than the view) has no players and no
     weights there, so check_run does not price it."""
-    return {"pie": res["pie"], "ddfWeights": res["ddf_weights"], "sources": {
-        key: {"rates": d.get("rates") or {}, "weights": d.get("weights") if d.get("players") else None,
+    return {"pie": res["pie"], "ddfWeights": res["ddf_weights"],
+            "ddfWeightsProjections": res.get("ddf_weights_projections"), "sources": {
+        key: {"family": d.get("family"), "rates": d.get("rates") or {}, "weights": d.get("weights") if d.get("players") else None,
               "unfundedMoved": d.get("unfunded_moved") or [], "unfundedGroups": d.get("unfunded_groups") or [],
               "players": [[p["pos"], p.get("bench_slice") or 0.0] for p in (d.get("players") or {}).values()]}
         for key, d in res["sources"].items()}}
@@ -225,10 +239,11 @@ READ = """(week) => {
   const st = c.getWeekState ? c.getWeekState() : null;
   const ins = c.getInspection(), vp = ins.valuePipeline;
   const out = {week: st ? st.week : null, pie: vp ? vp.pie : null, ddfWeights: vp ? vp.ddfWeights : null,
+    ddfWeightsProjections: vp ? (vp.ddfWeightsProjections || null) : null,
     benchShareApplied: vp ? vp.benchShareApplied : null, sources: {}};
   if (!vp) return out;
   for (const [key, s] of Object.entries(vp.sources)) {
-    out.sources[key] = {rates: s.rates, weights: s.weights, unfundedMoved: s.unfundedMoved || [],
+    out.sources[key] = {family: s.family, rates: s.rates, weights: s.weights, unfundedMoved: s.unfundedMoved || [],
       unfundedGroups: s.unfundedGroups || [],
       players: Object.values(ins.players[key] || {}).map(p => [p.pos, p.benchSlice || 0])};
   }
@@ -277,6 +292,14 @@ def page_runs(overrides=None, settings=None):
                         runs.append((f"{setting} week {run['week']}",
                                      {"pie": None, "error": "the bench-share override did not reach the pipeline"}))
                         continue
+                    priced = [k for k, s in (run.get("sources") or {}).items() if s.get("weights")]
+                    served_now = (state or {}).get("servedWeeks") or {}
+                    if (week is not None and week != state.get("week") and len(priced) == 1
+                            and served_now.get(priced[0]) == week):
+                        # JEG-1618: early in a transition the newest week's view (not the default) can hold one
+                        # source, the one serving that week (2026-11-10: CBS ROS alone on Week 10). Its own
+                        # budget checks still run; only "nothing to compare" is waived (check_run).
+                        run = {**run, "single_source_view": priced[0]}
                     runs.append((f"{setting} week {run['week']}", run))
                 served = (state or {}).get("servedWeeks") or {}
                 lagging = sorted(k for k, w in served.items()
@@ -429,22 +452,26 @@ class EngineTest(unittest.TestCase):
 
     def test_perturbed_source_budget_fails(self):
         from tests.test_value_pipeline_engine import run_engine
-        with tempfile.TemporaryDirectory() as tmp:
-            model = Path(tmp) / "value-model.js"
-            model.write_text(perturbed_model("c2"), encoding="utf-8")
-            for variant in self.VARIANTS:
-                with self.subTest(variant=variant):
-                    out = run_engine(model=model, variant=variant)
-                    problems, _, _ = check_run(from_driver(out), str(variant))
-                    self.assertTrue(any(" c2 " in p for p in problems),
-                                    f"a 1% bench-to-starter shift in c2 was NOT caught: {problems}")
-                    # Only the perturbed source is off its budget.
-                    off = {p.split(": ", 1)[1].split(" ", 1)[0] for p in problems if "differs" not in p}
-                    self.assertEqual(off, {"c2"}, problems)
-                    # The shift keeps c2's total on the pie, so the page's
-                    # fixedPieIndexed guard cannot see it; only this check does.
-                    total = sum(p["adjusted"] for p in out["sources"]["c2"]["players"].values())
-                    self.assertAlmostEqual(total, out["pie"], delta=REL_TOL * out["pie"])
+        # c2 is a chart; p1 a projection, paid on its own family's budgets on the charts-only split (JEG-1569).
+        for source in ("c2", "p1"):
+            with tempfile.TemporaryDirectory() as tmp:
+                model = Path(tmp) / "value-model.js"
+                model.write_text(perturbed_model(source), encoding="utf-8")
+                for variant in self.VARIANTS:
+                    with self.subTest(source=source, variant=variant):
+                        out = run_engine(model=model, variant=variant)
+                        if source == "p1":
+                            self.assertEqual(out.get("ddf_split"), "charts", "the projection case needs the charts split")
+                        problems, _, _ = check_run(from_driver(out), str(variant))
+                        self.assertTrue(any(f" {source} " in p for p in problems),
+                                        f"a 1% bench-to-starter shift in {source} was NOT caught: {problems}")
+                        # Only the perturbed source is off its budget.
+                        off = {p.split(": ", 1)[1].split(" ", 1)[0] for p in problems if "differs" not in p}
+                        self.assertEqual(off, {source}, problems)
+                        # The shift keeps the source's total on the pie, so the page's
+                        # fixedPieIndexed guard cannot see it; only this check does.
+                        total = sum(p["adjusted"] for p in out["sources"][source]["players"].values())
+                        self.assertAlmostEqual(total, out["pie"], delta=REL_TOL * out["pie"])
 
 
 class TransitionReferenceTest(unittest.TestCase):

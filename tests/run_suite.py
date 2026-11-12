@@ -6,7 +6,12 @@ after it (test_rebuild_chain_workflow, test_rebuild_chain_conflict_handoff ...)
 never ran in preview CI. This runner reads the target's recipe lines from the
 Makefile, runs each one, and exits 1 at the end listing every failed line.
 
-Usage: python3 tests/run_suite.py [--makefile PATH] TARGET
+Usage: python3 tests/run_suite.py [--makefile PATH] [--shard-index I --shard-count N] TARGET
+
+Shards are one-based, round-robin partitions of the full command list, including
+suite guards. Defaults preserve the unsharded run. CI may set
+RUN_SUITE_SHARD_INDEX/COUNT instead; these are consumed before children run.
+Every command logs its start, exit status and elapsed seconds.
 
 Recipe lines may use make variables ($(NODE_CHROMIUM) in the node harness
 lines): when any line contains "$", the runner asks `make -n` for the expanded
@@ -75,8 +80,11 @@ def run(commands: list[str], cwd: Path) -> list[str]:
         if command.startswith("python3 "):
             argv_command = f'"{sys.executable}" {command[len("python3 "):]}'
         print(command, flush=True)
+        print(f"run_suite: START: {command}", flush=True)
         started = time.monotonic()
         rc = subprocess.run(argv_command, shell=True, cwd=str(cwd)).returncode
+        elapsed = time.monotonic() - started
+        print(f"run_suite: END (rc={rc}, {elapsed:.3f}s): {command}", flush=True)
         if rc != 0:
             failed.append(command)
             print(f"run_suite: FAILED (rc={rc}, {time.monotonic() - started:.0f}s): {command}", flush=True)
@@ -89,12 +97,27 @@ def suite_guards(target: str) -> list[str]:
             if target == "test-unit-modules" else [])
 
 
+def shard_commands(commands: list[str], shard_index: int, shard_count: int) -> list[str]:
+    """One-based round-robin partition; preserve order within each shard."""
+    if shard_count < 1 or not 1 <= shard_index <= shard_count:
+        raise ValueError("require 1 <= shard-index <= shard-count")
+    return commands[shard_index - 1::shard_count]
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("target")
     parser.add_argument("--makefile", type=Path, default=ROOT / "Makefile")
+    parser.add_argument("--shard-index", type=int, default=os.environ.get("RUN_SUITE_SHARD_INDEX", "1"))
+    parser.add_argument("--shard-count", type=int, default=os.environ.get("RUN_SUITE_SHARD_COUNT", "1"))
     args = parser.parse_args(argv)
+    if args.shard_count < 1 or not 1 <= args.shard_index <= args.shard_count:
+        parser.error("require 1 <= shard-index <= shard-count")
+    # Consume once: child tests may invoke this runner and must not inherit a shard.
+    os.environ.pop("RUN_SUITE_SHARD_INDEX", None)
+    os.environ.pop("RUN_SUITE_SHARD_COUNT", None)
     commands = suite_guards(args.target) + recipe_lines(args.makefile, args.target)
+    commands = shard_commands(commands, args.shard_index, args.shard_count)
     failed = run(commands, args.makefile.resolve().parent)
     print(f"\nrun_suite: {args.target}: {len(commands) - len(failed)}/{len(commands)} passed", flush=True)
     for command in failed:

@@ -8,7 +8,9 @@ projection blend):
 1. DEFAULT PATH IS BYTE-IDENTICAL. Every value and DDF field of every row on
    the default basis equals what the engine on origin/main at 771c3422 (frozen
    in tests/fixtures/baseline_main_771c3422/; re-frozen from 61ecb39e after
-   JEG-1121's deliberate bench-seat value change, see its README) gives on the
+   JEG-1121's deliberate bench-seat value change, see its README; last
+   re-frozen 2026-11-08 from origin/main 1292e8fa, JEG-1588: how to re-freeze
+   is in that README and in docs/baseline-reds/README.md) gives on the
    same data, and so do
    setBasis(null), setBasis({mode: "default"}) and a blend of the four
    trade charts at equal weights (all our methodology since JEG-1073; the
@@ -36,6 +38,7 @@ import unittest
 from pathlib import Path
 
 from tests._dist_server import DIST, ENGINE_PAGE, serve
+from tests._holds import pinned_holds_override
 from tests import _render_env
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -134,7 +137,8 @@ def browser_run(script, arg, overrides=None):
             raise _render_env.unavailable("no Chromium available")
         browser = p.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=exe)
         try:
-            with serve(DIST, overrides) as base:
+            # JEG-1578: pinned held-proof fixture (tests/_holds); caller overrides still win.
+            with serve(DIST, {**pinned_holds_override(DIST), **(overrides or {})}) as base:
                 page = browser.new_page(viewport={"width": 1280, "height": 900})
                 page.goto(base + "/classic/", wait_until="networkidle")
                 page.wait_for_function("() => window.TradeValueCurveControls && window.TradeValueCurveControls.isReady()", timeout=90000)

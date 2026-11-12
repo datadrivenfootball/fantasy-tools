@@ -189,12 +189,12 @@ class WorkedExample(unittest.TestCase):
         JEG-1047 (rule changed by Jeremy, 2026-10-29): projection waiver line
         is the 7-player band, so these moved."""
         res = run(load())
-        self.assertAlmostEqual(res["sources"]["p1"]["players"][201]["adjusted"], 51.498107, places=6)
+        self.assertAlmostEqual(res["sources"]["p1"]["players"][201]["adjusted"], 42.874996, places=6)  # JEG-1569 flip (was 51.498107)
         ddf = res["rows"][201]["ddf"]
         # JEG-1073: blended DDF Value is the chart average (== charts version).
-        self.assertAlmostEqual(ddf["blended"]["value"], 52.165616, places=6)
-        self.assertAlmostEqual(ddf["charts"]["value"], 52.165616, places=6)
-        self.assertAlmostEqual(ddf["projections"]["value"], 48.084613, places=6)
+        self.assertAlmostEqual(ddf["blended"]["value"], 56.584455, places=6)  # JEG-1569 flip (was 52.165616)
+        self.assertAlmostEqual(ddf["charts"]["value"], 56.584455, places=6)
+        self.assertAlmostEqual(ddf["projections"]["value"], 40.074907, places=6)  # was 48.084613
         bench = sum(v for g, v in res["ddf_weights"].items() if g.endswith("|bench"))
         self.assertAlmostEqual(bench, 0.15, places=12)
 

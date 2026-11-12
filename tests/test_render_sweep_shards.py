@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SHARD_TARGETS = ["test-render-sweep-1", "test-render-sweep-2", "test-render-sweep-3"]
+SHARD_TARGETS = ["test-render-sweep-1", "test-render-sweep-2", "test-render-sweep-3", "test-render-sweep-4"]
 
 
 def recipe_modules(makefile_text, target):
@@ -76,9 +76,11 @@ class RenderSweepShardsTest(unittest.TestCase):
 
     def test_workflow_runs_every_shard_and_only_on_dispatch(self):
         wf = (ROOT / ".github/workflows/render-sweep.yml").read_text(encoding="utf-8")
-        for n in ("1", "2", "3"):
+        for n in ("1", "2", "3", "4"):
             self.assertIn(n, re.search(r"shard:\s*\[([^\]]*)\]", wf).group(1))
-        self.assertIn("make test-render-sweep-${{ matrix.shard }}", wf)
+        # JEG-1546: each shard runs through run_suite.py so it continues past a red module.
+        self.assertIn("make test-render-sweep-shard SHARD=${{ matrix.shard }}", wf)
+        self.assertIn("test-render-sweep-shard:\n\tpython3 tests/run_suite.py test-render-sweep-$(SHARD)\n", self.makefile)
         self.assertIn("fail-fast: false", wf)
         self.assertIn("timeout-minutes: 60", wf)
         self.assertIsNone(re.search(r"^\s*schedule:", wf, re.M))

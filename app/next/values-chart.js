@@ -43,11 +43,15 @@ const vawTxt=p=>{const v=vawOf(p);return v===null?'n/a':v.toFixed(1)};
 const pv=(p,k)=>k==='vaw'?vawOf(p):num(p[k])?p[k]:null;
 const val=(p,k)=>{const v=k==='dcbs'?dCbs(p):pv(p,k);return v===null?-1e9:v};
 const gapOf=p=>num(p.cbs)&&num(p.fc)?p.ddf-(p.cbs+p.fc)/2:num(p.cbs)?p.ddf-p.cbs:num(p.fc)?p.ddf-p.fc:null;
+/* R6-CX-02: the card's gap label names the charts gapOf actually used. */
+const gapLabel=p=>num(p.cbs)&&num(p.fc)?'DDF minus CBS/FantasyCalc average':num(p.cbs)?'DDF minus CBS':num(p.fc)?'DDF minus FantasyCalc':'DDF minus CBS/FantasyCalc average';
 const dCbs=p=>num(p.cbs)?p.ddf-p.cbs:null;
 const sg=v=>num(v)?(v>=0?'+':'−')+Math.abs(v).toFixed(1):'—';
 const vpAttr=s=>String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 const vpLeague=()=>{const v=window.DDFValues;return !!(v&&v.bs&&v.bs.isLeague&&v.bs.isLeague())};
 function vpActs(p,cls){const n=vpAttr(p.n);return `<span class="vp-acts ${cls||''}"><button type="button" class="vp-act" data-act="own" data-n="${n}" aria-label="Set your own value for ${n}">Set your own value</button>${vpLeague()?`<button type="button" class="vp-act" data-act="bs" data-n="${n}" aria-label="Buy / Sell view for ${n}">Buy / Sell view</button>`:''}</span>`}
+function ovCell(p){const n=vpAttr(p.n);return `<td class="ovcol"><button type="button" class="vp-act" data-act="own" data-n="${n}" aria-label="${p.ov?'Edit your value for ':'Set your own value for '}${n}">${p.ov?'Edit':'Set'}</button>${vpLeague()?`<button type="button" class="vp-act" data-act="bs" data-n="${n}" aria-label="Buy / Sell view for ${n}">Buy/Sell</button>`:''}</td>`}
+const POS_ORDER=['QB','RB','WR','TE'];
 let firstDraw=true,quiet=false,sortKey='ddf',shown=[],geo=[],hl=null,pinned=null,cardIdx=null,anchorEl=null,hideT=null,focusIdx=0,W=960;
 const H=370;
 function rankKey(){return $('rank').value}
@@ -112,17 +116,29 @@ function render(){
  $('count').textContent=D.length?n+' of '+D.length+' in view'+cap:(document.body.classList.contains('values-live')?'No players':'Loading values…');
  if(cardIdx!==null){if(pinned!==null&&shown[cardIdx]&&anchorEl&&anchorEl.closest('tbody'))placeAfter();else hideCard(true)}
 }
+/* Group by position: off (default) = one flat list by the sort column with a position chip; on = position header rows (JEG-1621). */
+const GROUP_KEY='ddf:values:groupByPosition';
+let groupByPos=false;
+try{groupByPos=localStorage.getItem(GROUP_KEY)==='1'}catch(e){}
+function syncGroupBtn(){const b=$('group-pos');if(b)b.setAttribute('aria-pressed',String(groupByPos))}
+const gb=$('group-pos');
+if(gb)gb.addEventListener('click',()=>{groupByPos=!groupByPos;try{localStorage.setItem(GROUP_KEY,groupByPos?'1':'0')}catch(e){}syncGroupBtn();hideCard(true);renderTable()});
+syncGroupBtn();
 function cols(){const c=[['ddf','DDF'],['cbs','CBS (indexed)']];if($('fantasycalc').checked)c.push(['fc','Live market (FantasyCalc, indexed)']);EXTRA.forEach(([k])=>{const b=$('src-'+k);if(b&&b.checked)c.push([k,NAMES[k]])});if($('vaw-on').checked)c.push(['vaw','<span class="vaw-wide">Value above waivers</span><span class="vaw-narrow" aria-hidden="true">Above waivers</span>']);c.push(['dcbs','DDF vs CBS']);return c}
 function renderTable(){
  const c=cols();if(!c.some(k=>k[0]===sortKey))sortKey='ddf';
- $('head').innerHTML='<tr><th scope="col" class="pl">Player</th>'+c.map(([k,t])=>`<th scope="col" class="num" aria-sort="${k===sortKey?'descending':'none'}"><button type="button" class="sort" data-key="${k}">${t} <span class="arrow" aria-hidden="true">${k===sortKey?'▼':''}</span></button></th>`).join('')+'</tr>';
+ $('head').innerHTML='<tr><th scope="col" class="pl">Player</th>'+c.map(([k,t])=>`<th scope="col" class="num" aria-sort="${k===sortKey?'descending':'none'}"><button type="button" class="sort" data-key="${k}">${t} <span class="arrow" aria-hidden="true">${k===sortKey?'▼':''}</span></button></th>`).join('')+'<th scope="col" class="ovcol">Override</th></tr>';
  const rows=shown.map((o,i)=>({o,i})).sort((a,b)=>val(b.o.p,sortKey)-val(a.o.p,sortKey));
- $('rows').innerHTML=rows.map(({o,i})=>{const p=o.p;return `<tr data-i="${i}" tabindex="0" class="${p.n===hl?'values-hl':''}${p.ov?' ov-row':''}" aria-label="${p.n}${p.ov?', your override':''}, details on focus"><td class="pl"><span class="pn">${p.star?'<span class="pstar" aria-label="Your player">★</span> ':''}${p.n}</span> <span class="pos pos-${p.pos}">${p.pos}</span>${vpActs(p)}</td>`+c.map(([k])=>k==='ddf'&&p.ov?`<td class="num ovcell"><span class="ov-was">DDF ${p.base.toFixed(1)} →</span> <span class="ov-now">Yours ${p.ddf.toFixed(1)}</span></td>`:k==='dcbs'?`<td class="num ${dCbs(p)===null?'':dCbs(p)>=0?'dpos':'dneg'}">${sg(dCbs(p))}</td>`:k==='vaw'?`<td class="num vaw-cell${vawOf(p)===null?' vaw-na':''}"${vawOf(p)===null?' title="No trade chart prices this player"':''}>${vawTxt(p)}</td>`:`<td class="num">${fx(p[k])}</td>`).join('')+'</tr>'}).join('');
+ const grouped=groupByPos;
+ const rowHtml=({o,i})=>{const p=o.p;return `<tr data-i="${i}" tabindex="0" class="${p.n===hl?'values-hl':''}${p.ov?' ov-row':''}" aria-label="${p.n}${grouped?'':', '+p.pos}${p.ov?', your override':''}, details on focus"><td class="pl"><span class="pn">${p.star?'<span class="pstar" aria-label="Your player">★</span> ':''}${p.n}</span>${grouped?'':` <span class="pos pos-${p.pos}">${p.pos}</span>`}</td>`+c.map(([k])=>k==='ddf'&&p.ov?`<td class="num ovcell"><span class="ov-was">DDF ${p.base.toFixed(1)} →</span> <span class="ov-now">Yours ${p.ddf.toFixed(1)}</span></td>`:k==='dcbs'?`<td class="num ${dCbs(p)===null?'':dCbs(p)>=0?'dpos':'dneg'}">${sg(dCbs(p))}</td>`:k==='vaw'?`<td class="num vaw-cell${vawOf(p)===null?' vaw-na':''}"${vawOf(p)===null?' title="No trade chart prices this player"':''}>${vawTxt(p)}</td>`:`<td class="num">${fx(p[k])}</td>`).join('')+ovCell(p)+'</tr>'};
+ if(!grouped){$('rows').innerHTML=rows.map(rowHtml).join('');return}
+ const groups=[...new Set(rows.map(r=>r.o.p.pos))].sort((a,b)=>{const x=POS_ORDER.indexOf(a),y=POS_ORDER.indexOf(b);return (x<0?99:x)-(y<0?99:y)||String(a).localeCompare(String(b))});
+ $('rows').innerHTML=groups.map(g=>{const gr=rows.filter(r=>r.o.p.pos===g);return `<tr class="pos-grp"><th scope="rowgroup" colspan="${c.length+2}" class="pos-${g}">${g} <span class="pos-n">${gr.length}</span></th></tr>`+gr.map(rowHtml).join('')}).join('');
 }
 /* player card */
 function cardHTML(o){const p=o.p,g=gapOf(p),v=$('vaw-on').checked,row=(t,x)=>`<dt>${t}</dt><dd>${fx(x)}</dd>`;
  const href=E()&&E().buildHref?E().buildHref(p.star?{give:[p]}:{get:[p]}):'build.html';
- return `<div class="vc-head"><div><div class="vc-name">${p.star?'★ ':''}${p.n}</div><div class="vc-sub">${p.pos}${p.team?' · '+p.team:''}</div></div><button type="button" class="vc-close" aria-label="Close player card">×</button></div><dl><dt>Rank</dt><dd>#${o.rank}</dd>${p.ov?`<dt>DDF value</dt><dd>${p.base.toFixed(1)}</dd><dt>Your value (override)</dt><dd class="vc-neg">${p.ddf.toFixed(1)}</dd>`:`<dt>DDF value</dt><dd>${p.ddf.toFixed(1)}</dd>`}${row('CBS Sports indexed',p.cbs)}${row('USA Today indexed',p.usat)}${row('FantasyPros indexed',p.fp)}${row('Live market (FantasyCalc) indexed',p.fc)}<dt>DDF minus CBS/FantasyCalc average</dt><dd class="${g===null?'':g>=0?'vc-pos':'vc-neg'}">${sg(g)}</dd>${num(p.chg)?`<dt>Since last week</dt><dd>${sg(p.chg)}</dd>`:''}${v?`<dt>Value above waivers</dt><dd>${vawTxt(p)}</dd>`:''}</dl>${vpActs(p)}<a class="vc-link" href="${href}">Open in Build a Trade</a>`}
+ return `<div class="vc-head"><div><div class="vc-name">${p.star?'★ ':''}${p.n}</div><div class="vc-sub">${p.pos}${p.team?' · '+p.team:''}</div></div><button type="button" class="vc-close" aria-label="Close player card">×</button></div><dl><dt>Rank</dt><dd>#${o.rank}</dd>${p.ov?`<dt>DDF value</dt><dd>${p.base.toFixed(1)}</dd><dt>Your value (override)</dt><dd class="vc-neg">${p.ddf.toFixed(1)}</dd>`:`<dt>DDF value</dt><dd>${p.ddf.toFixed(1)}</dd>`}${row('CBS Sports indexed',p.cbs)}${row('USA Today indexed',p.usat)}${row('FantasyPros indexed',p.fp)}${row('Live market (FantasyCalc) indexed',p.fc)}<dt>${gapLabel(p)}</dt><dd class="${g===null?'':g>=0?'vc-pos':'vc-neg'}">${sg(g)}</dd>${num(p.chg)?`<dt>Since last week</dt><dd>${sg(p.chg)}</dd>`:''}${v?`<dt>Value above waivers</dt><dd>${vawTxt(p)}</dd>`:''}</dl>${vpActs(p)}<a class="vc-link" href="${href}">Open in Build a Trade</a>`}
 function placeAfter(){const c=$('values-card');if(!anchorEl||!document.contains(anchorEl)){return}const a=anchorEl.getBoundingClientRect(),w=c.offsetWidth,h=c.offsetHeight,vw=document.documentElement.clientWidth;let top=a.top-h-10;if(top<8)top=a.bottom+10;if(top+h>innerHeight-8)top=Math.max(8,innerHeight-h-8);let left=a.left+a.width/2-w/2;left=Math.max(8,Math.min(left,vw-w-8));c.style.top=top+'px';c.style.left=left+'px'}
 function refocus(a){if(a&&document.contains(a)){quiet=true;a.focus();quiet=false}}
 function showCard(i,el,pin){clearTimeout(hideT);if(quiet)return;const o=shown[i];if(!o)return;const c=$('values-card');if(pinned!==null&&!pin&&pinned!==i)return;cardIdx=i;anchorEl=el;if(pin)pinned=i;document.querySelectorAll('.values-hit.on').forEach(h=>h.classList.remove('on'));const he=hitEl(i);if(he)he.classList.add('on');c.innerHTML=cardHTML(o);c.hidden=false;placeAfter()}
@@ -181,7 +197,7 @@ function syncVaw(){const on=$('vaw-on').checked,sel=$('rank');let opt=sel.queryS
  if(on&&!opt){opt=document.createElement('option');opt.value='vaw';opt.textContent='Value above waivers';sel.appendChild(opt)}
  if(!on&&opt){if(sel.value==='vaw')sel.value='ddf';opt.remove()}
  const ch=$('vaw-chart');ch.disabled=!on;if(!on)ch.checked=false;$('vaw-legend').hidden=!(on&&ch.checked);
- $('vaw-note').textContent=on?'Shown as a column, in the player card and in Rank by. The average of the four trade charts’ values above waivers at your league settings, as DDF Value averages their adjusted values. Your overrides change DDF Value, not this.':'Off. Turn it on to add a Value above waivers column and a Rank by option.';
+ $('vaw-note').textContent=on?'Shown as a column, in the player card and in Rank by. The average of the four trade charts’ values above waivers at your league settings, as DDF Value by default averages their adjusted values. Your overrides change DDF Value, not this.':'Off. Turn it on to add a Value above waivers column and a Rank by option.';
  hideCard(true);render()}
 $('vaw-on').addEventListener('change',syncVaw);$('vaw-chart').addEventListener('change',syncVaw);
 /* Esc closes an open (i) first, leaving Customize open */
@@ -204,12 +220,22 @@ $('copy-prompt').addEventListener('click',function(){var phone=window.matchMedia
 syncVaw();
 
 window.DDFValues={D,render,applyOverrides,hideCard:()=>hideCard(true),setYours:set=>{yours=new Set([...set].map(String));D.forEach(p=>p.star=yours.has(p.key));render()}};
+/* R7-CX-03: Sources & methodology names the reader's value basis (Values > Overrides) when it is not the default; read
+   the way the Overrides tab reads it (engine basisInfo). No computation. */
+function basisNoteText(){const b=E()&&E().basisInfo?E().basisInfo():null;
+ if(!b||b.isDefault)return'';
+ if(b.fellBackToDefault)return' None of the sources in your current basis is available this week, so the DDF Value shown uses the default.';
+ const names={cbs:'CBS Sports',usatoday:'USA Today',fantasypros:'FantasyPros',fantasycalc:'FantasyCalc'};(b.sourceStates||[]).forEach(s=>{if(!names[s.key])names[s.key]=s.label});const nm=k=>names[k]||k;
+ if(b.mode==='single')return' Your current basis is '+nm(b.source)+' only, so the DDF Value shown is '+nm(b.source)+'’s adjusted value at your league settings.';
+ const pc=b.percents||{},keys=Object.keys(pc).filter(k=>pc[k]>0).sort((x,y)=>pc[y]-pc[x]);
+ return' Your current basis is a blend ('+keys.map(k=>pc[k]+'% '+nm(k)).join(' + ')+'), so the DDF Value shown is that weighted average of their adjusted values at your league settings.'}
+function syncBasisNote(){const t=basisNoteText();document.querySelectorAll('.basis-now').forEach(el=>{el.textContent=t})}
 /* start: wait for the engine, then render; re-read after every rebuild (settings, basis, overrides) */
 const V0=window.DDFValues;
 V0.ready=(E()?E().ready:Promise.reject(new Error('no engine'))).then(()=>{
  const lg=E().league();if(lg&&lg.mine){const t=lg.teams.find(t=>t.id===lg.mine);if(t)yours=new Set(t.keys)}
- load();syncChips();resetZoom();render();renderRisers();document.body.classList.add('values-live');
- E().on(()=>{load();syncChips();render();renderRisers();document.dispatchEvent(new CustomEvent('ddf:values-change'))});
+ load();syncChips();resetZoom();render();renderRisers();syncBasisNote();document.body.classList.add('values-live');
+ E().on(()=>{load();syncChips();render();renderRisers();syncBasisNote();document.dispatchEvent(new CustomEvent('ddf:values-change'))});
  const pw=()=>{priorState='loading';E().priorWeek().then(r=>{prior=r;priorState='ok'},()=>{prior=null;priorState='failed'}).then(()=>{load();renderRisers();render()})};
  pw();E().on(()=>{clearTimeout(V0._pw);V0._pw=setTimeout(pw,250)});
  return V0;

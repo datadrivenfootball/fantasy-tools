@@ -6,7 +6,7 @@ tier rules recomputed here, not through DDF.league):
 - team.html: starter and roster totals, per-position tier labels (league per-slot medians, 125% cap, 110% / 90%),
   every league-table cell and its rank tier (thirds of the team count);
 - explore.html: every player's DDF and Analyst charts value, and the heading count equals the number of toggles;
-- partners.html: every partner's starter DDF / Analyst values and its DDF edge / Analyst premium / Live market premium
+- partners.html: every partner's starter DDF / Analyst values (Details toggle) and its DDF edge / Analyst premium / Live market premium
   tags (15% edge rule); my team and waivers are never a partner.
 Discrimination: the same check fails when ddf-league.js is served with a 0.1 drift on one team's starter value.
 Nav: with only ddf:pasted, the workspace pages show the post-league nav; with nothing set they show Get started.
@@ -56,6 +56,13 @@ ORACLE = r"""(league) => {
   const rows = C.getAllRows().filter(r => POS.includes(r.pos));
   const byKey = new Map(rows.map(r => [String(r.player_key), r]));
   const shape = C.getRosterShape();
+  // JEG-1393 decision 4: a chart's fill-in estimate (row.estimated[k]) counts as 0 on the Analyst charts and Live market
+  // (Jeremy, 2026-11-08: "No price is an implied 0").
+  const CH = ['cbs', 'usatoday', 'fantasypros', 'fantasycalc'];
+  const listed = got => got.map(r => { const est = r.estimated || {}; if (!CH.some(k => est[k])) return r;
+    const v = {...r.values}; CH.forEach(k => { if (est[k]) v[k] = 0; }); return {...r, values: v}; });
+  // complete = every DDF starter has a value on that chart (a bench player without one adds nothing)
+  const onChart = (t, rows, key) => t.L.starters.every(r => { const x = rows[t.rows.indexOf(r)]; return typeof x.values[key] === 'number' && isFinite(x.values[key]); });
   const teams = league.teams.map((t, i) => {
     const got = [];
     t.players.forEach(e => {
@@ -64,9 +71,10 @@ ORACLE = r"""(league) => {
       if (r && !got.includes(r)) got.push(r);
     });
     const L = F.lineupValue(got, shape, 'ddf_value');
-    const A = F.lineupValue(F.withChartAverage(got, ['cbs', 'usatoday', 'fantasypros']), shape, F.MARKET_KEY);
-    const V = F.lineupValue(got, shape, 'fantasycalc');
-    return {i, name: t.name, rows: got, L, A, V};
+    const chart = F.withChartAverage(listed(got), ['cbs', 'usatoday', 'fantasypros']);
+    const A = F.lineupValue(chart, shape, F.MARKET_KEY);
+    const V = F.lineupValue(chart, shape, 'fantasycalc');
+    return {i, name: t.name, rows: got, chart, L, A, V};
   }).filter(t => t.rows.length);
   const med = vals => { const s = vals.slice().sort((a, b) => a - b), m = s.length >> 1; return s.length ? (s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2) : null; };
   const SLOTS = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'SUPERFLEX'];
@@ -97,7 +105,7 @@ ORACLE = r"""(league) => {
   teams.filter(t => t !== mine).forEach(t => {
     const d = t.L.starterValue, an = t.A.starterValue, lv = t.V.starterValue, tags = [];
     // An incomplete chart lineup (a starter the charts do not list) is not judged and shows no chart total.
-    const aOk = t.A.unvalued.length === 0, lOk = t.V.unvalued.length === 0;
+    const aOk = onChart(t, t.chart, F.MARKET_KEY), lOk = onChart(t, t.chart, 'fantasycalc');
     if (aOk && an > 0 && d / an >= 1.15) tags.push('DDF edge');
     if (aOk && an > 0 && d / an < 1) tags.push('Analyst premium');
     if (lOk && lv > 0 && d / lv < 1) tags.push('Live market premium');
@@ -131,9 +139,11 @@ READ_EXPLORE = r"""() => {
 
 READ_PARTNERS = r"""() => {
   const partners = {};
+  // JEG-1560: the values sit in each partner's Details toggle; the old tag keys ride on data-tags (labels renamed).
+  const NAMES = {edge: 'DDF edge', analyst: 'Analyst premium', live: 'Live market premium'};
   document.querySelectorAll('#team-list .pt-row').forEach(r => {
-    partners[r.querySelector('.tn').textContent.trim()] = {ddf: r.querySelector('.stat.d .val').textContent.trim(),
-      analyst: r.querySelector('.stat.m .val').textContent.trim(), tags: [...r.querySelectorAll('.tag')].map(t => t.textContent.trim())};
+    partners[r.querySelector('.tn').textContent.trim()] = {ddf: r.querySelector('[data-v=ddf]').textContent.trim(),
+      analyst: r.querySelector('[data-v=analyst]').textContent.trim(), tags: (r.dataset.tags || '').split(' ').filter(Boolean).map(k => NAMES[k])};
   });
   return {partners, waiversRow: !!document.querySelector('#team-list [data-waivers]')};
 }"""

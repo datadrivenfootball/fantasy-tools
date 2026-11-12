@@ -103,7 +103,10 @@ class MonitorWiringTest(unittest.TestCase):
                         "the loader is defined but never called")
 
     def test_the_built_dashboard_copy_matches(self):
-        self.assertEqual(DASHBOARD, (ROOT / "dist" / "modules" / "dashboard.html").read_text(encoding="utf-8"))
+        # JEG-1586: the build fills the monitor's {{DDF_SITE_URL}} / {{DDF_GITHUB_REPOSITORY}} placeholders in the dist copy
+        # (sync_dashboard_artifacts.module_dashboard_html); the copy must equal the source with exactly those filled.
+        from sync_dashboard_artifacts import module_dashboard_html  # noqa: PLC0415
+        self.assertEqual(module_dashboard_html(DASHBOARD), (ROOT / "dist" / "modules" / "dashboard.html").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

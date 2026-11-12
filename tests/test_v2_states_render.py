@@ -230,7 +230,8 @@ class StatesRenderTest(unittest.TestCase):
                 'const METHOD_COLUMNS = [["vorp", "DDF Value"], ["indexed", "Market"], ["dda", "Value above waivers"]];', 1),
                 "with_failure": False},
             "failure leaves values visible": {"v2_js": js.replace(
-                '["v2Main", "v2Targets", "v2Risers", "v2Compare", "v2FindTrade", "v2How", "v2Audit", "v2Research"].forEach(id => { $(id).hidden = true; });',
+                # JEG-1586: anchor follows v2.js (the list grew with Find, Waivers, Home and Simplified; the guard is unchanged).
+                '["v2Main", "v2Targets", "v2Risers", "v2Compare", "v2FindTrade", "v2FindLeague", "v2Waivers", "v2How", "v2Audit", "v2Research", "v2Home", "v2Simplified"].forEach(id => { if ($(id)) $(id).hidden = true; });',
                 '$("v2Main").hidden = false;', 1)},
             "empty state never drawn": {"v2_js": js.replace("    renderEmpty();\n", "", 1), "with_failure": False},
             "bottom sheet instead of full screen": {"v2_css": css.replace(

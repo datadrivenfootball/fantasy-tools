@@ -173,11 +173,12 @@ body:has(.ctx-strip) :is(.explore main,main.find-page) :is(td,th){padding-inline
   body:not(.home2) .morewrap>button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.28);white-space:nowrap}
   .ddf-lbl-more{display:none}
   .ddf-lbl-menu{display:inline}
-  .morewrap{position:static}
+  .morewrap,body.home2 .morewrap{position:static}
   header{position:sticky}
   header .header-inner,header .h2in{position:relative}
-  .morewrap .menu{right:16px;left:auto;top:calc(100% - 4px);width:min(340px,calc(100vw - 32px));min-width:0;max-height:calc(100vh - 90px);box-sizing:border-box}
-  .home2 .morewrap .menu{right:18px}
+  /* JEG-1595: the panel spans the header's width (inside the viewport and the iPhone safe areas), whatever the button's position. */
+  .morewrap .menu,body.home2 .morewrap .menu{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));top:calc(100% + 4px);width:auto;min-width:0;max-width:none;max-height:calc(100vh - 90px);max-height:calc(100dvh - 90px);box-sizing:border-box;-webkit-overflow-scrolling:touch}
+  .morewrap .menu a{touch-action:manipulation;min-height:44px;display:flex;align-items:center;box-sizing:border-box;overflow-wrap:anywhere}
 }
 
 /* Global overflow safety net (no desktop change: all rules only bite when content is too wide) */
@@ -434,3 +435,66 @@ header nav{flex-wrap:nowrap;min-width:0}
   header .morewrap>button{padding:8px 8px}
   header .ddf-bm-wrap{margin-right:0}
 }
+/* ===== Mobile pass (JEG-1557, 2026-11-07): defects found by the 390/360 sweep of the live site ===== */
+/* Info icon: a 44px-tall summary rule stretched the 18px circle into an oval; keep the circle, widen only the tap area */
+.info summary{min-height:0!important;min-width:0!important;padding:0!important;position:relative;line-height:16px}
+.info summary::after{content:"";position:absolute;inset:-13px}
+/* Small text: eyebrows and labels were 11px */
+.eyebrow2,.range-title,.wl-eyebrow,.provider-label,.urlbar .lbl,.values-page th.pl,.sitemap h2,.sitemap h4,.explore .sitemap h2{font-size:12px!important}
+.xbar .button{flex:none;white-space:nowrap}
+@media(max-width:760px){
+  /* Entry header: do not pin 130px of steps over the page, and keep the three steps in one tidy row */
+  header.entry-head{position:static}
+  .entry-head .entry-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 10px;align-items:start}
+  .entry-head .entry-steps>li{display:block;line-height:1.35}
+  .entry-head .entry-steps>li+li::before{content:none}
+  /* Tap targets: footer links, header menu */
+  .sitemap a{display:flex;align-items:center;min-height:44px;padding:0}
+  header .morewrap>button,header .menu>summary,header nav>a{min-height:44px}
+  .values-page label:has(input[type=checkbox]){display:inline-flex;align-items:center;min-height:44px}
+}
+.values-page .pos,.values-page .arrow{font-size:12px!important}
+/* ===== Touch pass (JEG-1557, Jeremy 2026-11-07): fast taps must not double-tap-zoom; deliberate pinch-zoom stays ===== */
+/* Never use user-scalable=no or maximum-scale (WCAG 1.4.4). touch-action: manipulation keeps pan and pinch, drops double-tap zoom. */
+html{-webkit-tap-highlight-color:rgba(23,108,77,.18);-webkit-text-size-adjust:100%;text-size-adjust:100%}
+a[href],button,input,select,textarea,summary,label,[role=button],[role=tab],[role=link],[role=switch],[role=checkbox],[role=radio],[tabindex]:not([tabindex="-1"]),[onclick],.chip,.button,.btn,.fchip,.fbtn{touch-action:manipulation!important}  /* important: some controls use all:unset, which resets touch-action */
+/* Chart and value curve: we handle horizontal drag ourselves (pointer events); vertical scroll and pinch-zoom still work */
+#vchart{touch-action:pan-y pinch-zoom!important}
+/* Menus, panels and scrollers: scroll stays inside them instead of chaining to the page behind */
+.menu-panel,.ddf-chipmenu,.morewrap .menu,.valmenu,.player-scroll{overscroll-behavior:contain}
+.table-wrap,.ws-steps,.car-viewport{overscroll-behavior-x:contain}
+/* iOS zooms the page when a field under 16px takes focus */
+@media(max-width:760px){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]):not([type=file]):not([type=button]):not([type=submit]),textarea,select{font-size:16px!important}
+}
+/* JEG-1564: roster freshness banner (DDF.leagueMeta), bookmark prompt action, one-bookmark option, chip age line */
+.ddf-fresh{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin:0 0 16px;font-size:14px;line-height:1.45}
+.ddf-fresh-t{margin:0;flex:1 1 260px}
+.ddf-fresh-note{color:var(--muted)}
+.ddf-fresh-note .ddf-fresh-x{width:28px;height:28px}
+.ddf-fresh-prompt{background:#f3f5f2;border:1px solid #dbe0dc;border-radius:10px;padding:10px 12px}
+.ddf-fresh-stale{background:#fff7e6;border:1px solid #c9a227;border-radius:10px;padding:12px 14px;color:#3d3416}
+.ddf-fresh-go{font-weight:600;color:#176c4d;text-underline-offset:3px;white-space:nowrap}
+.ddf-fresh-x{background:none;border:0;padding:0;width:32px;height:32px;font-size:20px;line-height:1;color:inherit;cursor:pointer;flex:none}
+.ddf-bm-go{flex:none;background:#176c4d;color:#fff;border:0;border-radius:8px;padding:6px 12px;font-weight:600;cursor:pointer}
+.ddf-bm-ht{flex:1}
+.ddf-bm-keep{display:block;background:none;border:0;padding:6px 0 0;margin:0;color:#176c4d;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer;text-align:left;font-size:13.5px}
+.ddf-bm-keep[hidden],.ddf-bm-go[hidden]{display:none}
+.ddf-cm-age{font-size:13px;color:var(--muted);margin:2px 0 6px}
+.ddf-cm-age[hidden]{display:none}
+/* JEG-1568: Start fresh confirm (in-page), menu action */
+.ddf-cm-fresh{display:block;width:100%;min-height:44px;margin-top:4px;background:none;border:0;padding:8px 0;text-align:left;font:inherit;font-weight:600;color:#a83e12;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.ddf-fresh-dlg{position:fixed;inset:0;z-index:120;background:rgba(18,32,44,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.ddf-fresh-dlg[hidden]{display:none}
+.ddf-fresh-panel{background:#fff;color:#12202c;border-radius:14px;max-width:460px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 64px rgba(18,32,44,.3);font-family:"Archivo",system-ui,sans-serif}
+.ddf-fresh-panel h2{margin:0 0 8px;font-size:22px}
+.ddf-fresh-panel p{margin:0 0 14px;font-size:15px;line-height:1.5}
+.ddf-sf-check{display:flex;gap:10px;align-items:flex-start;min-height:44px;font-size:15px;cursor:pointer}
+.ddf-sf-check input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:#176c4d}
+.ddf-sf-check small{display:block;color:#5c6a76;font-size:13px;margin-top:2px}
+.ddf-sf-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.ddf-sf-actions button{min-height:44px;padding:10px 16px;border-radius:8px;font:inherit;font-weight:600;cursor:pointer;border:1px solid #bec8c1;background:#fff;color:#12202c}
+.ddf-sf-actions .ddf-sf-go{background:#a83e12;border-color:#a83e12;color:#fff}
+@media(max-width:480px){.ddf-sf-actions{flex-direction:column-reverse}.ddf-sf-actions button{width:100%}}
+/* JEG-1568: the link notice dismiss button meets the 44px target rule */
+.ddf-link-notice button{min-width:44px;min-height:44px}

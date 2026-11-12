@@ -19,25 +19,33 @@
  *
  * API: window.DDF.league
  *   ready            Promise<current()>, after DDF.engine.ready and DDF.link.ready (link decode); a link's settings applied
- *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, slots:[qb,rb,wr,te,flex,bench]},
+ *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench]},
  *                     me:index|null, teams:[{index, name, players:[record | {name, key:null, pos, unpriced:true}],
  *                     unmatched:[{line|name, reason}], count}], waivers:[record], waiversFromLink:boolean} or null
  *                     (record = DDF.engine record; waivers = state.waivers when the link has them, else every priced
  *                     player on no roster, "available players", best DDF Value first)
  *   applySettings()  the league's settings -> DDF.engine.apply (only a link league carries settings); true when changed
- *   setSettings(s)   {scoring, teams, superflex, slots} -> DDF.engine.apply, and DDF.link.update on a link league
+ *   setSettings(s)   {scoring, teams, superflex, superflexSlots?, slots} -> DDF.engine.apply, and DDF.link.update on a link league
  *   myTeam()         current().teams[me] or null
  *   opponents()      every other team that has players (waivers are never a team here)
  *   lineup(team)     {starters, bench, slots:{QB,RB,WR,TE,FLEX,SUPERFLEX}, empty, unpriced, starterValue, benchValue, total,
  *                     analyst:{starterValue, total, complete}, live:{starterValue, total, complete}} — records, engine
- *                     values; analyst = mean of CBS Sports, USA Today, FantasyPros rows (withChartAverage), live = FantasyCalc
+ *                     values; analyst = mean of CBS Sports, USA Today, FantasyPros rows (withChartAverage), live = FantasyCalc,
+ *                     both on chartRows (a fill-in estimate counts as 0); a side is complete when every DDF starter has
+ *                     a value there, so only a real null (a chart that does not run) leaves it incomplete (JEG-1393 d4)
+ *   chartRows(rows)  engine rows with each fill-in estimate on the Analyst charts and Live market set to 0 (no price is an
+ *                     implied 0), plus the Analyst charts average (F.MARKET_KEY)
  *   positionTiers()  {slots:{QB:[median..],..}, teams:[{index, positions:{QB:{ratio, tier, value, score, medianSum,
  *                     players:[record], empty}, ..}}]} — ratio = sum(min(v, 1.25 x slot median)) / sum(slot medians)
  *                     over the league's real per-slot medians from every team's starters; Strong >= 1.10, Average >= 0.90
  *   leagueTable()    [{index, name, mine, starter, roster, analystStarter, analystRoster, ranks:{..}, tiers:{..}}]
  *                     tiers by column rank in thirds of the team count (12 teams: 1-4 / 5-8 / 9-12)
  *   partnerTags(team) {ddf, analyst, live, ratioAnalyst, ratioLive, tags:['edge'|'analyst'|'live']} starters, 15% edge rule
- *   held() / setHeld(keys)        explore.html Evaluate/Hold: held player keys (sessionStorage ddf:hold)
+ *   partnerRank()    [{index, name, rank, score, get:[{pos, amount, mine, theirs}], give:[..], twoWay, ratioAnalyst, partner}]
+ *                     every opponent (never waivers), best trading partner first: score = sum over QB/RB/WR/TE where
+ *                     one side is Strong (>= 1.10) and the other Weak (< 0.90) of min(surplus, need) on positionTiers
+ *                     ratios (1.0 = middle team), both ways; ties by partnerTags ratioAnalyst; score null without my team
+ *   held() / setHeld(keys)       explore.html Evaluate/Hold: held player keys (sessionStorage ddf:hold)
  *   skipped() / setSkipped(names) partners.html skipped teams by name (sessionStorage ddf:skip)
  *   moves() / setMoves(list)      waivers.html roster moves [{add:key, drop:key|null, at}] (sessionStorage ddf:moves), applied to my team
  *   waiversOn() / setWaiversOn(b) the shared "also look for waiver pickups" switch (sessionStorage ddf:waivers "1"/"0")
@@ -129,8 +137,12 @@
   // The league's settings in the link format; a pasted or saved league has none of its own, so they are the engine's.
   function engineSettings() {
     var s = DDF.engine.settings(), r = s.roster || {};
-    return {scoring: s.scoring, teams: s.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: SLOT_KEYS.map(function (k) { return r[k] || 0; })};
+    var out = {scoring: s.scoring, teams: s.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: SLOT_KEYS.map(function (k) { return r[k] || 0; })};
+    if ((r.SUPERFLEX || 0) >= 2) out.superflexSlots = r.SUPERFLEX;   // JEG-1571: absent = 1 slot when superflex
+    return out;
   }
+  // JEG-1571: QB-eligible flex (superflex) slots in link-format settings: superflexSlots when 2, else the boolean.
+  function superflexSlots(s) { return !s || !s.superflex ? 0 : (Number(s.superflexSlots) === 2 ? 2 : 1); }
   // Roster moves from waivers.html ("Confirm roster move", sessionStorage ddf:moves, in order): a local layer over the
   // league, never written into ddf:league / ddf:pasted. add joins my team (skipped if rostered anywhere), drop leaves it.
   function readMoves() {
@@ -194,7 +206,7 @@
     var out = {};
     if (s.scoring) out.scoring = s.scoring;
     if (Number.isInteger(Number(s.teams)) && Number(s.teams) > 0) out.teams = Number(s.teams);
-    if (typeof s.superflex === "boolean") out.superflex = s.superflex;
+    if (typeof s.superflex === "boolean") { out.superflex = s.superflex; out.superflexSlots = superflexSlots(s); }
     if (Array.isArray(s.slots)) {
       out.roster = {};
       SLOT_KEYS.forEach(function (k, i) { if (Number.isInteger(s.slots[i])) out.roster[k] = s.slots[i]; });
@@ -205,7 +217,7 @@
     var cur = DDF.engine.settings(), r = cur.roster || {};
     if (want.scoring && want.scoring !== cur.scoring) return true;
     if (want.teams && want.teams !== cur.teams) return true;
-    if (typeof want.superflex === "boolean" && want.superflex !== ((r.SUPERFLEX || 0) > 0)) return true;
+    if (Number.isInteger(want.superflexSlots) && want.superflexSlots !== (r.SUPERFLEX || 0)) return true;
     return Object.keys(want.roster || {}).some(function (k) { return want.roster[k] !== r[k]; });
   }
   function applySettings() {
@@ -222,7 +234,9 @@
     var want = toEngine(s || {});
     var cur = build();
     if (cur && cur.source === "link" && DDF.link && DDF.link.update) {
-      DDF.link.update({settings: Object.assign({}, DDF.link.current().settings, {scoring: s.scoring, teams: Number(s.teams), superflex: !!s.superflex, slots: s.slots.slice()})});
+      var next = Object.assign({}, DDF.link.current().settings, {scoring: s.scoring, teams: Number(s.teams), superflex: !!s.superflex, slots: s.slots.slice()});
+      if (superflexSlots(s) === 2) next.superflexSlots = 2; else delete next.superflexSlots;
+      DDF.link.update({settings: next});
     }
     var out = DDF.engine.apply(want);
     changed();
@@ -232,6 +246,21 @@
   /* ---- reads on the engine rows ---- */
   function priced(team) { return (team ? team.players : []).filter(function (p) { return !p.unpriced; }); }
   function recsOf(rows, ix) { return rows.map(function (r) { return ix.get(r); }); }
+  // Engine rows for the Analyst charts and Live market figures: a chart's fill-in estimate (row.estimated[k]) is not that
+  // chart's own number, so it never counts; the chart does not price him, which is an implied 0 (Jeremy, 2026-11-08,
+  // JEG-1393 decision 4: "No price is an implied 0"). A real null (a chart that does not run) stays null. Then the
+  // Analyst charts average (F.MARKET_KEY, withChartAverage) is added. DDF Value is untouched.
+  function chartRows(rows) {
+    var keys = ANALYST.concat([LIVE]);
+    var listed = rows.map(function (r) {
+      var est = r.estimated || {};
+      if (!keys.some(function (k) { return est[k]; })) return r;
+      var v = Object.assign({}, r.values);
+      keys.forEach(function (k) { if (est[k]) v[k] = 0; });
+      return Object.assign({}, r, {values: v});
+    });
+    return F().withChartAverage(listed, ANALYST);
+  }
   function lineup(team) {
     var recs = priced(team), rows = recs.map(function (r) { return r.row; });
     var byRow = new Map(recs.map(function (r) { return [r.row, r]; }));
@@ -239,14 +268,17 @@
     var L = F().lineupValue(rows, shape, VALUE_KEY);
     var slots = {};
     POS_ROWS.forEach(function (s) { slots[s] = recsOf(L.slots[s] || [], byRow); });
-    var avgRows = F().withChartAverage(rows, ANALYST);
-    var A = F().lineupValue(avgRows, shape, F().MARKET_KEY);
-    var Lv = F().lineupValue(rows, shape, LIVE);
-    var side = function (v) { return {starterValue: v.starterValue, total: v.total, complete: v.unvalued.length === 0, starters: v.starters.length, unvalued: v.unvalued.length}; };
+    // The chart figures count a fill-in estimate as 0 (chartRows). Each chart side is complete when every DDF starter has
+    // a value there; a bench player without one adds nothing (JEG-1393 decision 4, 2026-11-08).
+    var listed = chartRows(rows), byOrig = new Map(rows.map(function (r, i) { return [r, listed[i]]; }));
+    var A = F().lineupValue(listed, shape, F().MARKET_KEY);
+    var Lv = F().lineupValue(listed, shape, LIVE);
+    var startersListed = function (key) { return L.starters.every(function (r) { return finite(byOrig.get(r).values[key]); }); };
+    var side = function (v, key) { return {starterValue: v.starterValue, total: v.total, complete: startersListed(key), starters: v.starters.length, unvalued: v.unvalued.length}; };
     return {starters: recsOf(L.starters, byRow), bench: recsOf(L.bench, byRow), unvalued: recsOf(L.unvalued, byRow), slots: slots, empty: L.empty,
       unpriced: (team ? team.players : []).filter(function (p) { return p.unpriced; }),
       starterValue: L.starterValue, benchValue: L.benchValue, total: L.total, counts: L.counts,
-      analyst: side(A), live: side(Lv)};
+      analyst: side(A, F().MARKET_KEY), live: side(Lv, LIVE)};
   }
   function median(values) { return window.TradeValueTeamSummary.median(values); }
   var tierOf = function (ratio) { return ratio >= STRONG ? "strong" : ratio >= AVERAGE ? "average" : "weak"; };
@@ -313,6 +345,48 @@
     return {ddf: ddf, analyst: analyst, live: live, ratioAnalyst: ra, ratioLive: rl, tags: tags, lineup: L,
       analystComplete: Boolean(L.analyst.complete), liveComplete: Boolean(L.live.complete)};
   }
+  // Partner ranking (JEG-1560, docs/claude-log/2026-11-07-jeg1560-partners-ranking.md). Only positionTiers() ratios
+  // (1.0 = the league's middle team at that position), their tiers and partnerTags().ratioAnalyst; no new value math.
+  // A position counts only where the published tiers line up (Strong >= 1.10 on one side, Weak < 0.90 on the other):
+  //   get(p)  = theirs Strong and mine Weak ? min(theirs - 1, 1 - mine) : 0
+  //   give(p) = mine Strong and theirs Weak ? min(mine - 1, 1 - theirs) : 0
+  //   score   = sum over QB, RB, WR, TE of get + give; ties by ratioAnalyst (higher first, not judged last), then index.
+  // Without my team the score is null and the order is the tie-break alone.
+  var FIT_POS = ["QB", "RB", "WR", "TE"];
+  function partnerRank() {
+    var cur = build();
+    if (!cur) return [];
+    var tiers = positionTiers();
+    var byIndex = new Map(tiers.teams.map(function (t) { return [t.index, t]; }));
+    var mine = cur.me !== null ? byIndex.get(cur.me) || null : null;
+    var ratio = function (t, p) { var x = t && t.positions[p]; return x && finite(x.ratio) ? x.ratio : null; };
+    var rows = cur.teams.filter(function (t) { return t.index !== cur.me && t.players.length; }).map(function (team) {
+      var theirs = byIndex.get(team.index) || null, tags = partnerTags(team), get = [], give = [], score = null;
+      if (mine) {
+        score = 0;
+        FIT_POS.forEach(function (p) {
+          var m = ratio(mine, p), t = ratio(theirs, p);
+          if (m === null || t === null) return;
+          var g = t >= STRONG && m < AVERAGE ? Math.min(t - 1, 1 - m) : 0, v = m >= STRONG && t < AVERAGE ? Math.min(m - 1, 1 - t) : 0;
+          if (g > 0) get.push({pos: p, amount: g, mine: m, theirs: t});
+          if (v > 0) give.push({pos: p, amount: v, mine: m, theirs: t});
+          score += g + v;
+        });
+        var big = function (a, b) { return b.amount - a.amount || FIT_POS.indexOf(a.pos) - FIT_POS.indexOf(b.pos); };
+        get.sort(big); give.sort(big);
+      }
+      return {index: team.index, name: team.name, score: score, get: get, give: give, twoWay: get.length > 0 && give.length > 0,
+        ratioAnalyst: tags.ratioAnalyst, partner: tags};
+    });
+    rows.sort(function (a, b) {
+      if (a.score !== null && b.score !== null && a.score !== b.score) return b.score - a.score;
+      var ra = a.ratioAnalyst, rb = b.ratioAnalyst;
+      if (ra !== rb) { if (ra === null) return 1; if (rb === null) return -1; return rb - ra; }
+      return a.index - b.index;
+    });
+    rows.forEach(function (r, i) { r.rank = i + 1; });
+    return rows;
+  }
 
   /* ---- workspace choices (session store, shared with find.html / waivers.html) ---- */
   function getList(key) { var v = DDF.state ? DDF.state.get(key, []) : []; return Array.isArray(v) ? v.map(String) : []; }
@@ -342,6 +416,7 @@
     positionTiers: positionTiers,
     leagueTable: leagueTable,
     partnerTags: partnerTags,
+    partnerRank: partnerRank,
     tierOf: tierOf,
     moves: function () { return readMoves(); },
     setMoves: function (list) { if (DDF.state) DDF.state.set("moves", Array.isArray(list) ? list : []); changed(); },
@@ -351,6 +426,7 @@
     setSkipped: function (names) { setList("skip", names); },
     waiversOn: function () { try { return sessionStorage.getItem("ddf:waivers") !== "0"; } catch (e) { return true; } },
     setWaiversOn: function (on) { try { sessionStorage.setItem("ddf:waivers", on ? "1" : "0"); } catch (e) { /* this visit only */ } },
+    chartRows: chartRows,
     refresh: changed,
     on: function (fn) { listeners.push(fn); return function () { listeners = listeners.filter(function (f) { return f !== fn; }); }; },
     RULES: {CAP: CAP, STRONG: STRONG, AVERAGE: AVERAGE, EDGE: EDGE, ANALYST: ANALYST, LIVE: LIVE, VALUE_KEY: VALUE_KEY}

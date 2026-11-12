@@ -16,7 +16,7 @@ const POSITIONS = ["QB", "RB", "WR", "TE"] as const;
 
 // curve-widget.js DEFAULT_ROSTER / ROSTER_BOUNDS / rosterBounds (QB, RB, WR, TE and FLEX are 1 to 5).
 const DEFAULT_ROSTER: Record<string, number> = { QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7 };
-const ROSTER_BOUNDS: Record<string, [number, number]> = { BENCH: [0, 14], SUPERFLEX: [0, 1] };
+const ROSTER_BOUNDS: Record<string, [number, number]> = { BENCH: [0, 14], SUPERFLEX: [0, 2] };
 const rosterBounds = (key: string): [number, number] => ROSTER_BOUNDS[key] ?? [1, 5];
 
 const DEFAULT_BENCH_SHARE = 0.15;
@@ -45,6 +45,8 @@ export interface LeagueInputs {
     bench_share: number;
     bench_share_override: number | null;
     position_shares: Record<string, number> | null;
+    // JEG-1569: which sources set DDF Value's position split ("all" | "charts"); present only when asked.
+    ddf_split?: string;
   };
   // Arguments for ValueModel.resolveLineupParameters(config, args).
   lineupArgs: {
@@ -57,6 +59,9 @@ export interface LeagueInputs {
   // Settings that differ from the site defaults (for the response note and the cache key).
   custom: string[];
 }
+
+// JEG-1569: value-model.js DDF_VALUE_SPLITS (published default "charts" since the flip).
+export const DDF_SPLITS = ["all", "charts"];
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 const isWeek = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 18;
@@ -135,6 +140,13 @@ export function mapLeague(
   const shares = l.shares !== undefined ? normalizeShares(l.shares) : null;
   if (shares) custom.push("shares");
 
+  // JEG-1569: the position split, passed to the published engine as setting.ddf_split. Only "all" and
+  // "charts" are read; absent (or anything else) leaves the setting as before, so the engine's default applies.
+  // (index.ts refuses a bad top-level `split` with a 400; a bad league.split is ignored like other league fields.)
+  // An explicit split counts as custom (own cache entry), so "split=all" still answers "all" after the flip.
+  const split = DDF_SPLITS.includes(l.split) ? (l.split as string) : null;
+  if (split) custom.push("split");
+
   // Season weeks, objective, injury history, confidence: setLineupSettings's checks. A value the page
   // would reject (it throws) falls back to the default here, so the answer is the default league's.
   const d = lineupConfig?.defaults ?? {};
@@ -191,6 +203,7 @@ export function mapLeague(
       bench_share: bso ?? DEFAULT_BENCH_SHARE,
       bench_share_override: bso,
       position_shares: shares,
+      ...(split ? { ddf_split: split } : {}),
     },
     lineupArgs: {
       objective,

@@ -19,7 +19,9 @@ INDEX = """<!doctype html><html><head><title>Old</title></head><body>
 </body></html>"""
 SHELL = (ROOT / "app" / "v2" / "shell.html").read_text(encoding="utf-8")
 POST = {"slug": "p", "title": "A post", "date": "2026-10-01", "summary": "s", "body_html": "<p>b</p>", "html": "<p>b</p>"}
-LINE = 'Using ChatGPT or Claude? <a class="v2-link" href="' + build_v2_page.CONNECT_URL + '">Connect the tool</a>'
+# JEG-1586: since JEG-1539 the shell's link is relative ("connect/", resolved against the page's base), so it works at both
+# bases and the repository rename (CONNECT_URL is no longer written into the page).
+LINE = 'Using ChatGPT or Claude? <a class="v2-link" href="connect/">Connect the tool</a>'
 
 
 class AssistBuildTest(unittest.TestCase):

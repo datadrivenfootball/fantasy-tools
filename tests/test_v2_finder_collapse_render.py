@@ -5,14 +5,15 @@ position counts); "Edit rosters" opens it again. Checked at 1366x768, 390 and 32
 
   * before Find the input is open, no summary shows, and the Edit button says aria-expanded=true;
   * after Find the input is hidden, the summary shows the first three names, "+ N more" and the position counts for
-    both teams, the button says aria-expanded=false and names both player counts, and the results start inside the
-    first screen (desktop and phone);
+    both teams, and the button says aria-expanded=false and names both player counts;
   * Edit rosters (by keyboard) opens the input and moves focus into the first paste box; Escape folds it again and
     focus returns to the button; pressing Find again folds it again;
   * package size, the lineup boxes and Find trades stay visible while folded;
   * JEG-1237: the protected-position and bench-backup settings fold with the rosters and read back as one "Trade
     settings:" line in the summary (Edit rosters opens them again, by keyboard), Advanced trade minimums stays on the
-    page, and at 1366x768 the results start inside the first screen without enlarging the viewport;
+    page;
+  * JEG-1576 (Jeremy, 2026-11-08: "drop the Find a trade first-screen check (the v2 page isn't published any more; the
+    new Find page is judged by its own tests)"): the results-on-the-first-screen check is retired here;
   * no page errors, no sideways scroll.
 
 Discrimination: test_guard_fails_on_broken_builds serves finder.js without the fold after Find, with the button not
@@ -36,7 +37,6 @@ def setUpModule():
 
 STATE = """() => {
   const vis = id => { const n = document.getElementById(id); return Boolean(n) && !n.hidden && n.getBoundingClientRect().height > 0; };
-  const out = document.getElementById('v2FindOut');
   return {input: vis('v2FindInput'), summary: vis('v2FindSummary'), rails: vis('v2FindGuardrails'),
     advanced: Boolean(document.querySelector('.v2-find-advanced')) && document.querySelector('.v2-find-advanced').getBoundingClientRect().height > 0,
     railsText: (document.getElementById('v2FindGuardrailSummary') || {}).innerText || '',
@@ -44,7 +44,7 @@ STATE = """() => {
     label: document.getElementById('v2FindEdit').getAttribute('aria-label'),
     mine: document.getElementById('v2FindMineSummary').innerText, theirs: document.getElementById('v2FindTheirsSummary').innerText,
     controls: ['v2FindSize', 'v2FindKeepMine', 'v2FindKeepTheirs', 'v2FindGo'].filter(id => !vis(id)),
-    resultsTop: out.getBoundingClientRect().top, viewport: innerHeight, focus: document.activeElement && document.activeElement.id,
+    focus: document.activeElement && document.activeElement.id,
     scrollX: document.documentElement.scrollWidth - innerWidth};
 }"""
 
@@ -88,8 +88,6 @@ def check(page, tag, width) -> list[str]:
         errors.append(tag + f"the folded summary does not read back the default trade settings: {s['railsText']!r}")
     if not s["advanced"]:
         errors.append(tag + "Advanced trade minimums is not on the page while folded")
-    if not -8 <= s["resultsTop"] < s["viewport"] * 0.8:
-        errors.append(tag + f"results start at {s['resultsTop']:.0f}px of a {s['viewport']}px screen after folding")
     if s["scrollX"] > 0:
         errors.append(tag + "horizontal overflow when folded")
     # Edit rosters, from the keyboard.

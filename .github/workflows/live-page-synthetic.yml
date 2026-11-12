@@ -51,8 +51,13 @@ jobs:
         working-directory: tests/rendered_gate
         run: npm ci
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-1.49.1
       - name: Install Playwright browsers
-        run: npx --prefix tests/rendered_gate playwright-core install --with-deps chromium
+        run: bash .github/scripts/retry-browser-install.sh npx --prefix tests/rendered_gate playwright-core install --with-deps chromium
 
       - name: Compute expected build tag(s) from HEAD
         id: build-tag
