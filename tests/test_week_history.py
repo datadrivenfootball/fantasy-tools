@@ -1029,6 +1029,17 @@ def newest_week(exclude=("cbs", "usatoday")):
     return max(weeks, key=lambda w: (weeks[w], w))
 
 
+class ReplayPremiseUnavailable(unittest.SkipTest):
+    """The current data cannot form the scenario a replay names (JEG-1628).
+
+    Replays are code tests (test-core: PRs and the nightly deploy), never
+    data-gate checks: a week's data must not hold the week on a replay's
+    premise. When the live data has no shape the replay can be built from
+    (e.g. Tuesday, with fewer than three charts on the newest week), the
+    replay skips with this reason instead of failing; it runs again once the
+    data can form it."""
+
+
 def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None,
                          keep_holds=False):
     """JEG-1177 sentinel: replay a week transition from committed data. The
@@ -1081,9 +1092,10 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
                 fixture["sources"][sec]["validationHold"] = {
                     "reason": f"transition replay: serves Week {served['week']}, not the replay's Week {week + 1}",
                     "hold_level": "red", "root": key}
-    assert 2 * on_newest > on_newest + len(lagging), (
-        f"transition replay: only {on_newest} chart(s) serve Week {week + 1} against {len(lagging)} lagging; "
-        "the committed data cannot form a transition with the newest week as the default view")
+    if not 2 * on_newest > on_newest + len(lagging):
+        raise ReplayPremiseUnavailable(
+            f"transition replay: only {on_newest} chart(s) serve Week {week + 1} against {len(lagging)} lagging; "
+            "the current data cannot form a transition with the newest week as the default view")
     for src in lagging:
         entry = saved["sources"][src]
         index["served"][src] = {"week": week, "version": "snapshot", "fingerprint": entry["fingerprint"],

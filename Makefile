@@ -672,15 +672,18 @@ validate-base: reference sync guard-harness value-check-compare test-integration
 # coverage, identity joins, week labels, bake-to-section consistency, published
 # order and invariants, the built site's surfaces. Engine vs reference on the
 # data is value-check-compare (strict) in validate-base. Every data-gate line is
-# also in test-core. Definitions and the list's rules: docs/week-held-runbook.md.
+# also in test-core (a class or test line is covered by its module's test-core line).
+# JEG-1628 (Jeremy, 2026-11-12): synthetic replays built from the week's data
+# (transition replays, seeded holds, exact coverage counts) are code tests only,
+# so a new week's data cannot hold the rollover on a replay's premise.
+# Definitions and the list's rules: docs/week-held-runbook.md.
 validate-data: validate-base data-gate
 
 data-gate:
 	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_static_export
-	python3 -m unittest tests.test_seeded_hold_build
-	python3 -m unittest tests.test_rank_guard
-	python3 -m unittest tests.test_view_invariants
+	python3 -m unittest tests.test_rank_guard.TestSavedValues tests.test_rank_guard.TestEngineKeepsOrderEverySetting
+	python3 -m unittest tests.test_view_invariants.ViewInvariants.test_every_view_holds_its_invariant
 	python3 -m unittest tests.test_games_remaining
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_kdst_removed
@@ -696,7 +699,7 @@ data-gate:
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_page_load_no_404
 	python3 -m unittest tests.test_lineup_content_week_advance
-	python3 -m unittest tests.test_week_history
+	python3 -m unittest tests.test_week_history.WeekFileSchemaTest tests.test_week_history.DeltaRecomputeTest.test_prior_week_is_engine_math_on_saved_inputs
 
 value-check-compare:
 	python3 pipelines/value_check.py compare --rerun-engine --strict --report output/value-check.json
