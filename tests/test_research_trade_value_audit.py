@@ -105,10 +105,7 @@ class AuditData(unittest.TestCase):
         self.assertEqual("Weak", card["usatoday"]["curve"]["label"])
         self.assertEqual("Weak", card["usatoday"]["depth"]["label"])  # reaching past counts like stopping short
         self.assertEqual("Strong", card["cbs"]["superflex"]["label"])  # coverage: superflex values for 24+ QBs
-        # QB share in superflex, on each chart's published numbers: all four sit 5 to 10 points under DDF Value
-        for k in audit.CHARTS:
-            self.assertEqual("OK", card[k]["qb_sf"]["label"], k)
-            self.assertLess(self.fresh["superflex"][k]["qb_share_sf"], self.fresh["superflex"]["ddf_value"]["qb_share_sf"])
+        # QB share in superflex: on the charts-only split all four are Strong (ChartsOnlyVariant)
         for k in audit.CHARTS:
             listed, ros = self.fresh["sources"][k]["listed"], self.fresh["sources"][k]["rostered"]
             gap = sum(abs(listed[p] - ros[p]) / ros[p] for p in ("QB", "RB", "WR", "TE")) / 4
@@ -204,6 +201,8 @@ class AuditData(unittest.TestCase):
         """Each chart's bar is its own published numbers summed by position over the players it
         lists (unlisted players add nothing); the analyst row is the plain mean of three of them;
         DDF Value's row is the engine's position budget, not a mean of the bars."""
+        if not self.same_snapshot:
+            self.skipTest("reads the current fixture; fixture moved past the week 9 snapshot")
         inp = audit.load()
         cases = {"half_ppr/12/1qb": ("half_ppr", 0), "half_ppr/12/sf": ("half_ppr", 1),
                  "standard/12/1qb": ("standard", 0), "ppr/12/1qb": ("ppr", 0)}
@@ -240,12 +239,11 @@ class AuditData(unittest.TestCase):
                 self.assertEqual(len(vals), len(self.fresh["curve_players"][sc][k]), (sc, k))
 
 class ChartsOnlyVariant(unittest.TestCase):
-    """The post-flip variant (JEG-1569 charts-only position split): page numbers equal its data
-    file, which is produced by running the script on a value model with DDF_VALUE_SPLIT=charts:
-    AUDIT_ENGINE_DIR=<checkout>/pipelines DDF_VALUE_SPLIT=charts python3 pipelines/research_trade_value_audit.py
-        --out app/next/research/trade-value-audit-data-chartsonly.json"""
-    PAGE = ROOT / "app" / "next" / "research" / "trade-value-audit-chartsonly.html"
-    DATA = ROOT / "app" / "next" / "research" / "trade-value-audit-data-chartsonly.json"
+    """The published article is the charts-only version (JEG-1569 split, the engine default since
+    the flip; Jeremy chose it on 2026-11-11). Its data file is a plain run of the script on the
+    week 9 inputs: python3 pipelines/research_trade_value_audit.py (DDF_VALUE_SPLIT unset)."""
+    PAGE = PAGE
+    DATA = DATA
 
     def test_numbers_equal_its_data(self):
         data = json.loads(self.DATA.read_text(encoding="utf-8"))
@@ -272,6 +270,12 @@ class ChartsOnlyVariant(unittest.TestCase):
 
 
 class StaysPrivate(unittest.TestCase):
+    def test_one_article(self):
+        """Only the charts-only article ships; the pre-flip all-sources draft is not published."""
+        pages = sorted(p.name for p in PAGE.parent.glob("*.html"))
+        self.assertEqual(["trade-value-audit.html"], pages)
+        self.assertNotIn("chartsonly", PAGE.read_text(encoding="utf-8"))
+
     def test_page_is_noindex(self):
         self.assertIn('<meta name="robots" content="noindex, nofollow">', PAGE.read_text(encoding="utf-8"))
 

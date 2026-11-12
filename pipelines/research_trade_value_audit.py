@@ -796,19 +796,20 @@ def realized_scoring_benchmark() -> dict:
                 for (s_, pid, pos), weeks in pts.items():
                     if s_ != season or pos != p:
                         continue
-                    std = sum(x[1] for x in weeks if x[0] >= w)
-                    ppr = sum(x[2] for x in weeks if x[0] >= w)
+                    # fsum: exact totals, so equal point totals tie (then break by id) on every Python
+                    std = math.fsum(x[1] for x in weeks if x[0] >= w)
+                    ppr = math.fsum(x[2] for x in weeks if x[0] >= w)
                     if ppr > 0:
                         tot[pid] = (std, ppr)
                 top = sorted(tot, key=lambda i: (-tot[i][1], i))[:SCORING_TOP]
                 oa = sorted(top, key=lambda i: (-tot[i][0], i))
                 ob = sorted(top, key=lambda i: (-tot[i][1], i))
                 moved.append(100 * sum(1 for x, y in zip(oa, ob) if x != y) / len(top))
-            cell = sum(moved) / len(moved)
+            cell = math.fsum(moved) / len(moved)
             cells.append(cell)
             by_season.setdefault(season, []).append(cell)
-    seasons = {s_: r(sum(v) / len(v), 0) for s_, v in by_season.items()}
-    return {"seasons": seasons, "pooled": r(sum(cells) / len(cells), 0),
+    seasons = {s_: r(math.fsum(v) / len(v), 0) for s_, v in by_season.items()}
+    return {"seasons": seasons, "pooled": r(math.fsum(cells) / len(cells), 0),
             "min": r(min(cells), 0), "max": r(max(cells), 0),
             "season_min": min(seasons.values()), "season_max": max(seasons.values()),
             "first_season": min(seasons), "last_season": max(seasons), "weeks": list(BENCH_WEEKS)}

@@ -31,10 +31,6 @@ def build_html(page: str = "trade-value-audit.html", data_file: str = "trade-val
         '<script src="trade-value-audit.js"></script>':
             f'<script id="tva-data" type="application/json">{blob}</script>\n<script>{js}</script>',
     }
-    if page != "trade-value-audit.html":  # the charts-only variant names its own data file
-        replacements[' <a href="trade-value-audit-data.json">The data file</a>.'.replace("data.json", "data-chartsonly.json")] = \
-            replacements.pop(' <a href="trade-value-audit-data.json">The data file</a>.')
-        replacements[' data-src="trade-value-audit-data-chartsonly.json"'] = ""
     for old, new in replacements.items():
         if old not in html:
             raise SystemExit(f"page changed; update the single-file builder: {old[:60]}")

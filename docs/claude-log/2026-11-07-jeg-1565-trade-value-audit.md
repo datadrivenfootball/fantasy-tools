@@ -45,3 +45,12 @@ Contract: Jeremy's 2026-11-07 changes, relayed by the coordinator: check the sco
 ### Claimed, not confirmed
 - CI and the rendered gate have not run: the PR is a draft, and drafts defer CI.
 - The Codex check job could not start: the bridge ceiling for job_type check is zero, so a Claude subagent ran the independent check instead.
+
+## 2026-11-11: publishing the charts-only article
+
+Jeremy, 2026-11-11: "Publish the article", charts-only version, merge PR #1352 to the live site.
+
+- One article ships: the charts-only page and data are now `app/next/research/trade-value-audit.html` and `trade-value-audit-data.json`; the pre-flip all-sources draft was removed (still in branch history at dd7821006). Served at `/next/research/trade-value-audit.html`, noindex, unlisted.
+- Main merged in (no rebase). On main the engine default is `ddf_split="charts"`, so the data file is now a plain run of the script (no `DDF_VALUE_SPLIT`, no `AUDIT_ENGINE_DIR`). A week 9 checkout with main's `pipelines/` reproduces it exactly; all 22 tests pass there.
+- Realized-scoring benchmark: the old file had season averages 78% to 88%; the correct low end is 77%. Python 3.12's `sum()` uses compensated summation and 3.9's does not, so equal point totals tied on one and not the other, which changed tie order and the per-season averages (2017, 2023, 2025 by 1 point; the pooled 84% did not move). The script now uses `math.fsum` (exact), and 3.9 and 3.12 agree with an exact Fraction computation. Learning: use `math.fsum` wherever float totals feed a sort or a tie-break.
+- `test_position_figure_shows_each_chart_as_published` read the current fixture without the week 9 guard and failed after the week 10 refresh; it now skips like the fresh-run test.
