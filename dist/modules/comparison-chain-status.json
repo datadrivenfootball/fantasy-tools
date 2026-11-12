@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-11T22:20:30.323564+00:00",
+  "run_at": "2026-11-12T00:44:20.380528+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -10,11 +10,15 @@
     "cbsros": "promoted 1/1",
     "razzball": "promoted 1/1"
   },
-  "failed": [],
-  "success": true,
-  "outcome": "published_with_holds",
+  "failed": [
+    "post_rebuild_validation"
+  ],
+  "success": false,
+  "outcome": "failed",
   "held": [
     "cbsros",
+    "espn",
+    "fantasycalc",
     "usatoday"
   ],
   "hold_severity": "red",
@@ -30,6 +34,31 @@
       ],
       "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
+      "week": 10
+    },
+    "fantasycalc": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "591/1161 values match exactly across 6 columns; 570 values differ, 25 outside the movement band; 1 live players not stored, 2 stored players not live (above the list's churn line); 10 players entered or left the bottom of the list since the save (churn)",
+      "hold_severity": "red",
+      "week": 10
+    },
+    "espn": {
+      "reason": "fidelity: scrape_validity",
+      "held_series": [
+        "espn",
+        "espn_vorp"
+      ],
+      "sections": [
+        "espn"
+      ],
+      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 5.56 to 15.15), Puka Nacua 0 (expected 9.61 to 26.21)",
+      "hold_severity": "red",
       "week": 10
     },
     "cbsros": {
@@ -241,6 +270,25 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
+    "fantasycalc": "fidelity: publisher_vs_stored",
+    "espn": "fidelity: scrape_validity",
     "cbsros": "fidelity: scrape_validity"
+  },
+  "post_rebuild_validation": {
+    "status": "failed",
+    "command": "make validate-data",
+    "failed_tests": [
+      "FAIL tests.test_rank_guard.TestEngineKeepsOrderWhenTheDefaultFallsBack.test_the_replay_is_a_transition"
+    ],
+    "assertions": [
+      "AssertionError: Tuples differ: (1, 3) != (2, 4)"
+    ],
+    "breaches": [],
+    "make_targets": [
+      "Makefile:680: data-gate"
+    ],
+    "detail": "FAIL tests.test_rank_guard.TestEngineKeepsOrderWhenTheDefaultFallsBack.test_the_replay_is_a_transition\nAssertionError: Tuples differ: (1, 3) != (2, 4)",
+    "recorded_at": "2026-11-12T01:11:15.354571+00:00",
+    "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
