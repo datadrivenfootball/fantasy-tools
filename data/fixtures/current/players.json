@@ -2,16 +2,16 @@
  "meta": {
   "as_of": "2026-11-12",
   "prior_blend_snapshot": "2026-09-23",
-  "espn_snapshot": "2026-11-11",
+  "espn_snapshot": "2026-11-12",
   "rz_snapshot": "2026-11-10",
   "cbsros_snapshot": "2026-11-12",
-  "espn_snapshot_id": "sha256:60cbfe3c69b612180647ad8a827370c1d98d6ff36b375bfa2fa94bbe13c93c81",
-  "cbsros_snapshot_id": "sha256:705b8dadf4ed0feb76ffb0bfc7599658f4641a8f300fe8c7d1e7d40412a9cd31",
-  "rz_snapshot_id": "sha256:25e2b5b1ff43bf6db3e283677297faa26c0bbd114f2c59778fa63ce80e1b9417",
+  "espn_snapshot_id": "sha256:db01107557090bec189a4057ad4150338049c86e0532bc26fba2a3e273a167f7",
+  "cbsros_snapshot_id": "sha256:f062b192b921b178583319ab79f21330fb75ee1aa8a0124150c3628004300ab9",
+  "rz_snapshot_id": "sha256:d8d9f0bf2fc1411b2b7e4f52f3cf8619ca49d010965fee4b209ca7d31e969e63",
   "n_players": 1161,
   "n_espn_complete": 340,
-  "n_rz_complete": 519,
-  "n_rz_held": 40,
+  "n_rz_complete": 520,
+  "n_rz_held": 39,
   "n_cbsros_complete": 367,
   "universe": {
    "note": "Rows = ESPN's list (priced or listed at 0) + players any current-week published chart or projection source prices. A player not on ESPN's list is espn_status 'absent' (ESPN shown as missing, never 0).",
@@ -168,7 +168,7 @@
   "pricing_note": "pricing labels are uniform 'espn_only' across all positions (JEG-ECR-EXIT 2026-10-05): the primary value IS ESPN, with ESPN-purity (every ESPN-labeled field sourced ONLY from ESPN projections) for every charted position. The source-accounting audit rejects any other label.",
   "content_observation_scopes": {},
   "dataset_status": {
-   "built_at": "2026-11-12T16:18:28Z",
+   "built_at": "2026-11-12T19:26:47Z",
    "as_of": "2026-11-12",
    "summary": {
     "live": 0,
@@ -196,7 +196,7 @@
       "note": "Every charted player carries a current value model value."
      },
      "freshness": {
-      "snapshot_date": "2026-11-11",
+      "snapshot_date": "2026-11-12",
       "content_date": null,
       "note": "Fetch and numeric-change clocks are independent; unknown vintage is non-green.",
       "observations": [
@@ -213,7 +213,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445188Z"
+        "evaluated_at": "2026-11-12T19:26:47.121721Z"
        }
       ]
      },
@@ -243,7 +243,7 @@
       "note": "Pure read over priced components only \u2014 missing components default to 0.0 in the primary leg (fantasy_points treats 0 identically to 'missing'). No expert blend fills the gap."
      },
      "freshness": {
-      "snapshot_date": "2026-11-11",
+      "snapshot_date": "2026-11-12",
       "content_date": null,
       "note": "Fetch and numeric-change clocks are independent; unknown vintage is non-green.",
       "observations": [
@@ -260,7 +260,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445188Z"
+        "evaluated_at": "2026-11-12T19:26:47.121721Z"
        }
       ]
      },
@@ -306,7 +306,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445314Z"
+        "evaluated_at": "2026-11-12T19:26:47.121848Z"
        }
       ]
      },
@@ -352,7 +352,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445409Z"
+        "evaluated_at": "2026-11-12T19:26:47.121942Z"
        }
       ]
      },
@@ -398,7 +398,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445498Z"
+        "evaluated_at": "2026-11-12T19:26:47.122031Z"
        }
       ]
      },
@@ -422,7 +422,7 @@
      "status": "stale",
      "shown_in_ui": true,
      "completeness": {
-      "priced": 519,
+      "priced": 520,
       "universe": 1161,
       "note": "Razzball where priced; no fill leg. Rank correlation vs ESPN primary 0.78\u20130.91, never 0.99+ \u2014 verified independent 2026-09-17."
      },
@@ -444,7 +444,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445587Z"
+        "evaluated_at": "2026-11-12T19:26:47.122118Z"
        }
       ]
      },
@@ -490,7 +490,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-12T16:18:28.445674Z"
+        "evaluated_at": "2026-11-12T19:26:47.122205Z"
        }
       ]
      },
@@ -2850,9 +2850,9 @@
    "delta_rz_espn": -22.37,
    "delta_rz_espn_ppg": -2.49,
    "cbsros_ppg": {
-    "standard": 19.489,
-    "half_ppr": 19.489,
-    "ppr": 19.489
+    "standard": 19.533,
+    "half_ppr": 19.533,
+    "ppr": 19.533
    },
    "prior_espn_ros": {
     "standard": 265.57,
@@ -8791,9 +8791,9 @@
    "delta_rz_espn": 30.1,
    "delta_rz_espn_ppg": 3.76,
    "cbsros_ppg": {
-    "standard": 10.05,
-    "half_ppr": 10.05,
-    "ppr": 10.05
+    "standard": 10.8,
+    "half_ppr": 10.8,
+    "ppr": 10.8
    },
    "prior_espn_ros": {
     "standard": 234.94,
@@ -13735,11 +13735,11 @@
     "half_ppr": 6.617778,
     "ppr": 8.29
    },
-   "rz_held": "razzball standard 1.5 ppg is 29% of the ESPN/CBS mean 5.2 (< 60%): likely an expected-missed-games discount",
+   "rz_held": "razzball standard 1.5 ppg is 28% of the ESPN/CBS mean 5.3 (< 60%): likely an expected-missed-games discount",
    "cbsros_ppg": {
-    "standard": 5.522,
-    "half_ppr": 7.522,
-    "ppr": 9.522
+    "standard": 5.622,
+    "half_ppr": 7.622,
+    "ppr": 9.622
    },
    "prior_espn_ros": {
     "standard": 70.68,
@@ -19640,9 +19640,13 @@
     "ppr",
     "standard"
    ],
-   "cbsros_complete": false,
-   "cbsros_comp_count": 0,
-   "cbsros_covered": [],
+   "cbsros_complete": true,
+   "cbsros_comp_count": 3,
+   "cbsros_covered": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
    "blend_ros": {
     "standard": 31.12,
     "half_ppr": 40.97,
@@ -19689,6 +19693,11 @@
    },
    "delta_rz_espn": -13.92,
    "delta_rz_espn_ppg": -1.55,
+   "cbsros_ppg": {
+    "standard": 2.822,
+    "half_ppr": 3.878,
+    "ppr": 4.933
+   },
    "prior_espn_ros": {
     "standard": 61.57,
     "half_ppr": 79.77,
@@ -27419,9 +27428,9 @@
    },
    "rz_held": "razzball half_ppr 1.3 ppg is 36% of the ESPN/CBS mean 3.6 (< 60%): likely an expected-missed-games discount",
    "cbsros_ppg": {
-    "standard": 4.388,
-    "half_ppr": 5.95,
-    "ppr": 7.513
+    "standard": 4.287,
+    "half_ppr": 5.85,
+    "ppr": 7.412
    },
    "prior_espn_ros": null,
    "prior_blend_ros": null,
@@ -38767,9 +38776,13 @@
    "rz_complete": false,
    "rz_comp_count": 0,
    "rz_covered": [],
-   "cbsros_complete": false,
-   "cbsros_comp_count": 0,
-   "cbsros_covered": [],
+   "cbsros_complete": true,
+   "cbsros_comp_count": 3,
+   "cbsros_covered": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
    "blend_ros": {
     "standard": 0.0,
     "half_ppr": 0.0,
@@ -38778,12 +38791,20 @@
    "pricing": "espn_only",
    "espn_zeroed": true,
    "espn_status": "ineligible",
+   "universe_sources": [
+    "cbsros"
+   ],
    "roster_status": "practice_squad",
    "roster_status_label": "Practice squad",
    "sleeper_id": "8223",
    "roster_status_inferred": true,
    "games_remaining": 8,
    "espn_expected_games": null,
+   "cbsros_ppg": {
+    "standard": 0.312,
+    "half_ppr": 0.375,
+    "ppr": 0.438
+   },
    "prior_espn_ros": null,
    "prior_blend_ros": {
     "standard": 46.96,
@@ -63944,16 +63965,16 @@
    "espn_complete": false,
    "espn_comp_count": 0,
    "espn_covered": [],
-   "rz_complete": false,
-   "rz_comp_count": 0,
-   "rz_covered": [],
-   "cbsros_complete": true,
-   "cbsros_comp_count": 3,
-   "cbsros_covered": [
+   "rz_complete": true,
+   "rz_comp_count": 3,
+   "rz_covered": [
     "half_ppr",
     "ppr",
     "standard"
    ],
+   "cbsros_complete": false,
+   "cbsros_comp_count": 0,
+   "cbsros_covered": [],
    "blend_ros": {
     "standard": 0.0,
     "half_ppr": 0.0,
@@ -63963,7 +63984,6 @@
    "espn_zeroed": true,
    "espn_status": "ineligible",
    "universe_sources": [
-    "cbsros",
     "fantasycalc",
     "fantasycalc:superflex",
     "fantasypros",
@@ -63978,11 +63998,25 @@
    "sleeper_id": "13417",
    "games_remaining": 9,
    "espn_expected_games": null,
-   "rz_held": "razzball standard 0.4 ppg is 9% of the ESPN/CBS mean 4.2 (< 60%): likely an expected-missed-games discount",
-   "cbsros_ppg": {
-    "standard": 4.233,
-    "half_ppr": 5.65,
-    "ppr": 7.067
+   "rz_ppg": {
+    "standard": 0.4,
+    "half_ppr": 0.9,
+    "ppr": 1.5
+   },
+   "rz_ros": {
+    "standard": 3.6,
+    "half_ppr": 8.1,
+    "ppr": 13.5
+   },
+   "rz_filled_ppg": {
+    "standard": 0.4,
+    "half_ppr": 0.9,
+    "ppr": 1.5
+   },
+   "rz_filled_ros": {
+    "standard": 3.6,
+    "half_ppr": 8.1,
+    "ppr": 13.5
    },
    "prior_espn_ros": null,
    "prior_blend_ros": {
@@ -64719,13 +64753,9 @@
     "ppr",
     "standard"
    ],
-   "cbsros_complete": true,
-   "cbsros_comp_count": 3,
-   "cbsros_covered": [
-    "half_ppr",
-    "ppr",
-    "standard"
-   ],
+   "cbsros_complete": false,
+   "cbsros_comp_count": 0,
+   "cbsros_covered": [],
    "blend_ros": {
     "standard": 0.0,
     "half_ppr": 0.0,
@@ -64735,7 +64765,6 @@
    "espn_zeroed": true,
    "espn_status": "ineligible",
    "universe_sources": [
-    "cbsros",
     "razzball",
     "usatoday"
    ],
@@ -64765,11 +64794,6 @@
     "standard": 1.6,
     "half_ppr": 1.6,
     "ppr": 1.6
-   },
-   "cbsros_ppg": {
-    "standard": 0.312,
-    "half_ppr": 0.375,
-    "ppr": 0.438
    },
    "prior_espn_ros": {
     "standard": 25.2,

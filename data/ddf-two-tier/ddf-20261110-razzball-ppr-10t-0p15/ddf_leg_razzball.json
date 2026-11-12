@@ -47,7 +47,7 @@
       "bench_raw": 30.839999999999996,
       "bench_share_used": 0.15,
       "n_bench": 29,
-      "n_pool": 178,
+      "n_pool": 179,
       "n_starters": 24,
       "pb": 0.48807406230992517,
       "pie": 205.6,
@@ -58,7 +58,7 @@
       "tau": 0.8750000000000002
     }
   },
-  "generated_at": "2026-11-12T16:20:13Z",
+  "generated_at": "2026-11-12T19:28:33Z",
   "identity": {
     "alias_note": "Shared verified alias map with the ESPN DDF leg (data/inputs/player_aliases.json); suffix, punctuation and nickname spellings match through norm_player_name (FixtureIdentity). Unresolvable identities are excluded, never guessed.",
     "aliases_used": [
@@ -95,9 +95,9 @@
     "pies_note": "Positional pies measured from the current Razzball data (tier surplus). No pies file: a static file goes stale when the player pool changes.",
     "razzball_snapshot": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/razzball/2026-11-10/snapshot.json",
     "razzball_snapshot_date": "2026-11-10",
-    "razzball_snapshot_id": "sha256:25e2b5b1ff43bf6db3e283677297faa26c0bbd114f2c59778fa63ce80e1b9417",
+    "razzball_snapshot_id": "sha256:d8d9f0bf2fc1411b2b7e4f52f3cf8619ca49d010965fee4b209ca7d31e969e63",
     "razzball_snapshot_rows": 559,
-    "razzball_snapshot_sha256": "f638e4d2c9f23f6ab9427fe825c651586f466bcb9bcda8624204bf6f30e781eb",
+    "razzball_snapshot_sha256": "c7ffe37b3bd30b2a0c6343c97d2758826173fe803135e1ecf82c68daeaef84b4",
     "scoring": "ppr",
     "source_tag": "razzball",
     "teams": 10
@@ -258,7 +258,7 @@
       "reason": "rz_held"
     },
     {
-      "detail": "razzball standard 1.5 ppg is 29% of the ESPN/CBS mean 5.2 (< 60%): likely an expected-missed-games discount",
+      "detail": "razzball standard 1.5 ppg is 28% of the ESPN/CBS mean 5.3 (< 60%): likely an expected-missed-games discount",
       "player": "Jordyn Tyson",
       "player_key": 2269,
       "pos": "WR",
@@ -275,13 +275,6 @@
       "detail": "razzball half_ppr 0.4 ppg is 12% of the ESPN/CBS mean 3.2 (< 60%): likely an expected-missed-games discount",
       "player": "Harrison Wallace III",
       "player_key": 2399,
-      "pos": "WR",
-      "reason": "rz_held"
-    },
-    {
-      "detail": "razzball standard 0.4 ppg is 9% of the ESPN/CBS mean 4.2 (< 60%): likely an expected-missed-games discount",
-      "player": "De'Zhaun Stribling",
-      "player_key": 4086,
       "pos": "WR",
       "reason": "rz_held"
     },
@@ -384,10 +377,10 @@
       "TE: bench share 0.15 infeasible, using 0.076"
     ],
     "n_bench": 70,
-    "n_review": 36,
+    "n_review": 35,
     "n_starters": 70,
-    "n_values": 523,
-    "n_waiver": 383
+    "n_values": 524,
+    "n_waiver": 384
   },
   "values": [
     {
@@ -5568,6 +5561,17 @@
       "ppg": 0.9,
       "raw_value": 0.0,
       "team": "NYG",
+      "tier": "waiver",
+      "value": 0.0
+    },
+    {
+      "player": "De'Zhaun Stribling",
+      "player_key": 4086,
+      "player_norm": "dezhaun stribling",
+      "pos": "WR",
+      "ppg": 1.5,
+      "raw_value": 0.0,
+      "team": "SF",
       "tier": "waiver",
       "value": 0.0
     },
