@@ -206,7 +206,8 @@ RULES = {
                        f"{DROP_RED:.0%} too (if it did, or it was not read, amber); "
                        "JEG-482 published-rank inversions are red; so is a sentinel star (Allen, Lamar Jackson, "
                        "Mahomes, Gibbs, Nacua, Bowers) on a projection source's chart outside his per-game band "
-                       "derived from other sources (JEG-592, JEG-807). A player absent from a fully loaded chart means 0; "
+                       "derived from other sources (JEG-592, JEG-807), unless he is below it and the injury feed lists him "
+                       "out (IR, PUP, Out, suspended; JEG-1630), which is listed, not held. A player absent from a fully loaded chart means 0; "
                        "absences that may be processing errors are stages 1 and 2",
     "rollup": "a source is the worst of its stages; unknown (input unreadable) counts as amber",
     "hold": "JEG-520: a red in publisher_vs_stored, stored_vs_chart, freshness or scrape_validity holds that source "
@@ -1523,6 +1524,18 @@ SENTINEL_PLAYERS = (
     ("Brock Bowers", "TE"),
 )
 
+# JEG-1630 (2026-11-13): a sentinel the injury feed lists as out for weeks is not a scrape error when a
+# source prices him BELOW his band. ESPN projects 0 rest of season for Lamar Jackson (IR, thumb) and Puka
+# Nacua (IR, knee) and CBS ROS prices Lamar at 10.1/g over the games he has left; each source printed the
+# number it means (publisher_vs_stored matched every value), and the engine already handles an ESPN zero
+# (espn_status "ineligible", JEG-496). The band only says how a healthy star should look, so a below-band
+# value for an injured sentinel is excused (listed in signals, never silently dropped). An above-band value
+# still holds (a column shift is not explained by an injury), and a healthy star at 0 still holds.
+# Statuses are players.json's Sleeper fields (bake_players ROSTER_FIELDS); Questionable and Doubtful are
+# one-week tags that do not move a rest-of-season number, so they are not excused.
+SENTINEL_EXCUSED_INJURY = frozenset({"IR", "PUP", "Out", "Sus", "NA", "DNR", "COV", "NFI"})
+SENTINEL_EXCUSED_ROSTER = frozenset({"injured_reserve"})
+
 # Used when no other projection source has a value for the sentinel player.
 SENTINEL_FALLBACK_BANDS = {
     "Josh Allen":     (17.0, 30.0),
@@ -1570,13 +1583,33 @@ def _derive_sentinel_band(name: str, source: str, players_data: list | None) -> 
     return (round(reference * SENTINEL_LOW_RATIO, 2), round(reference * SENTINEL_HIGH_RATIO, 2))
 
 
+def _sentinel_injury(name: str, players_data: list | None) -> str | None:
+    """The injury tag that excuses a below-band sentinel (JEG-1630), or None.
+
+    Read from players.json's Sleeper fields; a player whose row is missing or
+    carries no excusing status is treated as healthy (fail closed: held)."""
+    for p in players_data or ():
+        if (p.get("name") or p.get("full_name", "")) == name:
+            inj, roster = p.get("injury_status"), p.get("roster_status")
+            if inj in SENTINEL_EXCUSED_INJURY:
+                return str(inj)
+            if roster in SENTINEL_EXCUSED_ROSTER:
+                return str(p.get("roster_status_label") or roster)
+            return None
+    return None
+
+
 def sentinel_failures(source: str, chart: dict | None, ident: Identity,
-                      players_data: list | None = None) -> list[dict]:
+                      players_data: list | None = None, excused: list | None = None) -> list[dict]:
     """Sentinel players whose chart per-game value (1/2 PPR) is outside the expected band.
 
     JEG-807: bands are derived from other projection sources' values when available;
     falls back to SENTINEL_FALLBACK_BANDS when players_data is missing or the player
     has no coverage from other sources.
+
+    JEG-1630: a value BELOW the band for a sentinel players.json lists as out
+    (SENTINEL_EXCUSED_INJURY / SENTINEL_EXCUSED_ROSTER) is not a failure; it is
+    appended to *excused* (when given) with the injury tag.
     """
     if source not in PROJECTIONS or not chart:
         return []
@@ -1599,8 +1632,14 @@ def sentinel_failures(source: str, chart: dict | None, ident: Identity,
             lo, hi = fb
             band_source = "fallback"
         if not lo <= value <= hi:
-            out.append({"name": name, "pos": pos, "value": value, "expected": [lo, hi],
-                        "band_source": band_source})
+            row = {"name": name, "pos": pos, "value": value, "expected": [lo, hi],
+                   "band_source": band_source}
+            injury = _sentinel_injury(name, players_data) if value < lo else None
+            if injury is not None:
+                if excused is not None:
+                    excused.append({**row, "injury": injury})
+                continue
+            out.append(row)
     return out
 
 
@@ -1659,8 +1698,13 @@ def stage_scrape_validity(source: str, extras: dict, ident: Identity, *, publish
     elif inv:
         status = "red"
         reasons.append(f"rank guard: {inv} published-rank inversions (JEG-482)")
-    bad = sentinel_failures(source, chart, ident, players_data=extras.get("players_data"))
+    excused: list[dict] = []
+    bad = sentinel_failures(source, chart, ident, players_data=extras.get("players_data"), excused=excused)
     signals["sentinel_failures"] = bad
+    signals["sentinel_excused"] = excused
+    if excused:
+        reasons.append("sentinel below band but listed injured, not held (JEG-1630): " + ", ".join(
+            f"{e['name']} {e['value']:g} ({e['injury']})" for e in excused))
     if bad:
         status = "red"
         reasons.append("sentinel players outside their per-game band (JEG-592): " + ", ".join(
