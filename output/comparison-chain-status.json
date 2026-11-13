@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-13T18:03:22.855586+00:00",
+  "run_at": "2026-11-13T18:45:20.883496+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -15,7 +15,7 @@
   "outcome": "published_with_holds",
   "held": [
     "cbsros",
-    "espn",
+    "fantasycalc",
     "usatoday"
   ],
   "hold_severity": "red",
@@ -33,16 +33,15 @@
       "hold_severity": "amber",
       "week": 10
     },
-    "espn": {
+    "fantasycalc": {
       "reason": "fidelity: scrape_validity",
       "held_series": [
-        "espn",
-        "espn_vorp"
+        "fantasycalc"
       ],
       "sections": [
-        "espn"
+        "fantasycalc"
       ],
-      "detail": "sentinel players outside their per-game band (JEG-592): Lamar Jackson 0 (expected 5.56 to 15.15), Puka Nacua 0 (expected 9.21 to 25.11)",
+      "detail": "player count dropped vs week 9: stored TE 30->26, chart TE 30->26",
       "hold_severity": "red",
       "week": 10
     },
@@ -147,7 +146,7 @@
       "lagging_one_week": false
     },
     "espn": {
-      "content_vintage": "2026-11-12",
+      "content_vintage": "2026-11-13",
       "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
@@ -197,7 +196,7 @@
     "espn": {
       "served_week": 10,
       "label_week": 10,
-      "published_at": "2026-11-12",
+      "published_at": "2026-11-13",
       "basis": "section_label",
       "expected_week": 10,
       "weeks_behind": 0,
@@ -255,7 +254,7 @@
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
     "usatoday": "fidelity: publisher_vs_stored",
-    "espn": "fidelity: scrape_validity",
+    "fantasycalc": "fidelity: scrape_validity",
     "cbsros": "fidelity: scrape_validity"
   }
 }
