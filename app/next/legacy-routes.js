@@ -110,6 +110,9 @@
     var out = {scoring: (src && src.scoring) || "ppr", teams: nearestTeams(Number(src && src.teams)) || 12,
       superflex: Number(roster.SUPERFLEX) > 0, slots: slots};
     if (Number(roster.SUPERFLEX) >= 2) out.superflexSlots = 2;   // JEG-1571: two QB-eligible flex slots
+    // JEG-1632: kicker and defense slots (0-3); 1 and 1 is the default and is not written
+    var k = Number(roster.K), d = Number(roster.DST);
+    if ([k, d].every(function (n) { return Number.isInteger(n) && n >= 0 && n <= 3; }) && (k !== 1 || d !== 1)) out.kdef = [k, d];
     return out;
   }
 

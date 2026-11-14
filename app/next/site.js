@@ -326,6 +326,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   var SLOT_KEYS = ['qb', 'rb', 'wr', 'te', 'flex', 'bench'];
   var SLOT_MAX = 20;
   var SF_SLOTS_MAX = 2;   /* JEG-1571: QB-eligible flex (superflex) slots per team, 0-2 */
+  var KDEF_MAX = 3, KDEF_DEFAULT = [1, 1];   /* JEG-1632: kicker and defense starting slots, 0-3 (curve-widget ROSTER_BOUNDS) */
   var HEADER_LEN = 7, FORMAT_VERSION = 1;
   var ID_BITS = 10, ID_ESCAPE = 1023, ID_MAX = 1022;
   var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -384,9 +385,20 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     /* JEG-1571: a league with two QB-eligible flex slots says superflexSlots:2 (JSON body only; the header bit stays
        "at least one"). Absent = 1 slot when superflex, 0 when not, so old links decode as before. */
     if(sf && Number(s.superflexSlots) === SF_SLOTS_MAX) out.superflexSlots = SF_SLOTS_MAX;
+    /* JEG-1632: kicker and defense slots as kdef:[k, def] (JSON body only), kept only when not 1 and 1, so an old link
+       (and every 1 K / 1 DEF league) decodes and encodes as before. They are roster spots only: never valued. */
+    var kd = cleanKdef(s.kdef);
+    if(kd && (kd[0] !== KDEF_DEFAULT[0] || kd[1] !== KDEF_DEFAULT[1])) out.kdef = kd;
     if(s.extras && typeof s.extras === 'object' && !Array.isArray(s.extras)) out.extras = s.extras;
     return out;
   }
+  function cleanKdef(v){
+    if(!Array.isArray(v) || v.length !== 2) return null;
+    var kd = v.map(Number);
+    return kd.every(function(n){ return Number.isInteger(n) && n >= 0 && n <= KDEF_MAX; }) ? kd : null;
+  }
+  /* {K, DST}: the engine's roster keys for a link-format league's kicker and defense slots (absent = 1 and 1). */
+  function kdefSlots(st){ var kd = st && cleanKdef(st.kdef) || KDEF_DEFAULT; return {K: kd[0], DST: kd[1]}; }
   function superflexSlots(st){ return !st || !st.superflex ? 0 : (Number(st.superflexSlots) === SF_SLOTS_MAX ? SF_SLOTS_MAX : 1); }
   function settingsHeader(st){
     var h = new Uint8Array(HEADER_LEN);
@@ -584,11 +596,12 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     mapLists(body, function(l){ if((l || []).some(Number.isInteger)) hasIds = true; return l; });
     if(hasIds && !body.table) body.table = 1;
     if(!validBody(body)) return Promise.reject(new Error('format'));
-    if(st.extras || st.superflexSlots){
+    if(st.extras || st.superflexSlots || st.kdef){
       var bodyExtras = body.settings.extras;
       body.settings = {};
       if(st.extras) body.settings.extras = bodyExtras;
       if(st.superflexSlots) body.settings.superflexSlots = st.superflexSlots;
+      if(st.kdef) body.settings.kdef = st.kdef;
     } else delete body.settings;
     var ids = opts.pack === false ? [] : packAll(body);
     var pre = [].concat(Array.from(settingsHeader(st)), varint(ids.length), Array.from(bitsPack(ids)));
@@ -630,9 +643,11 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       unpackAll(body, ids);
       if(!validBody(body)) return {error:'format'};
       var extras = body.settings && body.settings.extras, sfSlots = body.settings && body.settings.superflexSlots;
+      var kd = cleanKdef(body.settings && body.settings.kdef);
       body.settings = h.settings;
       if(extras && typeof extras === 'object') body.settings.extras = extras;
       if(h.settings.superflex && Number(sfSlots) === SF_SLOTS_MAX) body.settings.superflexSlots = SF_SLOTS_MAX;
+      if(kd && (kd[0] !== KDEF_DEFAULT[0] || kd[1] !== KDEF_DEFAULT[1])) body.settings.kdef = kd;
       return normalizeContext(body, false);
     }).catch(function(){ return {error:'format'}; });
   }
@@ -817,6 +832,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       return SCORING_LABEL[st.scoring] + ' · ' + st.teams + ' teams' + (sf === 1 ? ' · Superflex' : sf > 1 ? ' · ' + sf + ' superflex' : '');
     },
     superflexSlots: superflexSlots,
+    kdefSlots: kdefSlots,
     copyForChat: function(statusEl){
       var s = DDF.link.current();
       if(!s){ if(statusEl) statusEl.textContent = 'Nothing from your chat to copy yet.'; return Promise.resolve(false); }
@@ -898,6 +914,9 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     setField(document.getElementById('teams'), st.teams);
     SLOT_KEYS.forEach(function(k, i){ setField(document.getElementById('lineup-' + k), st.slots[i]); });
     setField(document.getElementById('lineup-sf'), superflexSlots(st));
+    var kd = kdefSlots(st);
+    setField(document.getElementById('lineup-k'), kd.K);
+    setField(document.getElementById('lineup-def'), kd.DST);
     link.prefilled = link.at; DDF.state.set('link', link);
   }
 
@@ -1433,6 +1452,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       if(!r) return null;
       var out = {scoring: e.scoring, teams: e.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH].map(function(n){ return Number(n) || 0; })};
       if((r.SUPERFLEX || 0) >= 2) out.superflexSlots = 2;   /* JEG-1571: two QB-eligible flex slots */
+      if(Number.isInteger(r.K) && Number.isInteger(r.DST) && (r.K !== 1 || r.DST !== 1)) out.kdef = [r.K, r.DST];   /* JEG-1632 */
       return out;
     }catch(err){ return null; }
   }
@@ -1619,11 +1639,16 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     var form = {scoring:SC[g('scoring')] || g('scoring'), teams:Number(g('teams')), superflex:sfn > 0,
       slots:['qb','rb','wr','te','flex','bench'].map(function(k){ return Number(g('lineup-' + k)); })};
     if(sfn === 2) form.superflexSlots = 2;
+    /* JEG-1632: kicker and defense slots (0-3); 1 and 1 is the default and is not written */
+    var kd = [Number(g('lineup-k')), Number(g('lineup-def'))];
+    if(g('lineup-k') !== null && g('lineup-def') !== null && kd.every(function(n){ return Number.isInteger(n) && n >= 0 && n <= 3; })
+      && (kd[0] !== 1 || kd[1] !== 1)) form.kdef = kd;
     try{
       var cur = DDF.link.current(), info = DDF.state.get('link', null);
       /* A hand-entered league stays 'manual' when re-confirmed (DDF.link.update would mark it as a chat league). */
       var merged = Object.assign({}, cur && cur.settings, form);
       if(!form.superflexSlots) delete merged.superflexSlots;
+      if(!form.kdef) delete merged.kdef;
       if(cur && !(info && info.source === 'manual')) DDF.link.update({settings:merged});
       else { DDF.state.set('league', Object.assign({v:1}, cur || {}, {settings:merged})); DDF.state.set('link', {source:'manual', at:Date.now()}); }
     }catch(e){}

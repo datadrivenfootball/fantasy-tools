@@ -857,6 +857,7 @@ test-core:
 	python3 -m unittest tests.test_entry_sticky_bar
 	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
 	python3 -m unittest tests.test_sleeper_entry
+	python3 -m unittest tests.test_jeg1632_kdef_slots
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -1091,6 +1092,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_entry_sticky_bar
 	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
 	python3 -m unittest tests.test_sleeper_entry
+	# JEG-1632: K and DEF slots in Settings (roster spots, link round trip, values unchanged, convention twins).
+	python3 -m unittest tests.test_jeg1632_kdef_slots
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe
