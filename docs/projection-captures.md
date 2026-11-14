@@ -2,7 +2,7 @@
 
 Decided by Jeremy 2026-10-23: "start storing CBS ROS and Razzball week-ahead projections now (every week, append-only, with the capture timestamp and source week)". Widened the same day: "We should be saving projections for all weeks ahead, not just one week ahead."
 
-Purpose: score each source against actuals later (JEG-945). Nothing in this change feeds a value, the DDF Value definition or a published page. Table: `public.source_projection_captures` (migration `supabase/migrations/jeg944_source_projection_captures_20261023.sql`).
+Purpose: score each source against actuals later (JEG-945). The daily, every-source copy is the JEG-1641 warehouse (`docs/weekly-projection-warehouse.md`); this table is unchanged by it. Nothing in this change feeds a value, the DDF Value definition or a published page. Table: `public.source_projection_captures` (migration `supabase/migrations/jeg944_source_projection_captures_20261023.sql`).
 
 Cadence and formats, decided by Jeremy 2026-10-23: "a full copy per source after the Tuesday flip AND a Sunday pre-kickoff copy" (about 160 MB for the season); keep all three scoring formats.
 

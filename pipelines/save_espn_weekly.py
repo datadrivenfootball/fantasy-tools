@@ -24,6 +24,13 @@ Input: the two JSON files pull_espn_projections.py writes with
     vintage_note states the basis (MR-20: per scheduled team week; 0 when
     ESPN projects him out or on bye) and the ESPN id.
 
+(c) JEG-1641: every future week's projection (target week >= content week),
+    with ESPN's stat line and appliedTotal, APPENDED to
+    public.source_weekly_projections on every run (daily full copy, Jeremy
+    2026-11-14 decision A), plus one public.source_projection_runs row. Same
+    pull, so there is no second ESPN fetch. A fault here is reported after the
+    other writes and fails the run (exit 1), as the JEG-944 capture does.
+
 Fail closed: if fewer than MIN_RESOLVED of the actual rows resolve to a
 player and a game, nothing is written and the run fails.
 
@@ -37,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import uuid
 from collections import Counter, defaultdict
@@ -48,6 +56,7 @@ sys.path.insert(0, str(ROOT / "pipelines" / "lib"))
 sys.path.insert(0, str(ROOT / "pipelines"))
 import espn_weekly as ew  # noqa: E402
 import projection_capture as pc  # noqa: E402
+import projection_warehouse as pw  # noqa: E402
 from nfl_week import content_week  # noqa: E402
 from player_key_index import PlayerIndex  # noqa: E402
 
@@ -251,6 +260,24 @@ def upsert(sb, table, rows, on_conflict=None, chunk=500):
             sb.post(table, part, prefer="return=minimal")
 
 
+def write_warehouse(sb, rows, rep, season, content_week_now, as_of) -> bool:
+    """JEG-1641 append: rows, then the run row. -> True when it failed."""
+    problems = pw.floor_problems("espn", rows) or ([] if rows else ["espn: no rows"])
+    if problems:
+        rep["error"] = "; ".join(problems) + "; nothing written"
+        return True
+    run_id = rows[0]["run_id"]
+    for i in range(0, len(rows), 500):
+        sb.post("source_weekly_projections", rows[i:i + 500], prefer="return=minimal")
+    sb.post("source_projection_runs", [pw.run_row(
+        run_id=run_id, source="espn", as_of=as_of, season=season, content_week=content_week_now,
+        rows_written=len(rows), target_weeks=[r["target_week"] for r in rows],
+        workflow_run=os.environ.get("GITHUB_RUN_ID"),
+        detail={"unresolved_rows": rep.get("unresolved_rows")})], prefer="return=minimal")
+    rep["written"] = len(rows)
+    return False
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--in", dest="indir", required=True, type=Path)
@@ -322,13 +349,27 @@ def main(argv=None) -> int:
             capture_failed = True
             cap_rep["error"] = f"{type(exc).__name__}: {exc}"
             print(f"CAPTURE FAILED (source_projection_captures): {cap_rep['error']}", file=sys.stderr)
+    wh_rows, wh_rep = pw.espn_rows(projs["rows"], index, run_id=str(uuid.uuid4()), as_of=now_iso,
+                                   season=season, content_week=source_week, points_fn=ew.points)
+    wh_rep |= {"rows": len(wh_rows), "rows_by_week": pw.week_counts(wh_rows)}
+    summary["warehouse"] = wh_rep
+    warehouse_failed = False
+    if ok and not a.dry_run:
+        try:
+            warehouse_failed = write_warehouse(sb, wh_rows, wh_rep, season, source_week, now_iso)
+        except Exception as exc:  # noqa: BLE001 -- reported, then exit 1
+            warehouse_failed = True
+            wh_rep["error"] = f"{type(exc).__name__}: {exc}"
+        if warehouse_failed:
+            print(f"WAREHOUSE FAILED (source_weekly_projections): {wh_rep.get('error')}", file=sys.stderr)
     a.summary.parent.mkdir(parents=True, exist_ok=True)
     a.summary.write_text(json.dumps(summary, indent=1, default=str) + "\n")
     print(json.dumps({k: summary[k] for k in ("actual_weeks", "resolved_share")}
                      | {"to_upsert": act_rep["to_upsert"],
                         "comparison": act_rep["comparison_with_existing"]["by_position"],
                         "projection_rows": proj_rep["rows_written"]}, indent=1))
-    if capture_failed:
+    print(f"warehouse rows by week: {wh_rep['rows_by_week']}")
+    if capture_failed or warehouse_failed:
         return 1
     if not ok:
         print(f"FAILED: only {resolved_share:.1%} of actual rows resolved to a player "

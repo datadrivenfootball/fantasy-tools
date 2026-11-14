@@ -311,6 +311,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_watchdog_common_helpers
 	python3 -m unittest tests.test_razzball_sync_ci
 	python3 -m unittest tests.test_espn_weekly_store
+	# JEG-1641: weekly projection warehouse (row builders, savers, freshness, migration).
+	python3 -m unittest tests.test_projection_warehouse
 	python3 -m unittest tests.test_build_weekly_inputs
 	# JEG-1415: offline waiver-board builder and schema (slice 1 of JEG-1196).
 	python3 -m unittest tests.test_build_waiver_board

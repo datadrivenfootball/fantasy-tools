@@ -1,0 +1,96 @@
+name: Weekly projection warehouse (JEG-1641)
+
+# JEG-1641 (Jeremy 2026-11-14, decision A: daily full copies, no deletion):
+# append every future week's projection from Sleeper, the current-week CBS and
+# FantasyPros pages, and the nflverse schedule and injury report to the
+# append-only warehouse tables
+# (supabase/migrations/jeg1641_weekly_projection_warehouse_20261114.sql).
+# ESPN rows come from espn-weekly-store.yml (same daily ESPN pull). Storage
+# only: no published table, value or page reads these tables, and nothing here
+# commits to the repo or dispatches anything.
+#
+#   pipelines/save_projection_warehouse.py   pulls, checks floors, appends
+#   pipelines/check_projection_warehouse.py  fails the run when any source's
+#                                            newest as_of is past its cadence
+#
+# Scheduler owner: Supabase pg_cron weekly-projection-warehouse-daily (13:30
+# UTC) and weekly-projection-warehouse-sunday (16:40 UTC Sunday), in the
+# migration. No `schedule:`. workflow_dispatch is dry unless mode=write, and
+# only main writes. Doc: docs/weekly-projection-warehouse.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry or write"
+        required: false
+        default: "dry"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-projection-warehouse
+  cancel-in-progress: false
+
+jobs:
+  warehouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install standalone Supabase client
+        run: |
+          mkdir -p /tmp/gh_shim
+          cp pipelines/gh_sbclient.py /tmp/gh_shim/sbclient.py
+          echo "PYTHONPATH=/tmp/gh_shim:$PYTHONPATH" >> $GITHUB_ENV
+
+      - name: Pull and append (Sleeper, CBS, FantasyPros, nflverse)
+        env:
+          EVENT_MODE: ${{ github.event.inputs.mode }}
+          REF: ${{ github.ref }}
+          SUPABASE_BYTES_CALLER: weekly-projection-warehouse:pull-and-append
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set -o pipefail
+          flag="--dry-run"
+          [ "$EVENT_MODE" = "write" ] && [ "$REF" = "refs/heads/main" ] && flag=""
+          rc=0
+          python3 pipelines/save_projection_warehouse.py $flag > /tmp/warehouse.log 2>&1 || rc=$?
+          cat /tmp/warehouse.log
+          level=notice; [ "$rc" = 0 ] || level=error
+          tail -20 /tmp/warehouse.log | tr '\n' ' ' | cut -c1-3000 | sed "s/^/::$level title=projection warehouse rc=$rc::/"
+          echo
+          { echo "## Weekly projection warehouse"; echo '```'; tail -30 /tmp/warehouse.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+      - name: Freshness and size check (JEG-1641)
+        if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode == 'write'
+        env:
+          SUPABASE_BYTES_CALLER: weekly-projection-warehouse:freshness
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 pipelines/check_projection_warehouse.py
+
+      - name: Record monitored check
+        if: always() && github.ref == 'refs/heads/main' && github.event.inputs.mode == 'write'
+        env:
+          SUPABASE_BYTES_CALLER: weekly-projection-warehouse:record-monitored-check
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python3 pipelines/record_monitor_check.py --check-id weekly_projection_warehouse --owner weekly-projection-warehouse.yml --outcome "${{ job.status }}"
+
+      - name: Retain Supabase byte counters (JEG-1458)
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-bytes-${{ github.job }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/supabase-bytes/*.md
+          if-no-files-found: ignore
+          retention-days: 14

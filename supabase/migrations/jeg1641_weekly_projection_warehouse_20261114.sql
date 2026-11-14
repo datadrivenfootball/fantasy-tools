@@ -5,8 +5,9 @@
 -- only ESPN and Sleeper (RotoWire) project every remaining week; CBS and
 -- FantasyPros publish the current week only and are stored tagged with that week.
 --
--- STATUS: DRAFT. Not applied. Needs independent review and Jeremy's specific yes
--- naming this file (AGENTS.md: every Supabase migration needs his yes).
+-- Decision (Jeremy, 2026-11-14, relayed by the coordinator): "A. Yes, apply the
+-- migration with daily full copies as designed, no deletion, revisit retention in
+-- the offseason." Applied only after an independent review of this file.
 --
 -- Storage only. No view, function or published output reads these tables; no
 -- value logic; no ROS rows (Jeremy 2026-10-29: never blend weekly with ROS).
@@ -124,7 +125,6 @@ create table if not exists public.nflverse_injury_snapshots (
     report_primary_injury   text,
     practice_status         text,
     practice_primary_injury text,
-    date_modified           timestamptz,
     primary key (run_id, season, week, gsis_id)
 );
 create index if not exists nflverse_injury_snapshots_player_idx
@@ -152,6 +152,24 @@ begin
     end loop;
 end;
 $$;
+
+-- ---------------------------------------------------------------- size
+-- Read by pipelines/check_projection_warehouse.py for the size alert (the
+-- thresholds live there and in docs/weekly-projection-warehouse.md).
+create or replace function public.source_weekly_warehouse_size()
+returns table (relation text, bytes bigint)
+language sql stable security definer set search_path = '' as $$
+    select 'database', pg_catalog.pg_database_size(pg_catalog.current_database())
+    union all
+    select c.relname::text, pg_catalog.pg_total_relation_size(c.oid)
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relname in ('source_projection_runs', 'source_weekly_projections',
+                         'nflverse_schedule_snapshots', 'nflverse_injury_snapshots')
+$$;
+revoke all on function public.source_weekly_warehouse_size() from public, anon, authenticated;
+grant execute on function public.source_weekly_warehouse_size() to service_role;
 
 -- ---------------------------------------------------------------- schedule
 -- Daily 13:30 UTC (07:30 CST), after espn-weekly-store-live (12:40) and
