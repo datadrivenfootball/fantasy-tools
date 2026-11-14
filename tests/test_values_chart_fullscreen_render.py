@@ -176,6 +176,80 @@ class FullScreenChartTest(unittest.TestCase):
             self.assertLess(lo2, 200, "dragging left moves a handle below the stack")
             self.assertEqual(0, page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"))
 
+    def test_rotated_portrait_sliders_chart_tap_and_focus_trap(self):
+        with self._page(375, 667) as page:
+            page.click("#vfs-open")
+            page.wait_for_timeout(500)
+            self.assertTrue(page.evaluate("document.getElementById('vfs').classList.contains('vfs-rot')"))
+            self.assertTrue(page.evaluate("document.querySelector('main').hasAttribute('inert')"), "page behind is inert while open")
+            # Value slider (local vertical = screen horizontal when rotated): taps along it set proportional values.
+            r = page.evaluate("(() => { const r = document.querySelector('.dual-v').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
+            got = []
+            for frac in (0.25, 0.75):
+                page.mouse.click(r[0] + 13 + frac * (r[2] - 26), r[1] + r[3] / 2)
+                page.wait_for_timeout(100)
+                got.append(page.evaluate("[+document.getElementById('value-low').value, +document.getElementById('value-high').value]"))
+            self.assertNotEqual(got[0], got[1], "taps at different points along the rotated slider differ")
+            page.click("#vfs-ctrl")
+            page.wait_for_timeout(200)
+            page.click("[data-count='All']")
+            page.wait_for_timeout(300)
+            r = page.evaluate("(() => { const r = document.querySelector('.dual-h').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
+            page.mouse.click(r[0] + r[2] / 2, r[1] + 13 + 0.5 * (r[3] - 26))
+            page.wait_for_timeout(100)
+            hi_a = page.evaluate("+document.getElementById('high').value")
+            page.mouse.click(r[0] + r[2] / 2, r[1] + 13 + 0.9 * (r[3] - 26))
+            page.wait_for_timeout(100)
+            hi_b = page.evaluate("+document.getElementById('high').value")
+            total = page.evaluate("+document.getElementById('high').max")
+            self.assertLess(abs(hi_b - (1 + 0.9 * (total - 1))), total * 0.02, "tap 90% down the rotated rank slider sets ~90% of the range")
+            page.click("#vfs-ctrl")
+            page.wait_for_timeout(200)
+            b = page.evaluate("(() => { const r = document.getElementById('vchart').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
+            page.mouse.click(b[0] + b[2] * 0.5, b[1] + b[3] * 0.25)
+            first = page.inner_text("#vfs-readout").split("\n")[0]
+            page.mouse.click(b[0] + b[2] * 0.5, b[1] + b[3] * 0.75)
+            self.assertNotEqual(first, page.inner_text("#vfs-readout").split("\n")[0], "rotated chart taps map to different players")
+            page.click("#vfs-close")
+            page.wait_for_timeout(300)
+            self.assertFalse(page.evaluate("document.querySelector('main').hasAttribute('inert')"))
+
+    def test_rank_by_reachable_full_screen_and_reorders(self):
+        for w, h, rotated in ((667, 375, False), (375, 667, True)):
+            with self.subTest(rotated=rotated), self._page(w, h) as page:
+                page.click("#vfs-open")
+                page.wait_for_timeout(400)
+                page.click("#vfs-ctrl")
+                page.wait_for_timeout(200)
+                self.assertTrue(page.is_visible("#rank"), "Rank by (x axis order) is reachable in the full-screen view")
+                self.assertEqual(rotated, page.evaluate("document.getElementById('vfs').classList.contains('vfs-rot')"))
+                first_ddf = page.evaluate("DDFValues.D.slice().sort((a, b) => b.ddf - a.ddf)[0].n")
+                page.select_option("#rank", "cbs")
+                page.wait_for_timeout(300)
+                order = page.evaluate("""() => { const cbs = DDFValues.D.filter(p => typeof p.cbs === 'number').sort((a, b) => b.cbs - a.cbs);
+                  return {first: cbs[0].n, summary: document.getElementById('chart-summary').textContent}; }""")
+                self.assertIn("#1 " + order["first"], order["summary"], "chart is re-ordered by the chosen series")
+                self.assertIn("by CBS", order["summary"])
+                page.click("#vfs-ctrl")
+                page.wait_for_timeout(200)
+                self.assertGreater(page.evaluate("document.querySelectorAll('#vchart text').length"), 10, "axis and labels still drawn")
+                page.click("#vfs-close")
+                page.wait_for_timeout(300)
+                self.assertTrue(page.is_visible("#rank"), "Rank by is back above the chart on close")
+                self.assertTrue(page.evaluate("!!document.querySelector('.values-section #rank')"), "label restored to its place")
+
+    def test_real_touch_tap_reads_player(self):
+        for w, h in ((667, 375), (375, 667)):
+            with self.subTest(size=(w, h)), self._page(w, h) as page:
+                page.click("#vfs-open")
+                page.wait_for_timeout(500)
+                b = page.evaluate("(() => { const r = document.getElementById('vchart').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })()")
+                page.touchscreen.tap(b[0] + b[2] * 0.5, b[1] + b[3] * 0.5)
+                page.wait_for_timeout(250)
+                txt = page.inner_text("#vfs-readout")
+                self.assertRegex(txt, r"rank \d+")
+                self.assertIn("DDF", txt)
+
     def test_trade_chart_average_series(self):
         with self._page(375, 667) as page:
             self.assertTrue(page.is_visible("#src-avg"), "Trade chart average is a visible series choice")

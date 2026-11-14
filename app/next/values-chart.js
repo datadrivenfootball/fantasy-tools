@@ -193,7 +193,7 @@ addEventListener('resize',()=>{if(cardIdx!==null&&pinned!==null)placeAfter()});
    iPhone Safari cannot lock orientation, so a portrait phone gets the overlay turned 90 degrees with CSS; where screen.orientation.lock
    works (Android Chrome, in fullscreen) the page is really landscape. Page scroll is locked while open, so drags and pinches reach the chart. */
 let fsTool='inspect',fsY=0,fsSaved=null,fsSlots=[];const fsPts=new Map();let fsPinch=null,fsDrag=null,fsRaf=0,fsPushed=false;
-const FS_NODES=()=>['.series','.chart-layout','.rank-controls','.rank-nudge','.count-row','.group-row'].map(q=>document.querySelector('.values-section '+q));
+const FS_NODES=()=>['.series','.chart-layout','.rank-controls','.rank-nudge','.count-row','.group-row'].map(q=>document.querySelector('.values-section '+q)).concat([$('rank').closest('label')]);
 function toNum(i,d){const el=$(i),v=i.includes('value'),mx=v?100:(+el.max||1e9);const nv=Math.max(v?0:1,Math.min(mx,(+el.value||0)+d));el.value=v?nv.toFixed(1):nv;return el}
 function fsLayout(){const o=$('vfs'),iw=innerWidth,ih=innerHeight;rot=ih>iw;o.classList.toggle('vfs-rot',rot);
  o.style.width=(rot?ih:iw)+'px';o.style.height=(rot?iw:ih)+'px';o.style.transform=rot?'translateX('+iw+'px) rotate(90deg)':'none'}
@@ -217,17 +217,18 @@ function fsMove(e){const pt=fsPts.get(e.pointerId);if(!pt)return;pt.x=e.clientX;
  if(fsTool==='inspect'&&fsPts.size===1)fsSelect(idxAt(e.clientX,e.clientY))}
 function fsUp(e,cancel){fsPts.delete(e.pointerId);if(fsPinch){if(fsPts.size<2)fsPinch=null;if(fsPts.size===0)fsDrag=null;return}
  if(fsDrag){const d=fsDrag;fsDrag=null;if(!cancel&&d.moved&&shown.length>1){const a=shown[idxAt(d.x,d.y)],z=shown[idxAt(e.clientX,e.clientY)];$('low').value=Math.min(a.rank,z.rank);$('high').value=Math.max(a.rank,z.rank);render()}else if(!cancel&&!d.moved)fsSelect(idxAt(e.clientX,e.clientY));else drawCursor()}}
+function fsInert(on){document.querySelectorAll('body > :not(#vfs):not(script):not(style)').forEach(el=>{if(on)el.setAttribute('inert','');else el.removeAttribute('inert')})}
 function fsLock(){fsY=window.scrollY;const b=document.body.style;fsSaved={position:b.position,top:b.top,left:b.left,right:b.right,width:b.width};
  b.position='fixed';b.top=-fsY+'px';b.left='0';b.right='0';b.width='100%';document.documentElement.classList.add('vfs-lock')}
 function fsUnlock(){if(!fsSaved)return;const b=document.body.style;Object.assign(b,fsSaved);fsSaved=null;document.documentElement.classList.remove('vfs-lock');window.scrollTo(0,fsY)}
 let fsNodes=[];
 function fsMove2(toOverlay){const nodes=toOverlay?(fsNodes=FS_NODES()):fsNodes;
  if(toOverlay){fsSlots=nodes.map(n=>{if(!n)return null;const c=document.createComment('vfs');n.parentNode.insertBefore(c,n);return c});
-  nodes.forEach((n,i)=>{if(!n)return;(i===1?$('vfs-chart'):$('vfs-drawer')).appendChild(n)})}
+  nodes.forEach((n,i)=>{if(!n)return;if(i===6){$('vfs-drawer').insertBefore(n,$('vfs-drawer').firstChild);return}(i===1?$('vfs-chart'):$('vfs-drawer')).appendChild(n)})}
  else{nodes.forEach((n,i)=>{const c=fsSlots[i];if(n&&c&&c.parentNode)c.parentNode.replaceChild(n,c)});fsSlots=[]}}
 function fsOpenNow(){if(fsOpen)return;hideCard(true);fsOpen=true;selName=null;selIdx=null;fsTool='inspect';syncTool();
  const o=$('vfs');o.hidden=false;o.classList.remove('vfs-ctrl-open');$('vfs-ctrl').setAttribute('aria-expanded','false');
- fsMove2(true);fsLock();try{history.pushState({vfs:1},'');fsPushed=true}catch(_){fsPushed=false}
+ fsMove2(true);fsInert(true);fsLock();try{history.pushState({vfs:1},'');fsPushed=true}catch(_){fsPushed=false}
  const sc=window.screen&&screen.orientation;
  const go=()=>{fsLayout();render();$('vfs-close').focus()};
  go();
@@ -235,9 +236,10 @@ function fsOpenNow(){if(fsOpen)return;hideCard(true);fsOpen=true;selName=null;se
 }
 function fsCloseNow(){if(!fsOpen)return;fsOpen=false;fsPts.clear();fsPinch=null;fsDrag=null;const o=$('vfs');
  try{if(document.fullscreenElement)document.exitFullscreen();if(screen.orientation&&screen.orientation.unlock)screen.orientation.unlock()}catch(_){}
- fsMove2(false);o.hidden=true;o.style.width='';o.style.height='';o.style.transform='';rot=false;fsUnlock();render();const b=$('vfs-open');if(b)b.focus({preventScroll:true})}
+ fsMove2(false);fsInert(false);o.hidden=true;o.style.width='';o.style.height='';o.style.transform='';rot=false;fsUnlock();render();const b=$('vfs-open');if(b)b.focus({preventScroll:true})}
 function fsClose(){const had=fsOpen;fsCloseNow();if(had&&fsPushed&&history.state&&history.state.vfs){fsPushed=false;history.back()}}
 function syncTool(){document.querySelectorAll('#vfs [data-tool]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tool===fsTool)))}
+document.body.appendChild($('vfs'));
 $('vfs-open').addEventListener('click',fsOpenNow);
 $('vfs-close').addEventListener('click',fsClose);
 $('vfs-reset').addEventListener('click',()=>{$('reset').click()});
@@ -251,20 +253,20 @@ $('vfs').addEventListener('touchmove',e=>{if(!e.target.closest('#vfs-drawer'))e.
    together, the first move decides (toward the high end moves the high handle). Keyboard and screen readers use the real inputs. */
 const touchSliders=()=>matchMedia('(pointer:coarse),(max-width:760px)').matches;
 function dualDrag(box,lowId,highId,vertical){const lo=$(lowId),hi=$(highId);let cur=null,pend=null,id=null,startP=0;
- const thumb=26,frac=e=>{const r=box.getBoundingClientRect(),len=vertical?r.height:r.width,p=vertical?r.bottom-e.clientY:e.clientX-r.left;return Math.max(0,Math.min(1,(p-thumb/2)/Math.max(1,len-thumb)))};
+ const thumb=26,dims=e=>{const r=box.getBoundingClientRect();if(rot)return vertical?{len:r.width,p:e.clientX-r.left}:{len:r.height,p:e.clientY-r.top};return vertical?{len:r.height,p:r.bottom-e.clientY}:{len:r.width,p:e.clientX-r.left}},frac=e=>{const {len,p}=dims(e);return Math.max(0,Math.min(1,(p-thumb/2)/Math.max(1,len-thumb)))};
  const fr=i=>{const mn=+i.min,mx=+i.max;return mx>mn?(+i.value-mn)/(mx-mn):0};
  const setv=(i,f)=>{const mn=+i.min,mx=+i.max,st=+i.step||1;let v=mn+f*(mx-mn);v=Math.round(v/st)*st;v=Math.max(mn,Math.min(mx,+v.toFixed(2)));if(+i.value!==v){i.value=v;i.dispatchEvent(new Event('input',{bubbles:true}))}};
  box.addEventListener('pointerdown',e=>{if(!touchSliders()||(e.pointerType==='mouse'&&e.button!==0))return;e.preventDefault();id=e.pointerId;try{box.setPointerCapture(id)}catch(_){}
-  const f=frac(e),dl=Math.abs(f-fr(lo)),dh=Math.abs(f-fr(hi)),len=vertical?box.getBoundingClientRect().height:box.getBoundingClientRect().width;
-  startP=vertical?e.clientY:e.clientX;
-  if(Math.abs(fr(hi)-fr(lo))*len<thumb+4&&Math.min(dl,dh)*len<thumb){pend=true;cur=null}else{pend=false;cur=dl<=dh?lo:hi;setv(cur,f)}});
+  const f=frac(e),dl=Math.abs(f-fr(lo)),dh=Math.abs(f-fr(hi)),len=dims(e).len;
+  startP=rot?(vertical?e.clientX:e.clientY):(vertical?e.clientY:e.clientX);
+  if(Math.abs(fr(hi)-fr(lo))*len<thumb+4&&Math.min(dl,dh)*len<thumb){pend=true;cur=null}else{pend=false;cur=f>=fr(hi)?hi:f<=fr(lo)?lo:(dl<=dh?lo:hi);setv(cur,f)}});
  box.addEventListener('pointermove',e=>{if(e.pointerId!==id)return;const f=frac(e);
-  if(pend){const d=(vertical?startP-e.clientY:e.clientX-startP);if(Math.abs(d)<3)return;cur=d>0?hi:lo;pend=false}
+  if(pend){const d=rot?(vertical?e.clientX-startP:e.clientY-startP):(vertical?startP-e.clientY:e.clientX-startP);if(Math.abs(d)<3)return;cur=d>0?hi:lo;pend=false}
   if(cur)setv(cur,f)});
  const end=e=>{if(e.pointerId===id){id=null;cur=null;pend=null}};box.addEventListener('pointerup',end);box.addEventListener('pointercancel',end)}
 dualDrag(document.querySelector('.dual-h'),'low','high',false);dualDrag(document.querySelector('.dual-v'),'value-low','value-high',true);
 /* Nudge buttons: -/+ for the rank range and the value range, with hold to repeat */
-document.querySelectorAll('.rank-nudge [data-t]').forEach(b=>{let tm=null,iv=null,n=0;const step=()=>{const big=n>8?5:1;n++;const el=toNum(b.dataset.t,+b.dataset.d*big*(b.dataset.t.includes('value')?1:1));if(el.oninput)el.oninput()};
+document.querySelectorAll('.rank-nudge [data-t]').forEach(b=>{let tm=null,iv=null,n=0;const step=()=>{const big=n>8?5:1;n++;const el=toNum(b.dataset.t,+b.dataset.d*big);if(el.oninput)el.oninput()};
  const stop=()=>{clearTimeout(tm);clearInterval(iv);tm=iv=null};
  b.addEventListener('pointerdown',e=>{e.preventDefault();n=0;step();tm=setTimeout(()=>{iv=setInterval(step,90)},380)});
  ['pointerup','pointerleave','pointercancel','blur'].forEach(t=>b.addEventListener(t,stop));
