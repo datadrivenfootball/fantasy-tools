@@ -254,7 +254,8 @@ body.league-pending .team-page{visibility:hidden}
   function lineupText(s) {
     const [qb, rb, wr, te, flex, bench] = s.slots;
     const sf = !s.superflex ? 0 : (Number(s.superflexSlots) === 2 ? 2 : 1);   // JEG-1571
-    return [[qb, 'QB'], [rb, 'RB'], [wr, 'WR'], [te, 'TE'], [flex, 'FLEX']].concat(sf ? [[sf, 'SUPERFLEX']] : [])
+    const kd = DDF.link && DDF.link.kdefSlots ? DDF.link.kdefSlots(s) : {K: 1, DST: 1};   // JEG-1632
+    return [[qb, 'QB'], [rb, 'RB'], [wr, 'WR'], [te, 'TE'], [flex, 'FLEX']].concat(sf ? [[sf, 'SUPERFLEX']] : [], [[kd.K, 'K'], [kd.DST, 'DEF']])
       .filter(x => x[0] > 0).map(x => x[0] + ' ' + x[1]).concat([bench + ' bench']).join(' · ');
   }
   function rankThirds(n) {

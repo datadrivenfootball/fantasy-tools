@@ -108,9 +108,10 @@ class MobileConnectTest(_RenderBase):
         page = self.page(390)
         self.go(page, "settings.html")
         self.assertNotIn("We filled in what we could read", page.inner_text("main"))
-        self.assertIn("We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 7 bench), or the ones from your chat link or your last visit. Confirm each one.", page.inner_text("main"))
+        self.assertIn("We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench), or the ones from your chat link or your last visit. Confirm each one.", page.inner_text("main"))
         self.assertEqual(page.eval_on_selector("#scoring", "e => e.value.toLowerCase()"), "ppr")
         self.assertEqual([page.input_value(f"#lineup-{k}") for k in ("qb", "rb", "wr", "te", "flex", "bench")], ["1", "2", "2", "1", "1", "7"])
+        self.assertEqual([page.input_value(f"#lineup-{k}") for k in ("k", "def")], ["1", "1"], "JEG-1632: 1 K and 1 DEF")
 
     def test_setup_shows_one_next_button_and_it_enables_after_a_team_is_picked(self):
         for width in (1440, 390, 360):

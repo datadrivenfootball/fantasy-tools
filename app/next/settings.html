@@ -59,17 +59,20 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 .st-help{font-size:14px;color:#4c5650;line-height:1.4;margin:12px 0 0}
 /* JEG-1571 follow-up (Jeremy, 2026-11-08: "Show it as two different positions"): FLEX and SUPERFLEX are boxes in the grid, each with its eligibility */
 .team-page .st-slots label .st-elig{font-weight:400;font-size:12px;color:#4c5650;line-height:1.3;min-height:16px}.team-page .st-slots label .stepper{margin-top:auto;width:100%;box-sizing:border-box}.team-page .st-slots .stepper button,.team-page .st-slots .stepper input{min-height:44px}.team-page .st-slots .stepper button{min-width:44px}.team-page .st-slots .stepper input{padding-left:0;padding-right:0}@media(min-width:761px) and (max-width:1100px){.team-page .st-slots{grid-template-columns:repeat(4,minmax(0,1fr))}}.team-page .sf-info{display:inline-block}
+/* JEG-1632 (Jeremy, 2026-11-13): kicker and defense slots are not valued but take roster spots; their own row under the grid */
+.team-page .st-sub{font-size:15px;margin:24px 0 12px}.team-page .st-kdef{margin-top:0}
 .team-page .info summary:focus-visible{outline:3px solid #7fbf9d;outline-offset:2px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.st-actions{display:none}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
 <section id="settings">
 <h1>Confirm your league's settings</h1>
-<p class="muted">We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 7 bench), or the ones from your chat link or your last visit. Confirm each one.</p>
+<p class="muted">We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench), or the ones from your chat link or your last visit. Confirm each one.</p>
 <form id="editor">
 <section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
 <section class="card"><h2>Position counts</h2><div class="st-slots">
 <label>QB <input id="lineup-qb" type="number" min="0" max="20" value="1" required></label><label>RB <input id="lineup-rb" type="number" min="0" max="20" value="2" required></label><label>WR <input id="lineup-wr" type="number" min="0" max="20" value="2" required></label><label>TE <input id="lineup-te" type="number" min="0" max="20" value="1" required></label><label>FLEX <span class="st-elig" id="elig-flex">RB, WR or TE</span><input id="lineup-flex" type="number" min="0" max="20" value="1" required aria-describedby="elig-flex"></label><label>SUPERFLEX <span class="st-elig" id="elig-sf">QB, RB, WR or TE (QWRT, OP)</span><input id="lineup-sf" type="number" min="0" max="2" value="0" required aria-describedby="elig-sf" data-name="SUPERFLEX" data-short="SUPERFLEX"></label><label>Bench <input id="lineup-bench" type="number" min="0" max="20" value="7" required></label>
-</div><div class="st-help st-lblrow" id="sf-help"><span>A league that must start two QBs sets QB to 2 and SUPERFLEX to 0.</span><details class="info sf-info"><summary aria-label="About SUPERFLEX">&#9432;</summary><span role="note">SUPERFLEX is an extra starting spot that can be filled by a QB, RB, WR or TE. Most teams put a second quarterback there because QBs score the most, so quarterbacks become worth more. Sites call it Superflex, SUPER_FLEX, SFLX, OP, Q/W/R/T or QWRT. Most leagues have 0 or 1. It is not the same as a 2-QB league, which requires you to start two quarterbacks.</span></details></div><span class="st-total" id="st-total" role="status"></span></section>
+</div><div class="st-help st-lblrow" id="sf-help"><span>A league that must start two QBs sets QB to 2 and SUPERFLEX to 0.</span><details class="info sf-info"><summary aria-label="About SUPERFLEX">&#9432;</summary><span role="note">SUPERFLEX is an extra starting spot that can be filled by a QB, RB, WR or TE. Most teams put a second quarterback there because QBs score the most, so quarterbacks become worth more. Sites call it Superflex, SUPER_FLEX, SFLX, OP, Q/W/R/T or QWRT. Most leagues have 0 or 1. It is not the same as a 2-QB league, which requires you to start two quarterbacks.</span></details></div>
+<h3 class="st-sub" id="kdef-head">Kickers and defenses</h3><div class="st-slots st-kdef" role="group" aria-labelledby="kdef-head"><label>K <span class="st-elig" id="elig-k">Not evaluated</span><input id="lineup-k" type="number" min="0" max="3" value="1" required aria-describedby="elig-k kdef-help" data-name="K" data-short="K"></label><label>DEF <span class="st-elig" id="elig-def">Not evaluated</span><input id="lineup-def" type="number" min="0" max="3" value="1" required aria-describedby="elig-def kdef-help" data-name="DEF" data-short="DEF"></label></div><p class="st-help" id="kdef-help">We do not value kickers or defenses, but they fill starting spots on every roster, so we count them in your roster spots, open spots and drops.</p><span class="st-total" id="st-total" role="status"></span></section>
 <p id="settings-status" class="notice" role="status"></p>
 <div class="row st-actions"><a class="button" href="setup.html">Back</a><a class="button primary" id="finish-setup" href="team.html" data-sticky-next data-back-href="setup.html" data-back-label="Back" data-next-label="Looks right, continue">Looks right, continue &rarr;</a><span id="gate-reason" class="gate-reason" role="status"></span></div>
 </form></section>
@@ -94,12 +97,12 @@ if(moreButton)document.addEventListener('keydown',e=>{if(e.key==='Escape'&&more.
     sel.addEventListener('change',sync);sel.addEventListener('input',sync);sync();
     setTimeout(sync,300);
   });
-  var keys=['qb','rb','wr','te','flex','bench','sf'],total=document.getElementById('st-total');
+  var keys=['qb','rb','wr','te','flex','bench','sf','k','def'],total=document.getElementById('st-total');
   function nameOf(k){var inp=document.getElementById('lineup-'+k);return inp.dataset.name||(k==='bench'?'Bench':k.toUpperCase());}
   function sumUp(){
     var v={};keys.forEach(function(k){v[k]=Math.max(0,parseInt(document.getElementById('lineup-'+k).value,10)||0);});
-    var starters=v.qb+v.rb+v.wr+v.te+v.flex+v.sf;
-    total.textContent=starters+' starters, '+v.bench+' bench';
+    var starters=v.qb+v.rb+v.wr+v.te+v.flex+v.sf+v.k+v.def;
+    total.textContent=starters+' starters, '+v.bench+' bench, '+(starters+v.bench)+' roster spots';
   }
   keys.forEach(function(k){
     var inp=document.getElementById('lineup-'+k),wrap=document.createElement('div');wrap.className='stepper';
@@ -115,7 +118,7 @@ if(moreButton)document.addEventListener('keydown',e=>{if(e.key==='Escape'&&more.
     if(!window.DDF||!DDF.actionBar)return;
     var g=function(id){return document.getElementById(id).value};
     var sf=parseInt(g('lineup-sf'),10)||0;
-    DDF.actionBar.setSummary(g('scoring')+', '+g('teams')+' teams, '+g('lineup-qb')+' QB, '+g('lineup-rb')+' RB, '+g('lineup-wr')+' WR, '+g('lineup-te')+' TE, '+g('lineup-flex')+' FLEX'+(sf>0?', '+sf+' SUPERFLEX':'')+'. Confirm to continue.');
+    DDF.actionBar.setSummary(g('scoring')+', '+g('teams')+' teams, '+g('lineup-qb')+' QB, '+g('lineup-rb')+' RB, '+g('lineup-wr')+' WR, '+g('lineup-te')+' TE, '+g('lineup-flex')+' FLEX'+(sf>0?', '+sf+' SUPERFLEX':'')+', '+g('lineup-k')+' K, '+g('lineup-def')+' DEF, '+g('lineup-bench')+' bench. Confirm to continue.');
   }
   document.getElementById('editor').addEventListener('input',barSummary);document.getElementById('editor').addEventListener('change',barSummary);
   document.addEventListener('ddf:link',function(){setTimeout(barSummary,0)});
@@ -141,9 +144,9 @@ if(moreButton)document.addEventListener('keydown',e=>{if(e.key==='Escape'&&more.
       for(var i=0;i<keys.length&&!why;i++){
         var inp=document.getElementById('lineup-'+keys[i]),raw=inp.value.trim(),n=Number(raw);
         if(raw===''||!/^\d+$/.test(raw)||n<+inp.min||n>+inp.max){why='Enter a whole number from '+inp.min+' to '+inp.max+' for '+nameOf(keys[i])+' to continue';}
-        else if(keys[i]!=='bench')starters+=n;
+        else if(keys[i]!=='bench'&&keys[i]!=='k'&&keys[i]!=='def')starters+=n;   /* K and DEF alone are not a lineup */
       }
-      if(!why&&starters<1)why='Add at least one starter slot to continue';
+      if(!why&&starters<1)why='Add at least one QB, RB, WR, TE, FLEX or SUPERFLEX slot to continue';
     }
     ddfGate([document.getElementById('finish-setup')],!why,why,'gate-reason');
   }
@@ -184,6 +187,9 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     tm.value = String(s.teams); fire(tm);
     const sf = $('lineup-sf'); sf.value = String(DDF.link && DDF.link.superflexSlots ? DDF.link.superflexSlots(s) : (s.superflex ? 1 : 0)); fire(sf);
     KEYS.forEach((k, i) => { const el = $('lineup-' + k); if (Number.isInteger(s.slots[i])) { el.value = s.slots[i]; fire(el); } });
+    // JEG-1632: kicker and defense slots (kdef [k, def]; absent = 1 and 1)
+    const kd = DDF.link && DDF.link.kdefSlots ? DDF.link.kdefSlots(s) : {K: 1, DST: 1};
+    [['k', kd.K], ['def', kd.DST]].forEach(([k, n]) => { const el = $('lineup-' + k); el.value = String(n); fire(el); });
   }
   function form() {
     // JEG-1571: the QB flex count, 0-2; 2 travels as superflexSlots (LINK-FORMAT 2.1), 1 is the superflex flag alone
@@ -191,6 +197,8 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     const out = {scoring: TOKEN[$('scoring').value] || $('scoring').value, teams: Number($('teams').value), superflex: sfn > 0,
       slots: KEYS.map(k => Number($('lineup-' + k).value))};
     if (sfn === 2) out.superflexSlots = 2;
+    const kd = [Number($('lineup-k').value), Number($('lineup-def').value)];
+    if (kd[0] !== 1 || kd[1] !== 1) out.kdef = kd;   // JEG-1632: 1 and 1 is the default and is not written
     return out;
   }
   function save() {
@@ -198,10 +206,11 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     if (!f.slots.every(n => Number.isInteger(n) && n >= 0 && n <= 20)) return false;
     const sfn = Number($('lineup-sf').value);
     if (!Number.isInteger(sfn) || sfn < 0 || sfn > 2) return false;
+    if (![$('lineup-k').value, $('lineup-def').value].map(Number).every(n => Number.isInteger(n) && n >= 0 && n <= 3)) return false;
     try { DDF.league.setSettings(f); return true; } catch (e) { console.error(e); return false; }
   }
   DDF.league.ready.then(c => {
-    const s = c ? c.settings : (function () { const e = DDF.engine.settings(), r = e.roster; return {scoring: e.scoring, teams: e.teams, superflex: r.SUPERFLEX > 0, superflexSlots: r.SUPERFLEX, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH]}; })();
+    const s = c ? c.settings : (function () { const e = DDF.engine.settings(), r = e.roster; return {scoring: e.scoring, teams: e.teams, superflex: r.SUPERFLEX > 0, superflexSlots: r.SUPERFLEX, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH], kdef: [r.K, r.DST]}; })();
     fill(s);
     if (!c) $('settings-status').innerHTML = 'No league added yet: these are the settings every page uses. <a href="connect.html">Add your league</a>';
   }, e => console.error(e));

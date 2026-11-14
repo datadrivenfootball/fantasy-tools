@@ -92,8 +92,17 @@ test("team names, defenses, unknown ids, settings", async () => {
   assert.deepStrictEqual(teams[0].unmatched.map(u => u.reason), ["kdef"]);
   assert.deepStrictEqual(teams[1].unmatched.map(u => [u.line, u.reason]), [["A player not in our list yet (Sleeper id 99999999)", "missing"]]);
   assert.ok(teams.every(t => t.players.every(p => /^\d+$/.test(p.key))));
-  assert.deepStrictEqual(out.settings, {scoring: "half_ppr", superflex: true, roster: {QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 5}});
+  // JEG-1632: the K and DEF slots come through as the engine's K / DST roster keys
+  assert.deepStrictEqual(out.settings, {scoring: "half_ppr", superflex: true, roster: {QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 5, K: 1, DST: 1}});
   assert.ok(!("teams" in out.settings), "4 teams is not a league size the site offers, so it is left to settings.html");
+});
+
+test("kicker and defense slot counts (JEG-1632)", async () => {
+  const lg = JSON.parse(JSON.stringify(FX("league")));
+  lg.roster_positions = lg.roster_positions.filter(p => p !== "K").concat(["DEF", "DEF", "DEF"]);
+  const out = await SL.load(ID, {fetch: fakeFetch(Object.assign({}, GOOD, {[`/league/${ID}`]: lg})), rows: ROWS, table: TABLE});
+  assert.strictEqual(out.settings.roster.K, 0, "a league without a kicker slot");
+  assert.strictEqual(out.settings.roster.DST, 3, "four DEF slots cap at the site's 3");
 });
 
 test("a missing player table is an error, not an empty league, and is not cached", async () => {

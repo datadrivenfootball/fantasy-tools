@@ -247,6 +247,9 @@
     var keys = ["QB", "RB", "WR", "TE", "FLEX", "BENCH"], roster = {};
     keys.forEach(function (k, i) { if (Number.isInteger(s.slots[i])) roster[k] = s.slots[i]; });
     roster.SUPERFLEX = !s.superflex ? 0 : (Number(s.superflexSlots) === SF_SLOTS_MAX ? SF_SLOTS_MAX : 1);
+    // JEG-1632: kicker and defense slots (kdef [k, def]; absent = 1 and 1). Roster spots only, never valued.
+    var kd = DDF.link && DDF.link.kdefSlots ? DDF.link.kdefSlots(s) : {K: 1, DST: 1};
+    roster.K = kd.K; roster.DST = kd.DST;
     return {scoring: s.scoring, teams: Number(s.teams), roster: roster};
   }
 

@@ -119,6 +119,12 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
 - Tuesday pre-flight: `python3 pipelines/rollover_preflight.py` (runbooks/weekly-refresh.md step 0).
 - Local render tests on this Mac need the repo venv (Python 3.12; the system 3.9 cannot parse Supabase offset timestamps) and `CHROMIUM_PATH` set to the cached chromium_headless_shell-1208 (risk register GAP-PLAYWRIGHT-BROWSER-MISMATCH).
 
+## K and DEF slots: roster spots, not values (2026-11-13, JEG-1632)
+
+- The engine's roster shape carries `K` and `DST` (curve-widget.js, 0-3, default 1 and 1). Only roster-space rules read them: `v2/waivers.js` `rosterSizeOf` (open spots = QB..SUPERFLEX + BENCH + K + DST less players held) and `isRequiredSpecial` (a required kicker or defense is not a drop), and v2 league problems. The value pipeline never sees them: `curve-widget.js pipelineSetting()` passes QB/RB/WR/TE slots and `bench_per_team = BENCH`, and `value-model.js` / `value_reference.py` give all teams x Bench seats to skill players (default-roster-001). `roster_convention.py/.js bench_seats` does give DEF D'Hondt seats, but no live value path calls it.
+- The JEG-1539 swap dropped the K/DEF steppers; JEG-1632 restored them on settings.html. Link format: `settings.kdef: [k, def]` in the JSON body, written only when not [1, 1] (absent = 1 and 1), so old links and 1/1 leagues keep their exact token. `DDF.link.kdefSlots(settings)` -> `{K, DST}` is the one mapping; every adapter (ddf-league.js toEngine, ddf-engine.js chat league, connect-entry.js, legacy-routes.js, team.html) uses it. Sleeper imports `K` and `DEF` roster positions.
+- A whole league's settings (a link) with no kdef means 1 K and 1 DEF, so a link league resets K/DST; a partial engine apply without K/DST leaves them alone.
+
 ## Build a Trade must read the league and the waiver list the workspace pages read (2026-11-13, JEG-1633)
 
 - Symptom (Jeremy, live, phone): "Evaluate pickup" on a Waivers Best add card opened Build a Trade in Add from waivers + My league showing "No rosters entered yet" and the "Add your roster" lock card.

@@ -19,13 +19,13 @@
  *
  * API: window.DDF.league
  *   ready            Promise<current()>, after DDF.engine.ready and DDF.link.ready (link decode); a link's settings applied
- *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench]},
+ *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench], kdef?:[k,def]},
  *                     me:index|null, teams:[{index, name, players:[record | {name, key:null, pos, unpriced:true}],
  *                     unmatched:[{line|name, reason}], count}], waivers:[record], waiversFromLink:boolean} or null
  *                     (record = DDF.engine record; waivers = state.waivers when the link has them, else every priced
  *                     player on no roster, "available players", best DDF Value first)
  *   applySettings()  the league's settings -> DDF.engine.apply (only a link league carries settings); true when changed
- *   setSettings(s)   {scoring, teams, superflex, superflexSlots?, slots} -> DDF.engine.apply, and DDF.link.update on a link league
+ *   setSettings(s)   {scoring, teams, superflex, superflexSlots?, slots, kdef?} -> DDF.engine.apply, and DDF.link.update on a link league
  *   myTeam()         current().teams[me] or null
  *   opponents()      every other team that has players (waivers are never a team here)
  *   lineup(team)     {starters, bench, slots:{QB,RB,WR,TE,FLEX,SUPERFLEX}, empty, unpriced, starterValue, benchValue, total,
@@ -139,7 +139,14 @@
     var s = DDF.engine.settings(), r = s.roster || {};
     var out = {scoring: s.scoring, teams: s.teams, superflex: (r.SUPERFLEX || 0) > 0, slots: SLOT_KEYS.map(function (k) { return r[k] || 0; })};
     if ((r.SUPERFLEX || 0) >= 2) out.superflexSlots = r.SUPERFLEX;   // JEG-1571: absent = 1 slot when superflex
+    if (Number.isInteger(r.K) && Number.isInteger(r.DST) && (r.K !== 1 || r.DST !== 1)) out.kdef = [r.K, r.DST];   // JEG-1632: absent = 1 and 1
     return out;
+  }
+  // JEG-1632: kicker and defense slots of link-format settings as engine roster keys {K, DST}; absent = 1 and 1.
+  function kdefSlots(s) {
+    if (DDF.link && DDF.link.kdefSlots) return DDF.link.kdefSlots(s);
+    var kd = s && Array.isArray(s.kdef) ? s.kdef.map(Number) : [1, 1];
+    return {K: kd[0], DST: kd[1]};
   }
   // JEG-1571: QB-eligible flex (superflex) slots in link-format settings: superflexSlots when 2, else the boolean.
   function superflexSlots(s) { return !s || !s.superflex ? 0 : (Number(s.superflexSlots) === 2 ? 2 : 1); }
@@ -210,6 +217,9 @@
     if (Array.isArray(s.slots)) {
       out.roster = {};
       SLOT_KEYS.forEach(function (k, i) { if (Number.isInteger(s.slots[i])) out.roster[k] = s.slots[i]; });
+      var kd = kdefSlots(s);   // a whole league's settings: no kdef means 1 K and 1 DEF
+      out.roster.K = kd.K;
+      out.roster.DST = kd.DST;
     }
     return out;
   }
@@ -236,6 +246,7 @@
     if (cur && cur.source === "link" && DDF.link && DDF.link.update) {
       var next = Object.assign({}, DDF.link.current().settings, {scoring: s.scoring, teams: Number(s.teams), superflex: !!s.superflex, slots: s.slots.slice()});
       if (superflexSlots(s) === 2) next.superflexSlots = 2; else delete next.superflexSlots;
+      if (Array.isArray(s.kdef)) next.kdef = s.kdef.slice(); else delete next.kdef;   // JEG-1632
       DDF.link.update({settings: next});
     }
     var out = DDF.engine.apply(want);

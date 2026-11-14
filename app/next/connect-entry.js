@@ -84,7 +84,8 @@
     try {
       DDF.engine.apply({scoring: st.scoring, teams: st.teams, superflex: !!st.superflex,
         superflexSlots: DDF.link && DDF.link.superflexSlots ? DDF.link.superflexSlots(st) : (st.superflex ? 1 : 0),
-        roster: {QB: st.slots[0], RB: st.slots[1], WR: st.slots[2], TE: st.slots[3], FLEX: st.slots[4], BENCH: st.slots[5]}});
+        roster: Object.assign({QB: st.slots[0], RB: st.slots[1], WR: st.slots[2], TE: st.slots[3], FLEX: st.slots[4], BENCH: st.slots[5]},
+          DDF.link && DDF.link.kdefSlots ? DDF.link.kdefSlots(st) : {})});   /* JEG-1632: K and DEF slots */
     } catch (e) { /* settings.html asks again */ }
   }
   // JEG-1571: a paste that prints QB-eligible flex slot labels (Q/W/R/T, OP, SUPERFLEX...) sets that count; settings.html

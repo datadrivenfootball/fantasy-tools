@@ -11,7 +11,7 @@
  * DDF.sleeper.parseId(text)        -> league ID string or null (sleeper.com / sleeper.app links, bare ID, query strings)
  * DDF.sleeper.load(id, opts)       -> Promise<{ok, result, settings} | {ok:false, code, season?}>
  *     result: a DDF.leaguePaste result (teams, league {leagueName, leagueId, platform:'sleeper'}, ...)
- *     settings: {scoring, teams, superflex, superflexSlots?, roster:{QB,RB,WR,TE,FLEX,BENCH}} read from the league, or null
+ *     settings: {scoring, teams, superflex, superflexSlots?, roster:{QB,RB,WR,TE,FLEX,BENCH,K,DST}} read from the league, or null
  *       (superflexSlots: 2 when the league has 2+ SUPER_FLEX spots; DDF.engine.apply reads it)
  *     code: 'invalid' | 'notfound' | 'oldseason' | 'empty' | 'network'
  *     opts: {fetch, rows, table, playersUrl} (fetch is injectable for tests)
@@ -61,6 +61,9 @@
     var roster = {QB: count(["QB"]), RB: count(["RB"]), WR: count(["WR"]), TE: count(["TE"]),
       FLEX: count(["FLEX", "WRRB_FLEX", "REC_FLEX", "WRTE_FLEX", "RBTE_FLEX"]), BENCH: count(["BN"])};
     Object.keys(roster).forEach(function (k) { roster[k] = Math.min(20, roster[k]); });
+    /* JEG-1632: kicker and defense slots (engine keys K / DST, 0-3): not valued, but they take roster spots */
+    roster.K = Math.min(3, count(["K"]));
+    roster.DST = Math.min(3, count(["DEF"]));
     var sf = count(["SUPER_FLEX"]);
     var out = {scoring: scoring, superflex: sf > 0};
     if (sf >= 2) out.superflexSlots = 2;   /* JEG-1571: two QB-eligible flex slots (the site's most) */

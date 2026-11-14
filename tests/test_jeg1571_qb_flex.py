@@ -186,7 +186,8 @@ class SettingsPage(unittest.TestCase):
                 self.assertEqual(cut, [], "a two-digit count (bench 12, 20) shows in full")
                 grid = page.locator(".st-slots > label")
                 self.assertEqual([t.split("\n")[0].strip() for t in grid.all_inner_texts()],
-                                 ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "Bench"], "two positions in one grid")
+                                 ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "Bench", "K", "DEF"],
+                                 "two positions in one grid; K and DEF in their own row (JEG-1632)")
                 self.assertEqual(page.inner_text("#elig-flex").strip(), "RB, WR or TE")
                 self.assertTrue(page.inner_text("#elig-sf").strip().startswith("QB, RB, WR or TE"))
                 inp = page.locator("#lineup-sf")
@@ -216,11 +217,12 @@ class SettingsPage(unittest.TestCase):
                     page.dispatch_event(f"#lineup-{k}", "input")
                 page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
                 self.assertEqual(page.input_value("#lineup-sf"), "1")
-                self.assertEqual(page.inner_text("#st-total").strip(), "8 starters, 12 bench")
+                # JEG-1632: the starter count includes the 1 K and 1 DEF slots
+                self.assertEqual(page.inner_text("#st-total").strip(), "10 starters, 12 bench, 22 roster spots")
                 page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
                 page.get_by_role("button", name="Increase SUPERFLEX", exact=True).click()
                 self.assertEqual(page.input_value("#lineup-sf"), "2", "capped at 2")
-                self.assertEqual(page.inner_text("#st-total").strip(), "9 starters, 12 bench")
+                self.assertEqual(page.inner_text("#st-total").strip(), "11 starters, 12 bench, 23 roster spots")
                 page.evaluate("() => document.getElementById('editor').requestSubmit()")
                 roster = page.evaluate("() => DDF.engine.settings().roster")
                 self.assertEqual({k: roster[k] for k in FRIEND}, {**FRIEND, "SUPERFLEX": 2})
@@ -276,7 +278,7 @@ class SettingsPage(unittest.TestCase):
             superflexSlots: 2, slots: [1, 2, 2, 1, 1, 12]}})""")
         page.goto(f"{self.base}/settings.html#s={token}", wait_until="networkidle", timeout=60000)
         page.wait_for_function("() => document.getElementById('lineup-sf').value === '2'", timeout=20000)
-        self.assertEqual(page.inner_text("#st-total").strip(), "9 starters, 12 bench")
+        self.assertEqual(page.inner_text("#st-total").strip(), "11 starters, 12 bench, 23 roster spots")
 
 
 if __name__ == "__main__":
