@@ -158,9 +158,14 @@ class SettingsPage(unittest.TestCase):
                     self.assertEqual((inp.get_attribute("min"), inp.get_attribute("max")), ("0", "3"))
                     self.assertEqual(inp.get_attribute("aria-label"), name)
                     self.assertEqual(page.inner_text(f"#elig-{k}").strip(), "Not evaluated")
+                    self.assertIn(f"elig-{k} kdef-help", inp.get_attribute("aria-describedby"))
                     for b in (f"Increase {name}", f"Decrease {name}"):
                         box = page.get_by_role("button", name=b, exact=True).bounding_box()
                         self.assertGreaterEqual(min(box["height"], box["width"]), 43.5, b)
+                note = page.inner_text("#kdef-help")
+                self.assertIn("roster spots, open spots and drops", note)  # JEG-1638
+                self.assertIn("do not change player values today", note)
+                self.assertTrue(page.locator("#kdef-help").is_visible())
                 self.assertEqual(page.inner_text("#st-total").strip(), "9 starters, 7 bench, 16 roster spots")
                 self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
                 clipped = page.evaluate("() => [...document.querySelectorAll('.st-slots .stepper')].filter(e => e.scrollWidth > e.clientWidth + 1).length")
