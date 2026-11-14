@@ -1,11 +1,11 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-14T12:32:18.277533Z",
- "run_id": "07123215-4b52-4399-956e-32ce8e41b0c9",
+ "checked_at": "2026-11-14T12:40:21.099943Z",
+ "run_id": "bc7f584e-1096-403a-b93c-84594f11ed5b",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
-  "built_at": "2026-11-14T10:07:48.745634+00:00",
+  "built_at": "2026-11-14T11:46:54.527513+00:00",
   "error": null
  },
  "rules": {
@@ -58,7 +58,7 @@
    "reason": "fidelity: publisher_vs_stored",
    "identity": "2026-11-14@2026-11-14T04:45:34.741814Z",
    "measured_site": null,
-   "since": "2026-11-14T12:32:18.277533Z",
+   "since": "2026-11-14T12:40:21.099943Z",
    "summary": "2740/2741 values match exactly across 3 columns; 1 value mismatches, 0 publisher players not stored, 0 stored players not on the page; stored values differ from the same publisher version: the publisher serves the content the save read (fingerprint 26a85fb89f546626); 26 publisher names do not resolv"
   },
   "fantasysharks": {
@@ -70,7 +70,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-14@2026-11-14T12:18:34.905911Z",
    "measured_site": null,
-   "since": "2026-11-14T12:32:18.277533Z",
+   "since": "2026-11-14T12:40:21.099943Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -178,7 +178,7 @@
       "unresolved_names": 0
      },
      "chart_week": 10,
-     "chart_imported_at": "2026-11-14T10:06:45Z",
+     "chart_imported_at": "2026-11-14T11:45:48Z",
      "bake_id": "usatwk10_2026-11-11t1835_v1",
      "bake_saved_at": "2026-11-11T18:36:04.312964Z",
      "behind": null,
@@ -319,14 +319,14 @@
    "stored_bake": "fcwk10_2026-11-14t1005_v1",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1176/1176 values match exactly across 6 columns",
+     "status": "amber",
+     "summary": "985/1176 values match exactly across 6 columns; 191 of 1176 values moved since the save at 2026-11-14T10:05:36.112000Z (largest 167%; 0 outside the max(25%, 50) band: none)",
      "counts": {
       "publisher_players": 196,
       "stored_players": 196,
       "compared": 1176,
-      "matched": 1176,
-      "mismatched": 0,
+      "matched": 985,
+      "mismatched": 191,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
@@ -370,7 +370,7 @@
       "std|1": {
        "left": 196,
        "right": 196,
-       "mismatched": 0,
+       "mismatched": 191,
        "missing": 0,
        "extra": 0
       },
@@ -382,7 +382,88 @@
        "extra": 0
       }
      },
-     "examples": [],
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 3892,
+       "name": "Justin Jefferson",
+       "pos": "WR",
+       "left": "6438",
+       "right": 6607.0,
+       "delta": 169.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 337,
+       "name": "Bucky Irving",
+       "pos": "RB",
+       "left": "5818",
+       "right": 5686.0,
+       "delta": -132.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 2862,
+       "name": "Garrett Wilson",
+       "pos": "WR",
+       "left": "3355",
+       "right": 3230.0,
+       "delta": -125.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 3189,
+       "name": "Christian McCaffrey",
+       "pos": "RB",
+       "left": "8855",
+       "right": 8979.0,
+       "delta": 124.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 807,
+       "name": "Javonte Williams",
+       "pos": "RB",
+       "left": "5805",
+       "right": 5689.0,
+       "delta": -116.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 1095,
+       "name": "Kenneth Walker III",
+       "pos": "RB",
+       "left": "9791",
+       "right": 9677.0,
+       "delta": -114.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 313,
+       "name": "Saquon Barkley",
+       "pos": "RB",
+       "left": "2560",
+       "right": 2447.0,
+       "delta": -113.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 3082,
+       "name": "Mike Evans",
+       "pos": "WR",
+       "left": "2246",
+       "right": 2134.0,
+       "delta": -112.0
+      }
+     ],
      "outside_universe": [],
      "unresolved": []
     },
@@ -401,7 +482,7 @@
       "unresolved_names": 0
      },
      "chart_week": 10,
-     "chart_imported_at": "2026-11-14T10:06:44Z",
+     "chart_imported_at": "2026-11-14T11:45:47Z",
      "bake_id": "fcwk10_2026-11-14t1005_v1",
      "bake_saved_at": "2026-11-14T10:05:36.112000Z",
      "behind": null,
@@ -524,7 +605,96 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 3892,
+     "name": "Justin Jefferson",
+     "pos": "WR",
+     "left": "6438",
+     "right": 6607.0,
+     "delta": 169.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 337,
+     "name": "Bucky Irving",
+     "pos": "RB",
+     "left": "5818",
+     "right": 5686.0,
+     "delta": -132.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 2862,
+     "name": "Garrett Wilson",
+     "pos": "WR",
+     "left": "3355",
+     "right": 3230.0,
+     "delta": -125.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 3189,
+     "name": "Christian McCaffrey",
+     "pos": "RB",
+     "left": "8855",
+     "right": 8979.0,
+     "delta": 124.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 807,
+     "name": "Javonte Williams",
+     "pos": "RB",
+     "left": "5805",
+     "right": 5689.0,
+     "delta": -116.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 1095,
+     "name": "Kenneth Walker III",
+     "pos": "RB",
+     "left": "9791",
+     "right": 9677.0,
+     "delta": -114.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 313,
+     "name": "Saquon Barkley",
+     "pos": "RB",
+     "left": "2560",
+     "right": 2447.0,
+     "delta": -113.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 3082,
+     "name": "Mike Evans",
+     "pos": "WR",
+     "left": "2246",
+     "right": 2134.0,
+     "delta": -112.0
+    }
+   ],
    "held": null,
    "hold": null
   },
@@ -534,7 +704,7 @@
    "status": "green",
    "stored_week": 10,
    "chart_week": 10,
-   "stored_bake": "fpwk10_2026-11-13t1235_v1",
+   "stored_bake": "fpwk10_2026-11-14t1235_v1",
    "stages": {
     "publisher_vs_stored": {
      "status": "green",
@@ -554,8 +724,8 @@
      "url": "https://www.fantasypros.com/2026/09/fantasy-football-trade-value-chart-week-10-2026/",
      "page_week": 10,
      "page_modified": "2026-11-10T14:00:42+00:00",
-     "bake_id": "fpwk10_2026-11-13t1235_v1",
-     "bake_saved_at": "2026-11-13T12:35:56.202153Z",
+     "bake_id": "fpwk10_2026-11-14t1235_v1",
+     "bake_saved_at": "2026-11-14T12:35:54.325833Z",
      "grains": {
       "full|1": {
        "left": 178,
@@ -619,7 +789,7 @@
       "unresolved_names": 0
      },
      "chart_week": 10,
-     "chart_imported_at": "2026-11-14T10:06:46Z",
+     "chart_imported_at": "2026-11-14T11:45:49Z",
      "bake_id": "fpwk10_2026-11-13t1235_v1",
      "bake_saved_at": "2026-11-13T12:35:56.202153Z",
      "behind": null,
@@ -823,7 +993,7 @@
       "unresolved_names": 0
      },
      "chart_week": 10,
-     "chart_imported_at": "2026-11-14T10:06:48Z",
+     "chart_imported_at": "2026-11-14T11:45:50Z",
      "bake_id": "cbswk10_2026-11-12t1535_v1",
      "bake_saved_at": "2026-11-12T15:35:38.059078Z",
      "behind": null,
@@ -1732,7 +1902,7 @@
     "reason": "fidelity: publisher_vs_stored",
     "identity": "2026-11-14@2026-11-14T04:45:34.741814Z",
     "measured_site": null,
-    "since": "2026-11-14T12:32:18.277533Z",
+    "since": "2026-11-14T12:40:21.099943Z",
     "summary": "2740/2741 values match exactly across 3 columns; 1 value mismatches, 0 publisher players not stored, 0 stored players not on the page; stored values differ from the same publisher version: the publisher serves the content the save read (fingerprint 26a85fb89f546626); 26 publisher names do not resolv"
    }
   },
@@ -1801,7 +1971,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-14@2026-11-14T12:18:34.905911Z",
     "measured_site": null,
-    "since": "2026-11-14T12:32:18.277533Z",
+    "since": "2026-11-14T12:40:21.099943Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -1829,15 +1999,15 @@
  },
  "last_good": {
   "usatoday": "2026-10-31T19:47:05.121144+00:00",
-  "fantasycalc": "2026-11-14T10:07:48.745634+00:00",
-  "fantasypros": "2026-11-14T10:07:48.745634+00:00",
-  "cbs": "2026-11-14T10:07:48.745634+00:00",
-  "espn": "2026-11-14T10:07:48.745634+00:00",
+  "fantasycalc": "2026-11-14T11:46:54.527513+00:00",
+  "fantasypros": "2026-11-14T11:46:54.527513+00:00",
+  "cbs": "2026-11-14T11:46:54.527513+00:00",
+  "espn": "2026-11-14T11:46:54.527513+00:00",
   "cbsros": "2026-11-09T04:17:05.928712+00:00",
-  "razzball": "2026-11-14T10:07:48.745634+00:00",
+  "razzball": "2026-11-14T11:46:54.527513+00:00",
   "draftsharks": "2026-10-16T07:19:25.781124+00:00",
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
  "resyncs": {},
- "holds_changed": true
+ "holds_changed": false
 }
