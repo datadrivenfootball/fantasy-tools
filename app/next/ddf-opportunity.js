@@ -58,17 +58,16 @@
   var finite = function (v) { return typeof v === "number" && isFinite(v); };
   var ANALYST = ["cbs", "usatoday", "fantasypros"];
   var OUR_KEY = "ddf_value", MARKET_KEY = "chart_avg";
+  // The percent itself, its bands and its MIN_BASE are computed in finder.js (rosterChangePct, JEG-1639); these copies
+  // serve assess / whereToLook and the exports, and tests/test_ddf_opportunity.py pins them equal to finder.js.
   var MIN_BASE = 20;   // points: below this a roster has too few priced players for a percent to mean anything
   var NET_FLOOR = 0.05; // a change that shows as 0.0 is no change (finder.js / waivers.js)
-  var TIERS = [{id: "big", min: 10}, {id: "medium", min: 6}, {id: "marginal", min: 3}];
   var BANDS = {better: 1, unchanged: -1, slightly_worse: -3};
+  var TIERS = [{id: "big", min: 10}, {id: "medium", min: 6}, {id: "marginal", min: 3}];
   var SLOTS = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX"];
 
-  function shownPct(pct) {
-    if (!finite(pct)) return null;
-    var t = Math.floor(Math.abs(pct) * 10 + 1e-9) / 10;
-    return t === 0 ? 0 : (pct < 0 ? -t : t);   // never -0
-  }
+  // One computation shared with the Natural fit test (finder.js rosterChangePct; JEG-1639).
+  function shownPct(pct) { return F().shownPct(pct); }
   function fmt(pct) { return shownPct(Math.abs(pct)).toFixed(1) + "%"; }
   function tierOf(pct) {
     if (!finite(pct)) return "none";
@@ -76,31 +75,12 @@
     for (var i = 0; i < TIERS.length; i++) if (pct >= TIERS[i].min) return TIERS[i].id;
     return "none";
   }
-  function bandOf(pct) {
-    if (!finite(pct)) return "unsized";
-    pct = shownPct(pct);
-    if (pct >= BANDS.better) return "better";
-    if (pct > BANDS.unchanged) return "unchanged";
-    if (pct > BANDS.slightly_worse) return "slightly_worse";
-    return "clearly_worse";
-  }
+  function bandOf(pct) { return F().pctBand(pct); }
 
   // Starters in full, bench at the engine's bench weights (finder.js netOf / waivers.js netOf, same formula and inputs).
-  function worth(rows, ctx, key) {
-    var f = F(), k = key || OUR_KEY;
-    var list = k === MARKET_KEY ? f.withChartAverage(rows, ctx.chartKeys || ANALYST) : rows;
-    var L = f.lineupValue(list, ctx.shape, k);
-    return L.starterValue + L.bench.reduce(function (t, r) {
-      var v = r.values ? r.values[k] : null;
-      return t + (finite(v) ? f.benchWeight(ctx.weights || {}, r.pos) * v : 0);
-    }, 0);
-  }
+  function worth(rows, ctx, key) { return F().rosterWorth(rows, ctx || {}, key || OUR_KEY); }
 
   var keyOf = function (r) { return String(r.player_key); };
-  function after(roster, leaving, arriving) {
-    var gone = new Set(leaving.map(keyOf));
-    return roster.filter(function (r) { return !gone.has(keyOf(r)); }).concat(arriving);
-  }
 
   var SENDER_TEXT = {
     better: function (p) { return {label: "Your roster gets about " + fmt(p) + " better", sentence: "Your roster gets about " + fmt(p) + " better."}; },
@@ -122,14 +102,11 @@
     var key = partner ? (ctx.partnerKey || MARKET_KEY) : (ctx.senderKey || OUR_KEY);
     var roster = (partner ? trade.theirs : trade.mine) || [];
     var leaving = (partner ? trade.receive : trade.give) || [], arriving = (partner ? trade.give : trade.receive) || [];
-    var before = worth(roster, ctx, key), next = worth(after(roster, leaving, arriving), ctx, key);
-    var delta = next - before;
-    if (Math.abs(delta) < NET_FLOOR) delta = 0;
-    var pct = finite(before) && before >= MIN_BASE ? 100 * delta / before : null;
-    var band = bandOf(pct);
-    var text = band === "unsized" ? UNSIZED : (partner ? PARTNER_TEXT : SENDER_TEXT)[band](pct);
-    return {side: partner ? "partner" : "sender", key: key, before: before, after: next, delta: delta, pct: pct, shown: shownPct(pct),
-      band: band, label: text.label, sentence: text.sentence};
+    // The same call finder.js tradeFit makes for the Natural fit test (JEG-1639): label and text read one number.
+    var c = F().rosterChangePct(roster, leaving, arriving, ctx, key);
+    var text = c.band === "unsized" ? UNSIZED : (partner ? PARTNER_TEXT : SENDER_TEXT)[c.band](c.pct);
+    return {side: partner ? "partner" : "sender", key: key, before: c.before, after: c.after, delta: c.delta, pct: c.pct, shown: c.shown,
+      band: c.band, label: text.label, sentence: text.sentence};
   }
 
   // Tier wording (Jeremy 2026-11-07). Never a promise: "about", "we found".

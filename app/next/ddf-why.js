@@ -172,10 +172,12 @@
     var mineText = ys === 1 ? "Your starters get better" : ys === 0 ? "Your starters stay about the same" : "Your starters get weaker";
     if (yn !== null && yn !== ys) mineText += " (counting your bench, your roster " + (yn === 1 ? "gains" : yn === 0 ? "is about even" : "loses") + ")";
     var tn = them.net !== null ? them.net : them.starterDelta, tau = them.fit ? them.fit.tau : FLOOR;
-    var theirs = tn >= FLOOR ? "their roster gets better too" : tn >= -tau ? "their roster stays about even, within how much the sources disagree"
+    // JEG-1639: a roster the percent line calls clearly worse (-3% or more) is never "about even" here.
+    var even = tn >= -tau && !them.clearlyWorse;
+    var theirs = tn >= FLOOR && !them.clearlyWorse ? "their roster gets better too" : even ? "their roster stays about even, within how much the sources disagree"
       : "their roster gets worse, so it is a harder sell";
     var fill = natural ? ": you fill " + list(needs.you) + " and they fill " + list(needs.them) : "";
-    return mineText + (tn >= -tau ? ", and " : ", but ") + theirs + fill + ".";
+    return mineText + (even ? ", and " : ", but ") + theirs + fill + ".";
   }
   function netWords(v) {
     var w = function (n, up, down) { return !finite(n) ? null : n >= FLOOR ? up : n <= -FLOOR ? down : null; };
@@ -239,6 +241,7 @@
     var you = view(mine, give, recv, ctx.shape, k.our, fit.us);
     var them = view(theirs, recv, give, ctx.shape, k.market, fit.them);
     you.fit = fit.us; them.fit = fit.them;
+    them.clearlyWorse = Boolean(fit.natural && fit.natural.them && fit.natural.them.pctOk === false);
     var gp = positionsOf(give), rp = positionsOf(recv);
     var needs = {you: depthNeeds(fit.us, rp), them: depthNeeds(fit.them, gp), youSurplus: depthSurplus(fit.us, gp), themSurplus: depthSurplus(fit.them, rp)};
     // "Natural fit" only when tradeFit's predicate holds AND, for both teams, the side received is a need and the side

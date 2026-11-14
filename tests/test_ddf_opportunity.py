@@ -47,6 +47,8 @@ for (const [fn, ...args] of input.fns) out.push(await (async () => {
     delete globalThis.DDF;
     return res.reason;
   }
+  if (fn === '__change') { const [roster, leaving, arriving, ctx, key] = args; return F.rosterChangePct(roster, leaving, arriving, ctx, key); }
+  if (fn === '__consts') return {o: [O.MIN_BASE, O.BANDS], f: [F.PCT_MIN_BASE, F.PCT_BANDS]};
   if (fn === '__netOf') { const [rows, shape, key, weights] = args; return extra.netOf(F.lineupValue(rows, shape, key), key, weights); }
   if (fn === '__teamFit') { const [team, ctx, key] = args; return F.teamFit(team, ctx, key).net; }
   return O[fn](...args);
@@ -240,6 +242,19 @@ class RosterImprovement(unittest.TestCase):
                                          ("rosterImprovementPct", {"mine": MINE, "theirs": THEIRS, "give": [MINE[6]], "receive": [THEIRS[6]]}, "sender", CTX))
         self.assertAlmostEqual(mine_worth, net, places=9)
         self.assertAlmostEqual(s["delta"], fit_net, places=9)
+
+    def test_constants_match_finder(self):
+        # JEG-1639: the percent is computed in finder.js rosterChangePct; this module's copies must not drift.
+        got, = run(("__consts",))
+        self.assertEqual(got["o"], got["f"])
+
+    def test_partner_pct_is_the_natural_fit_number(self):
+        # JEG-1639: tradeFit's Natural fit test reads the same percent the Why text prints (rosterImprovementPct).
+        trade = {"mine": MINE, "theirs": THEIRS, "give": [MINE[3]], "receive": [THEIRS[6]]}
+        q, c = run(("rosterImprovementPct", trade, "partner", CTX),
+                   ("__change", THEIRS, [THEIRS[6]], [MINE[3]], CTX, "chart_avg"))
+        for k in ("before", "after", "delta", "pct", "shown", "band"):
+            self.assertEqual(q[k], c[k], k)
 
 
 if __name__ == "__main__":
