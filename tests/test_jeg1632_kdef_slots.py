@@ -36,6 +36,8 @@ from lib.roster_convention import DEFAULT_SLOTS, POSITIONS, bench_seats  # noqa:
 from tests import _render_env  # noqa: E402
 
 SKILL = ("QB", "RB", "WR", "TE")
+# origin/main's site.js (6385c25bf, before JEG-1632) encoding of the link test's base state, pinned by the PR #1444 review
+MAIN_TOKEN = "JAECAgEBBwIBQMAlxjEKgDAMhtG7fK5ZuuY2EX9KQRcJ6VB6dwff9BaFN6OGJk4qHox84xK-6KOEczSMrvy7jYzzFt72Bw+ST"
 
 
 def node(script: str, *args: str) -> object:
@@ -190,10 +192,14 @@ class SettingsPage(unittest.TestCase):
           const none = snap();
           DDF.engine.apply({roster: {K: 3, DST: 3}});
           const three = snap(), r = DDF.engine.settings().roster;
-          return {n: DDF.engine.players().length, same: base === none && base === three, k: r.K, d: r.DST};
+          DDF.engine.apply({roster: {BENCH: 3}});   // positive control: a bench change does move values
+          const bench = snap();
+          DDF.engine.apply({roster: {BENCH: 7, K: 1, DST: 1}});
+          return {n: DDF.engine.players().length, same: base === none && base === three, k: r.K, d: r.DST, benchMoves: bench !== base};
         }""")
         self.assertGreater(got["n"], 100)
         self.assertEqual((got["k"], got["d"]), (3, 3))
+        self.assertTrue(got["benchMoves"], "control: the snapshot sees a settings change (bench 7 -> 3)")
         self.assertTrue(got["same"], "K and DEF are not valued: every DDF Value is the same at 0, 1 and 3 slots")
 
     def test_link_round_trip_and_old_links(self):
@@ -207,13 +213,14 @@ class SettingsPage(unittest.TestCase):
           const dec = t => DDF.link._internal.decodeToken(t);
           const hdr = t => JSON.stringify(Array.from(DDF.link._internal.b64ToBytes(t.split('+')[0]).slice(0, 7)));
           const [dk, d1, dold] = [await dec(kd), await dec(one), await dec(old)];
-          return {dk: dk.settings, d1: d1.settings, dold: dold.settings, sameToken: one === old, sameHeader: hdr(kd) === hdr(old),
+          return {old, dk: dk.settings, d1: d1.settings, dold: dold.settings, sameToken: one === old, sameHeader: hdr(kd) === hdr(old),
                   slots: [DDF.link.kdefSlots(dk.settings), DDF.link.kdefSlots(dold.settings)]};
         }""")
         self.assertEqual(got["dk"].get("kdef"), [0, 2])
         self.assertNotIn("kdef", got["d1"])
         self.assertNotIn("kdef", got["dold"])
         self.assertTrue(got["sameToken"], "a 1 K / 1 DEF league writes exactly the old token")
+        self.assertEqual(got["old"], MAIN_TOKEN, "the token origin/main wrote for this state (before JEG-1632), byte for byte")
         self.assertTrue(got["sameHeader"], "kdef rides in the JSON body; the 7-byte header is unchanged")
         self.assertEqual(got["slots"], [{"K": 0, "DST": 2}, {"K": 1, "DST": 1}])
 

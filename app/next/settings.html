@@ -146,7 +146,7 @@ if(moreButton)document.addEventListener('keydown',e=>{if(e.key==='Escape'&&more.
         if(raw===''||!/^\d+$/.test(raw)||n<+inp.min||n>+inp.max){why='Enter a whole number from '+inp.min+' to '+inp.max+' for '+nameOf(keys[i])+' to continue';}
         else if(keys[i]!=='bench'&&keys[i]!=='k'&&keys[i]!=='def')starters+=n;   /* K and DEF alone are not a lineup */
       }
-      if(!why&&starters<1)why='Add at least one starter slot to continue';
+      if(!why&&starters<1)why='Add at least one QB, RB, WR, TE, FLEX or SUPERFLEX slot to continue';
     }
     ddfGate([document.getElementById('finish-setup')],!why,why,'gate-reason');
   }

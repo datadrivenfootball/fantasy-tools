@@ -1641,8 +1641,11 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(sfn === 2) form.superflexSlots = 2;
     /* JEG-1632: kicker and defense slots (0-3); 1 and 1 is the default and is not written */
     var kd = [Number(g('lineup-k')), Number(g('lineup-def'))];
-    if(g('lineup-k') !== null && g('lineup-def') !== null && kd.every(function(n){ return Number.isInteger(n) && n >= 0 && n <= 3; })
-      && (kd[0] !== 1 || kd[1] !== 1)) form.kdef = kd;
+    if(g('lineup-k') !== null && g('lineup-def') !== null){
+      /* an out-of-range count (a typed 4, then Enter skips the gate) is not saved, so it never rewrites the league as 1 and 1 */
+      if(!kd.every(function(n){ return Number.isInteger(n) && n >= 0 && n <= 3; })) return;
+      if(kd[0] !== 1 || kd[1] !== 1) form.kdef = kd;
+    }
     try{
       var cur = DDF.link.current(), info = DDF.state.get('link', null);
       /* A hand-entered league stays 'manual' when re-confirmed (DDF.link.update would mark it as a chat league). */
