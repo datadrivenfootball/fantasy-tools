@@ -70,10 +70,13 @@ jobs:
 
       # JEG-1641: the weekly projection warehouse's per-source freshness and size,
       # on this workflow's own schedule so a stopped pg_cron still alerts. The
-      # warehouse-stale issue is the alert; the step fails only if the check
-      # or the alert cannot complete. Branch runs only print.
+      # warehouse-stale issue is the alert. continue-on-error: a check that
+      # cannot complete shows as a red step but never flips the source_lateness
+      # watchdog; the warehouse workflow's own monitored check goes red instead.
+      # Branch runs only print.
       - name: Projection warehouse freshness (JEG-1641)
         if: always() && inputs.week_held_drill != 'true'
+        continue-on-error: true
         env:
           SUPABASE_BYTES_CALLER: source-lateness:projection-warehouse-freshness
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

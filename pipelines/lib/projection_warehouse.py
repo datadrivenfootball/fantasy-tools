@@ -20,9 +20,12 @@ import csv
 import io
 import json
 import re
+from datetime import date
 
 POSITIONS = ("QB", "RB", "WR", "TE")
 LAST_REGULAR_WEEK = 18
+# The Tuesday after 2026 week 18: no weekly projection is due after it.
+SEASON_END = date(2027, 1, 5)
 
 # Rows per offered target week below which a pull is treated as truncated and
 # nothing is written for that source (fail closed). Measured 2026-11-14: ESPN
@@ -201,7 +204,10 @@ def cbs_rows(weekly: dict, index, *, run_id, as_of, season, content_week):
             out.append(projection_row(
                 run_id=run_id, source="cbs", as_of=as_of, season=season,
                 content_week=content_week, target_week=wk,
-                source_player_id=r.get("player_norm") or r.get("player_name"),
+                # CBS publishes no id on the page: normalized name, position and
+                # team, so two players with one name do not collide
+                source_player_id="|".join(str(x or "") for x in (
+                    r.get("player_norm") or r.get("player_name"), pos, r.get("team"))),
                 player_key=e["player_key"] if e else None, sleeper_id=None,
                 full_name=r.get("player_name"), position=pos, team=r.get("team"),
                 points_std=r.get("points_standard"), points_half_ppr=r.get("points_half_ppr"),
@@ -241,9 +247,12 @@ def fantasypros_page(html: str, pos: str) -> tuple[int | None, str | None, list[
 def fantasypros_rows(pages: dict, index, *, run_id, as_of, season, content_week):
     """pages: {pos: html}. A page whose heading names another week is skipped
     (FantasyPros serves last season's page for weeks it has not published)."""
-    out, unresolved, skipped = [], 0, []
+    out, unresolved, skipped, unparsed = [], 0, [], []
     for pos, html in sorted(pages.items()):
         week, scoring, rows = fantasypros_page(html, pos)
+        if week is None or (week == content_week and not rows):
+            unparsed.append(pos)  # layout change, not "week not out yet"
+            continue
         if week != content_week:
             skipped.append(f"{pos}: page week {week}")
             continue
@@ -262,7 +271,8 @@ def fantasypros_rows(pages: dict, index, *, run_id, as_of, season, content_week)
                 position=pos, team=pl.get("team"), source_points=r.get("fpts"), stats=stats,
                 scoring_basis=SCORING_BASIS["fantasypros"] + f"; page scoring: {scoring or 'not named (QB)'}",
                 **{column: r.get("fpts")}))
-    return dedupe(out), {"unresolved_rows": unresolved, "skipped_pages": skipped}
+    return dedupe(out), {"unresolved_rows": unresolved, "skipped_pages": skipped,
+                         "unparsed_pages": unparsed}
 
 
 # ---------------------------------------------------------------- nflverse

@@ -31,7 +31,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +39,7 @@ sys.path.insert(0, str(ROOT / "pipelines"))
 sys.path.insert(0, str(ROOT / "pipelines" / "lib"))
 from lib.timestamps import parse_iso_timestamp  # noqa: E402
 
-SEASON_END = date(2027, 1, 5)  # the Tuesday after 2026 week 18
+from projection_warehouse import SEASON_END  # noqa: E402  (the Tuesday after 2026 week 18)
 DB_ALERT_BYTES = 6 * 1024 ** 3
 WAREHOUSE_ALERT_BYTES = 1024 ** 3
 LABEL = "warehouse-stale"

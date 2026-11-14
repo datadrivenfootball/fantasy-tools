@@ -124,7 +124,10 @@ def build(source: str, cw: int, index: PlayerIndex, gsis_sleeper: dict, run_id: 
         return "source_weekly_projections", rows, det, probs
     if source == "fantasypros":
         rows, det = pw.fantasypros_rows(pull_fantasypros(cw), index, content_week=cw, **common)
-        return "source_weekly_projections", rows, det, pw.floor_problems(source, rows)
+        probs = pw.floor_problems(source, rows)
+        if det["unparsed_pages"]:
+            probs.append("fantasypros: no week heading or rows parsed on " + ", ".join(det["unparsed_pages"]))
+        return "source_weekly_projections", rows, det, probs
     if source == "nflverse_schedule":
         rows = pw.schedule_rows(http_text(NFLVERSE_SCHEDULE), **common)
         probs = [] if len(rows) >= pw.MIN_SCHEDULE_GAMES else [

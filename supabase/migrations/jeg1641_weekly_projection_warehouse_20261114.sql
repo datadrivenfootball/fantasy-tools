@@ -131,6 +131,8 @@ create index if not exists nflverse_injury_snapshots_player_idx
     on public.nflverse_injury_snapshots (player_key, season, week, as_of desc);
 
 -- ---------------------------------------------------------------- append-only
+-- UPDATE, DELETE and TRUNCATE are rejected. A player merge (JEG-1351) that must
+-- repoint player_key here disables the trigger inside its own reviewed migration.
 create or replace function public.source_weekly_warehouse_append_only()
 returns trigger language plpgsql set search_path = '' as $$
 begin
@@ -147,11 +149,17 @@ begin
         execute format('create trigger %I before update or delete on public.%I '
                        'for each row execute function public.source_weekly_warehouse_append_only()',
                        t || '_no_change', t);
+        execute format('drop trigger if exists %I on public.%I', t || '_no_truncate', t);
+        execute format('create trigger %I before truncate on public.%I '
+                       'for each statement execute function public.source_weekly_warehouse_append_only()',
+                       t || '_no_truncate', t);
         execute format('alter table public.%I enable row level security', t);
         execute format('revoke all on public.%I from anon, authenticated', t);
     end loop;
 end;
 $$;
+
+revoke all on sequence public.source_weekly_projections_id_seq from anon, authenticated;
 
 -- ---------------------------------------------------------------- size
 -- Read by pipelines/check_projection_warehouse.py for the size alert (the

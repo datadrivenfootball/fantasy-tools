@@ -5,6 +5,7 @@ and the migration text.
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import sys
@@ -103,8 +104,8 @@ class CbsAndFantasyPros(unittest.TestCase):
                                     "team": "BUF", "points_standard": 22.4, "points_half_ppr": 22.4,
                                     "points_ppr": 22.4}]}}
         rows, _ = pw.cbs_rows(weekly, index(), content_week=10, **COMMON)
-        self.assertEqual([(r["target_week"], r["player_key"], r["coverage"]) for r in rows],
-                         [(10, 11, "current_week")])
+        self.assertEqual([(r["target_week"], r["player_key"], r["coverage"], r["source_player_id"])
+                          for r in rows], [(10, 11, "current_week", "josh allen|QB|BUF")])
 
     def _page(self, heading, fpts=24.2, pid=17298):
         data = {"columns": [{"key": "fpts"}], "rows": [
@@ -117,6 +118,12 @@ class CbsAndFantasyPros(unittest.TestCase):
         self.assertEqual((week, scoring, len(rows)), (10, "Half-PPR", 1))
         week, scoring, _ = pw.fantasypros_page(self._page("Week 10 QB Projections"), "QB")
         self.assertEqual((week, scoring), (10, None))
+
+    def test_page_without_heading_or_rows_is_unparsed_not_skipped(self):
+        pages = {"QB": "<html>new layout</html>",
+                 "TE": "<title>Week 10 Half-PPR TE Projections</title>"}
+        rows, rep = pw.fantasypros_rows(pages, index(), content_week=10, **COMMON)
+        self.assertEqual((rows, rep["unparsed_pages"], rep["skipped_pages"]), ([], ["QB", "TE"], []))
 
     def test_wrong_week_page_skipped_and_half_ppr_column(self):
         pages = {"QB": self._page("Week 10 QB Projections"),
@@ -193,8 +200,8 @@ class FakeSb:
     def rpc(self, fn, payload):
         return self.sizes
 
-    def get_all(self, *a, **k):
-        return PLAYERS
+    def get_all(self, table, *a, **k):
+        return PLAYERS if table == "players" else []
 
 
 class EspnSaverWarehouse(unittest.TestCase):
@@ -215,6 +222,63 @@ class EspnSaverWarehouse(unittest.TestCase):
         self.assertTrue(sew.write_warehouse(sb, self._rows(299), rep, 2026, 10, COMMON["as_of"]))
         self.assertEqual(sb.posts, [])
         self.assertIn("floor 300", rep["error"])
+
+
+class EspnSaverMain(unittest.TestCase):
+    """The warehouse append runs after the existing ESPN writes and a fault in
+    it fails the run (exit 1) without holding them back."""
+
+    def _main(self, sb, today=None):
+        import tempfile
+        d = Path(tempfile.mkdtemp())
+        proj_rows = [{"espn_id": str(i), "name": f"P{i}", "pos": "WR", "team": "BUF", "week": 10,
+                      "season": 2026, "stats": {"receptions": 3}, "applied_total": 5.0} for i in range(400)]
+        (d / "espn_weekly_actuals.json").write_text(json.dumps({"season": 2026, "rows": []}))
+        (d / "espn_weekly_projections.json").write_text(json.dumps(
+            {"season": 2026, "rows": proj_rows, "played_weeks": [1], "ros_weeks": [10]}))
+        act_rep = {"resolved": 10, "n_no_game": 0, "rows_in": 10, "to_upsert": 1,
+                   "comparison_with_existing": {"by_position": {}}}
+        patches = [
+            mock.patch.object(sew, "_sb", return_value=sb),
+            mock.patch.object(sew, "game_index", return_value={}),
+            mock.patch.object(sew, "plan_actuals", return_value=([{"a": 1}], act_rep)),
+            mock.patch.object(sew, "plan_projections", return_value=([{"p": 1}], {"rows_written": 1})),
+            mock.patch.object(sew, "plan_captures", return_value=([], {})),
+            mock.patch.object(sew, "content_week", return_value=10),
+            mock.patch.object(sew.pc, "capture_exists", return_value=True),
+        ]
+        if today:
+            patches.append(mock.patch.object(sew.pw, "SEASON_END", today))
+        with contextlib.ExitStack() as st:
+            for pt in patches:
+                st.enter_context(pt)
+            st.enter_context(redirect_stdout(io.StringIO()))
+            st.enter_context(redirect_stderr(io.StringIO()))
+            rc = sew.main(["--in", str(d), "--summary", str(d / "s.json")])
+        return rc, json.loads((d / "s.json").read_text())
+
+    def test_warehouse_fault_fails_run_after_existing_writes(self):
+        sb = FakeSb(fail_on="source_weekly_projections")
+        rc, summary = self._main(sb)
+        self.assertEqual(rc, 1)
+        self.assertEqual([p[0] for p in sb.posts], ["player_game_stats", "projection_snapshots"])
+        self.assertIn("boom", summary["warehouse"]["error"])
+
+    def test_warehouse_appends_after_existing_writes(self):
+        sb = FakeSb()
+        rc, summary = self._main(sb)
+        self.assertEqual(rc, 0)
+        self.assertEqual([p[0] for p in sb.posts], ["player_game_stats", "projection_snapshots",
+                                                    "source_weekly_projections", "source_projection_runs"])
+        self.assertEqual(summary["warehouse"]["rows_by_week"], {"10": 400})
+
+    def test_nothing_due_after_the_season(self):
+        from datetime import date  # noqa: PLC0415
+        sb = FakeSb()
+        rc, summary = self._main(sb, today=date(2000, 1, 1))
+        self.assertEqual(rc, 0)
+        self.assertNotIn("source_weekly_projections", [p[0] for p in sb.posts])
+        self.assertIn("note", summary["warehouse"])
 
 
 class WarehouseSaver(unittest.TestCase):
@@ -333,11 +397,16 @@ class Migration(unittest.TestCase):
             self.assertIn(f"create table if not exists public.{t}", self.sql)
             self.assertIn(f"'{t}'", self.sql.split("foreach t in array")[1].split("loop")[0])
         self.assertIn("before update or delete", self.sql)
+        self.assertIn("before truncate", self.sql)
         self.assertIn("enable row level security", self.sql)
         self.assertIn("revoke all on public.%I from anon, authenticated", self.sql)
 
     def test_no_ros_rows_and_weekly_only(self):
         self.assertNotIn("'ros'", self.sql)
+        self.assertNotIn("horizon", self.sql)
+        self.assertFalse(any("ros" in k for k in pw.projection_row(
+            source="espn", target_week=10, source_player_id="1", player_key=None, sleeper_id=None,
+            full_name=None, position="QB", content_week=10, **COMMON)))
         self.assertIn("check (target_week >= content_week)", self.sql)
 
     def test_cron_jobs_match_monitoring_coverage(self):

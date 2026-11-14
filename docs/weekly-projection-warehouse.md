@@ -9,8 +9,14 @@ in the handoff folder).
 Storage only. No value, page, view or API reads these tables. Nothing is blended
 with ROS (Jeremy 2026-10-29), and a missing number is null, never 0.
 Migration: `supabase/migrations/jeg1641_weekly_projection_warehouse_20261114.sql`
-(project `iskiybsimubiujwuchsl`). All four tables are append-only: a trigger
-rejects UPDATE and DELETE, RLS is on, and only the service role can access them.
+(project `iskiybsimubiujwuchsl`). All four tables are append-only: triggers
+reject UPDATE, DELETE and TRUNCATE, RLS is on, and only the service role can
+access them. One consequence: a duplicate-player merge (JEG-1351) cannot repoint
+`player_key` in these tables, because of the foreign key to `players` plus the
+trigger. Such a merge has to disable the trigger inside its own reviewed
+migration, with Jeremy's yes. A run whose insert fails partway leaves rows with
+no `source_projection_runs` row. Treat those as incomplete: every query below
+reads through the run log.
 
 ## What is stored
 
@@ -32,14 +38,17 @@ Per source in `source_weekly_projections`:
 | fantasypros | current_week | content week only, when the page heading names it | FPTS copied to `points_std` (QB page) or `points_half_ppr` (RB/WR/TE pages say Half-PPR), also in `source_points`; the other formats null | the page's stat columns |
 
 `scoring_basis` on every row says the same thing. Identity: `source_player_id`
-is always the source's own id (ESPN id, Sleeper id, CBS normalized name,
-FantasyPros id). `player_key` comes from `PlayerIndex` (ids first, names last)
+is always the source's own id: ESPN id, Sleeper id, FantasyPros id, or for CBS
+(no id on the page) `normalized name|position|team`. `player_key` comes from `PlayerIndex` (ids first, names last)
 and is null when unresolved; the row is still kept. `sleeper_id` is filled where
 an id crosswalk gives exactly one.
 
 Limits found on 2026-11-14 (not fixed here):
 - FantasyPros without a login embeds only about the top 10 per position (40 rows
-  a run). The Muse signed-in feed (`weekly_fantasypros_*`) has no rows.
+  a run). A page with no week heading, or with the current week but no rows,
+  fails the source (layout change). A page for another week is skipped. CBS
+  has no such guard: a page whose title cannot be read counts as "week not
+  offered", so a CBS layout change shows as 0-row runs (check `rows_written`). The Muse signed-in feed (`weekly_fantasypros_*`) has no rows.
 - Sleeper status (`player_status_history`): the Sunday 16:30 UTC run overwrites
   that day's morning row (upsert on date and player), so the morning status of
   a Sunday is not kept.
@@ -146,10 +155,12 @@ select p.* from public.source_weekly_projections p
                     where source = 'sleeper' and as_of <= :as_of_ts order by as_of desc limit 1)
    and p.source = 'sleeper' and p.player_key = :player_key;
 
--- how one week's projection moved, run by run
-select as_of, source, points_half_ppr from public.source_weekly_projections
- where player_key = :player_key and target_week = :week
- order by source, as_of;
+-- how one week's projection moved, run by run (complete runs only)
+select p.as_of, p.source, p.points_half_ppr
+  from public.source_weekly_projections p
+  join public.source_projection_runs r using (run_id, source)
+ where p.player_key = :player_key and p.target_week = :week
+ order by p.source, p.as_of;
 ```
 
 Latest injury and status inputs for a player:
@@ -164,8 +175,10 @@ select * from public.player_status_history
 Row counts per source and week for one run (the run check):
 
 ```sql
-select source, target_week, count(*) from public.source_weekly_projections
- where as_of > now() - interval '1 day' group by 1, 2 order by 1, 2;
+select p.source, p.target_week, count(*)
+  from public.source_weekly_projections p
+  join public.source_projection_runs r using (run_id, source)
+ where r.as_of > now() - interval '1 day' group by 1, 2 order by 1, 2;
 ```
 
 ## Relation to JEG-944

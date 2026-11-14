@@ -260,6 +260,25 @@ def upsert(sb, table, rows, on_conflict=None, chunk=500):
             sb.post(table, part, prefer="return=minimal")
 
 
+def warehouse_step(sb, proj_rows, index, season, content_week_now, now_iso, write: bool):
+    """JEG-1641: build and (when write) append ESPN's future weeks. Never raises:
+    -> (report, failed). Nothing is due after the regular season (SEASON_END)."""
+    if datetime.now(timezone.utc).date() >= pw.SEASON_END:
+        return {"note": f"after {pw.SEASON_END}: regular season over, nothing stored"}, False
+    rep: dict = {}
+    try:
+        rows, rep = pw.espn_rows(proj_rows, index, run_id=str(uuid.uuid4()), as_of=now_iso,
+                                 season=season, content_week=content_week_now, points_fn=ew.points)
+        rep |= {"rows": len(rows), "rows_by_week": pw.week_counts(rows)}
+        failed = write_warehouse(sb, rows, rep, season, content_week_now, now_iso) if write else False
+    except Exception as exc:  # noqa: BLE001 -- reported, then exit 1
+        failed = True
+        rep["error"] = f"{type(exc).__name__}: {exc}"
+    if failed:
+        print(f"WAREHOUSE FAILED (source_weekly_projections): {rep.get('error')}", file=sys.stderr)
+    return rep, failed
+
+
 def write_warehouse(sb, rows, rep, season, content_week_now, as_of) -> bool:
     """JEG-1641 append: rows, then the run row. -> True when it failed."""
     problems = pw.floor_problems("espn", rows) or ([] if rows else ["espn: no rows"])
@@ -349,26 +368,16 @@ def main(argv=None) -> int:
             capture_failed = True
             cap_rep["error"] = f"{type(exc).__name__}: {exc}"
             print(f"CAPTURE FAILED (source_projection_captures): {cap_rep['error']}", file=sys.stderr)
-    wh_rows, wh_rep = pw.espn_rows(projs["rows"], index, run_id=str(uuid.uuid4()), as_of=now_iso,
-                                   season=season, content_week=source_week, points_fn=ew.points)
-    wh_rep |= {"rows": len(wh_rows), "rows_by_week": pw.week_counts(wh_rows)}
+    wh_rep, warehouse_failed = warehouse_step(sb, projs["rows"], index, season, source_week, now_iso,
+                                              write=ok and not a.dry_run)
     summary["warehouse"] = wh_rep
-    warehouse_failed = False
-    if ok and not a.dry_run:
-        try:
-            warehouse_failed = write_warehouse(sb, wh_rows, wh_rep, season, source_week, now_iso)
-        except Exception as exc:  # noqa: BLE001 -- reported, then exit 1
-            warehouse_failed = True
-            wh_rep["error"] = f"{type(exc).__name__}: {exc}"
-        if warehouse_failed:
-            print(f"WAREHOUSE FAILED (source_weekly_projections): {wh_rep.get('error')}", file=sys.stderr)
     a.summary.parent.mkdir(parents=True, exist_ok=True)
     a.summary.write_text(json.dumps(summary, indent=1, default=str) + "\n")
     print(json.dumps({k: summary[k] for k in ("actual_weeks", "resolved_share")}
                      | {"to_upsert": act_rep["to_upsert"],
                         "comparison": act_rep["comparison_with_existing"]["by_position"],
                         "projection_rows": proj_rep["rows_written"]}, indent=1))
-    print(f"warehouse rows by week: {wh_rep['rows_by_week']}")
+    print(f"warehouse rows by week: {wh_rep.get('rows_by_week')}")
     if capture_failed or warehouse_failed:
         return 1
     if not ok:
