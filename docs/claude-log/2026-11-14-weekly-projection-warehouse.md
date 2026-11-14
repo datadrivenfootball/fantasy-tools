@@ -11,3 +11,10 @@ Contract: append every future week's projection (ESPN, Sleeper; CBS and FantasyP
 ### Claimed, not confirmed
 - Size estimate (about 4 to 5 MB a day, about 150 MB to week 18): from row counts and JSON size, not a measured table size. Replace after a week of runs.
 - Live write runs, append-only proof and the first scheduled run: recorded on JEG-1641 once the migration is applied and the PR merges.
+
+## 2026-11-14 - JEG-1641 FantasyPros dropped (correction, new entry)
+
+Jeremy, 2026-11-14 (relayed): "We don't need 10 rows per day of anything." FantasyPros was removed from the saver, the freshness check (no rule, so it never alerts), the tests and the doc. The applied migration is unchanged: its check constraint still allows 'fantasypros', and nothing writes that value. The FantasyPros dry-run count above (40 rows) no longer applies.
+
+### Verified (check named)
+- `python3 -m unittest tests.test_projection_warehouse`, including `test_fantasypros_dropped_never_checked_or_saved`.

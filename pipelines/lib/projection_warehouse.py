@@ -18,8 +18,6 @@ from __future__ import annotations
 
 import csv
 import io
-import json
-import re
 from datetime import date
 
 POSITIONS = ("QB", "RB", "WR", "TE")
@@ -30,8 +28,8 @@ SEASON_END = date(2027, 1, 5)
 # Rows per offered target week below which a pull is treated as truncated and
 # nothing is written for that source (fail closed). Measured 2026-11-14: ESPN
 # about 1,800 players a week (zeros for byes/outs included), Sleeper 350-440
-# with points, CBS about 350, FantasyPros about 10 per position anonymously.
-MIN_ROWS_PER_WEEK = {"espn": 300, "sleeper": 200, "cbs": 200, "fantasypros": 20}
+# with points, CBS about 350.
+MIN_ROWS_PER_WEEK = {"espn": 300, "sleeper": 200, "cbs": 200}
 MIN_SCHEDULE_GAMES = 256  # 272 regular-season games in 2026
 MIN_INJURY_ROWS = 10
 
@@ -42,12 +40,9 @@ SCORING_BASIS = {
     "sleeper": "points_* = Sleeper pts_std / pts_half_ppr / pts_ppr as given (provider in stats.company)",
     "cbs": ("points_std = CBS non-PPR weekly page total; points_half_ppr / points_ppr = "
             "that total plus 0.5 / 1 per projected reception (pull_cbs_ros_projections)"),
-    "fantasypros": ("source_points = FantasyPros FPTS on the anonymous weekly page at its default "
-                    "scoring, copied to points_std (QB page, no format named) or points_half_ppr "
-                    "(RB/WR/TE pages say Half-PPR); only the rows the page embeds without a login"),
 }
 COVERAGE = {"espn": "every_week", "sleeper": "every_week",
-            "cbs": "current_week", "fantasypros": "current_week"}
+            "cbs": "current_week"}
 
 
 def _f(v):
@@ -82,7 +77,7 @@ def projection_row(*, run_id, source, as_of, season, content_week, target_week,
                    source_player_id, player_key, sleeper_id, full_name, position,
                    team=None, opponent=None, points_std=None, points_half_ppr=None,
                    points_ppr=None, source_points=None, stats=None,
-                   source_updated_at=None, scoring_basis=None) -> dict:
+                   source_updated_at=None) -> dict:
     return {
         "run_id": run_id, "source": source, "coverage": COVERAGE[source],
         "as_of": as_of, "season": season, "content_week": content_week,
@@ -91,7 +86,7 @@ def projection_row(*, run_id, source, as_of, season, content_week, target_week,
         "position": position, "team": team or None, "opponent": opponent or None,
         "points_std": _f(points_std), "points_half_ppr": _f(points_half_ppr),
         "points_ppr": _f(points_ppr), "source_points": _f(source_points),
-        "scoring_basis": scoring_basis or SCORING_BASIS[source], "stats": stats or None,
+        "scoring_basis": SCORING_BASIS[source], "stats": stats or None,
         "source_updated_at": source_updated_at,
     }
 
@@ -213,66 +208,6 @@ def cbs_rows(weekly: dict, index, *, run_id, as_of, season, content_week):
                 points_std=r.get("points_standard"), points_half_ppr=r.get("points_half_ppr"),
                 points_ppr=r.get("points_ppr")))
     return dedupe(out), {"unresolved_rows": unresolved}
-
-
-# ---------------------------------------------------------------- FantasyPros
-
-FP_WEEK_RE = re.compile(r"Week\s+(\d{1,2})\s+(?:(Half-PPR|PPR|Standard)\s+)?(QB|RB|WR|TE)\s+Projections")
-FP_SCORING = {None: "points_std", "Standard": "points_std", "Half-PPR": "points_half_ppr", "PPR": "points_ppr"}
-
-
-def fantasypros_page(html: str, pos: str) -> tuple[int | None, str | None, list[dict]]:
-    """(week named in the page heading, scoring named there, embedded table
-    rows) for one anonymous projections page. Only what the page embeds
-    without a login. The QB page names no scoring; RB/WR/TE say Half-PPR."""
-    week, scoring = None, None
-    for m in FP_WEEK_RE.finditer(html):
-        if m.group(3) == pos:
-            week, scoring = int(m.group(1)), m.group(2)
-            break
-    rows: list[dict] = []
-    dec = json.JSONDecoder()
-    for hit in re.finditer(r'"rows"\s*:\s*\[', html):
-        try:
-            cand, _end = dec.raw_decode(html, hit.end() - 1)
-        except ValueError:
-            continue
-        if cand and isinstance(cand, list) and isinstance(cand[0], dict) and "fpts" in cand[0] \
-                and isinstance(cand[0].get("player"), dict):
-            rows = cand
-            break
-    return week, scoring, rows
-
-
-def fantasypros_rows(pages: dict, index, *, run_id, as_of, season, content_week):
-    """pages: {pos: html}. A page whose heading names another week is skipped
-    (FantasyPros serves last season's page for weeks it has not published)."""
-    out, unresolved, skipped, unparsed = [], 0, [], []
-    for pos, html in sorted(pages.items()):
-        week, scoring, rows = fantasypros_page(html, pos)
-        if week is None or (week == content_week and not rows):
-            unparsed.append(pos)  # layout change, not "week not out yet"
-            continue
-        if week != content_week:
-            skipped.append(f"{pos}: page week {week}")
-            continue
-        column = FP_SCORING[scoring]
-        for r in rows:
-            pl = r.get("player") or {}
-            name = pl.get("name") or ""
-            e, _why = index.resolve_name(name, pos)
-            if e is None:
-                unresolved += 1
-            stats = {k: v for k, v in r.items() if k not in ("player", "id")}
-            out.append(projection_row(
-                run_id=run_id, source="fantasypros", as_of=as_of, season=season,
-                content_week=content_week, target_week=week, source_player_id=pl.get("id") or r.get("id") or name,
-                player_key=e["player_key"] if e else None, sleeper_id=None, full_name=name,
-                position=pos, team=pl.get("team"), source_points=r.get("fpts"), stats=stats,
-                scoring_basis=SCORING_BASIS["fantasypros"] + f"; page scoring: {scoring or 'not named (QB)'}",
-                **{column: r.get("fpts")}))
-    return dedupe(out), {"unresolved_rows": unresolved, "skipped_pages": skipped,
-                         "unparsed_pages": unparsed}
 
 
 # ---------------------------------------------------------------- nflverse

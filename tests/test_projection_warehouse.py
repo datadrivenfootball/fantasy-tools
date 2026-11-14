@@ -96,7 +96,7 @@ class EspnRows(unittest.TestCase):
         self.assertEqual([(r["week"], r["applied_total"]) for r in rows], [(11, 17.25), (12, None)])
 
 
-class CbsAndFantasyPros(unittest.TestCase):
+class Cbs(unittest.TestCase):
     def test_cbs_rows_tagged_with_the_served_week(self):
         weekly = {"weeks": {"9": [{"player_name": "Josh Allen", "player_norm": "josh allen", "pos": "QB",
                                    "team": "BUF", "points_standard": 1, "points_half_ppr": 1, "points_ppr": 1}],
@@ -106,37 +106,6 @@ class CbsAndFantasyPros(unittest.TestCase):
         rows, _ = pw.cbs_rows(weekly, index(), content_week=10, **COMMON)
         self.assertEqual([(r["target_week"], r["player_key"], r["coverage"], r["source_player_id"])
                           for r in rows], [(10, 11, "current_week", "josh allen|QB|BUF")])
-
-    def _page(self, heading, fpts=24.2, pid=17298):
-        data = {"columns": [{"key": "fpts"}], "rows": [
-            {"id": pid, "player": {"id": pid, "name": "Josh Allen", "team": "BUF"},
-             "pass_yds": 251.3, "rec": 0, "fpts": fpts}]}
-        return f"<h1>Fantasy Football Projections</h1><title>{heading}</title><script>var x = {json.dumps(data)};</script>"
-
-    def test_page_week_scoring_and_rows(self):
-        week, scoring, rows = pw.fantasypros_page(self._page("Week 10 Half-PPR RB Projections"), "RB")
-        self.assertEqual((week, scoring, len(rows)), (10, "Half-PPR", 1))
-        week, scoring, _ = pw.fantasypros_page(self._page("Week 10 QB Projections"), "QB")
-        self.assertEqual((week, scoring), (10, None))
-
-    def test_page_without_heading_or_rows_is_unparsed_not_skipped(self):
-        pages = {"QB": "<html>new layout</html>",
-                 "TE": "<title>Week 10 Half-PPR TE Projections</title>"}
-        rows, rep = pw.fantasypros_rows(pages, index(), content_week=10, **COMMON)
-        self.assertEqual((rows, rep["unparsed_pages"], rep["skipped_pages"]), ([], ["QB", "TE"], []))
-
-    def test_wrong_week_page_skipped_and_half_ppr_column(self):
-        pages = {"QB": self._page("Week 10 QB Projections"),
-                 "RB": self._page("Week 10 Half-PPR RB Projections", 15.0, pid=1),
-                 "WR": self._page("Week 12 Half-PPR WR Projections")}
-        rows, rep = pw.fantasypros_rows(pages, index(), content_week=10, **COMMON)
-        self.assertEqual(rep["skipped_pages"], ["WR: page week 12"])
-        by_pos = {r["position"]: r for r in rows}
-        self.assertEqual(by_pos["QB"]["points_std"], 24.2)
-        self.assertIsNone(by_pos["QB"]["points_half_ppr"])
-        self.assertEqual((by_pos["RB"]["points_half_ppr"], by_pos["RB"]["source_points"]), (15.0, 15.0))
-        self.assertIsNone(by_pos["RB"]["points_std"])  # not derived
-        self.assertEqual(by_pos["QB"]["stats"]["pass_yds"], 251.3)
 
 
 SCHEDULE_CSV = """game_id,season,game_type,week,gameday,gametime,away_team,away_score,home_team,home_score,spread_line,total_line
@@ -346,11 +315,13 @@ class Freshness(unittest.TestCase):
         self.assertEqual(rep["stale"], ["sleeper", "nflverse_injuries"])
         self.assertTrue(chk.problem(rep))
 
-    def test_fantasypros_warns_only(self):
-        runs = fresh_runs()
-        del runs["fantasypros"]
-        rep = chk.judge(runs, {}, NOW)
-        self.assertEqual((rep["stale"], rep["warnings"]), ([], ["fantasypros"]))
+    def test_fantasypros_dropped_never_checked_or_saved(self):
+        # Jeremy 2026-11-14: FantasyPros dropped (anonymous page = top 10 per position)
+        self.assertNotIn("fantasypros", chk.RULES)
+        self.assertNotIn("fantasypros", spw.SOURCES)
+        self.assertNotIn("fantasypros", pw.SCORING_BASIS)
+        rep = chk.judge(fresh_runs(), {}, NOW)
+        self.assertNotIn("fantasypros", rep["sources"])
         self.assertFalse(chk.problem(rep))
 
     def test_offseason_nothing_due(self):

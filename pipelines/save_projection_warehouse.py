@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daily weekly-projection warehouse: Sleeper, CBS, FantasyPros, nflverse (JEG-1641).
+"""Daily weekly-projection warehouse: Sleeper, CBS, nflverse (JEG-1641).
 
 Pulls public pages and APIs (no login), builds rows with
 pipelines/lib/projection_warehouse.py and APPENDS them to the JEG-1641 tables
@@ -11,19 +11,19 @@ pull (one ESPN fetch a day), not here.
 Per source: pull -> rows -> floor check -> insert rows -> insert one
 source_projection_runs row. A source that fails writes no run row (so the
 freshness check sees it stale), and the others still run; exit 1 if any
-source failed. A current-week source (CBS, FantasyPros) whose page does not
+source failed. A current-week source (CBS) whose page does not
 yet show the content week writes a run row with 0 rows and the reason.
 
 Politeness: Sleeper 0.5 s between requests (36 a run); CBS via the existing
-puller (up to 12 pages); FantasyPros 4 pages, 5 s apart (robots.txt
-Crawl-delay 5; only /ajax /api /json /xml are disallowed, none used here);
-nflverse two release assets on GitHub.
+puller (up to 12 pages); nflverse two release assets on GitHub. FantasyPros
+was considered and dropped (Jeremy 2026-11-14: its anonymous page gives only
+about the top 10 per position).
 
 What is stored and example queries: docs/weekly-projection-warehouse.md.
 
 Usage:
     python3 pipelines/save_projection_warehouse.py [--dry-run]
-        [--sources sleeper,cbs,fantasypros,nflverse_schedule,nflverse_injuries]
+        [--sources sleeper,cbs,nflverse_schedule,nflverse_injuries]
 """
 from __future__ import annotations
 
@@ -47,18 +47,10 @@ from player_key_index import PlayerIndex  # noqa: E402
 SEASON = 2026
 SLEEPER_BASE = ROOT / "data" / "inputs" / "sleeper_identity_base.json"
 SUMMARY = ROOT / "output" / "projection-warehouse.json"
-SOURCES = ("sleeper", "cbs", "fantasypros", "nflverse_schedule", "nflverse_injuries")
-FP_URL = "https://www.fantasypros.com/nfl/projections/{pos}.php?week={week}"
-FP_DELAY = 5.0
+SOURCES = ("sleeper", "cbs", "nflverse_schedule", "nflverse_injuries")
 SLEEPER_DELAY = 0.5
 NFLVERSE_SCHEDULE = "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv"
 NFLVERSE_INJURIES = "https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_{season}.csv"
-BROWSER_HEADERS = {
-    "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/130.0 Safari/537.36"),
-    "Accept": "text/html,application/xhtml+xml",
-    "Accept-Language": "en-US,en;q=0.9",
-}
 
 
 def http_text(url: str, headers=None, timeout=60) -> str:
@@ -80,15 +72,6 @@ def pull_sleeper(cw: int) -> dict:
 def pull_cbs(cw: int) -> dict:
     from pull_cbs_ros_projections import pull_weekly, utc_now  # noqa: PLC0415
     return pull_weekly(cw, utc_now())
-
-
-def pull_fantasypros(cw: int) -> dict:
-    pages = {}
-    for i, pos in enumerate(pw.POSITIONS):
-        if i:
-            time.sleep(FP_DELAY)
-        pages[pos] = http_text(FP_URL.format(pos=pos.lower(), week=cw), headers=BROWSER_HEADERS)
-    return pages
 
 
 def _sb():
@@ -121,12 +104,6 @@ def build(source: str, cw: int, index: PlayerIndex, gsis_sleeper: dict, run_id: 
         probs = pw.floor_problems(source, rows)
         if not rows and weekly.get("errors"):
             probs.append("cbs: " + "; ".join(weekly["errors"])[:500])
-        return "source_weekly_projections", rows, det, probs
-    if source == "fantasypros":
-        rows, det = pw.fantasypros_rows(pull_fantasypros(cw), index, content_week=cw, **common)
-        probs = pw.floor_problems(source, rows)
-        if det["unparsed_pages"]:
-            probs.append("fantasypros: no week heading or rows parsed on " + ", ".join(det["unparsed_pages"]))
         return "source_weekly_projections", rows, det, probs
     if source == "nflverse_schedule":
         rows = pw.schedule_rows(http_text(NFLVERSE_SCHEDULE), **common)

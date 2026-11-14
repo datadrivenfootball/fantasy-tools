@@ -7,8 +7,8 @@ public.source_weekly_warehouse_size(); fetches no source.
 Stale = a source's newest run row is older than its cadence (RULES), or it has
 none. Each source runs daily (ESPN 12:40 UTC via espn-weekly-store, the rest
 13:30 UTC via weekly-projection-warehouse, plus Sunday copies), so 26 hours
-is one missed day plus the scheduler's grace. FantasyPros only warns: its
-anonymous page can lag a week and it is the least complete source.
+is one missed day plus the scheduler's grace. (FantasyPros was dropped from
+the warehouse, Jeremy 2026-11-14, so it is not checked.)
 Outside the regular season (after SEASON_END) nothing is due.
 
 Size: problem when the database passes DB_ALERT_BYTES (75% of the Pro plan's
@@ -59,7 +59,6 @@ RULES = {
     "cbs": Rule(26, True),
     "nflverse_schedule": Rule(26, True),
     "nflverse_injuries": Rule(26, True),
-    "fantasypros": Rule(26, False),
 }
 
 

@@ -1,8 +1,8 @@
 name: Weekly projection warehouse (JEG-1641)
 
 # JEG-1641 (Jeremy 2026-11-14, decision A: daily full copies, no deletion):
-# append every future week's projection from Sleeper, the current-week CBS and
-# FantasyPros pages, and the nflverse schedule and injury report to the
+# append every future week's projection from Sleeper, the current-week CBS
+# pages, and the nflverse schedule and injury report to the
 # append-only warehouse tables
 # (supabase/migrations/jeg1641_weekly_projection_warehouse_20261114.sql).
 # ESPN rows come from espn-weekly-store.yml (same daily ESPN pull). Storage
@@ -49,7 +49,7 @@ jobs:
           cp pipelines/gh_sbclient.py /tmp/gh_shim/sbclient.py
           echo "PYTHONPATH=/tmp/gh_shim:$PYTHONPATH" >> $GITHUB_ENV
 
-      - name: Pull and append (Sleeper, CBS, FantasyPros, nflverse)
+      - name: Pull and append (Sleeper, CBS, nflverse)
         env:
           EVENT_MODE: ${{ github.event.inputs.mode }}
           REF: ${{ github.ref }}
