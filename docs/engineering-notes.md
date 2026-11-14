@@ -118,3 +118,10 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
 - Floor with today's runtimes: probe interval + chain (about 40 min) + Pages (about 35 min). Even with a 20-minute probe that is about 1.5 hours from publish to live.
 - Tuesday pre-flight: `python3 pipelines/rollover_preflight.py` (runbooks/weekly-refresh.md step 0).
 - Local render tests on this Mac need the repo venv (Python 3.12; the system 3.9 cannot parse Supabase offset timestamps) and `CHROMIUM_PATH` set to the cached chromium_headless_shell-1208 (risk register GAP-PLAYWRIGHT-BROWSER-MISMATCH).
+
+## Build a Trade must read the league and the waiver list the workspace pages read (2026-11-13, JEG-1633)
+
+- Symptom (Jeremy, live, phone): "Evaluate pickup" on a Waivers Best add card opened Build a Trade in Add from waivers + My league showing "No rosters entered yet" and the "Add your roster" lock card.
+- Cause 1: confirming League settings (site.js `confirmSettings`) on a pasted or saved league stores `ddf:league` = {settings} with no teams and `ddf:link` = {source:'manual'}, so `DDF.link.current()` returns a teamless state. ddf-league.js `build()` skips a link with no teams (or a manual one with no players); `build-trade.js readLeague` took it as the league. It now applies the same rule and only falls back to the teamless link when no other league exists.
+- Cause 2: Build a Trade's available players came only from its own `ddf:waivers` store, a chat link's list or the old v2 `ddf.v2.waiverCandidates`. It now falls back to the list Waivers and Recommendations judge pickups on (`ddf:available` names, else `DDF.league.current().waivers`), and a saved list that lacks the link's `?add=` is skipped.
+- Rule: any page that reads the league or the available players reads them through ddf-league.js (or mirrors its rules exactly). Guard: `tests/test_build_waiver_handoff.py` (clicks Evaluate pickup from both pages, with and without confirmed settings, 1440 and 375).
