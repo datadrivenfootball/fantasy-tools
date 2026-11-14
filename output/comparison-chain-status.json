@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-14T13:26:58.585680+00:00",
+  "run_at": "2026-11-14T15:49:46.589472+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -14,7 +14,6 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
-    "cbsros",
     "usatoday"
   ],
   "hold_severity": "amber",
@@ -29,19 +28,6 @@
         "usatoday"
       ],
       "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
-      "hold_severity": "amber",
-      "week": 10
-    },
-    "cbsros": {
-      "reason": "fidelity: publisher_vs_stored",
-      "held_series": [
-        "cbsros",
-        "cbsros_vorp"
-      ],
-      "sections": [
-        "cbsros"
-      ],
-      "detail": "1101/1101 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 2 players at the page's last listed value swapped in or out (ties at the row cap: Kene Nwangwu, Velus Jones Jr.); parse notes: RB: 1 players listed with another position in the cell (kept as RB):",
       "hold_severity": "amber",
       "week": 10
     }
@@ -96,7 +82,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-13 -> 12 DDF legs -> section; review passed (4416 values)",
+      "detail": "snapshot 2026-11-14 -> 12 DDF legs -> section; review passed (4416 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -104,7 +90,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-12 -> 12 DDF legs -> section; review passed (6216 values)",
+      "detail": "snapshot 2026-11-12 -> 12 DDF legs -> section; review passed (6240 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -145,7 +131,7 @@
       "lagging_one_week": false
     },
     "cbsros": {
-      "content_vintage": "2026-11-13",
+      "content_vintage": "2026-11-14",
       "content_week": 10,
       "health_status": "ok",
       "lagging_one_week": false
@@ -172,7 +158,7 @@
     "cbsros": {
       "served_week": 10,
       "label_week": 10,
-      "published_at": "2026-11-13",
+      "published_at": "2026-11-14",
       "basis": "section_label",
       "expected_week": 10,
       "weeks_behind": 0,
@@ -240,7 +226,6 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored",
-    "cbsros": "fidelity: publisher_vs_stored"
+    "usatoday": "fidelity: publisher_vs_stored"
   }
 }
