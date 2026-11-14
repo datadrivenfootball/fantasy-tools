@@ -19,7 +19,7 @@
       "bench_raw": 44.25000000000001,
       "bench_share_used": 0.15,
       "n_bench": 24,
-      "n_pool": 137,
+      "n_pool": 136,
       "n_starters": 30,
       "pb": 0.8367012336534763,
       "pie": 295.00000000000006,
@@ -58,7 +58,7 @@
       "tau": 0.6250000000000002
     }
   },
-  "generated_at": "2026-11-14T15:49:41Z",
+  "generated_at": "2026-11-14T19:35:49Z",
   "identity": {
     "alias_note": "Shared verified alias map with the ESPN DDF leg (data/inputs/player_aliases.json); suffix, punctuation and nickname spellings match through norm_player_name (FixtureIdentity). Unresolvable identities are excluded, never guessed.",
     "aliases_used": [
@@ -95,9 +95,9 @@
     "pies_note": "Positional pies measured from the current Razzball data (tier surplus). No pies file: a static file goes stale when the player pool changes.",
     "razzball_snapshot": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/razzball/2026-11-12/snapshot.json",
     "razzball_snapshot_date": "2026-11-12",
-    "razzball_snapshot_id": "sha256:65d01427923da99fb83ef0c0825bd1258deea8e51c68cbf3ff4ded475bc40f9e",
+    "razzball_snapshot_id": "sha256:9b826524aeff44d06d3f93dd6a7a39d9aade01239213386cbd557d14c0fb0baf",
     "razzball_snapshot_rows": 557,
-    "razzball_snapshot_sha256": "ce0304444e6d02c59449a4cbf188369edf0e1d74469cd9f3ecde0033899f96ce",
+    "razzball_snapshot_sha256": "b5f741b04ba03f1e0c52222bfc9c9ae89aa72ba07f9b76170372db5a074f18c7",
     "scoring": "half_ppr",
     "source_tag": "razzball",
     "teams": 10
@@ -314,6 +314,13 @@
       "reason": "rz_held"
     },
     {
+      "detail": "razzball standard 3.0 ppg is 55% of the ESPN/CBS mean 5.5 (< 60%): likely an expected-missed-games discount",
+      "player": "Emmett Johnson",
+      "player_key": 3536,
+      "pos": "RB",
+      "reason": "rz_held"
+    },
+    {
       "detail": "razzball standard 1.7 ppg is 32% of the ESPN/CBS mean 5.2 (< 60%): likely an expected-missed-games discount",
       "player": "Jordyn Tyson",
       "player_key": 2269,
@@ -391,10 +398,10 @@
       "TE: bench share 0.15 infeasible, using 0.096"
     ],
     "n_bench": 70,
-    "n_review": 37,
+    "n_review": 38,
     "n_starters": 70,
-    "n_values": 520,
-    "n_waiver": 380
+    "n_values": 519,
+    "n_waiver": 379
   },
   "values": [
     {
@@ -5025,17 +5032,6 @@
       "ppg": 0.8,
       "raw_value": 0.0,
       "team": "NO",
-      "tier": "waiver",
-      "value": 0.0
-    },
-    {
-      "player": "Emmett Johnson",
-      "player_key": 3536,
-      "player_norm": "emmett johnson",
-      "pos": "RB",
-      "ppg": 3.8,
-      "raw_value": 0.0,
-      "team": "KC",
       "tier": "waiver",
       "value": 0.0
     },
