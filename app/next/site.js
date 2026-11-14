@@ -1125,7 +1125,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
 (function(){
   var DDF = window.DDF = window.DDF || {};
   var KEYS = {
-    session: ['ddf:pasted', 'ddf:league', 'ddf:link', 'ddf:ctxlink', 'ddf:waivers', 'ddf:available', 'ddf:moves', 'ddf:hold',
+    session: ['ddf:pasted', 'ddf:league', 'ddf:link', 'ddf:ctxlink', 'ddf:waivers', 'ddf:available', 'ddf:anyroster', 'ddf:moves', 'ddf:hold',
       'ddf:skip', 'ddf:trade', 'ddf:settingsok', 'ddf:bridgedWs', 'ddf:bridgeKeep', 'ddf:editprev', 'ddf:bookmarked',
       'ddf:bmhint', 'ddf:bmwant', 'ddf:bmdone', 'ddf:bmovbase', 'ddf-recommendation'],
     sessionPrefixes: ['ddf:freshdismiss:'],
