@@ -59,6 +59,7 @@ The durable docs live here as Markdown in GitHub (JEG-596 decision, Jeremy, 2026
 | [waiver-board-contract.md](waiver-board-contract.md) | Maintained | JEG-1415 | 2026-10-31 | Waiver-board artifact contract (`waiver-board` v0.1): the Value and This week lanes, when each source is disabled, missing vs zero; builder `pipelines/build_waiver_board.py`, validator `pipelines/lib/waiver_board.py` (JEG-1196). |
 | [MODULES.md](MODULES.md) | Maintained | unknown | unknown | One instruction, one lane module rules. |
 | [answers-site.md](answers-site.md) | Maintained | JEG-1543 | 2026-11-08 | The no-sources answers version at /answers/: answer tables from get-values' pipeline, the build, the privacy check and its tests, next phases. |
+| [get-answers-deploy.md](get-answers-deploy.md) | Maintained | JEG-1543 | 2026-11-08 | Deploy and rollback plan for the `get-answers` edge function (answers-version recommendations, no sources): env, smoke curl with expected keys, CPU budget. |
 | [planning/](planning/) | Record | - | - | Consolidation layer scope, its Codex review, and the JEG-302 monitor cleanup scope. |
 | [contract/](contract/) | Maintained | JEG-327 | unknown | Front-end read contract v1, FE dependency inventory, v3 backend requirements (JEG-327). |
 | [design/vorp-reweight.md](design/vorp-reweight.md) | Record | - | - | Eight-group VORP reweight design (JEG-209/231), with `reweight_example.py` and a desktop mockup PNG. |
