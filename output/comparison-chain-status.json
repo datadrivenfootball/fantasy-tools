@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-14T19:35:56.721821+00:00",
+  "run_at": "2026-11-14T21:43:59.575903+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -14,6 +14,7 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
+    "cbsros",
     "usatoday"
   ],
   "hold_severity": "amber",
@@ -28,6 +29,19 @@
         "usatoday"
       ],
       "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
+      "hold_severity": "amber",
+      "week": 10
+    },
+    "cbsros": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "cbsros",
+        "cbsros_vorp"
+      ],
+      "sections": [
+        "cbsros"
+      ],
+      "detail": "1095/1095 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 6 players at the page's last listed value swapped in or out (ties at the row cap: CJ Donaldson, Carter Runyon, E.J. Jenkins, Grant Calcaterra, Jaydon Blue, Tip Reiman); parse notes: RB: 1 players",
       "hold_severity": "amber",
       "week": 10
     }
@@ -226,6 +240,7 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored"
+    "usatoday": "fidelity: publisher_vs_stored",
+    "cbsros": "fidelity: publisher_vs_stored"
   }
 }
