@@ -1642,7 +1642,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     /* JEG-1632: kicker and defense slots (0-3); 1 and 1 is the default and is not written */
     var kd = [Number(g('lineup-k')), Number(g('lineup-def'))];
     if(g('lineup-k') !== null && g('lineup-def') !== null){
-      /* an out-of-range count (a typed 4, then Enter skips the gate) is not saved, so it never rewrites the league as 1 and 1 */
+      /* an out-of-range count is never saved (it would rewrite the league as 1 and 1); the inputs' min/max also block submit */
       if(!kd.every(function(n){ return Number.isInteger(n) && n >= 0 && n <= 3; })) return;
       if(kd[0] !== 1 || kd[1] !== 1) form.kdef = kd;
     }
