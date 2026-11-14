@@ -836,6 +836,8 @@ test-core:
 	python3 -m unittest tests.test_build_swap_routes
 	# JEG-1633: Evaluate pickup on Waivers / Recommendations carries the league and pickup into Build a Trade.
 	python3 -m unittest tests.test_build_waiver_handoff
+	# JEG-1635: Add from waivers in Any players with no league (typed roster and available players).
+	python3 -m unittest tests.test_build_any_waivers
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
@@ -1023,6 +1025,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_build_swap_routes
 	# JEG-1633: Evaluate pickup on Waivers / Recommendations carries the league and pickup into Build a Trade.
 	python3 -m unittest tests.test_build_waiver_handoff
+	# JEG-1635: Add from waivers in Any players with no league (typed roster and available players).
+	python3 -m unittest tests.test_build_any_waivers
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render

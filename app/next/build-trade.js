@@ -28,6 +28,7 @@
 
   let C = null, ROWS = new Map(), BYNAME = new Map(), RC = new Map(), INS = null, FX = null;
   let L = null, S = {style: '', chart: ''}, W = null, P = null, linkNote = '';
+  let AR = [];   // JEG-1635: the roster typed or pasted in Any players + Add from waivers (DDF.state 'anyroster')
   const undoLog = [];
 
   /* ---------- engine records ---------- */
@@ -302,7 +303,8 @@
     P = readParams();
     W = loadWaivers();
     if (W.roster && L.me >= 0) L.teams[L.me] = Object.assign({}, L.teams[L.me], {keys: W.roster.slice()});
-    L.hasRoster = L.me >= 0 && myRosterKeys().length > 0;
+    AR = loadAnyRoster();
+    L.hasRoster = L.me >= 0 && leagueRosterKeys().length > 0;
     const st = L.st;
     const wv = S.wv || {min: 2, pos: 'All'};
     S = {mode: 'any', kind: P.waivers || (st && st.view === 'waivers') ? 'waivers' : 'trade', any: {give: [], get: []}, lg: {give: new Set(), get: new Set()},
@@ -335,6 +337,12 @@
     for (const k of S.lg.give) addExtra('give', k);
     if (S.partner >= 0) for (const k of S.lg.get) addExtra('get', k);
     S.mode = L.full ? 'league' : P.mode || (P.partner && P.fromQuery && L.available ? 'league' : (L.source !== 'none' && L.available ? 'league' : (S.kind === 'waivers' && L.hasRoster ? 'league' : 'any')));
+    // A pickup link (?waivers=1&drop=&add=) opened in Any players: the drop joins your roster and the add your available
+    // players for this visit, so the evaluation opens prefilled as it does in My league.
+    if (anyWaivers()) {
+      if (S.wv.drop && ROWS.has(S.wv.drop) && !AR.includes(S.wv.drop)) AR = AR.concat([S.wv.drop]);
+      if (S.wv.add && ROWS.has(S.wv.add) && !AR.includes(S.wv.add) && !W.players.includes(S.wv.add)) W.players = W.players.concat([S.wv.add]);
+    }
     $('prefill-note').hidden = !note; $('prefill-note').textContent = note.trim();
     const relabel = s => s.replace(/(valuation: )Market\b/g, '$1Analyst charts').replace(/(valuation: )FantasyCalc\b/g, '$1Live market (FantasyCalc)');
     $('constraints').textContent = P.constraints ? relabel(P.constraints) : defaultConstraints;
@@ -356,7 +364,7 @@
   /* ---------- rendering ---------- */
   function show(key) {
     const any = S.mode === 'any';
-    return {any, 'any-noleague': any && !L.hasRoster, league: !any && L.available, 'league-off': !any && !L.available, full: !any && L.full, note: !any && !L.full, roster: !any && L.hasRoster, 'roster-off': !any && !L.hasRoster}[key];
+    return {any, wv: S.kind === 'waivers' && (any || L.hasRoster), 'any-noleague': any && !L.hasRoster, league: !any && L.available, 'league-off': !any && !L.available, full: !any && L.full, note: !any && !L.full, roster: !any && L.hasRoster, 'roster-off': !any && !L.hasRoster}[key];
   }
   function rosterNote() {
     if (L.source === 'none') return 'No league added yet · <a href="connect.html">add your league</a>';
@@ -383,10 +391,11 @@
     const strip = document.querySelector('.ctx-strip > span:first-child');
     if (strip) strip.textContent = (L.source === 'none' ? 'No league yet' : 'My league · ' + (L.source === 'link' ? 'From your chat' : L.name)) + ' · ' + settingsText();
     if (waivers) {
-      $('lede').textContent = any ? 'Adding from waivers works with your league: your roster and its available players.' : L.hasRoster ? 'Pick who to drop, then pick your best add from the available players.' : 'Add your roster to find your best adds from waivers.';
+      $('lede').textContent = any ? (AR.length ? 'Pick who to drop, then pick your best add from the available players.' : 'Add your roster and the available players, then pick who to drop and who to add.')
+        : L.hasRoster ? 'Pick who to drop, then pick your best add from the available players.' : 'Add your roster to find your best adds from waivers.';
       $('suggest').hidden = true;
-      if (!any && L.hasRoster) renderWaivers();
-      const ready = !any && L.hasRoster && waiverReady();
+      if (any || L.hasRoster) renderWaivers();
+      const ready = (any || L.hasRoster) && waiverReady();
       $('empty-state').hidden = true; $('result').hidden = !ready;
       if (ready) { renderWaiverCharts(); if (!S.claimDirty) writeClaim(); }
       return;
@@ -521,7 +530,16 @@
       try { localStorage.setItem(LIVE_CANDS, JSON.stringify(W.players.filter(k => ROWS.has(k)).map(k => { const r = ROWS.get(k); return {key: k, name: r.name, pos: r.pos, team: r.team || ''}; }))); } catch (e) { /* private window */ }
     }
   }
-  function myRosterKeys() { return L.me >= 0 ? (W && W.roster ? W.roster : L.teams[L.me].keys) : []; }
+  function leagueRosterKeys() { return L.me >= 0 ? (W && W.roster ? W.roster : L.teams[L.me].keys) : []; }
+  /* JEG-1635: Any players + Add from waivers needs no league: your roster is the list typed or pasted on this page. */
+  const anyWaivers = () => !!(S && S.mode === 'any' && S.kind === 'waivers');
+  function myRosterKeys() { return anyWaivers() ? AR : leagueRosterKeys(); }
+  function loadAnyRoster() {
+    let saved = null;
+    try { saved = DDF.state.get('anyroster', null); } catch (e) { saved = null; }
+    return saved && Array.isArray(saved.keys) ? saved.keys.map(String).filter(k => ROWS.has(k)) : [];
+  }
+  function saveAnyRoster() { try { DDF.state.set('anyroster', {v: 1, keys: AR}); } catch (e) { /* this visit still has it */ } }
   const availableNow = () => { const mine = new Set(myRosterKeys()); return W.players.filter(k => !mine.has(k)); };
   function benchSet() {
     const X = fitBase();
@@ -576,6 +594,12 @@
   const lastName = n => { const parts = String(n).trim().split(/\s+/); return parts.length > 1 ? parts.slice(1).join(' ') : parts[0]; };
   function renderWaivers() {
     const roster = myRosterKeys(), sug = suggestion(), bench = benchSet();
+    const entry = $('wv-roster-entry');
+    if (entry && anyWaivers()) {
+      if (entry.dataset.n !== String(roster.length)) { entry.open = !roster.length; entry.dataset.n = String(roster.length); }
+      $('wv-roster-clear').hidden = !roster.length;
+      $('wv-roster-summary').textContent = roster.length ? 'Add players to my roster' : 'Add my roster';
+    }
     if (!S.wv.drop || !roster.includes(S.wv.drop)) S.wv.drop = sug ? sug.k : null;
     if (S.wv.add && !availableNow().includes(S.wv.add)) S.wv.add = null;
     const drop = S.wv.drop;
@@ -583,11 +607,12 @@
     const opt = k => { const v = rec(k); return `<label class="wv-opt"><input type="radio" name="wv-drop" value="${esc(k)}"${k === drop ? ' checked' : ''}><span>${esc(v.n)}<small>${esc(v.pos)}</small></span>${sug && k === sug.k ? '<small class="wv-sugg-tag">Suggested</small>' : ''}<span class="wv-opt-val">${fmt(v.ddf)}<span class="sr-action"> DDF</span></span></label>`; };
     const byLow = (a, b) => (rec(a).ddf ?? -1) - (rec(b).ddf ?? -1) || nm(a).localeCompare(nm(b));
     const benchKeys = roster.filter(k => bench.has(k)).sort(byLow), starters = roster.filter(k => !bench.has(k)).sort(byLow);
-    $('wv-roster').innerHTML = benchKeys.length ? `<p class="wv-group" aria-hidden="true">Bench · DDF</p>${benchKeys.map(opt).join('')}<p class="wv-group" aria-hidden="true">Starters · DDF</p>${starters.map(opt).join('')}` : `<p class="wv-group" aria-hidden="true">Your roster · DDF</p>${starters.map(opt).join('')}`;
+    $('wv-roster').innerHTML = !roster.length ? '' : benchKeys.length ? `<p class="wv-group" aria-hidden="true">Bench · DDF</p>${benchKeys.map(opt).join('')}<p class="wv-group" aria-hidden="true">Starters · DDF</p>${starters.map(opt).join('')}` : `<p class="wv-group" aria-hidden="true">Your roster · DDF</p>${starters.map(opt).join('')}`;
     const avail = availableNow(), n = avail.length, empty = !n;
     $('wv-count').innerHTML = empty ? '' : `${n} available player${n === 1 ? '' : 's'} ${W.inLeague ? 'in your league' : 'entered'} · <a href="waivers.html">Manage list</a>`;
     $('wv-empty').hidden = !empty; $('wv-filters').hidden = empty; $('wv-adds').hidden = empty;
     if (empty) { $('wv-adds').innerHTML = ''; return; }
+    if (!roster.length) { $('wv-filters').hidden = true; $('wv-filter-note').textContent = ''; $('wv-adds').innerHTML = '<li class="wv-meta">Add your roster to see your best adds.</li>'; return; }
     const positions = POS_ORDER.filter(pos => avail.some(k => rec(k).pos === pos));
     if (S.wv.pos !== 'All' && !positions.includes(S.wv.pos)) S.wv.pos = 'All';
     $('wv-pos').innerHTML = '<span class="wv-chip-label" aria-hidden="true">Position</span>' + ['All'].concat(positions).map(pos => `<button type="button" data-pos="${pos}" aria-pressed="${S.wv.pos === pos}">${pos}</button>`).join('');
@@ -853,7 +878,21 @@
       setUrl(q => { q.delete('tab'); if (S.kind === 'waivers') q.set('waivers', '1'); else q.delete('waivers'); });
       changed();
     });
-    $('wv-to-league').onclick = () => { S.mode = 'league'; setUrl(q => q.set('mode', 'league')); changed(); $('wv-drop-title').focus(); };
+    $('wv-roster-add').onclick = () => {
+      const text = $('wv-roster-paste').value, status = $('wv-roster-status');
+      if (!text.trim()) { status.textContent = 'Paste or type at least one player.'; return; }
+      const {keys, skipped, unmatched} = parseAvailable(text), fresh = keys.filter(k => !AR.includes(k));
+      const tail = (unmatched ? `, ${unmatched} name${unmatched === 1 ? '' : 's'} not found in this week's values` : '') + (skipped ? `, ${skipped} line${skipped === 1 ? '' : 's'} skipped` : '');
+      if (!fresh.length) { status.textContent = 'No new players found' + tail + '. Check the text and try again.'; return; }
+      AR = AR.concat(fresh); saveAnyRoster(); gainCache.clear();
+      $('wv-roster-paste').value = '';
+      status.textContent = `${fresh.length} player${fresh.length === 1 ? '' : 's'} added to your roster` + tail + '.';
+      changed(); $('wv-drop-title').focus();
+    };
+    $('wv-roster-clear').onclick = () => {
+      AR = []; saveAnyRoster(); gainCache.clear(); S.wv.drop = null; S.wv.add = null;
+      $('wv-roster-status').textContent = 'Your roster is cleared.'; changed(); $('wv-roster-paste').focus();
+    };
     $('wv-roster').onchange = e => { if (e.target.name !== 'wv-drop') return; S.wv.drop = e.target.value; S.wv.add = null; S.claimDirty = false; changed(); const again = $('wv-roster').querySelector('input:checked'); if (again) again.focus(); };
     document.querySelectorAll('[data-min]').forEach(b => b.onclick = () => { S.wv.min = +b.dataset.min; changed(); b.focus(); });
     $('wv-pos').onclick = e => { const b = e.target.closest('[data-pos]'); if (!b) return; S.wv.pos = b.dataset.pos; changed(); const again = $('wv-pos').querySelector(`[data-pos="${b.dataset.pos}"]`); if (again) again.focus(); };
@@ -867,8 +906,9 @@
     $('wv-confirm').onclick = () => {
       if (!waiverReady()) return;
       const drop = S.wv.drop, add = S.wv.add;
-      undoLog.push({players: W.players.slice(), roster: W.roster ? W.roster.slice() : null, drop, add});
-      W.roster = myRosterKeys().filter(k => k !== drop).concat([add]);
+      undoLog.push({players: W.players.slice(), roster: W.roster ? W.roster.slice() : null, any: anyWaivers() ? AR.slice() : null, drop, add});
+      if (anyWaivers()) { AR = AR.filter(k => k !== drop).concat([add]); saveAnyRoster(); }
+      else W.roster = myRosterKeys().filter(k => k !== drop).concat([add]);
       W.players = W.players.filter(k => k !== add).concat([drop]);
       S.lg.give.delete(drop); saveWaivers(false); gainCache.clear();
       S.wv.add = null; S.wv.drop = null; $('wv-copy-status').textContent = '';
@@ -878,6 +918,7 @@
     $('wv-undo').onclick = () => {
       const last = undoLog.pop(); if (!last) return;
       W.players = last.players; W.roster = last.roster; saveWaivers(false); gainCache.clear();
+      if (last.any) { AR = last.any; saveAnyRoster(); }
       S.wv.drop = last.drop; S.wv.add = last.add; S.claimDirty = false;
       $('wv-move-status').textContent = `Undone: ${nm(last.add)} is back in your available players and ${nm(last.drop)} is back on your roster.`;
       $('wv-undo').hidden = !undoLog.length; changed(); ($('wv-confirm').offsetParent ? $('wv-confirm') : $('wv-drop-title')).focus();
