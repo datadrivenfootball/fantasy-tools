@@ -95,12 +95,19 @@
   }
   function readLeague() {
     const st = linkState();
-    if (st && st.settings) {
+    const fromLink = () => {
       const teams = (Array.isArray(st.teams) ? st.teams : []).map((t, i) => ({id: String(i), name: (t && t.name) || 'Team ' + (i + 1),
         keys: (t && Array.isArray(t.players) ? t.players : []).map(linkEntryKey).filter(Boolean)}));
       const me = Number.isInteger(st.me) && teams[st.me] ? st.me : -1;
       return Object.assign(summarize('link', 'From your chat', teams, me, +st.settings.teams || teams.length), {st});
-    }
+    };
+    // JEG-1633: confirming League settings on a pasted or saved league stores a link state with settings and no teams
+    // (site.js confirmSettings, ddf:link source 'manual'). Like ddf-league.js, that state is not the league: read on.
+    const linkTeams = st && Array.isArray(st.teams) ? st.teams : [];
+    let manual = false;
+    try { manual = (DDF.state.get('link', null) || {}).source === 'manual'; } catch (e) { manual = false; }
+    const linkHasLeague = linkTeams.length > 0 && !(manual && !linkTeams.some(t => t && Array.isArray(t.players) && t.players.length));
+    if (st && st.settings && linkHasLeague) return fromLink();
     // The shared league read (ddf-league.js: a chat link, a pasted league from connect/setup, or the saved League tab),
     // the same one the header pill and the workspace pages use (JEG-1559: a pasted league was missed here).
     const shared = window.DDF && DDF.league && DDF.league.current ? DDF.league.current() : null;
@@ -115,6 +122,7 @@
       const teams = lg.teams.map(t => ({id: t.id, name: t.name, keys: [...t.keys].filter(k => ROWS.has(k))}));
       return summarize('live', lg.name, teams, teams.findIndex(t => t.id === lg.mine), C.getState().teams);
     }
+    if (st && st.settings) return fromLink();   // a chat link with settings only: "No rosters entered yet"
     return summarize('none', '', [], -1, C.getState().teams);
   }
 
@@ -471,18 +479,44 @@
   /* ---------- Add from waivers ---------- */
   /* Available players: this tab's list (DDF.state 'waivers', after a paste or a confirmed move), else a chat link's
      waivers, else the live Waivers tab's list (localStorage ddf.v2.waiverCandidates, written back on a paste). */
+  /* The list Waivers and Recommendations judge pickups on (waivers-page.js candidates, find-page.js available): the names
+     entered on waivers.html (DDF.state 'available'), else the league's available players (DDF.league waivers). */
+  function enteredList() {
+    let saved = null;
+    try { saved = DDF.state.get('available', null); } catch (e) { saved = null; }
+    return saved && Array.isArray(saved.players) ? saved.players.filter(p => p && typeof p.n === 'string') : [];
+  }
+  const hasEnteredList = () => enteredList().length > 0;
+  function sharedWaivers() {
+    const list = enteredList();
+    try {
+      if (list.length) {
+        const recs = E().players(), rows = recs.map(r => r.row), byRow = new Map(recs.map(r => [r.row, r]));
+        const m = window.TradeValueFinder.matchNames(list.map(p => ({name: p.n, pos: p.pos || ''})), rows);
+        return m.matched.map(row => String(byRow.get(row).key)).filter(k => ROWS.has(k));
+      }
+      const cur = DDF.league && DDF.league.current ? DDF.league.current() : null;
+      return cur && Array.isArray(cur.waivers) ? cur.waivers.map(r => String(r.key)).filter(k => ROWS.has(k)) : [];
+    } catch (e) { return []; }
+  }
   function readLive(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
   function loadWaivers() {
     let saved = null;
     try { saved = DDF.state.get('waivers', null); } catch (e) { saved = null; }
     const keys = list => Array.isArray(list) ? list.map(String).filter(k => /^\d+$/.test(k) ? ROWS.has(k) : k.startsWith('n:')) : null;
-    if (saved && saved.v === 2 && saved.source === L.source && keys(saved.players)) return {players: keys(saved.players), roster: keys(saved.roster)};
-    if (L.source === 'link') return {players: (Array.isArray(L.st.waivers) ? L.st.waivers : []).map(linkEntryKey).filter(Boolean), roster: null};
+    // A pickup opened from Waivers or Recommendations (?add=) must find its add here: a list saved on this page that
+    // does not hold it predates the reader's current list on those pages (JEG-1633).
+    const want = P && P.add ? resolve(P.add) : null;
+    if (saved && saved.v === 2 && saved.source === L.source && keys(saved.players) && (!want || keys(saved.players).includes(want))) return {players: keys(saved.players), roster: keys(saved.roster), inLeague: saved.inLeague === true};
+    if (L.source === 'link' && Array.isArray(L.st.waivers) && L.st.waivers.length) return {players: L.st.waivers.map(linkEntryKey).filter(Boolean), roster: null};
+    const shared = sharedWaivers();
+    if (shared.length) return {players: shared, roster: null, inLeague: !hasEnteredList()};
+    if (L.source === 'link') return {players: [], roster: null};
     const live = readLive(LIVE_CANDS);
     return {players: Array.isArray(live) ? live.map(p => p && String(p.key)).filter(k => k && ROWS.has(k)) : [], roster: null};
   }
   function saveWaivers(candidatesChanged) {
-    try { DDF.state.set('waivers', {v: 2, source: L.source, players: W.players, roster: W.roster}); } catch (e) { /* this visit still has it */ }
+    try { DDF.state.set('waivers', {v: 2, source: L.source, players: W.players, roster: W.roster, inLeague: W.inLeague === true}); } catch (e) { /* this visit still has it */ }
     if (candidatesChanged && L.source !== 'link') {
       try { localStorage.setItem(LIVE_CANDS, JSON.stringify(W.players.filter(k => ROWS.has(k)).map(k => { const r = ROWS.get(k); return {key: k, name: r.name, pos: r.pos, team: r.team || ''}; }))); } catch (e) { /* private window */ }
     }
@@ -551,7 +585,7 @@
     const benchKeys = roster.filter(k => bench.has(k)).sort(byLow), starters = roster.filter(k => !bench.has(k)).sort(byLow);
     $('wv-roster').innerHTML = benchKeys.length ? `<p class="wv-group" aria-hidden="true">Bench · DDF</p>${benchKeys.map(opt).join('')}<p class="wv-group" aria-hidden="true">Starters · DDF</p>${starters.map(opt).join('')}` : `<p class="wv-group" aria-hidden="true">Your roster · DDF</p>${starters.map(opt).join('')}`;
     const avail = availableNow(), n = avail.length, empty = !n;
-    $('wv-count').innerHTML = empty ? '' : `${n} available player${n === 1 ? '' : 's'} entered · <a href="waivers.html">Manage list</a>`;
+    $('wv-count').innerHTML = empty ? '' : `${n} available player${n === 1 ? '' : 's'} ${W.inLeague ? 'in your league' : 'entered'} · <a href="waivers.html">Manage list</a>`;
     $('wv-empty').hidden = !empty; $('wv-filters').hidden = empty; $('wv-adds').hidden = empty;
     if (empty) { $('wv-adds').innerHTML = ''; return; }
     const positions = POS_ORDER.filter(pos => avail.some(k => rec(k).pos === pos));
@@ -856,7 +890,7 @@
       const fresh = keys.filter(k => !mine.has(k) && !have.has(k)), onRoster = keys.filter(k => mine.has(k)).length;
       const tail = (unmatched ? `, ${unmatched} name${unmatched === 1 ? '' : 's'} not found in this week's values` : '') + (skipped ? `, ${skipped} line${skipped === 1 ? '' : 's'} skipped` : '');
       if (!fresh.length) { $('wv-paste-status').textContent = 'No new players found' + (onRoster ? ` (${onRoster} already on your roster)` : '') + tail + '. Check the text and try again.'; return; }
-      W.players = W.players.concat(fresh); saveWaivers(true);
+      W.players = W.players.concat(fresh); W.inLeague = false; saveWaivers(true);
       $('wv-paste').value = ''; $('wv-paste-status').textContent = '';
       $('wv-move-status').textContent = `${fresh.length} available player${fresh.length === 1 ? '' : 's'} added` + (onRoster ? `, ${onRoster} already on your roster` : '') + tail + '.';
       changed(); $('wv-board-title').focus();

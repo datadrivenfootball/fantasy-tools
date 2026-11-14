@@ -834,6 +834,8 @@ test-core:
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
 	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1633: Evaluate pickup on Waivers / Recommendations carries the league and pickup into Build a Trade.
+	python3 -m unittest tests.test_build_waiver_handoff
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
@@ -1019,6 +1021,8 @@ test-core-shard-3:
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
 	python3 -m unittest tests.test_build_swap_routes
+	# JEG-1633: Evaluate pickup on Waivers / Recommendations carries the league and pickup into Build a Trade.
+	python3 -m unittest tests.test_build_waiver_handoff
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
