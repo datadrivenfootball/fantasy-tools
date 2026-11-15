@@ -188,6 +188,7 @@ body.league-pending .team-page{visibility:hidden}
 <section class="part" id="your-team" aria-labelledby="team-title">
 <h1 id="team-title">Your team at a glance</h1>
 <p class="muted" id="team-intro">Your starting lineup and roster, position by position, with where you are strong and where you are thin. Best eligible lineup on DDF Value at your league's settings.</p>
+<p class="np-note" id="std-roster-note" hidden></p>
 <div data-ddf-caveats="assessment"></div>
 <div class="next-step next-top"><span class="next-label" id="next-top-label">Next: pick players.</span><a class="button primary" href="explore.html">Next: pick players</a></div>
 <div class="team-stats"><div class="card ddf-lift"><div class="stat-top"><h2>Your starters</h2><span class="rank-pill" id="rank-starter"></span></div><p class="stat-value" id="val-starter">—</p><p class="stat-sub" id="sub-starter"></p></div><div class="card ddf-lift"><div class="stat-top"><h2>Your roster</h2><span class="rank-pill" id="rank-roster"></span></div><p class="stat-value" id="val-roster">—</p><p class="stat-sub" id="sub-roster"></p></div></div>
@@ -432,6 +433,9 @@ body.league-pending .team-page{visibility:hidden}
     const mine = DDF.league.myTeam();
     if (mine) { renderMine(c, mine); renderOpportunity(c, mine); } else { renderNoMe(c); oppRun++; $('opportunity').hidden = true; oppCaveat(false); }
     const s = c.settings;
+    const stdNote = $('std-roster-note');   // JEG-1646: roster sizes were not changed, so say which roster is in use
+    stdNote.hidden = !DDF.engine.isStandardRoster();
+    if (!stdNote.hidden) stdNote.innerHTML = 'Standard roster in use (' + esc(DDF.engine.rosterText(DDF.engine.defaultRoster())) + '). <a href="settings.html">Change it in League settings</a>.';
     $('fact-format').textContent = DDF.link && DDF.link.settingsLabel ? DDF.link.settingsLabel(s) : s.scoring + ' · ' + s.teams + ' teams';
     $('fact-lineup').textContent = lineupText(s);
     $('fact-source').innerHTML = `${esc(c.name)} · ${SOURCE_LABEL[c.source] || ''} · <a href="settings.html">Change settings</a>`;
