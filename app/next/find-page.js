@@ -198,15 +198,15 @@
     return {list: out, forceHidden: fit === "force" ? 0 : cls("force").length};
   }
   function recOf(row) { return {key: keyOf(row), n: row.name}; }
-  function hrefFor(t) { return DDF.engine.buildHref({give: t.give.map(recOf), get: t.receive.map(recOf)}); }
+  function hrefFor(t, partner) { return DDF.engine.buildHref({partner: partner, give: t.give.map(recOf), get: t.receive.map(recOf)}); }
   // JEG-1560 (Jeremy 2026-11-07): the chart count is a link to Build a Trade for this trade, scrolled to its charts
   // (build.html?give=..&get=..#trade-charts, the anchor JEG-1559 adds). Same count: charts even or better for them.
-  function chartsHref(t) { return hrefFor(t) + "#trade-charts"; }
+  function chartsHref(t, partner) { return hrefFor(t, partner) + "#trade-charts"; }
   var CHARTS_TITLE = "A chart that doesn’t list a player prices him at zero, below the waiver line. Where the engine fills him in for that chart from the other charts, that estimate counts here.";
-  function chartsLink(t) {
+  function chartsLink(t, partner) {
     // JEG-1393 decision 4 (2026-11-08): the title says how an unlisted player is priced. Find reads the engine rows, so a
     // player the engine fills in for a chart counts at that estimate here (unlike Buy / Sell, which leaves it out).
-    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + t.rivalOkCount + " of " + t.chartCount
+    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t, partner)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + t.rivalOkCount + " of " + t.chartCount
       + ' public trade charts for this trade">' + t.rivalOkCount + "/" + t.chartCount + " public trade charts</a>";
   }
   function card(g, k, mx) {
@@ -228,7 +228,7 @@
       + '<div class="pk-main"><div class="pk-ex"><div class="pk-side"><small>You give</small>' + giveCell + '</div><span class="pk-arrow" aria-hidden="true">&rarr;</span>'
       + '<div class="pk-side"><small>You get</small><b>' + gets + "</b></div></div>"
       + '<div class="pk-meta"><span class="ptag" data-partner-tag title="' + esc("Trading partner: " + g.partner) + '">Trade with <b>' + esc(g.partner) + '</b></span><span class="fit">' + FIT_WORD[g.cls] + "</span>"
-      + '<span class="fit">' + chartsLink(t) + " even or better for them</span></div>"
+      + '<span class="fit">' + chartsLink(t, g.partner) + " even or better for them</span></div>"
       + (t.waiver && t.waiver.demoted && window.DDFWhy && DDFWhy.waiverLine ? '<p class="muted pk-note" data-waiver-note>' + esc(DDFWhy.waiverLine(t.waiver, t.give)) + "</p>" : "")
       + (added.length ? '<p class="muted pk-note">Players even out: ' + esc(added.join(", ")) + ".</p>" : "")
       + (throwIns.length ? '<p class="muted pk-note">Also seen with ' + esc(names(throwIns)) + " (worth 0.0) added.</p>" : "")
@@ -239,7 +239,7 @@
       + '<div class="meter" role="img" aria-label="Your starters ' + (you === null ? "no value" : shown(you)) + " on " + esc(B.you) + "; their starters " + (them === null ? "no value" : shown(them)) + " on " + esc(B.them) + '"><span class="ml"><i data-grow style="width:' + pct(you) + '%"></i></span><span class="mr"><i data-grow style="width:' + pct(them) + '%"></i></span></div>'
       + '<div class="mlab"><span>You ' + (you === null ? "—" : shown(you)) + " " + esc(B.you) + "</span><span>Them " + (them === null ? "—" : shown(them)) + " " + esc(B.them) + "</span></div>"
       + '<small class="pk-total">Trade value ' + shown(t.edge) + " " + esc(B.you) + "</small></div>"
-      + '<div class="pk-act"><a class="button" data-build href="' + esc(hrefFor(t)) + '">Build a Trade <span class="arr" aria-hidden="true">&rarr;</span></a></div></article>';
+      + '<div class="pk-act"><a class="button" data-build href="' + esc(hrefFor(t, g.partner)) + '">Build a Trade <span class="arr" aria-hidden="true">&rarr;</span></a></div></article>';
   }
   // JEG-1561: the Why panel, filled on first open from DDFWhy (ddf-why.js) on the same rows and valuations as the card.
   function whyFill(det) {
@@ -248,7 +248,7 @@
     if (!g || !slot || slot.dataset.filled === "1") return;
     var t = selected(g), B = basis(), ctx = Object.assign({}, DDF.find.context(), {ourKey: DDF.find.valuation(B.yv).key, marketKey: DDF.find.valuation(B.tv).key});
     slot.innerHTML = window.DDFWhy.body({mine: g.mineRows, theirs: g.theirRows, give: t.give, receive: t.receive, waiver: t.waiver || null}, ctx,
-      {extra: '<p class="why-charts">' + chartsLink(t) + " even or better for them</p>"}) || '<p class="muted">No explanation for this offer yet.</p>';
+      {extra: '<p class="why-charts">' + chartsLink(t, g.partner) + " even or better for them</p>"}) || '<p class="muted">No explanation for this offer yet.</p>';
     slot.dataset.filled = "1";
   }
   function section(id, list, tableId, empty) {
@@ -270,7 +270,7 @@
     $("force-note").textContent = v.forceHidden ? v.forceHidden + (v.forceHidden === 1 ? " force fit is" : " force fits are") + " not listed. Pick Fit: Force fits to see " + (v.forceHidden === 1 ? "it" : "them") + "." : "";
     footerTargets = $("sec-natural").hidden ? 0 : v.list.length;
     var first = v.list[0];
-    $("continue").href = first ? hrefFor(selected(first)) : BUILD;
+    $("continue").href = first ? hrefFor(selected(first), first.partner) : BUILD;
     renderPickups();
   }
 
