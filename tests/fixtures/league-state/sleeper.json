@@ -2,8 +2,9 @@
  "version": "league-state/1",
  "league": {
   "id": "1000000000000000001",
-  "platform": "sleeper",
-  "season": 2026
+  "season": 2026,
+  "provider": "sleeper",
+  "capture": "import"
  },
  "captured_at": "2026-11-16T12:00:00Z",
  "my_team_id": "1",
@@ -24,13 +25,13 @@
    },
    "points_for": {
     "value": 1402.54,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts+fpts_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
    "points_against": {
     "value": 1288.1,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts_against+fpts_against_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
@@ -56,13 +57,13 @@
    },
    "points_for": {
     "value": 1350.2,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts+fpts_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
    "points_against": {
     "value": 1301.7,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts_against+fpts_against_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
@@ -88,13 +89,13 @@
    },
    "points_for": {
     "value": 1220.9,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts+fpts_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
    "points_against": {
     "value": 1330.4,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts_against+fpts_against_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
@@ -120,13 +121,13 @@
    },
    "points_for": {
     "value": 1190.0,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts+fpts_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
    "points_against": {
     "value": 1380.6,
-    "source": "sleeper:rosters",
+    "source": "sleeper:rosters.settings.fpts_against+fpts_against_decimal",
     "as_of": "2026-11-16T12:00:00Z",
     "reason": null
    },
@@ -222,32 +223,32 @@
   },
   "byes": {
    "value": 1,
-   "source": "sleeper:league.settings.playoff_teams",
+   "source": "derived:league.settings.playoff_teams (bye count unverified)",
    "as_of": "2026-11-16T12:00:00Z",
    "reason": null
   },
   "seeding_rule": {
    "value": "record",
-   "source": "sleeper:league.settings.playoff_seed_type",
+   "source": "sleeper:league.settings.playoff_seed_type (mapping unverified)",
    "as_of": "2026-11-16T12:00:00Z",
    "reason": null
   },
   "tiebreak": {
-   "value": "points_for",
-   "source": "sleeper:documented-default",
-   "as_of": "2026-11-16T12:00:00Z",
-   "reason": null
-  },
-  "division_winners_seeded": {
    "value": null,
    "source": null,
    "as_of": null,
-   "reason": "Sleeper does not expose a division-winner seeding flag"
+   "reason": "Sleeper exposes no verified tiebreak setting"
   }
  },
  "trade_deadline_week": {
   "value": 12,
   "source": "sleeper:league.settings.trade_deadline",
+  "as_of": "2026-11-16T12:00:00Z",
+  "reason": null
+ },
+ "record_through_week": {
+  "value": 10,
+  "source": "sleeper:rosters.settings.wins+losses+ties",
   "as_of": "2026-11-16T12:00:00Z",
   "reason": null
  }

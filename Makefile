@@ -782,6 +782,7 @@ test-core:
 	node tests/test_entry_league_paste.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
+	node tests/test_league_state.js
 	node tests/test_v2_name_format.js
 	python3 -m unittest tests.test_v2_headlines
 	python3 -m unittest tests.test_v2_movers
@@ -961,6 +962,7 @@ test-core-shard-2:
 	node tests/test_entry_league_paste.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
+	node tests/test_league_state.js
 	python3 -m unittest tests.test_v2_trade_story
 	python3 -m unittest tests.test_v2_phone_customize_targets_render
 	python3 -m unittest tests.test_v2_phone_fallback_font_render

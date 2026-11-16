@@ -2,8 +2,9 @@
  "version": "league-state/1",
  "league": {
   "id": "manual-espn-1",
-  "platform": "manual",
-  "season": 2026
+  "season": 2026,
+  "provider": "espn",
+  "capture": "manual"
  },
  "captured_at": "2026-11-16T15:30:00Z",
  "my_team_id": "b",
@@ -112,16 +113,10 @@
    "reason": "Not entered"
   },
   "tiebreak": {
-   "value": null,
-   "source": null,
-   "as_of": null,
-   "reason": "Not entered"
-  },
-  "division_winners_seeded": {
-   "value": null,
-   "source": null,
-   "as_of": null,
-   "reason": "Not entered"
+   "value": "points_for",
+   "source": "manual:entry",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
   }
  },
  "trade_deadline_week": {
@@ -129,5 +124,11 @@
   "source": null,
   "as_of": null,
   "reason": "Not entered"
+ },
+ "record_through_week": {
+  "value": 10,
+  "source": "manual:entry",
+  "as_of": "2026-11-16T12:00:00Z",
+  "reason": null
  }
 }
