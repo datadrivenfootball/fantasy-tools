@@ -26,10 +26,10 @@
   var onBasis = function (b) { return /projections$/.test(b) ? b : b === "Analyst charts" ? "the analyst charts" : b === "Live market (FantasyCalc)" ? "live market (FantasyCalc) value" : b + " value"; };
   function updateBasisText() {
     var B = basis();
-    $("natural-def").textContent = "Both sides improve: your team on " + onBasis(B.you) + ", their team on " + onBasis(B.them) + ". An offer a free pickup mostly matches is listed under Partner neutral.";
-    $("neutral-def").textContent = "Your team improves on " + onBasis(B.you) + "; their team does not get worse on " + onBasis(B.them) + " (within the sources' disagreement).";
+    $("natural-def").textContent = "Both sides improve: your team on " + onBasis(B.you) + ", their team on " + onBasis(B.them) + ", and their roster is not clearly worse (a loss of 3% or more). An offer a free pickup mostly matches is listed under Partner neutral.";
+    $("neutral-def").textContent = "Your team improves on " + onBasis(B.you) + "; their team does not get worse on " + onBasis(B.them) + " beyond the sources' disagreement. An offer that leaves their roster clearly worse (a loss of 3% or more) is listed here too, as a harder sell.";
     $("force-def").textContent = "Your team improves on " + onBasis(B.you) + ", but their team loses on " + onBasis(B.them) + ". Shown so you can see them; they are a harder sell.";
-    $("fit-note").textContent = "Natural fit: both teams improve (you on " + B.you + ", them on " + (B.them === "Analyst charts" ? "the analyst charts" : B.them) + "). Partner neutral: you improve and their side does not get worse; an offer where the best available players at the positions you get already close half the gap or more is listed here too. Force fits: they lose; listed only when you pick them.";
+    $("fit-note").textContent = "Natural fit: both teams improve (you on " + B.you + ", them on " + (B.them === "Analyst charts" ? "the analyst charts" : B.them) + "), and their roster is not clearly worse (a loss of 3% or more). Partner neutral: you improve and their side does not get worse beyond the sources' disagreement; an offer that leaves their roster clearly worse (3% or more), or where the best available players at the positions you get already close half the gap or more is listed here too. Force fits: they lose; listed only when you pick them.";
     $("sort-ddf").textContent = "Biggest " + B.you + " gain";
     $("sort-note").textContent = "Order offers by how much your starters improve, how much theirs improve, or the biggest " + B.you + " gain.";
   }

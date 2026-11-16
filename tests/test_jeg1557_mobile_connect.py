@@ -108,7 +108,7 @@ class MobileConnectTest(_RenderBase):
         page = self.page(390)
         self.go(page, "settings.html")
         self.assertNotIn("We filled in what we could read", page.inner_text("main"))
-        self.assertIn("We started with common settings (PPR, 12 teams, 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench), or the ones from your chat link or your last visit. Confirm each one.", page.inner_text("main"))
+        self.assertIn("Roster sizes are optional. Unless you change them, we use a standard roster: 1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench.", page.inner_text("main"))   # JEG-1646: the real defaults, stated as optional
         self.assertEqual(page.eval_on_selector("#scoring", "e => e.value.toLowerCase()"), "ppr")
         self.assertEqual([page.input_value(f"#lineup-{k}") for k in ("qb", "rb", "wr", "te", "flex", "bench")], ["1", "2", "2", "1", "1", "7"])
         self.assertEqual([page.input_value(f"#lineup-{k}") for k in ("k", "def")], ["1", "1"], "JEG-1632: 1 K and 1 DEF")
