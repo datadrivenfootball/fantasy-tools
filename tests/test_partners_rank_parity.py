@@ -12,7 +12,7 @@ DDF.league):
 - the top 3 (with a positive score) carry "Best match"; my team and waivers are never listed or ranked.
 - each partner's DDF.league.partnerRank() score equals that metric (JEG-1644).
 Drift: the same check fails when ddf-league.js is served with the give side of the metric halved: on the scores
-everywhere, and on the page order in a case the halved metric must reorder. Whether halving reorders the seeded league
+everywhere, and on the page order in a case the halved metric must reorder, and there the page order must equal the halved\ncalculation's order (JEG-1650), not merely differ. Whether halving reorders the seeded league
 depends on the week's values (Week 10's rebuild of 2026-11-15 left all 12 settings in the same order, JEG-1644), so
 drift_case() picks that case from the values served, over every team as "me", and fails loudly if none exists.
 Render: with a league the top partner and its reason show; without one the empty state (path to connect.html) shows.
@@ -114,7 +114,7 @@ def reason_positions(why: str) -> tuple[str, str]:
     return names(get and get.group(1)), names(give and give.group(1))
 
 
-def run_rank(overrides=None, settings=None, league=None) -> list[str]:
+def run_rank(overrides=None, settings=None, league=None, oracle=ORACLE) -> list[str]:
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:  # noqa: BLE001
@@ -131,7 +131,7 @@ def run_rank(overrides=None, settings=None, league=None) -> list[str]:
             for scoring, teams, sf in settings or SETTINGS:
                 label = f"{scoring}/{teams}/{'sf' if sf else 'no-sf'}"
                 page.evaluate(APPLY, [scoring, teams, sf])
-                want = page.evaluate(ORACLE, league)
+                want = page.evaluate(oracle, league)
                 got = page.evaluate(READ)
                 scores = {s["name"]: s["score"] for s in page.evaluate(ENGINE_SCORES)}
                 for w in want:
@@ -213,9 +213,14 @@ class PartnersRankParityTest(unittest.TestCase):
         errors = run_rank(drifted)
         self.assertTrue(any(" score " in e for e in errors), f"metric drift not caught on scores: {errors[:5]}")
         k, setting = drift_case()
-        errors = run_rank(drifted, settings=[setting], league=rotated_league(k))
-        self.assertTrue(any("order" in e for e in errors),
-                        f"metric drift not caught on the page order (team {k} as me, {setting}): {errors[:5]}")
+        case = dict(settings=[setting], league=rotated_league(k))
+        where = f"team {k} as me, {setting}"
+        errors = run_rank(drifted, **case)
+        self.assertTrue(any(" order " in e for e in errors),
+                        f"metric drift not caught on the page order ({where}): {errors[:5]}")
+        # JEG-1650: the order must be the halved calculation's, so an unrelated reorder cannot pass this test.
+        halved = [e for e in run_rank(drifted, oracle=DRIFTED_ORACLE, **case) if " order " in e]
+        self.assertEqual(halved, [], f"page order is not the halved metric's order ({where}): {halved[:5]}")
 
     def _pages(self):
         try:
