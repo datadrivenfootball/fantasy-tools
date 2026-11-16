@@ -7,6 +7,11 @@ on:
   # `pages-deploy-live` (supabase/migrations/gha_schedules_pg_cron.sql), which
   # dispatches this workflow. No `schedule:` here (GAP-GHA-SCHEDULES).
   workflow_dispatch:
+    inputs:
+      retry_of:
+        description: "Set only by the retry-infra job (JEG-1629): run id of the failed run this one retries. A run with this set never retries again."
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -192,3 +197,54 @@ jobs:
         uses: actions/deploy-pages@v4
         with:
           artifact_name: ${{ needs.build.outputs.artifact-name }}
+
+  # JEG-1629: one bounded retry when the build job failed only on an
+  # infrastructure step (checkout, browser install, artifact upload), e.g.
+  # GitHub's 2026-11-11 artifact-service outage. Safety:
+  #  - never retries a data check: every failed step in the build job must be
+  #    on the allowlist below, and any other failed step (make validate-base,
+  #    make data-gate, the rendered gate) blocks the retry;
+  #  - no double deploy: deploy needs build to succeed, so a run whose build
+  #    failed never publishes; only the one re-dispatched run can;
+  #  - no loop: the re-dispatched run carries retry_of, and a run with
+  #    retry_of set never retries (at most one retry per original run);
+  #  - concurrency is untouched: the dispatched run queues in the `pages`
+  #    group behind this run (cancel-in-progress stays false).
+  # The dispatch always targets main's tip, so it also covers any newer push.
+  retry-infra:
+    needs: [build]
+    # always(): the default success() would skip this job exactly when build
+    # failed. The build result is checked in the script (pages.yml keeps no
+    # needs-based job conditions; tests.test_deploy_gate_unconditional).
+    if: always() && github.ref == 'refs/heads/main' && inputs.retry_of == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Retry the deploy once if the build failed on an infrastructure step
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          if [ "$BUILD_RESULT" != "failure" ]; then
+            echo "build result is $BUILD_RESULT; no retry."
+            exit 0
+          fi
+          failed=$(gh api "repos/$REPO/actions/runs/$RUN_ID/attempts/$RUN_ATTEMPT/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.name == "build") | .steps[] | select(.conclusion == "failure") | .name]')
+          echo "failed build steps: $failed"
+          allowed='["Run actions/checkout@v4","Browser for the render tests","Run actions/upload-pages-artifact@v3"]'
+          if ! jq -en --argjson failed "$failed" --argjson allowed "$allowed" \
+              '($failed | length) > 0 and ($failed | all(. as $s | $allowed | index($s)))' >/dev/null; then
+            echo "Not an infrastructure-only failure; no retry."
+            exit 0
+          fi
+          sleep 90
+          gh workflow run pages.yml --repo "$REPO" --ref main -f retry_of="$RUN_ID"
+          echo "::warning title=Pages deploy retried (JEG-1629)::build failed on infrastructure step(s) $failed; re-dispatched pages.yml once (retry_of=$RUN_ID)."
+          echo "Retried run $RUN_ID once after infra failure: $failed" >> "$GITHUB_STEP_SUMMARY"

@@ -105,7 +105,7 @@ description, a historical handoff or a planned action.
   recommendations, picks and worker completion do not grant approval.
   GitHub settings changes are never made by any agent. Write a paste-ready print and give it to Jeremy, who pastes it into his PSpice himself. This holds even when PSpice is the acting coordinator. Do not restart disabled/retired routines,
   including JEG-1173 schedules, without his specific yes.
-- [ ] Hold every approval ask for the 6 AM or 4 PM Central window. Only an Urgent fix may ask outside them, never 10 PM to 6 AM Central; it then waits for 6 AM.
+- [ ] Approval asks (only for work outside the low-risk auto-merge class) name the PR numbers and are never sent 10 PM to 6 AM Central; an Urgent fix waits for 6 AM if it arises overnight. The 6 AM and 4 PM windows are retired (Jeremy, 2026-11-15 and 2026-11-16).
 - [ ] Ask Jeremy only real decisions, one at a time, multiple choice with A
   the recommendation and enough context to decide. Check prior answers first.
   Use `needs-jeremy`/In Review for a blocked decision, with the actual question.
@@ -177,41 +177,34 @@ branches only and are not live. Do not dispatch work to either lane yet.
 
 ### Merge gate
 
-[JEG-1444 decision 13](https://linear.app/jegabee/issue/JEG-1444), Jeremy
-2026-10-31 13:16 UTC ("Add it to the charter"), applies to both successors.
-Timing updated by Jeremy at 13:26 UTC: "One set of approvals at 6 am, one at
-4 pm." No merge windows or approval asks overnight.
+[JEG-1444 decision 13](https://linear.app/jegabee/issue/JEG-1444) as replaced
+by Jeremy on 2026-11-15 ("Pre-approved low-risk auto-merge") and 2026-11-16
+("You manage merges yourself") applies to both successors; the full rule and
+the tight low-risk class are in AGENTS.md "Merging". The two daily windows,
+the batch cap of 7 and the per-batch deploy yes are retired for everything
+that rule covers. The 2026-10-31 history is in `docs/claude-log`.
 
-- **PSpice:** while Claude is out, run two batch and approval windows a day,
-  at 6:00 AM and 4:00 PM US Central time (America/Chicago). Each window gathers the PRs that became eligible since the last window, batched by matching risk: at most 7 PRs of the same risk,
-  each on its own reviewed head with green CI on that head. Group CI, review,
-  branch integration, merge-gate wake-ups and deploy checks by release;
-  never waive per-head evidence. Ask for the per-batch deploy yes naming the
-  PR numbers in one multiple-choice question within that window, A recommended.
-  High-risk and
-  value-math changes ship alone; engine PRs stay one at a time. Urgent work
-  (live numbers wrong or deploy broken) ships alone with normal gates and may
-  ask Jeremy outside the 6 AM and 4 PM windows, but never during sleeping
-  hours, 10 PM to 6 AM US Central. An urgent ask arising then waits for the
-  6 AM window (JEG-1444 decision 13, Jeremy 2026-10-31 15:40 UTC).
-- **Muse:** run the same 6:00 AM and 4:00 PM US Central batch and approval
-  windows, with the same Urgent ask exception and sleeping-hours restriction
-  as PSpice, gathering PRs eligible since the last one, obtaining the independent Codex
-  receipt through PSpice if needed. Merge the batch only through GitHub API
-  as `jkb-bur-bot`, with visible Muse attribution, `<!-- author: muse -->` and
-  recommend wording in merge comments. Ask Jeremy for the per-batch deploy
-  yes in that window in one multiple-choice question, A recommended, naming
-  the PR numbers;
-  a Muse comment is never his yes. If the API is unavailable, hand off without
-  claiming a merge. Neither successor merges these PRs in this task.
+- **PSpice:** while Claude is out, merge a low-risk PR once the independent
+  review APPROVE and CI are green on its exact head, never 10 PM to 6 AM
+  Central, with no per-PR yes and no separate yes for its automatic Pages
+  deploy. After each such merge confirm the CI run and deploy on main and
+  report on the ticket. Everything else (value math, pipeline, CI/infra,
+  migrations, merge-rule PRs, anything high-risk) needs Jeremy's named yes in
+  one multiple-choice question, A recommended, and ships alone; engine PRs stay
+  one at a time. Urgent work ships alone with normal gates.
+- **Muse:** same rule and overnight restriction as PSpice, obtaining the
+  independent Codex receipt through PSpice if needed. Merge only through
+  GitHub API as `jkb-bur-bot`, with visible Muse attribution,
+  `<!-- author: muse -->` and recommend wording in merge comments. A Muse
+  comment is never Jeremy's yes for a non-low-risk PR. If the API is
+  unavailable, hand off without claiming a merge. Neither successor merges
+  these PRs in this task.
 
-For either successor, a PR conflicting after an earlier member merges waits
-for the next batch: no mid-window rebase or repair. Afterwards its owner merges
-`origin/main` normally, then obtains new-head CI and delta review. After the
-batch, one CI run and one deploy check on main. If main goes red at any point,
-stop the batch and diagnose; reverts use the normal gate. Deploys retain the
-per-batch specific-yes requirement; the routine-data-refresh exception stays
-unchanged. The two-window cadence and cap of 7 are defaults Jeremy can change.
+A PR conflicting after an earlier merge has its owner merge `origin/main`
+normally, then obtain new-head CI and delta review. If main goes red, stop
+merging and diagnose; reverts use the normal gate. Deploys for non-low-risk
+PRs keep the specific-yes requirement; the routine-data-refresh exception is
+unchanged.
 
 ### Approvals
 
@@ -275,15 +268,11 @@ these documentation PRs in this task.
   still apply; the coordinator never substitutes its own check for review.
 - The acting successor coordinator, PSpice or Muse, merges once that review
   passes and CI is green on that exact head, subject to the approval gates.
-  The acting successor runs the same two daily batch and approval windows,
-  at 6:00 AM and 4:00 PM US Central time, in the Review and merge protocol
-  (JEG-1444 decision 13, timing updated 13:26 UTC), with no merge windows or
-  approval asks overnight and with per-batch deploy approval naming
-  PR numbers and isolated high-risk/value-math releases. Urgent work ships alone with normal gates and may ask Jeremy outside the
-  6 AM and 4 PM windows, but never during sleeping hours, 10 PM to 6 AM
-  US Central. An urgent ask arising then waits for the 6 AM window
-  (JEG-1444 decision 13, Jeremy 2026-10-31 15:40 UTC).
-  High-risk merges and all deploys still require Jeremy's specific yes.
+  The acting successor follows the Review and merge protocol (JEG-1444
+  decision 13 as replaced 2026-11-15 and 2026-11-16): pre-approved low-risk
+  auto-merge, and Jeremy's named yes with isolated release for everything else.
+  High-risk merges and all deploys still require Jeremy's specific yes, except
+  a pre-approved low-risk merge and its automatic Pages deploy.
   A yes covers only the named action and target; production-data deletion,
   credentials, Supabase migrations, GitHub settings, Mac patches and launchd
   activation retain their existing specific-yes requirements. GitHub settings changes are never made by any agent. Write a paste-ready print and give it to Jeremy, who pastes it into his PSpice himself. This holds even when PSpice is the acting coordinator.

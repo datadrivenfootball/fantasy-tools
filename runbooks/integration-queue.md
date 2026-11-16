@@ -112,5 +112,6 @@ rules/settings himself. Agents must not change these settings. Required target:
   retain Pages completion and deployment verification before releasing the next
   landing. No schedule, setting or publisher is activated by this PR.
 
-Existing approval windows, high-risk specific yes and deploy approval rules still
-apply. This tooling does not grant a bypass at any risk tier.
+The AGENTS.md "Merging" rule (2026-11-15 and 2026-11-16) governs: low-risk
+PRs auto-merge on exact-head CI and independent APPROVE, with no windows; the
+high-risk specific yes and deploy approval rules still apply to everything else. This tooling does not grant a bypass at any risk tier.
