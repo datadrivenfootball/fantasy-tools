@@ -312,25 +312,28 @@
   function renderPickups() {
     var box = $("pickup-cards"), note = $("pickup-note"), combos = $("pickup-combos");
     var on = $("see-waivers").checked && !$("sec-waivers").hidden;
-    var res = S.pickups ? S.pickups.results.filter(function (r) { return r.starterDelta !== null && gainOf(r) > 0; }) : [];
-    res.sort(function (a, b) { return b.starterDelta - a.starterDelta || (b.totalDelta || 0) - (a.totalDelta || 0) || String(a.name).localeCompare(String(b.name)); });
-    var min = +$("minimum-gain").value;
-    var pass = res.filter(function (r) { return gainOf(r) >= min; }), below = res.filter(function (r) { return gainOf(r) < min; });
+    var gb = $("pickup-basis").value, min = +$("minimum-gain").value;
+    var picked = DDF.find.pickupsByBasis(S.pickups ? S.pickups.results : [], gb, min);   // JEG-1648
+    var pass = picked.list.map(function (e) { return e.r; });
+    var below = DDF.find.pickupsByBasis(S.pickups ? S.pickups.results : [], gb, 0).list.filter(function (e) { return pass.indexOf(e.r) < 0; });
+    var res = {length: picked.total};
     var B = basis();
-    box.innerHTML = pass.map(function (r) {
+    box.innerHTML = picked.list.map(function (e) {
+      var r = e.r, bench = e.basis === "bench";
       var drop = r.drop ? r.drop.name : null;
       var href = BUILD + "?mode=league&waivers=1" + (drop ? "&drop=" + encodeURIComponent(drop) : "") + "&add=" + encodeURIComponent(r.name);
-      return '<article class="pkg ddf-lift" data-pickup data-pickup-gain="' + gainOf(r) + '" data-add="' + esc(r.candidate.player_key) + '" data-drop="' + esc(r.drop ? r.drop.player_key : "") + '">'
+      return '<article class="pkg ddf-lift" data-pickup data-pickup-gain="' + (Math.round(e.gain * 10) / 10) + '" data-basis="' + e.basis + '" data-add="' + esc(r.candidate.player_key) + '" data-drop="' + esc(r.drop ? r.drop.player_key : "") + '">'
         + '<div class="pk-main"><div class="pk-ex"><div class="pk-side"><small>You drop</small><b>' + esc(drop || "Nobody (open roster spot)") + "</b></div>"
         + '<span class="pk-arrow" aria-hidden="true">&rarr;</span><div class="pk-side"><small>You add</small><b>' + esc(r.name) + " · " + esc(r.pos) + "</b></div></div>"
-        + '<div class="pk-meta"><span class="ptag wv">Waivers</span><span class="fit">' + esc(r.verdict) + "</span></div></div>"
-        + '<div class="pk-gain"><small>Your starters (' + esc(B.you) + ')</small><b class="gain">' + shown(r.starterDelta) + "</b>"
+        + '<div class="pk-meta"><span class="ptag wv">Waivers</span><span class="fit">' + esc(r.verdict) + '</span><span class="ptag" data-basis-tag>' + DDF.find.BASES[e.basis] + "</span></div></div>"
+        + '<div class="pk-gain"><small>' + (bench ? "Depth value (bench, " + esc(B.you) + ")" : "Your starters (" + esc(B.you) + ")") + '</small><b class="gain">' + shown(e.gain) + "</b>"
         + '<small class="pk-total">With bench ' + shown(r.totalDelta) + "</small></div>"
         + '<div class="pk-act"><a class="button" href="' + esc(href) + '">Evaluate pickup <span class="arr" aria-hidden="true">&rarr;</span></a></div></article>';
     }).join("");
-    var none = !S.pickups ? "" : !res.length ? "No available player improves your starters right now." : "";
+    var none = !S.pickups ? "" : !res.length ? (gb === "starter" ? "No available player improves your starters right now."
+      : gb === "bench" ? "No available player beats a bench player without also improving a starter right now." : "No available player improves your starters or your bench right now.") : "";
     note.textContent = below.length && min > 0
-      ? below.length + (below.length === 1 ? " more pickup sits" : " more pickups sit") + " below the " + min + "-point bar: " + below.slice(0, 3).map(function (r) { return r.name + " (" + shown(r.starterDelta) + ")"; }).join(", ") + (below.length > 3 ? " and more" : "") + ". Lower the minimum gain to see " + (below.length === 1 ? "it" : "them") + "."
+      ? below.length + (below.length === 1 ? " more pickup sits" : " more pickups sit") + " below the " + min + "-point bar: " + below.slice(0, 3).map(function (e) { return e.r.name + " (" + shown(e.gain) + ")"; }).join(", ") + (below.length > 3 ? " and more" : "") + ". Lower the minimum gain to see " + (below.length === 1 ? "it" : "them") + "."
       : none;
     var src = S.available ? S.available.source : null;
     $("pickup-source").textContent = !S.pickups ? "" : src === "entered" ? "From the available players you entered on Waivers." : src === "link" ? "From the available players in your chat link." : "Available players: everyone with a value who is on no roster in your league.";
@@ -385,6 +388,7 @@
     $("partner").addEventListener("change", function () { if (sizes().indexOf(4) >= 0) run(false); else render(); });
     $("minimum-gain").addEventListener("change", renderPickups);
     $("see-waivers").addEventListener("change", renderPickups);
+    $("pickup-basis").addEventListener("change", renderPickups);
     $("apply").addEventListener("click", function () { document.querySelector(".find-constraints").open = false; $("constraint-note").textContent = ""; run(false); });
     $("reset").addEventListener("click", function () {
       document.querySelectorAll(".size").forEach(function (x) { x.checked = S.defaultSizes.split(",").indexOf(x.value) >= 0; });

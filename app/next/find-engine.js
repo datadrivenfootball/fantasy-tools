@@ -21,6 +21,7 @@
  *                          searchPartner sets trade.waiver and moves a Natural fit a free pickup mostly matches to neutral
  *   group(trades, opts)    TradeValueFinder.groupTrades per class
  *   pickups(ctx, mineEntries, candEntries, token) -> TradeValueWaivers.evaluateAll output (+ dd, roster entries)
+ *   pickupsByBasis(results, basis, min) JEG-1648: the pickups listed under Starter gain / Bench gain / Both (see below)
  *   entriesOf(team)        DDF.league team -> waivers-style entries [{key, name, pos, team}]
  *   rowsOf(team)           DDF.league team -> engine rows (priced players only)
  */
@@ -193,6 +194,31 @@
     return out;
   }
 
+  // JEG-1648 (Max Logan's beta request): choose what a pickup's gain is measured against. No value math: both numbers are
+  // the Waivers evaluation's own, computed with the drop it suggests (the bench player he replaces).
+  //   starter  starterDelta, the change to your starting lineup (the default, as before)
+  //   bench    benchDelta, the engine's weighted bench change (already discounted by the bench weight, as "with bench" is),
+  //            for pickups that do not improve a starter: free agents who beat a bench player
+  //   both     the starter list, then the bench list
+  // gain is the number the minimum is applied to, rounded to a tenth like the cards. Each entry names its basis.
+  var BASES = {starter: "Starter gain", bench: "Bench gain", both: "Both"};
+  var tenth = function (n) { return Math.round(n * 10) / 10; };
+  function pickupsByBasis(results, basis, min) {
+    var starter = [], bench = [], floor = +min || 0;
+    (results || []).forEach(function (r) {
+      if (finite(r.starterDelta) && tenth(r.starterDelta) > 0) starter.push({r: r, basis: "starter", gain: r.starterDelta});
+      else if (finite(r.starterDelta) && tenth(r.starterDelta) === 0 && finite(r.benchDelta) && tenth(r.benchDelta) > 0) bench.push({r: r, basis: "bench", gain: r.benchDelta});
+    });
+    var order = function (list) {
+      return list.filter(function (e) { return tenth(e.gain) >= floor; }).sort(function (a, b) {
+        return b.gain - a.gain || (b.r.totalDelta || 0) - (a.r.totalDelta || 0) || String(a.r.name).localeCompare(String(b.r.name));
+      });
+    };
+    var lists = basis === "bench" ? [bench] : basis === "both" ? [starter, bench] : [starter];
+    return {list: lists.reduce(function (out, l) { return out.concat(order(l)); }, []),
+      total: lists.reduce(function (n, l) { return n + l.length; }, 0)};
+  }
+
   // JEG-1647: the one chart-agreement count. A card's "n/4 public trade charts" and the minimum-charts filter both read it.
   // A chart that is missing or held was never judged, so it is not in rivalOkCount and counts as not agreeing.
   function chartAgreement(t) { return {agree: t && t.rivalOkCount > 0 ? t.rivalOkCount : 0, total: t && t.chartCount > 0 ? t.chartCount : 0}; }
@@ -201,6 +227,6 @@
   var shown = function (n) { return Math.abs(n) < 0.05 ? "0.0" : (n > 0 ? "+" : "−") + Math.abs(n).toFixed(1); };
 
   DDF.find = {VALUATIONS: VALUATIONS, valuation: valuation, ANALYST: ANALYST, context: context, searchPartner: searchPartner,
-    classify: classify, group: group, waiverAlternative: waiverAlternative, WAIVER_SHARE: WAIVER_SHARE, pickups: pickups, entriesOf: entriesOf, rowsOf: rowsOf, shown: shown, finite: finite,
+    classify: classify, group: group, waiverAlternative: waiverAlternative, WAIVER_SHARE: WAIVER_SHARE, pickups: pickups, pickupsByBasis: pickupsByBasis, BASES: BASES, entriesOf: entriesOf, rowsOf: rowsOf, shown: shown, finite: finite,
     chartAgreement: chartAgreement, meetsChartMin: meetsChartMin};
 })();

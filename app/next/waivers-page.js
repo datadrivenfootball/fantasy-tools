@@ -67,7 +67,6 @@
   }
 
   /* ---------- best adds ---------- */
-  var gainOf = function (r) { return Math.round(r.starterDelta * 10) / 10; };
   function renderAdds(cur, me, cand) {
     var box = $("adds"), note = $("adds-note");
     $("adds-empty").innerHTML = !cur ? 'Your best adds need your league. <a href="connect.html">Paste my league</a>'
@@ -76,23 +75,24 @@
     $("adds-empty").hidden = !$("adds-empty").innerHTML;
     var ctx = DDF.find.context();
     lastOut = cur && me && ctx && cand.entries.length ? DDF.find.pickups(ctx, DDF.find.entriesOf(me), cand.entries, "DDF") : null;
-    var res = lastOut ? lastOut.results.filter(function (r) { return r.starterDelta !== null && gainOf(r) > 0; }) : [];
-    res.sort(function (a, b) { return b.starterDelta - a.starterDelta || (b.totalDelta || 0) - (a.totalDelta || 0) || String(a.name).localeCompare(String(b.name)); });
-    var min = +$("adds-min").value;
-    var pass = res.filter(function (r) { return gainOf(r) >= min; }), below = res.length - pass.length;
-    box.innerHTML = pass.map(function (r, i) {
+    var basis = $("adds-basis").value, min = +$("adds-min").value;
+    var picked = DDF.find.pickupsByBasis(lastOut ? lastOut.results : [], basis, min);
+    var pass = picked.list.map(function (e) { return e.r; }), below = picked.total - pass.length;
+    box.innerHTML = picked.list.map(function (e, i) {
+      var r = e.r, bench = e.basis === "bench";
       var drop = r.drop ? r.drop.name : null;
       var href = BUILD + "?mode=league&waivers=1" + (drop ? "&drop=" + encodeURIComponent(drop) : "") + "&add=" + encodeURIComponent(r.name);
-      return '<li class="wa-card' + (i === 0 ? " is-best" : "") + '" data-pickup data-pickup-gain="' + gainOf(r) + '" data-add="' + esc(r.candidate.player_key) + '" data-drop="' + esc(r.drop ? r.drop.player_key : "") + '">'
+      return '<li class="wa-card' + (i === 0 ? " is-best" : "") + '" data-pickup data-pickup-gain="' + (Math.round(e.gain * 10) / 10) + '" data-basis="' + e.basis + '" data-add="' + esc(r.candidate.player_key) + '" data-drop="' + esc(r.drop ? r.drop.player_key : "") + '">'
         + '<div class="wa-main">' + (i === 0 ? '<span class="wa-best">Best add</span>' : "") + '<p class="wa-move"><span><small>You add</small><b>' + esc(r.name) + " · " + esc(r.pos) + "</b></span>"
         + "<span><small>You drop</small><b>" + esc(drop || "Nobody (open roster spot)") + "</b></span></p>"
-        + '<p class="wa-meta">' + esc(r.verdict) + " · with bench " + DDF.find.shown(r.totalDelta) + "</p></div>"
-        + '<div class="wa-gain"><small>Your starters (DDF)</small><b>' + DDF.find.shown(r.starterDelta) + "</b></div>"
+        + '<p class="wa-meta">' + esc(r.verdict) + " · with bench " + DDF.find.shown(r.totalDelta) + '</p><p class="wa-basis">' + DDF.find.BASES[e.basis] + "</p></div>"
+        + '<div class="wa-gain"><small>' + (bench ? "Depth value (bench, DDF)" : "Your starters (DDF)") + "</small><b>" + DDF.find.shown(e.gain) + "</b></div>"
         + '<div class="wa-act"><button type="button" data-add-move="' + i + '">Add to my team</button><a class="button" href="' + esc(href) + '">Evaluate pickup</a></div></li>';
     }).join("");
     box.hidden = !pass.length;
     box._list = pass;
-    note.textContent = !lastOut ? "" : !res.length ? "No available player improves your starters right now."
+    note.textContent = !lastOut ? "" : !picked.total ? (basis === "starter" ? "No available player improves your starters right now."
+      : basis === "bench" ? "No available player beats a bench player without also improving a starter right now." : "No available player improves your starters or your bench right now.")
       : below ? below + (below === 1 ? " more add sits" : " more adds sit") + " below the " + min + "-point bar. Lower the minimum gain to see " + (below === 1 ? "it" : "them") + "." : "";
     var mv = moves();
     $("undo-move").hidden = !mv.length;
@@ -182,6 +182,7 @@
       $("entry").open = true; $("pool").focus();
     };
     $("adds-min").addEventListener("change", render);
+    $("adds-basis").addEventListener("change", render);
     $("adds").addEventListener("click", function (e) {
       var b = e.target.closest("[data-add-move]"); if (!b) return;
       var r = $("adds")._list[+b.dataset.addMove]; if (r) askMove(r);
