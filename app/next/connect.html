@@ -252,7 +252,7 @@ DDF is a free remote MCP server, no sign-in: https://iskiybsimubiujwuchsl.supaba
 5. NO-TOOLS MODE: if my app cannot add MCP tools, do not stop and do not invent numbers or values. Do Step 1 only: collect my league settings and rosters, clean them into a tidy list (one team per block, one player per line, position and NFL team), then send me to the site to continue: https://datadrivenfootball.github.io/fantasy-tools/connect.html . Tell me to paste the clean list there; the site prices everything. Say which parts of this chat would be better with a tool-enabled app, in one sentence.
 
 STEP 1 - MY LEAGUE (about 5 minutes)
-- Ask for: number of teams, scoring (PPR / half PPR / standard), superflex yes/no, and roster slots (default QB 1, RB 2, WR 3, TE 1, FLEX 1, bench 6). Offer these defaults.
+- Ask for: number of teams, scoring (PPR / half PPR / standard), superflex yes/no, and roster slots (default {{DEFAULT_ROSTER}}). Offer these defaults.
 - Get every team's roster. Best case: I paste my league's Rosters page. Tell me where it lives: ESPN fantasy.espn.com/football/league/rosters?leagueId=YOURID ; Yahoo football.fantasysports.yahoo.com/f1/YOURID/starters ; Sleeper: just my username. Tell me to select all on that page, copy, and paste here; messy text is expected and you clean it up. If I give you a league link or ID, hand me back the rosters link. If a league-data connector (for example Flaim) is available, you may offer to pull rosters from it instead.
 - If the paste looks like only one team, say so and offer manual entry. Keep names as provided; list anything you could not match and ask me.
 - Ask which team is mine.
@@ -294,7 +294,7 @@ ALWAYS
 
 1) CONNECT: if you lack DDF tools (get_values, compare_trade, find_trades, read_state, make_state), have me add a remote MCP server, no sign-in: https://iskiybsimubiujwuchsl.supabase.co/functions/v1/mcp . Give only the steps for my app (Claude: Settings > Connectors; ChatGPT: developer mode > add MCP server; Codex: codex mcp add ddf --url <URL>; Gemini CLI: gemini mcp add --transport http ddf <URL>; Grok: Connectors > Custom). If unsure of menus, say so and point to the app's help. Never ask for passwords or tokens. Test with one call. No tool support? Do step 2 only, give me a clean roster list, and send me to https://datadrivenfootball.github.io/fantasy-tools/connect.html to paste it.
 
-2) MY LEAGUE: ask one question at a time: teams, scoring (PPR/half/standard), superflex, roster slots (default QB1 RB2 WR3 TE1 FLEX1 bench 6), my team, and every roster (paste the league Rosters page; messy is fine, you clean it).
+2) MY LEAGUE: ask one question at a time: teams, scoring (PPR/half/standard), superflex, roster slots (default {{DEFAULT_ROSTER}}), my team, and every roster (paste the league Rosters page; messy is fine, you clean it).
 
 3) GO TO THE SITE: right after step 2 call make_state (it must include my league settings: scoring, teams, superflex, roster slots) and give me the link on its own line, with one sentence on what I will find there (team assessment, partner filters, trade charts for every source, waiver filter). Say I can continue here or there.
 
@@ -368,6 +368,9 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
   btn.addEventListener('click',function(){
     var phone=window.matchMedia('(pointer: coarse)').matches||window.matchMedia('(max-width: 768px)').matches;
     var src=document.getElementById(phone?'prompt-text-short':'prompt-text').textContent;
+    // JEG-1649: the default roster comes from the engine, the same source as the settings and team pages.
+    var E=window.DDF&&window.DDF.engine, std=E&&E.defaultRoster&&E.defaultRoster();
+    src=src.split('{{DEFAULT_ROSTER}}').join(std?E.rosterText(std):"the site's standard roster");
     if(window.DDF&&window.DDF.copyText) window.DDF.copyText(src,document.getElementById('copy-status'),'Prompt copied.');
   });
 })();
