@@ -371,8 +371,17 @@
         type: card.dataset.cls, constraints: constraintsText(), yourValuation: B.yv, theirValuation: B.tv}));
     } catch (e) { /* the link still carries the players */ }
   }
+  // JEG-1680: the chart-agreement filter is the one finder setting kept on this device (fit, sort and the gain basis stay per visit).
+  var MIN_CHARTS_KEY = "ddf.v2.find-min-charts";
+  function saveMinCharts(v) { try { if (v && v !== "0") localStorage.setItem(MIN_CHARTS_KEY, v); else localStorage.removeItem(MIN_CHARTS_KEY); } catch (e) { /* private window */ } }
+  function restoreMinCharts() {
+    var el = $("min-charts"), v = null;
+    try { v = localStorage.getItem(MIN_CHARTS_KEY); } catch (e) { return; }
+    if (el && v && [].some.call(el.options, function (o) { return o.value === v; })) el.value = v;
+  }
   function wire() {
     ["your-valuation", "their-valuation", "partner", "fit", "sort", "min-charts"].forEach(function (id) { defaults[id] = $(id).value; });
+    restoreMinCharts();
     S.defaultSizes = [].slice.call(document.querySelectorAll(".size:checked")).map(function (x) { return x.value; }).join(",");
     var rerun = function () { run(false); };
     $("your-valuation").addEventListener("change", rerun);
@@ -384,7 +393,7 @@
         rerun();
       });
     });
-    ["fit", "sort", "min-charts"].forEach(function (id) { $(id).addEventListener("change", function () { if (id === "min-charts") S.pick = {}; render(); }); });
+    ["fit", "sort", "min-charts"].forEach(function (id) { $(id).addEventListener("change", function () { if (id === "min-charts") { S.pick = {}; saveMinCharts($(id).value); } render(); }); });
     $("partner").addEventListener("change", function () { if (sizes().indexOf(4) >= 0) run(false); else render(); });
     $("minimum-gain").addEventListener("change", renderPickups);
     $("see-waivers").addEventListener("change", renderPickups);
@@ -396,6 +405,7 @@
       Object.keys(defaults).forEach(function (id) { $(id).value = defaults[id]; });
       benchInputs().forEach(function (x) { x.value = 0; });
       $("repeat").value = 20;
+      saveMinCharts("0");
       run(false);
     });
     $("repeat").addEventListener("change", render);
