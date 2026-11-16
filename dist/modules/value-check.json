@@ -1,6 +1,6 @@
 {
  "schema": "value-check/2",
- "generated_at": "2026-11-16T04:22:09.194947+00:00",
+ "generated_at": "2026-11-16T07:01:15.982605+00:00",
  "reference_version": "value-reference-002/2",
  "pipeline_version": "value-pipeline/2",
  "tolerance": 0.05,
@@ -137,7 +137,7 @@
     "indexed": {
      "compared": 16800,
      "mismatches": 0,
-     "max_abs_diff": 5.684341886080802e-14
+     "max_abs_diff": 4.263256414560601e-14
     },
     "vorp": {
      "compared": 16800,
@@ -162,7 +162,7 @@
     "indexed": {
      "compared": 16800,
      "mismatches": 0,
-     "max_abs_diff": 4.263256414560601e-14
+     "max_abs_diff": 3.552713678800501e-14
     },
     "vorp": {
      "compared": 16800,
@@ -801,7 +801,7 @@
   "half_ppr/10/sf0": {
    "compared": 44942,
    "mismatches": 0,
-   "max_abs_diff": 3.552713678800501e-14,
+   "max_abs_diff": 2.842170943040401e-14,
    "series": {}
   },
   "half_ppr/12/sf0": {
@@ -813,7 +813,7 @@
   "half_ppr/14/sf0": {
    "compared": 45049,
    "mismatches": 0,
-   "max_abs_diff": 3.552713678800501e-14,
+   "max_abs_diff": 4.263256414560601e-14,
    "series": {}
   },
   "ppr/8/sf0": {
@@ -831,7 +831,7 @@
   "ppr/12/sf0": {
    "compared": 44979,
    "mismatches": 0,
-   "max_abs_diff": 2.842170943040401e-14,
+   "max_abs_diff": 4.263256414560601e-14,
    "series": {}
   },
   "ppr/14/sf0": {
@@ -950,6 +950,24 @@
   "ppr/12/sf0/cw9+regular"
  ],
  "held_sections": {
+  "cbsros": {
+   "reason": "fidelity: publisher_vs_stored",
+   "week": 10,
+   "root": "cbsros",
+   "stage": "publisher_vs_stored",
+   "identity": "2026-11-16@2026-11-16T03:43:02.014820Z",
+   "since": "2026-11-16T06:40:18.291753Z",
+   "hold_level": "amber"
+  },
+  "fantasycalc": {
+   "reason": "fidelity: scrape_validity",
+   "week": 10,
+   "root": "fantasycalc",
+   "stage": "scrape_validity",
+   "identity": "fcwk10_2026-11-16t0316_v1",
+   "since": "2026-11-16T06:40:18.291753Z",
+   "hold_level": "red"
+  },
   "usatoday": {
    "reason": "fidelity: publisher_vs_stored",
    "week": 10,
@@ -967,8 +985,8 @@
   "note": "Clean-room reference written from the methodology text only; it never holds a source. Disagreements are classified in docs/math-review-agenda.md MR-18.",
   "tolerance": 0.05,
   "values_compared": 133272,
-  "mismatches": 105510,
-  "agreement": 0.20831082297857018,
+  "mismatches": 105582,
+  "agreement": 0.2077705744642535,
   "by_series": {
    "indexed:espn": {
     "compared": 7356,
@@ -995,28 +1013,28 @@
     "compared": 8064,
     "mismatches": 7529,
     "no_engine_row": 0,
-    "max_abs_diff": 5.835873090888178,
+    "max_abs_diff": 5.842548081628607,
     "cells_disagreeing": 12
    },
    "indexed:fantasycalc": {
     "compared": 8064,
     "mismatches": 7571,
     "no_engine_row": 0,
-    "max_abs_diff": 8.997931905626793,
+    "max_abs_diff": 9.009883873443854,
     "cells_disagreeing": 12
    },
    "indexed:fantasypros": {
     "compared": 8064,
-    "mismatches": 7794,
+    "mismatches": 7812,
     "no_engine_row": 0,
-    "max_abs_diff": 6.565268821018513,
+    "max_abs_diff": 6.593883407852893,
     "cells_disagreeing": 12
    },
    "indexed:cbs": {
     "compared": 8064,
-    "mismatches": 7823,
+    "mismatches": 7877,
     "no_engine_row": 0,
-    "max_abs_diff": 13.983639876158406,
+    "max_abs_diff": 13.476680741921683,
     "cells_disagreeing": 12
    },
    "vorp:espn_vorp": {
@@ -1247,7 +1265,7 @@
     "mismatches": 661,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 4.060946870064448,
+    "max_abs_diff": 4.063766221210805,
     "examples": [
      {
       "player_key": 30,
@@ -1289,7 +1307,7 @@
     "mismatches": 643,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 6.512904915620169,
+    "max_abs_diff": 6.517598968313344,
     "examples": [
      {
       "player_key": 17,
@@ -1331,7 +1349,7 @@
     "mismatches": 672,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 4.945785379356543,
+    "max_abs_diff": 4.957291440923953,
     "examples": [
      {
       "player_key": 17,
@@ -1373,7 +1391,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 7.248731904281051,
+    "max_abs_diff": 7.23978460505932,
     "examples": [
      {
       "player_key": 17,
@@ -2028,7 +2046,7 @@
     "mismatches": 661,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 5.835873090888178,
+    "max_abs_diff": 5.842548081628607,
     "examples": [
      {
       "player_key": 30,
@@ -2070,7 +2088,7 @@
     "mismatches": 646,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 8.997931905626793,
+    "max_abs_diff": 9.009883873443854,
     "examples": [
      {
       "player_key": 17,
@@ -2112,7 +2130,7 @@
     "mismatches": 672,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 6.565268821018513,
+    "max_abs_diff": 6.593883407852893,
     "examples": [
      {
       "player_key": 17,
@@ -2140,7 +2158,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.5645275296013406,
+      "engine": 0.5641465098032796,
       "spec": null,
       "kind": "presence"
      }
@@ -2154,7 +2172,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 7.923404508588149,
+    "max_abs_diff": 7.92890408192703,
     "examples": [
      {
       "player_key": 17,
@@ -2809,11 +2827,11 @@
     "mismatches": 628,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 3.0419471548774055,
+    "max_abs_diff": 3.0663234885340813,
     "examples": [
      {
       "player_key": 30,
-      "engine": 0.5357789903605343,
+      "engine": 0.5354582491282096,
       "spec": null,
       "kind": "presence"
      },
@@ -2851,7 +2869,7 @@
     "mismatches": 636,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 3.976014082961754,
+    "max_abs_diff": 4.033541916079102,
     "examples": [
      {
       "player_key": 17,
@@ -2861,7 +2879,7 @@
      },
      {
       "player_key": 30,
-      "engine": 0.07602130886881382,
+      "engine": 0.07595641565604751,
       "spec": null,
       "kind": "presence"
      },
@@ -2890,10 +2908,10 @@
     "view": "indexed",
     "series": "fantasypros",
     "compared": 672,
-    "mismatches": 646,
+    "mismatches": 647,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 2.651451860202279,
+    "max_abs_diff": 2.7159905681708025,
     "examples": [
      {
       "player_key": 17,
@@ -2903,7 +2921,7 @@
      },
      {
       "player_key": 30,
-      "engine": 0.675213859456422,
+      "engine": 0.674354489177214,
       "spec": null,
       "kind": "presence"
      },
@@ -2921,7 +2939,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.675213859456422,
+      "engine": 0.674354489177214,
       "spec": null,
       "kind": "presence"
      }
@@ -2932,10 +2950,10 @@
     "view": "indexed",
     "series": "cbs",
     "compared": 672,
-    "mismatches": 603,
+    "mismatches": 629,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 0.1997771059670157,
+    "max_abs_diff": 0.39279413722427137,
     "examples": [
      {
       "player_key": 17,
@@ -2945,13 +2963,13 @@
      },
      {
       "player_key": 28,
-      "engine": 2.683270238166889,
+      "engine": 2.6768494514768806,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 30,
-      "engine": 7.3329566557747095,
+      "engine": 7.315409652933141,
       "spec": null,
       "kind": "presence"
      },
@@ -3590,11 +3608,11 @@
     "mismatches": 607,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 1.5000283785393833,
+    "max_abs_diff": 1.4454835361458507,
     "examples": [
      {
       "player_key": 30,
-      "engine": 0.6240449971831381,
+      "engine": 0.6233273018884864,
       "spec": null,
       "kind": "presence"
      },
@@ -3632,7 +3650,7 @@
     "mismatches": 637,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 4.294216700895603,
+    "max_abs_diff": 4.165705720829877,
     "examples": [
      {
       "player_key": 17,
@@ -3642,13 +3660,13 @@
      },
      {
       "player_key": 30,
-      "engine": 0.08848375992474246,
+      "engine": 0.08833879548022386,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 0.01474729332079041,
+      "engine": 0.01472313258003731,
       "spec": null,
       "kind": "presence"
      },
@@ -3674,7 +3692,7 @@
     "mismatches": 672,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 3.9136405130871594,
+    "max_abs_diff": 3.800600656275506,
     "examples": [
      {
       "player_key": 17,
@@ -3684,13 +3702,13 @@
      },
      {
       "player_key": 30,
-      "engine": 0.7852390814285459,
+      "engine": 0.7837338902592829,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 0.7852390814285459,
+      "engine": 0.7837338902592829,
       "spec": null,
       "kind": "presence"
      },
@@ -3702,7 +3720,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.7852390814285459,
+      "engine": 0.7837338902592829,
       "spec": null,
       "kind": "presence"
      }
@@ -3716,7 +3734,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 13.983639876158406,
+    "max_abs_diff": 13.476680741921683,
     "examples": [
      {
       "player_key": 17,
@@ -3726,19 +3744,19 @@
      },
      {
       "player_key": 28,
-      "engine": 3.0733119868360776,
+      "engine": 3.0564477938667682,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 30,
-      "engine": 8.398879571868203,
+      "engine": 8.352792377846683,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 1.7349798176629152,
+      "engine": 1.7254594583345262,
       "spec": null,
       "kind": "presence"
      },
@@ -4371,7 +4389,7 @@
     "mismatches": 630,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 2.7650040254986337,
+    "max_abs_diff": 2.7650040254986408,
     "examples": [
      {
       "player_key": 30,
@@ -4413,7 +4431,7 @@
     "mismatches": 638,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 4.426886064122577,
+    "max_abs_diff": 4.4268924413010495,
     "examples": [
      {
       "player_key": 17,
@@ -4455,7 +4473,7 @@
     "mismatches": 649,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 3.3941856332047635,
+    "max_abs_diff": 3.40083161535609,
     "examples": [
      {
       "player_key": 17,
@@ -4497,7 +4515,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 4.654300810694956,
+    "max_abs_diff": 4.6421883354571705,
     "examples": [
      {
       "player_key": 17,
@@ -5152,7 +5170,7 @@
     "mismatches": 661,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 4.132575866254598,
+    "max_abs_diff": 4.134240507369711,
     "examples": [
      {
       "player_key": 30,
@@ -5194,7 +5212,7 @@
     "mismatches": 643,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 6.381439637176165,
+    "max_abs_diff": 6.385080520736992,
     "examples": [
      {
       "player_key": 17,
@@ -5236,7 +5254,7 @@
     "mismatches": 672,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 4.833076552104039,
+    "max_abs_diff": 4.846439011081706,
     "examples": [
      {
       "player_key": 17,
@@ -5278,7 +5296,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 5.1712702572268086,
+    "max_abs_diff": 5.169469486015288,
     "examples": [
      {
       "player_key": 17,
@@ -5933,7 +5951,7 @@
     "mismatches": 630,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 3.6845765076221255,
+    "max_abs_diff": 3.690200656919586,
     "examples": [
      {
       "player_key": 30,
@@ -5975,7 +5993,7 @@
     "mismatches": 640,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 5.065498414114614,
+    "max_abs_diff": 5.08611350051558,
     "examples": [
      {
       "player_key": 17,
@@ -6017,7 +6035,7 @@
     "mismatches": 649,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 3.522023554311211,
+    "max_abs_diff": 3.5469286571856244,
     "examples": [
      {
       "player_key": 17,
@@ -6045,7 +6063,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.6773666037193296,
+      "engine": 0.6770349778488314,
       "spec": null,
       "kind": "presence"
      }
@@ -6059,7 +6077,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 1.454712937172161,
+    "max_abs_diff": 1.6467637590329645,
     "examples": [
      {
       "player_key": 17,
@@ -6069,7 +6087,7 @@
      },
      {
       "player_key": 28,
-      "engine": 2.5328612621574873,
+      "engine": 2.5266422268529745,
       "spec": null,
       "kind": "presence"
      },
@@ -6714,11 +6732,11 @@
     "mismatches": 606,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 1.779876022616655,
+    "max_abs_diff": 1.7904109368780468,
     "examples": [
      {
       "player_key": 30,
-      "engine": 0.6080204486469115,
+      "engine": 0.6078853856435603,
       "spec": null,
       "kind": "presence"
      },
@@ -6756,7 +6774,7 @@
     "mismatches": 602,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 1.1270239551735557,
+    "max_abs_diff": 1.1742150851825528,
     "examples": [
      {
       "player_key": 17,
@@ -6766,13 +6784,13 @@
      },
      {
       "player_key": 30,
-      "engine": 0.08112245406526383,
+      "engine": 0.08107334779054062,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 0.014749537102775242,
+      "engine": 0.014740608689189204,
       "spec": null,
       "kind": "presence"
      },
@@ -6795,10 +6813,10 @@
     "view": "indexed",
     "series": "fantasypros",
     "compared": 672,
-    "mismatches": 582,
+    "mismatches": 599,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 0.23338481332551453,
+    "max_abs_diff": 0.287556939975147,
     "examples": [
      {
       "player_key": 17,
@@ -6808,13 +6826,13 @@
      },
      {
       "player_key": 30,
-      "engine": 0.7885080903553295,
+      "engine": 0.7877867571109936,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 0.7885080903553295,
+      "engine": 0.7877867571109936,
       "spec": null,
       "kind": "presence"
      },
@@ -6826,7 +6844,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.7885080903553295,
+      "engine": 0.7877867571109936,
       "spec": null,
       "kind": "presence"
      }
@@ -6840,7 +6858,7 @@
     "mismatches": 672,
     "presence": 561,
     "no_engine_row": 0,
-    "max_abs_diff": 7.200204768629149,
+    "max_abs_diff": 6.610661630195935,
     "examples": [
      {
       "player_key": 17,
@@ -6850,19 +6868,19 @@
      },
      {
       "player_key": 28,
-      "engine": 2.8902843130287534,
+      "engine": 2.8711935871681438,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 30,
-      "engine": 7.881582155066675,
+      "engine": 7.8295232196906674,
       "spec": null,
       "kind": "presence"
      },
      {
       "player_key": 35,
-      "engine": 1.790855887369334,
+      "engine": 1.7790270376442356,
       "spec": null,
       "kind": "presence"
      },
@@ -7495,7 +7513,7 @@
     "mismatches": 528,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 0.3189202094301784,
+    "max_abs_diff": 0.3189202094301855,
     "examples": [
      {
       "player_key": 30,
@@ -7537,7 +7555,7 @@
     "mismatches": 569,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 0.4575839880006569,
+    "max_abs_diff": 0.45758550325258796,
     "examples": [
      {
       "player_key": 17,
@@ -7579,7 +7597,7 @@
     "mismatches": 613,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 0.36014601807718805,
+    "max_abs_diff": 0.36325000992522405,
     "examples": [
      {
       "player_key": 17,
@@ -7618,10 +7636,10 @@
     "view": "indexed",
     "series": "cbs",
     "compared": 672,
-    "mismatches": 559,
+    "mismatches": 560,
     "presence": 552,
     "no_engine_row": 0,
-    "max_abs_diff": 0.07088050941163004,
+    "max_abs_diff": 0.07837262438819437,
     "examples": [
      {
       "player_key": 17,
@@ -8276,7 +8294,7 @@
     "mismatches": 628,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 3.4849729513927983,
+    "max_abs_diff": 3.4849729513928054,
     "examples": [
      {
       "player_key": 30,
@@ -8318,7 +8336,7 @@
     "mismatches": 642,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 5.445142409992052,
+    "max_abs_diff": 5.446664085981027,
     "examples": [
      {
       "player_key": 17,
@@ -8360,7 +8378,7 @@
     "mismatches": 672,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 4.170574818236588,
+    "max_abs_diff": 4.17875119976442,
     "examples": [
      {
       "player_key": 17,
@@ -8402,7 +8420,7 @@
     "mismatches": 672,
     "presence": 552,
     "no_engine_row": 0,
-    "max_abs_diff": 4.101589837621759,
+    "max_abs_diff": 4.100153461590999,
     "examples": [
      {
       "player_key": 17,
@@ -9057,7 +9075,7 @@
     "mismatches": 628,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 2.85218419824011,
+    "max_abs_diff": 2.8521841941813406,
     "examples": [
      {
       "player_key": 30,
@@ -9099,7 +9117,7 @@
     "mismatches": 634,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 3.807295319496731,
+    "max_abs_diff": 3.8179418922437947,
     "examples": [
      {
       "player_key": 17,
@@ -9115,7 +9133,7 @@
      },
      {
       "player_key": 35,
-      "engine": 0.018884935209267546,
+      "engine": 0.018881915476050077,
       "spec": null,
       "kind": "presence"
      },
@@ -9141,7 +9159,7 @@
     "mismatches": 646,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 2.6385049930686506,
+    "max_abs_diff": 2.664406143575171,
     "examples": [
      {
       "player_key": 17,
@@ -9157,7 +9175,7 @@
      },
      {
       "player_key": 35,
-      "engine": 0.677754075230135,
+      "engine": 0.6774091864084769,
       "spec": null,
       "kind": "presence"
      },
@@ -9180,10 +9198,10 @@
     "view": "indexed",
     "series": "cbs",
     "compared": 672,
-    "mismatches": 613,
+    "mismatches": 640,
     "presence": 552,
     "no_engine_row": 0,
-    "max_abs_diff": 0.31925742186571426,
+    "max_abs_diff": 0.4403269527517608,
     "examples": [
      {
       "player_key": 17,
@@ -9193,7 +9211,7 @@
      },
      {
       "player_key": 28,
-      "engine": 2.353853140580322,
+      "engine": 2.350034030591029,
       "spec": null,
       "kind": "presence"
      },
@@ -9205,7 +9223,7 @@
      },
      {
       "player_key": 35,
-      "engine": 1.8331560988276983,
+      "engine": 1.8301818160875103,
       "spec": null,
       "kind": "presence"
      },
@@ -9838,7 +9856,7 @@
     "mismatches": 661,
     "presence": 401,
     "no_engine_row": 0,
-    "max_abs_diff": 4.280199902943281,
+    "max_abs_diff": 4.295013186442311,
     "examples": [
      {
       "player_key": 30,
@@ -9880,7 +9898,7 @@
     "mismatches": 641,
     "presence": 476,
     "no_engine_row": 0,
-    "max_abs_diff": 5.284823312973472,
+    "max_abs_diff": 5.337628398907114,
     "examples": [
      {
       "player_key": 17,
@@ -9896,7 +9914,7 @@
      },
      {
       "player_key": 35,
-      "engine": 0.021998061476184393,
+      "engine": 0.021983084142554732,
       "spec": null,
       "kind": "presence"
      },
@@ -9922,7 +9940,7 @@
     "mismatches": 649,
     "presence": 494,
     "no_engine_row": 0,
-    "max_abs_diff": 3.513824351395499,
+    "max_abs_diff": 3.5722314186110253,
     "examples": [
      {
       "player_key": 17,
@@ -9938,7 +9956,7 @@
      },
      {
       "player_key": 35,
-      "engine": 0.788481574490455,
+      "engine": 0.7877038505594893,
       "spec": null,
       "kind": "presence"
      },
@@ -9950,7 +9968,7 @@
      },
      {
       "player_key": 65,
-      "engine": 0.788481574490455,
+      "engine": 0.7877038505594893,
       "spec": null,
       "kind": "presence"
      }
@@ -9964,7 +9982,7 @@
     "mismatches": 672,
     "presence": 552,
     "no_engine_row": 0,
-    "max_abs_diff": 2.902401605322453,
+    "max_abs_diff": 2.588768434986207,
     "examples": [
      {
       "player_key": 17,
@@ -9974,7 +9992,7 @@
      },
      {
       "player_key": 28,
-      "engine": 2.7044985262615566,
+      "engine": 2.6946050413769744,
       "spec": null,
       "kind": "presence"
      },
@@ -9986,7 +10004,7 @@
      },
      {
       "player_key": 35,
-      "engine": 2.106235041691938,
+      "engine": 2.0985300995941656,
       "spec": null,
       "kind": "presence"
      },

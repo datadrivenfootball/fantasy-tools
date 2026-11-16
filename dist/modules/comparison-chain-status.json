@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-16T04:07:03.277216+00:00",
+  "run_at": "2026-11-16T06:43:34.084143+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -14,9 +14,11 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
+    "cbsros",
+    "fantasycalc",
     "usatoday"
   ],
-  "hold_severity": "amber",
+  "hold_severity": "red",
   "list_changes": {},
   "held_detail": {
     "usatoday": {
@@ -28,6 +30,31 @@
         "usatoday"
       ],
       "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
+      "hold_severity": "amber",
+      "week": 10
+    },
+    "fantasycalc": {
+      "reason": "fidelity: scrape_validity",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "player count dropped vs week 9: stored TE 30->25, chart TE 30->25",
+      "hold_severity": "red",
+      "week": 10
+    },
+    "cbsros": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "cbsros",
+        "cbsros_vorp"
+      ],
+      "sections": [
+        "cbsros"
+      ],
+      "detail": "1098/1098 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 4 players at the page's last listed value swapped in or out (ties at the row cap: Emari Demercado, John Bates, Kaytron Allen, Keleki Latu); parse notes: RB: 1 players listed with another position",
       "hold_severity": "amber",
       "week": 10
     }
@@ -226,6 +253,8 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored"
+    "usatoday": "fidelity: publisher_vs_stored",
+    "fantasycalc": "fidelity: scrape_validity",
+    "cbsros": "fidelity: publisher_vs_stored"
   }
 }
