@@ -49,7 +49,7 @@ Home and away carry no meaning for fantasy matchups; the pair is just the two te
 
 Importer: `DDF.sleeper.load(id, {leagueState: true})` returns `leagueState` (pure builder `DDF.sleeper.buildLeagueState`).
 Without the option the import is unchanged. Tests: `node tests/test_sleeper_league_state.js`; fixtures
-`tests/fixtures/sleeper-live/` are recorded live public responses (ids and names anonymized, players and matchups trimmed).
+`tests/fixtures/sleeper-live/` are recorded from live public leagues with fake league ids, no names, avatars or clone links, trimmed players and matchups.
 
 Verified on live 2026 leagues and 2025 completed brackets (about 80 divisional and 1000 other leagues crawled from public user lists):
 

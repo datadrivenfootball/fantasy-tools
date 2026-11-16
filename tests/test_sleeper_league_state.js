@@ -87,6 +87,18 @@ test("divisions league: 99 is no deadline, median game, division names, division
   assert.strictEqual(st2.playoff_rules.seeding_rule.value, "record");
 });
 
+test("divisions > 0 but no roster has a division (pre-draft): seeding_rule is missing with a reason and the state validates", () => {
+  const st = build(live("divisions"), d => { d.rosters.forEach(r => { delete r.settings.division; }); });
+  valid(st); noZeroForMissing(st);
+  assert.strictEqual(st.playoff_rules.seeding_rule.value, null);
+  assert.ok(/no team has a known division/.test(st.playoff_rules.seeding_rule.reason));
+  st.teams.forEach(t => assert.strictEqual(t.division.value, null));
+});
+
+test("fixtures use fake league ids (no live API calls from tests)", () => {
+  ["full", "divisions", "preseason"].forEach(n => assert.ok(/^90000000000000000\d$/.test(live(n).league.league_id), n));
+});
+
 test("trade_deadline: 99 is none, weeks pass through, anything else is missing with a reason", () => {
   const dl = v => build(live("full"), d => { if (v === undefined) delete d.league.settings.trade_deadline; else d.league.settings.trade_deadline = v; }).trade_deadline_week;
   assert.strictEqual(dl(99).value, "none");

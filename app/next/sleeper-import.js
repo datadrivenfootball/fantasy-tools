@@ -200,7 +200,9 @@
         : lsMissing(spots === null ? "playoff_teams is unknown" : "byes for a " + spots + "-team bracket are not verified"),
       /* playoff_seed_type (0 or 1) does not change who is seeded first: on 2025 brackets division winners were seeded first
          under both values whenever the league has divisions, and record decided it without divisions. */
-      seeding_rule: lsKnown(nDiv > 0 ? "division_winners_first" : "record", "derived:sleeper:league.settings.divisions (absent or 0 = no divisions; playoff_seed_type does not change seeding)", asOf),
+      seeding_rule: nDiv > 0 && !teams.some(function (t) { return t.division.value !== null; })
+        ? lsMissing("the league has divisions but no team has a known division yet")
+        : lsKnown(nDiv > 0 ? "division_winners_first" : "record", "derived:sleeper:league.settings.divisions (absent or 0 = no divisions; playoff_seed_type does not change seeding)", asOf),
       tiebreak: lsMissing("Sleeper exposes no verified tiebreak setting (playoff_seed_type has no verified meaning)")
     };
     var td = tradeDeadline(set);
