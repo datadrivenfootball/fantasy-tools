@@ -311,6 +311,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_watchdog_common_helpers
 	python3 -m unittest tests.test_razzball_sync_ci
 	python3 -m unittest tests.test_espn_weekly_store
+	# JEG-1641: weekly projection warehouse (row builders, savers, freshness, migration).
+	python3 -m unittest tests.test_projection_warehouse
 	python3 -m unittest tests.test_build_weekly_inputs
 	# JEG-1415: offline waiver-board builder and schema (slice 1 of JEG-1196).
 	python3 -m unittest tests.test_build_waiver_board
@@ -816,6 +818,8 @@ test-core:
 	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
 	python3 -m unittest tests.test_partners_rank_parity
 	python3 -m unittest tests.test_find_chart_links
+	# JEG-1647: the public-charts-agree filter on find.html.
+	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted
@@ -1007,6 +1011,8 @@ test-core-shard-3:
 	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
 	python3 -m unittest tests.test_partners_rank_parity
 	python3 -m unittest tests.test_find_chart_links
+	# JEG-1647: the public-charts-agree filter on find.html.
+	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted

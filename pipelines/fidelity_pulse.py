@@ -1066,15 +1066,31 @@ def fc_list_churn(cmp: dict, left: dict, right: dict) -> list[dict]:
     """FantasyCalc lists ~200 players; as values move, players at the bottom
     enter and leave. Missing / extra players valued at or below the list's
     churn line (the 15th-percentile value of that list, or FC_DRIFT_ABS) are
-    movement, not a fidelity fault: moved to cmp['churn']."""
+    movement, not a fidelity fault: moved to cmp['churn'].
+
+    JEG-1630: all six lists share one player set, chosen by the 1-QB value
+    (checked live 2026-11-16: 196 players, identical ids in every list). A QB
+    at the bottom of the 1-QB list leaves the 2-QB lists too, where his value
+    sits far above that list's churn line (Kyler Murray 2026-11-15: 1-QB 18 to
+    40, 2-QB 145 to 352), and held FantasyCalc red. So a 2-QB entry is judged
+    on the 1-QB list of the same scoring when the player is gone from that
+    list as well; a player kept in 1-QB but dropped from 2-QB is not churn."""
+    def churn_line(src: dict, grain: str) -> float:
+        vals = sorted(c["value"] for c in src.get(grain, {}).values())
+        return max(FC_DRIFT_ABS, vals[int(len(vals) * 0.15)] if vals else 0)
+
     churn = []
-    for side, src in (("missing", left), ("extra", right)):
+    for side, src, other in (("missing", left, right), ("extra", right, left)):
         keep = []
         for m in cmp[side]:
-            vals = sorted(c["value"] for c in src.get(m["grain"], {}).values())
-            line = max(FC_DRIFT_ABS, vals[int(len(vals) * 0.15)] if vals else 0)
+            grain = m["grain"]
             v = float(m["left"] if m["left"] is not None else m["right"])
-            (churn if v <= line else keep).append(m)
+            scoring, _, qb = grain.partition("|")
+            one_qb = f"{scoring}|1"
+            cell = src.get(one_qb, {}).get(m["player_key"])
+            if qb != "1" and cell is not None and m["player_key"] not in other.get(one_qb, {}):
+                grain, v = one_qb, float(cell["value"])
+            (churn if v <= churn_line(src, grain) else keep).append(m)
         cmp[side] = keep
     cmp["churn"] = churn
     return churn

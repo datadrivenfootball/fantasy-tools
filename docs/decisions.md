@@ -1049,6 +1049,15 @@ Jeremy, 2026-10-29 (multiple choice, quoted on JEG-1324):
 
 Shipped in #1178 (`naturalFit`, `projectionsHold`); guarded by `tests/test_v2_finder_fit.py` checks 16 to 19.
 
+## JEG-1639: Natural fit also needs their roster not clearly worse
+
+Jeremy, 2026-11-14 (multiple choice, "A", on JEG-1639): Natural fit also requires their roster change to be better than
+-3% (not "clearly worse" in the partner bands), on the same measure and rounding as the Why text, so the label and the
+text never disagree. Offers that fail move to Partner neutral. Built in `naturalFit` (`app/v2/finder.js`), reading
+`rosterChangePct`, which `ddf-opportunity.js` `rosterImprovementPct` now wraps. An unsized change (roster worth under 20
+points, no percent printed) does not block. Guarded by `tests/test_v2_finder_fit.py` checks 20 to 22 and
+`tests/test_natural_pct_agree.py`.
+
 ## JEG-1047: projection waiver line is a 7-player band
 
 Jeremy, 2026-10-29 (multiple choice on the JEG-1047 research, answer "A"): each projection source's waiver line at a position is the average of the 7 players around the first non-rostered seat (indexes `N_p - 3` to `N_p + 3`, clipped to the list), not that one player. Trade charts keep the one-player line. Short-list fallback (`insufficient_coverage`, last value) is unchanged. Tolerance that went with the pick: a 1 PPG change to the waiver-line player moves no other player at the position by more than 1.0 point in that source's Adjusted value, on the 12-combo grid (one player failed it in 19% of cases, worst 3.2; the band's worst is 0.82). Research: `docs/research/jeg1047-waiver-line.md`. Code: `waiver_band_line` in `pipelines/lib/roster_convention.py` (JS twin `waiverBandLine`), used by `value_reference.py`, the spec reference and `value-model.js` `vpWaiverBand`. Guard: `tests/test_waiver_band_line.py`. Not chosen: median band (identical to one player), fitted curve, time smoothing (can be decided later on its own).

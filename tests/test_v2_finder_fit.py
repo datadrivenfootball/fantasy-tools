@@ -14,6 +14,9 @@ fall under 0.05 (shown as 0.0) holds (Jeremy, 2026-10-29, D2 "A"). A trade with 
 (projections) is not judged on projections and is not Natural (Jeremy, 2026-10-29, "A"). The natural cases below price the moving
 players' projections level, so they test the rule they were written for; checks 16 to 19 test the projections rule.
 
+JEG-1639 (Jeremy, 2026-11-14, "A"): Natural also needs their roster change better than -3% of its worth (not "clearly
+worse"), on the Why text's own number (finder.js rosterChangePct, truncated to one decimal); checks 20 to 22.
+
 Discrimination: test_checks_fail_on_broken_builds runs the same checks on mutated copies of finder.js.
 """
 from __future__ import annotations
@@ -350,6 +353,32 @@ def check(finder_js: Path) -> list[str]:
     elif abs(f["natural"]["them"]["projNet"] + 2.2) > 1e-6 or f["natural"]["us"]["projections"] is not True:
         say(f"check 19 setup: {f['natural']}")
 
+    # 20-22. JEG-1639 (Jeremy, 2026-11-14, "A"): Natural also needs their roster better than -3% on rosterChangePct (the
+    # Why text's number, truncated to one decimal). The check 17 bench swap with every bench weight 1, wide chart
+    # disagreement so their loss stays inside the noise floor, and level projections: only the percent decides. Both
+    # moving players stay on the bench. Their worth before = 228 (theirs_n, bench weight 1) + 13 (the RB they give), so
+    # receiving a WR worth M changes it by (M - 13) / 241.
+    def pct_case(m):
+        xc = p("myGiveP", "WR", 10, market=m, noise=5, proj=3)
+        yc = p("theirGiveP", "RB", 25, market=13, noise=13, proj=3)
+        return fit(finder_js, mine_n + [xc], theirs_n + [yc], [xc], [yc], weights=w1)
+    for name, m, want_pct, want in (("screenshot shape, -3.2%", 13 - 0.032 * 241, -3.2, "force"), ("-3.0% exactly", 13 - 0.030 * 241, -3.0, "force"),
+                                    ("-2.95% (shows -2.9)", 13 - 0.0295 * 241, -2.9, "natural"), ("-2.9%", 13 - 0.029 * 241, -2.9, "natural")):
+        f = pct_case(m)
+        nat = f.get("natural") or {}
+        them = nat.get("them") or {}
+        if them.get("pct") != want_pct or not them.get("value") or not them.get("construction") or them.get("projections") is not True or not (nat.get("us") or {}).get("ok"):
+            say(f"check 20 setup {name}: {nat}")
+            continue
+        if f["label"] != want:
+            say(f"their roster {want_pct}% ({name}): label {f['label']}, want {want}")
+        if want != "natural":
+            if them.get("pctOk") is not False or them.get("pctBand") != "clearly_worse":
+                say(f"check 21 {name}: their side should fail only the percent test: {them}")
+            text = call(finder_js, "fitText", f)
+            if f"Their roster gets about {abs(want_pct):.1f}% worse, clearly worse" not in text:
+                say(f"check 22 {name}: the text should say why it is not Natural: {text!r}")
+
     return errors
 
 
@@ -364,14 +393,19 @@ MUTANTS = {
     "market needs no gain": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > -1000;"),
     "market always": ('const label = isNatural ? "natural" : marketSupported ? "market" : "force";', 'const label = "market";'),
     # JEG-1324: the 1a projections test.
-    "projections ignored": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true};",
-                            "ok: Boolean(value) && Boolean(construction && construction.ok)};"),
+    "projections ignored": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true && pctOk};",
+                            "ok: Boolean(value) && Boolean(construction && construction.ok) && pctOk};"),
     "their projections never fall": ("themProjNet: projected ? viewNet(sides.theirs, ctx, projKey) : null", "themProjNet: projected ? 0 : null"),
     "your projections never fall": ("usProjNet: projected ? usProj.net : null", "usProjNet: projected ? 0 : null"),
     "no tolerance": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0"),
     "tolerance inclusive": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0 || Math.abs(net) <= PROJ_FLOOR + 1e-9"),
-    "missing projection read as level": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true};",
-                                         "ok: Boolean(value) && Boolean(construction && construction.ok) && projections !== false};"),
+    "missing projection read as level": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true && pctOk};",
+                                         "ok: Boolean(value) && Boolean(construction && construction.ok) && projections !== false && pctOk};"),
+    # JEG-1639: their roster clearly worse (the Why text's -3% band) is not Natural.
+    "clearly worse allowed": ('const pctOk = !(pct && pct.band === "clearly_worse");', "const pctOk = true;"),
+    "-3.0 counted slightly worse": ("if (p > PCT_BANDS.slightly_worse) return", "if (p >= PCT_BANDS.slightly_worse) return"),
+    "pct on your roster": ("rosterChangePct(sides.theirs.roster, sides.theirs.leaving, sides.theirs.arriving, ctx, ctx.marketKey)",
+                           "rosterChangePct(sides.mine.roster, sides.mine.leaving, sides.mine.arriving, ctx, ctx.marketKey)"),
     "tiers reversed": ("a.t - b.t || a.i - b.i", "b.t - a.t || a.i - b.i"),
     "tiers unstable": ("a.t - b.t || a.i - b.i", "a.t - b.t || b.i - a.i"),
 }

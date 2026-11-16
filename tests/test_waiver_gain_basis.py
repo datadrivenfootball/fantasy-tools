@@ -158,16 +158,21 @@ class WaiverGainBasisTest(unittest.TestCase):
             try:
                 page, errors = self._page(browser, base, "find.html")
                 self.assertEqual(page.input_value("#pickup-basis"), "starter")
-                page.wait_for_function("() => document.querySelector('#pickup-cards [data-pickup]') || document.querySelector('#pickup-note').textContent", timeout=120000)
                 page.select_option("#minimum-gain", "0")
+                page.wait_for_selector("#pickup-cards [data-pickup]", timeout=120000)   # no cards is a failure, not a pass
+                counts = {}
                 for v in ("bench", "both", "starter"):
                     page.select_option("#pickup-basis", v)
                     cards = page.evaluate(CARDS % ("#pickup-cards [data-pickup]", "[data-basis-tag]"))
+                    counts[v] = len(cards)
+                    if v != "bench":
+                        self.assertTrue(cards, f"{v}: find.html rendered no pickup cards on the seeded league")
                     for basis, _gain, label in cards:
                         self.assertEqual(label, {"starter": "Starter gain", "bench": "Bench gain"}[basis], v)
                         if v != "both":
                             self.assertEqual(basis, v)
                     self.assertFalse(page.evaluate(OVERFLOW), f"{v}: find.html scrolls sideways at 390")
+                self.assertGreaterEqual(counts["both"], counts["starter"])
                 self.assertEqual(errors, [])
             finally:
                 browser.close()

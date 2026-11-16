@@ -95,6 +95,21 @@ class PlayerIndex:
             return None, "espn_id ambiguous"
         return self._by_name(name, pos)
 
+    def resolve_gsis(self, gsis_id, name="", pos=""):
+        """nflverse gsis id -> (entry, how) or (None, reason); names last."""
+        cands = self.by_gsis.get(str(gsis_id)) if gsis_id else None
+        if cands:
+            e, why = self._one(cands, pos)
+            if e:
+                return e, "gsis_id"
+            return None, f"gsis_id {why}"
+        return self._by_name(name, pos)
+
+    def resolve_name(self, name, pos=""):
+        """Sources that publish no id we can map (CBS, FantasyPros): the
+        canonical name resolver, position-checked (JEG-438)."""
+        return self._by_name(name, pos)
+
     def _by_name(self, name, pos):
         if not name:
             return None, "no id match, no name"

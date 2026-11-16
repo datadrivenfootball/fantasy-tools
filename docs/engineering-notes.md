@@ -34,6 +34,15 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
   `fantasycalc-drift.yml` is a manual-only drift check now.
   `refresh_fantasycalc_supabase.py` (wrote raw natives into `value`, hardcoded
   Week 4, no bake_id) was deleted; see docs/watchdog.md "Producer schedules".
+- Shared player set (2026-11-16, JEG-1630): all six FantasyCalc lists
+  (3 scorings x 1/2 QB) carry the same ~196 player ids, chosen by the 1-QB
+  value. A QB at the 1-QB bottom flickers in and out of every list at once,
+  so in the 2-QB lists he appears or vanishes far above that list's churn
+  line (Kyler Murray: 1-QB 18 to 40, 2-QB 145 to 352). `fc_list_churn`
+  judges such a 2-QB entry on the 1-QB list; before that, one QB held
+  FantasyCalc red (hidden from DDF Value) on 2026-11-15 03:40Z and
+  2026-11-16 00:40Z. Bakes currently land about every 7 hours (00:05, 07:05,
+  14:05, 21:05 UTC).
 
 ## As-published indexing: proportional scaling (2026-09-30)
 - User directive: "there is no need for rounding like this, so figure out a logic that applies to all the ones sourced from trade value charts." The per-position quantile mapping was destroying real value differences (Jeanty 6365 vs Cook 7157 → both 41.4) and scrambling cross-position rank.
@@ -133,3 +142,13 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
 - Cause 1: confirming League settings (site.js `confirmSettings`) on a pasted or saved league stores `ddf:league` = {settings} with no teams and `ddf:link` = {source:'manual'}, so `DDF.link.current()` returns a teamless state. ddf-league.js `build()` skips a link with no teams (or a manual one with no players); `build-trade.js readLeague` took it as the league. It now applies the same rule and only falls back to the teamless link when no other league exists.
 - Cause 2: Build a Trade's available players came only from its own `ddf:waivers` store, a chat link's list or the old v2 `ddf.v2.waiverCandidates`. It now falls back to the list Waivers and Recommendations judge pickups on (`ddf:available` names, else `DDF.league.current().waivers`), and a saved list that lacks the link's `?add=` is skipped.
 - Rule: any page that reads the league or the available players reads them through ddf-league.js (or mirrors its rules exactly). Guard: `tests/test_build_waiver_handoff.py` (clicks Evaluate pickup from both pages, with and without confirmed settings, 1440 and 375).
+
+## Natural fit and the Why percent read one number (2026-11-14, JEG-1639)
+
+The Natural fit test and the Why text's "Theirs -3.2%, clearly worse" used to be two measures: tradeFit allowed their
+loss up to the noise floor in points (often wider than 3% of a roster), while the Why text bands the percent of roster
+worth. The percent (`rosterChangePct`, its bands and MIN_BASE) now lives in `app/v2/finder.js`, because the connector and
+pages without `ddf-opportunity.js` (Partners, Values) evaluate finder.js alone; `rosterImprovementPct` is a wrapper that
+adds the wording. Do not re-derive the percent elsewhere: call one of the two. Natural counts moved by under 4% on the
+seeded and two real league rosters (PR for JEG-1639).
+
