@@ -42,11 +42,11 @@
   function constraintsText() {
     var mb = minBench();
     return "Players each side: " + sizes().join(", ") + "; your valuation: " + optText("your-valuation") + "; their valuation: " + optText("their-valuation")
-      + "; partner: " + optText("partner") + "; fit: " + optText("fit") + "; minimum bench QB/RB/WR/TE: " + [mb.QB, mb.RB, mb.WR, mb.TE].join("/") + "; repeat player cap: " + repeatCap() + ".";
+      + "; partner: " + optText("partner") + "; fit: " + optText("fit") + "; public charts agreeing: " + optText("min-charts") + "; minimum bench QB/RB/WR/TE: " + [mb.QB, mb.RB, mb.WR, mb.TE].join("/") + "; repeat player cap: " + repeatCap() + ".";
   }
   var defaults = {};
   function updateChips() {
-    var lab = {"your-valuation": "You: ", "their-valuation": "Them: ", sort: "Sort: ", fit: "Fit: ", partner: "Partner: "}, n = 0;
+    var lab = {"your-valuation": "You: ", "their-valuation": "Them: ", sort: "Sort: ", fit: "Fit: ", "min-charts": "Charts: ", partner: "Partner: "}, n = 0;
     var chips = Object.keys(defaults).map(function (id) {
       var el = $(id), o = el.selectedOptions[0], nd = el.value !== defaults[id];
       if (nd) n++;
@@ -115,6 +115,7 @@
     if (!me) { flags("noteam"); S.groups = []; S.pickups = null; S.partners = []; return finish(); }
     var ctx = DDF.find.context();
     if (!ctx) return;
+    S.chartTotal = ctx.gate.length;
     var list = partners(cur);
     fillPartners(list);
     fillBench(me, ctx);
@@ -178,9 +179,11 @@
     };
   }
   // The groups the page lists, in order, after the display filters (partner, fit, repeat cap, page size).
+  function minChartsValue() { var el = $("min-charts"); return el ? +el.value || 0 : 0; }
   function visible() {
     var partner = $("partner").value, fit = $("fit").value;
-    var pool = S.groups.filter(function (g) { return partner === "all" || String(g.partnerIndex) === partner; });
+    var minCharts = minChartsValue();
+    var pool = S.groups.filter(function (g) { return (partner === "all" || String(g.partnerIndex) === partner) && DDF.find.meetsChartMin(selected(g), minCharts); });
     var cls = function (c) { return pool.filter(function (g) { return g.cls === c; }).sort(sorter()); };
     var nat = fit === "all" || fit === "natural" ? cls("natural") : [];
     var neu = fit === "all" || fit === "neutral" ? cls("neutral").concat(cls("unjudged")) : [];
@@ -206,8 +209,9 @@
   function chartsLink(t, partner) {
     // JEG-1393 decision 4 (2026-11-08): the title says how an unlisted player is priced. Find reads the engine rows, so a
     // player the engine fills in for a chart counts at that estimate here (unlike Buy / Sell, which leaves it out).
-    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t, partner)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + t.rivalOkCount + " of " + t.chartCount
-      + ' public trade charts for this trade">' + t.rivalOkCount + "/" + t.chartCount + " public trade charts</a>";
+    var ca = DDF.find.chartAgreement(t);
+    return '<a class="charts-link" data-charts href="' + esc(chartsHref(t, partner)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + ca.agree + " of " + ca.total
+      + ' public trade charts for this trade">' + ca.agree + "/" + ca.total + " public trade charts</a>";
   }
   function card(g, k, mx) {
     var B = basis(), t = selected(g);
@@ -257,12 +261,20 @@
     $(tableId).innerHTML = list.length ? '<div class="pkgs">' + list.map(function (g, k) { return card(g, k, mx); }).join("") + "</div>" : '<p class="empty">' + empty + "</p>";
     if (DDF.growBars) DDF.growBars($(tableId));
   }
+  // JEG-1647: the filter note says how the count works, and how many of the public charts are available this week.
+  function updateChartsNote() {
+    var el = $("min-charts-note"); if (!el) return;
+    var total = S.chartTotal, nominal = 4;   // the public charts the finder reads (finder.js CHART_KEYS)
+    el.textContent = "Keeps offers where at least this many public trade charts rate the trade even or better for them. A chart that is missing or on hold counts as not agreeing."
+      + (total !== null && total !== undefined && total < nominal ? " Only " + total + " of " + nominal + " public charts are available this week, so the highest count an offer can reach is " + total + "." : "");
+  }
   var footerTargets = 0;
   function render() {
     updateBasisText();
     updateChips();
     var v = visible();
-    var empty = S.running ? "Searching your league." : "No offers clear the bar. Add partners, allow more players each side, or lower the minimum bench.";
+    var empty = S.running ? "Searching your league." : "No offers clear the bar. Add partners, allow more players each side, or lower the minimum bench." + (minChartsValue() ? " The public charts filter is also on: set it to Any to see every offer." : "");
+    updateChartsNote();
     section("natural-count", v.list.filter(function (g) { return g.cls === "natural"; }), "natural-table", empty);
     section("neutral-count", v.list.filter(function (g) { return g.cls === "neutral" || g.cls === "unjudged"; }), "all-table", empty);
     section("force-count", v.list.filter(function (g) { return g.cls === "force"; }), "force-table", empty);
@@ -350,7 +362,7 @@
     } catch (e) { /* the link still carries the players */ }
   }
   function wire() {
-    ["your-valuation", "their-valuation", "partner", "fit", "sort"].forEach(function (id) { defaults[id] = $(id).value; });
+    ["your-valuation", "their-valuation", "partner", "fit", "sort", "min-charts"].forEach(function (id) { defaults[id] = $(id).value; });
     S.defaultSizes = [].slice.call(document.querySelectorAll(".size:checked")).map(function (x) { return x.value; }).join(",");
     var rerun = function () { run(false); };
     $("your-valuation").addEventListener("change", rerun);
@@ -362,7 +374,7 @@
         rerun();
       });
     });
-    ["fit", "sort"].forEach(function (id) { $(id).addEventListener("change", render); });
+    ["fit", "sort", "min-charts"].forEach(function (id) { $(id).addEventListener("change", render); });
     $("partner").addEventListener("change", function () { if (sizes().indexOf(4) >= 0) run(false); else render(); });
     $("minimum-gain").addEventListener("change", renderPickups);
     $("see-waivers").addEventListener("change", renderPickups);
