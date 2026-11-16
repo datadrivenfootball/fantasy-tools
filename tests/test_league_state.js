@@ -74,6 +74,18 @@ bad(x => { x.my_team_id = "constructor"; }, "my_team_id", "reference");
 bad(x => { x.my_team_id = 1; }, "my_team_id", "reference");
 bad(x => { x.schedule.value[0].games[0].home = "constructor"; }, "schedule.value", "value");
 bad(x => { x.schedule.value[0].games[0].home = 1; }, "schedule.value", "value");
+// JEG-1656 nit: "constructor" (and other Object.prototype names) is a legal team id, found only when it is a real team
+s = FX("sleeper");
+const oldId = s.teams[0].id; s.teams[0].id = "constructor"; s.my_team_id = "constructor";
+s.schedule.value.forEach(w => w.games.forEach(g => { if (g.home === oldId) g.home = "constructor"; if (g.away === oldId) g.away = "constructor"; }));
+assert.deepStrictEqual(LS.validate(s).errors, [], "a team id of constructor validates when it is a team");
+s.teams[0].id = "toString"; s.my_team_id = "toString"; s.schedule.value.forEach(w => w.games.forEach(g => { if (g.home === "constructor") g.home = "toString"; if (g.away === "constructor") g.away = "toString"; }));
+assert.deepStrictEqual(LS.validate(s).errors, [], "toString too");
+s = FX("sleeper"); s.teams[0].id = "constructor"; hasErr(s, "schedule.value", "value");   // schedule still names the old id: not a team
+// JEG-1656 nit: the schedule week message names the enforced 1-21 range
+s = FX("sleeper"); s.schedule.value[0].week = 22;
+assert.ok(LS.validate(s).errors.some(e => e.path === "schedule.value" && /1-21/.test(e.message) && !/22/.test(e.message)), "week message says 1-21");
+s = FX("sleeper"); s.schedule.value[0].week = 0; hasErr(s, "schedule.value", "value");
 // schedule: duplicate week, team plays itself, window
 bad(x => { x.schedule.value[1].week = 11; }, "schedule.value", "value");
 bad(x => { x.schedule.value[0].games[0] = {home: "1", away: "1"}; }, "schedule.value", "value");

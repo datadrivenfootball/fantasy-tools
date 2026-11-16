@@ -103,7 +103,7 @@
       var seen = Object.create(null);
       for (var i = 0; i < v.length; i++) {
         var w = v[i];
-        if (!isObj(w) || !isInt(w.week, 1, 21)) return "schedule[" + i + "].week must be 1-22";
+        if (!isObj(w) || !isInt(w.week, 1, 21)) return "schedule[" + i + "].week must be a whole number 1-21";
         if (seen[w.week]) return "duplicate schedule week " + w.week;
         seen[w.week] = true;
         if (typeof w.median_game !== "boolean") return "schedule[" + i + "].median_game must be true or false";

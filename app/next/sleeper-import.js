@@ -14,8 +14,17 @@
  *     settings: {scoring, teams, superflex, superflexSlots?, roster:{QB,RB,WR,TE,FLEX,BENCH,K,DST}} read from the league, or null
  *       (superflexSlots: 2 when the league has 2+ SUPER_FLEX spots; DDF.engine.apply reads it)
  *     code: 'invalid' | 'notfound' | 'oldseason' | 'empty' | 'network'
- *     opts: {fetch, rows, table, playersUrl} (fetch is injectable for tests)
+ *     opts: {fetch, rows, table, playersUrl, leagueState, now, myTeamId} (fetch is injectable for tests)
  * DDF.sleeper.MESSAGES[code](info)  -> the plain-words message for an error
+ *
+ * League state (JEG-1656, part of JEG-1653; contract docs/contract/league-state-v1.md): load(id, {leagueState: true})
+ * also returns leagueState, a league-state/1 document built from the same league, users and rosters responses plus one
+ * public matchups call per remaining regular-season week (GET league/{id}/matchups/{week}). Without the option load is
+ * unchanged (4 calls, no leagueState). A failed or empty matchups call makes the schedule null with a reason; it never
+ * fails the import.
+ * DDF.sleeper.buildLeagueState(lg, users, rosters, matchups, opts) -> league-state/1 object (pure; matchups = {week: rows|null})
+ *     opts: {now (ISO, default now), myTeamId}
+ * DDF.sleeper.remainingWeeks(lg, rosters) -> [week...] the matchups weeks load() fetches (empty when the window is unknown)
  */
 (function (root) {
   "use strict";
@@ -73,6 +82,159 @@
     return out;
   }
 
+  /* ---------- league state (JEG-1656) ---------- */
+  function lsKnown(value, source, asOf) { return {value: value, source: source, as_of: asOf, reason: null}; }
+  function lsMissing(reason) { return {value: null, source: null, as_of: null, reason: reason}; }
+  function isWhole(x, lo, hi) { return typeof x === "number" && isFinite(x) && Math.floor(x) === x && x >= lo && x <= hi; }
+
+  /* Sleeper trade_deadline: a week, or 99 for no deadline (verified on 2025 leagues: trades complete after week 14 only
+     where it is 99). 0 and other values are not understood, so they are missing rather than guessed. */
+  function tradeDeadline(set) {
+    var d = set.trade_deadline;
+    if (d === 99) return {value: "none", src: "sleeper:league.settings.trade_deadline (99 = no deadline)"};
+    if (isWhole(d, 1, 22)) return {value: d, src: "sleeper:league.settings.trade_deadline"};
+    return {value: null, reason: d === undefined || d === null ? "Sleeper did not return a trade deadline" : "Sleeper trade_deadline " + JSON.stringify(d) + " is not a week or 99, so it is not read"};
+  }
+
+  /* Byes from playoff_teams: the bracket fills to the next power of two. Verified against 2025 winners brackets
+     (4 teams: 0 byes, 5: 3, 6: 2, 7: 1, 8: 0); other sizes are not verified, so they are missing. */
+  function byesFor(n) {
+    if (!isWhole(n, 4, 8)) return null;
+    var size = 1; while (size < n) size *= 2;
+    return size - n;
+  }
+
+  function remainingWindow(lg, rosters) {
+    var set = (lg && lg.settings) || {};
+    var start = set.playoff_week_start, through = null;
+    if (isWhole(set.last_scored_leg, 0, 21)) through = {value: set.last_scored_leg, src: "sleeper:league.settings.last_scored_leg"};
+    else if (lg && (lg.status === "pre_draft" || lg.status === "drafting") && Array.isArray(rosters) && rosters.length
+      && rosters.every(function (r) { var s = r && r.settings; return s && s.wins === 0 && s.losses === 0 && s.ties === 0; })) {
+      through = {value: 0, src: "derived:sleeper:league.status+rosters (preseason, every record 0-0-0)"};
+    }
+    var last = isWhole(start, 2, 22) ? start - 1 : null;
+    if (through && last !== null && through.value > last) through = {value: last, src: through.src + ", capped at last_regular_week"};
+    return {through: through, last: last};
+  }
+
+  function remainingWeeks(lg, rosters) {
+    var w = remainingWindow(lg, rosters), out = [];
+    if (!w.through || w.last === null) return out;
+    for (var k = w.through.value + 1; k <= w.last; k++) out.push(k);
+    return out;
+  }
+
+  /* rows for one week -> [{home, away}] pairing roster ids by matchup_id, or a string saying why not */
+  function pairWeek(rows, ids) {
+    if (!Array.isArray(rows)) return "Sleeper returned no matchups";
+    if (!rows.length) return "Sleeper has not generated matchups for it yet";
+    var by = Object.create(null), order = [];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i], id = r && String(r.roster_id);
+      if (!r || ids[id] !== true) return "a matchup row has an unknown roster";
+      if (r.matchup_id === null || r.matchup_id === undefined) return "a team has no matchup_id";
+      if (!by[r.matchup_id]) { by[r.matchup_id] = []; order.push(r.matchup_id); }
+      by[r.matchup_id].push(id);
+    }
+    var games = [];
+    for (var j = 0; j < order.length; j++) {
+      var g = by[order[j]];
+      if (g.length !== 2) return "matchup " + order[j] + " does not pair two teams";
+      games.push({home: g[0], away: g[1]});
+    }
+    return games;
+  }
+
+  function buildLeagueState(lg, users, rosters, matchups, opts) {
+    opts = opts || {};
+    var asOf = opts.now || new Date().toISOString();
+    var set = (lg && lg.settings) || {};
+    var meta = (lg && lg.metadata) || {};
+    var sorted = (Array.isArray(rosters) ? rosters : []).slice().sort(function (a, b) { return (a.roster_id || 0) - (b.roster_id || 0); });
+    var names = asBlocks(users, sorted, {});
+    var ids = Object.create(null);
+    var nDiv = isWhole(set.divisions, 1, 99) ? set.divisions : 0;
+    var teams = sorted.map(function (r, i) {
+      var id = String(r.roster_id), s = r.settings || {};
+      ids[id] = true;
+      var rec = isWhole(s.wins, 0, 99) && isWhole(s.losses, 0, 99) && isWhole(s.ties, 0, 99)
+        ? lsKnown({w: s.wins, l: s.losses, t: s.ties}, "sleeper:rosters.settings.wins+losses+ties", asOf)
+        : lsMissing("Sleeper roster has no wins, losses and ties");
+      var pf = typeof s.fpts === "number" && s.fpts >= 0
+        ? lsKnown(Math.round((s.fpts + (typeof s.fpts_decimal === "number" ? s.fpts_decimal / 100 : 0)) * 100) / 100, "sleeper:rosters.settings.fpts+fpts_decimal", asOf)
+        : lsMissing("Sleeper roster has no fpts");
+      var pa = typeof s.fpts_against === "number" && s.fpts_against >= 0
+        ? lsKnown(Math.round((s.fpts_against + (typeof s.fpts_against_decimal === "number" ? s.fpts_against_decimal / 100 : 0)) * 100) / 100, "sleeper:rosters.settings.fpts_against+fpts_against_decimal", asOf)
+        : lsMissing("Sleeper roster has no fpts_against (not returned before games are scored)");
+      var div = !nDiv ? lsMissing("the league has no divisions")
+        : isWhole(s.division, 1, nDiv)
+          ? lsKnown(isText(meta["division_" + s.division]) ? String(meta["division_" + s.division]).trim() : "Division " + s.division, "sleeper:rosters.settings.division+league.metadata.division_N", asOf)
+          : lsMissing("Sleeper roster has no division");
+      return {id: id, name: names[i].name, record: rec, points_for: pf, points_against: pa, division: div};
+    });
+
+    var win = remainingWindow(lg, sorted);
+    var through = win.through ? lsKnown(win.through.value, win.through.src, asOf)
+      : lsMissing("Sleeper did not return last_scored_leg and the league is not in preseason");
+
+    var schedule;
+    var median = set.league_average_match === 1;
+    if (!win.through || win.last === null) schedule = lsMissing("the remaining-week window is unknown (needs last_scored_leg and playoff_week_start)");
+    else {
+      var weeks = [], bad = null;
+      for (var wk = win.through.value + 1; wk <= win.last && !bad; wk++) {
+        var got = pairWeek(matchups ? matchups[wk] : undefined, ids);
+        if (typeof got === "string") bad = "week " + wk + ": " + got;
+        else weeks.push({week: wk, median_game: median, games: got});
+      }
+      schedule = bad ? lsMissing("Sleeper matchups unavailable, " + bad) : lsKnown(weeks, "sleeper:league/matchups/{week}", asOf);
+    }
+
+    var spots = isWhole(set.playoff_teams, 1, teams.length || 99) ? set.playoff_teams : null;
+    var byes = spots === null ? null : byesFor(spots);
+    var rules = {
+      spots: spots !== null ? lsKnown(spots, "sleeper:league.settings.playoff_teams", asOf) : lsMissing("Sleeper did not return a usable playoff_teams"),
+      start_week: isWhole(set.playoff_week_start, 2, 22) ? lsKnown(set.playoff_week_start, "sleeper:league.settings.playoff_week_start", asOf) : lsMissing("Sleeper did not return a usable playoff_week_start"),
+      last_regular_week: win.last !== null ? lsKnown(win.last, "derived:sleeper:league.settings.playoff_week_start-1", asOf) : lsMissing("playoff_week_start is unknown"),
+      byes: byes !== null ? lsKnown(byes, "derived:sleeper:league.settings.playoff_teams (bracket fills to a power of two)", asOf)
+        : lsMissing(spots === null ? "playoff_teams is unknown" : "byes for a " + spots + "-team bracket are not verified"),
+      /* playoff_seed_type (0 or 1) does not change who is seeded first: on 2025 brackets division winners were seeded first
+         under both values whenever the league has divisions, and record decided it without divisions. */
+      seeding_rule: lsKnown(nDiv > 0 ? "division_winners_first" : "record", "derived:sleeper:league.settings.divisions (absent or 0 = no divisions; playoff_seed_type does not change seeding)", asOf),
+      tiebreak: lsMissing("Sleeper exposes no verified tiebreak setting (playoff_seed_type has no verified meaning)")
+    };
+    var td = tradeDeadline(set);
+
+    var mine = opts.myTeamId !== undefined && opts.myTeamId !== null && ids[String(opts.myTeamId)] === true ? String(opts.myTeamId) : null;
+    var state = {
+      version: "league-state/1",
+      league: {id: String((lg && lg.league_id) || opts.leagueId || ""), provider: "sleeper", capture: "import", season: Number(lg && lg.season)},
+      captured_at: asOf,
+      my_team_id: mine,
+      teams: teams,
+      record_through_week: through,
+      schedule: schedule,
+      playoff_rules: rules,
+      trade_deadline_week: td.value !== null ? lsKnown(td.value, td.src, asOf) : lsMissing(td.reason)
+    };
+    if (mine === null) state.my_team_missing_reason = "a Sleeper league link does not say which team is yours";
+    return state;
+  }
+
+  function isText(x) { return typeof x === "string" && x.trim().length > 0; }
+
+  /* the first remaining week alone first: Sleeper has not generated matchups before the draft, so an empty first week
+     ends the fetching (the schedule is null with that reason); otherwise the rest go out together */
+  function fetchMatchups(f, base, weeks) {
+    var out = {};
+    function one(w) { return getJSON(f, base + "/matchups/" + w).then(function (rows) { out[w] = rows; }, function () { out[w] = null; }); }
+    if (!weeks.length) return Promise.resolve(out);
+    return one(weeks[0]).then(function () {
+      if (!Array.isArray(out[weeks[0]]) || !out[weeks[0]].length) return out;
+      return Promise.all(weeks.slice(1).map(one)).then(function () { return out; });
+    });
+  }
+
   /* one block per team: the lines a rosters page shows for it ("Josh Allen QB BUF"), read as a paste reads them */
   function asBlocks(users, rosters, map) {
     var byUser = {};
@@ -117,13 +279,18 @@
           });
           res.league = {leagueName: lg.name ? String(lg.name).slice(0, 60) : null, leagueId: String(id), platform: "sleeper", confidence: 1};
           if (!res.ok) return {ok: false, code: "empty"};
-          return {ok: true, result: res, settings: settingsOf(lg)};
+          var out = {ok: true, result: res, settings: settingsOf(lg)};
+          if (!opts.leagueState) return out;
+          return fetchMatchups(f, base, remainingWeeks(lg, rosters)).then(function (m) {
+            out.leagueState = buildLeagueState(lg, users, rosters, m, {now: opts.now, myTeamId: opts.myTeamId, leagueId: String(id)});
+            return out;
+          });
         });
       }, function () { return {ok: false, code: "network"}; })
       .catch(function () { return {ok: false, code: "network"}; });
   }
 
-  var api = {parseId: parseId, load: load, settingsOf: settingsOf, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
+  var api = {parseId: parseId, load: load, settingsOf: settingsOf, buildLeagueState: buildLeagueState, remainingWeeks: remainingWeeks, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
   root.DDF = root.DDF || {};
   root.DDF.sleeper = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
