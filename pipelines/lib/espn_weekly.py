@@ -130,6 +130,9 @@ def weekly_rows(payloads_by_pos: dict, source: int, team_map: dict,
                     "espn_id": str(pid), "name": name, "pos": pos,
                     "team": TEAM_ALIASES.get(team, team), "week": wk,
                     "season": season, "stats": map_stats(raw),
+                    # ESPN's own total under the leaguedefaults/3 scoring (JEG-1641
+                    # stores it as source_points); None when ESPN gives none
+                    "applied_total": _num(s["appliedTotal"]) if s.get("appliedTotal") is not None else None,
                 })
     rows.sort(key=lambda r: (r["week"], r["pos"], r["espn_id"]))
     return rows, notes

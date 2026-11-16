@@ -42,6 +42,10 @@ Naming rules are in `docs/supabase-naming-conventions.md`; how scraped reference
 | `razzball_projections` | `pull_razzball_ros.py`, `save_razzball_references.py` | `bake_players.py`, `build_week_history.py`, `check_source_vintage.py`, `import_supabase_references.py`, `razzball.py`, `rebuild_comparison_chain.py` (+1 more) |
 | `signals` | `load_weekly_dashboard.py` | `build_staged_bundle_espn.py`, `fidelity_pulse.py`, `source_probe.py`, `sync_dashboard_artifacts.py` |
 | `source_config` | none found | `build_consolidated_values.py`, `build_reweighted_values.py`, `review_batch70_views.py` |
+| `source_projection_runs` | `save_espn_weekly.py`, `save_projection_warehouse.py` (JEG-1641, append-only run log) | `check_projection_warehouse.py` |
+| `source_weekly_projections` | `save_espn_weekly.py`, `save_projection_warehouse.py` (JEG-1641, append-only, daily) | none (storage only; `docs/weekly-projection-warehouse.md`) |
+| `nflverse_schedule_snapshots` | `save_projection_warehouse.py` (JEG-1641) | none |
+| `nflverse_injury_snapshots` | `save_projection_warehouse.py` (JEG-1641) | none |
 | `source_probe_log` | `source_probe.py` | none found |
 | `source_probe_state` | `source_probe.py` | `fidelity_pulse.py` |
 | `source_trade_values` | `save_fantasycalc_references.py`, `save_fantasypros_references.py`, `save_usatoday_references.py` | `build_comparison_source_section.py`, `build_pipeline_checkpoints.py`, `build_week_history.py`, `check_source_vintage.py`, `fidelity_pulse.py`, `import_supabase_references.py` (+6 more) |
