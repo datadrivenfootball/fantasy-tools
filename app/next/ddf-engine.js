@@ -422,13 +422,16 @@
   function buildHref(o) {
     o = o || {};
     var give = o.give || [], get = o.get || [];
+    var partner = typeof o.partner === "string" && o.partner.trim() ? o.partner.trim() : "";   // JEG-1645: the team the offer is with
     if (BUILD_PAGE.indexOf("#") >= 0) {
       var q = [];
       if (give.length) q.push("give=" + give.map(function (p) { return p.key; }).join(","));
       if (get.length) q.push("get=" + get.map(function (p) { return p.key; }).join(","));
+      if (partner) q.push("partner=" + encodeURIComponent(partner));
       return BUILD_PAGE + (q.length ? "?" + q.join("&") : "");
     }
     var params = new URLSearchParams();
+    if (partner) params.append("partner", partner);
     give.forEach(function (p) { params.append("give", p.n); });
     get.forEach(function (p) { params.append("get", p.n); });
     var text = params.toString();

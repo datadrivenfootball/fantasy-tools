@@ -310,7 +310,7 @@
     S = {mode: 'any', kind: P.waivers || (st && st.view === 'waivers') ? 'waivers' : 'trade', any: {give: [], get: []}, lg: {give: new Set(), get: new Set()},
       partner: L.partners.length ? L.partners[0] : -1, extras: {give: [], get: {}}, style: S.style || '', userStyle: Boolean(S.userStyle), chart: S.chart || '', chartUser: S.chartUser || '', dirty: false,
       wv: {drop: P.drop ? resolve(P.drop) : null, add: P.add ? resolve(P.add) : null, min: wv.min, pos: wv.pos, countKey: ''}, claimDirty: false};
-    let note = '';
+    let note = '', partnerNote = '';
     const trade = st && st.trade && (present(st.trade.give) || present(st.trade.get)) ? st.trade : null;
     if (trade) {
       const g = (trade.give || []).map(linkEntryKey).filter(Boolean), r = (trade.get || []).map(linkEntryKey).filter(Boolean);
@@ -322,6 +322,11 @@
       let idx = L.teams.findIndex(t => t.name === P.partner);
       if (idx < 0 && /^\d+$/.test(P.partner) && L.teams[+P.partner]) idx = +P.partner;
       if (idx >= 0 && idx !== L.me) { if (!L.partners.includes(idx)) L.partners.push(idx); S.partner = idx; }
+      else if (P.give.length || P.get.length) {
+        // JEG-1645: the offer is with a team this league does not have (or with you). Say so; never pass off another team's roster as theirs.
+        partnerNote = L.partners.length ? `The offer is with ${P.partner}, who is not a trading partner in this league. ${L.teams[S.partner] ? L.teams[S.partner].name : 'Another team'} is selected instead, so pick the right team before you trust the players you get.`
+          : `The offer is with ${P.partner}, but no league with that team is loaded, so its roster is not available.`;
+      }
     }
     const missing = [];
     const keysOf = list => [...new Set(list.map(t => { const k = resolve(t); if (!k) missing.push(t); return k; }).filter(Boolean))];
@@ -333,6 +338,7 @@
     }
     const unknown = S.any.give.concat(S.any.get).filter(k => rec(k).unknown).map(nm).concat(missing.map(t => 'player ' + t));
     if (unknown.length) note += ` ${joinNames(unknown)} ${unknown.length === 1 ? 'has' : 'have'} no value this week, so ${unknown.length === 1 ? 'that player is' : 'they are'} left out of the numbers.`;
+    if (partnerNote) note = (note ? note + ' ' : '') + partnerNote;
     if (linkNote) note = (note ? note + ' ' : '') + linkNote;
     for (const k of S.lg.give) addExtra('give', k);
     if (S.partner >= 0) for (const k of S.lg.get) addExtra('get', k);
