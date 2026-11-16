@@ -34,6 +34,15 @@ Older briefs cite `AGENTS.md:<line>` for these sections; the content is here now
   `fantasycalc-drift.yml` is a manual-only drift check now.
   `refresh_fantasycalc_supabase.py` (wrote raw natives into `value`, hardcoded
   Week 4, no bake_id) was deleted; see docs/watchdog.md "Producer schedules".
+- Shared player set (2026-11-16, JEG-1630): all six FantasyCalc lists
+  (3 scorings x 1/2 QB) carry the same ~196 player ids, chosen by the 1-QB
+  value. A QB at the 1-QB bottom flickers in and out of every list at once,
+  so in the 2-QB lists he appears or vanishes far above that list's churn
+  line (Kyler Murray: 1-QB 18 to 40, 2-QB 145 to 352). `fc_list_churn`
+  judges such a 2-QB entry on the 1-QB list; before that, one QB held
+  FantasyCalc red (hidden from DDF Value) on 2026-11-15 03:40Z and
+  2026-11-16 00:40Z. Bakes currently land about every 7 hours (00:05, 07:05,
+  14:05, 21:05 UTC).
 
 ## As-published indexing: proportional scaling (2026-09-30)
 - User directive: "there is no need for rounding like this, so figure out a logic that applies to all the ones sourced from trade value charts." The per-position quantile mapping was destroying real value differences (Jeanty 6365 vs Cook 7157 → both 41.4) and scrambling cross-position rank.
