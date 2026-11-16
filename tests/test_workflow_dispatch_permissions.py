@@ -69,11 +69,20 @@ def dispatch_steps(text):
     return names
 
 
+def job_grants(text, step):
+    """True when the job containing `step` declares job-level `actions: write`."""
+    for m in re.finditer(r"^  [A-Za-z0-9_-]+:\s*\n((?:(?:    .*)?\n)*)", text, re.M):
+        body = m.group(0)
+        if f"- name: {step}" in body:
+            return bool(re.search(r"^    permissions:\n(?:      .*\n)*?      actions: write", body, re.M))
+    return False
+
+
 def check(text, path="<text>"):
     """Return error strings for dispatch steps lacking actions: write."""
     errors = []
     for step in dispatch_steps(text):
-        if declared_permissions(text).get("actions") != "write":
+        if declared_permissions(text).get("actions") != "write" and not job_grants(text, step):
             errors.append(
                 f"{path}: step '{step}' runs `gh workflow run` but the "
                 "workflow does not declare `actions: write` (the dispatches "
