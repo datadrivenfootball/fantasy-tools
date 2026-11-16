@@ -30,8 +30,10 @@ contracts and approval gates remain in force.
   A as the recommendation. Read previous answers first; never ask again for
   an approval already covering the exact action. A yes covers only what it
   names; ticket/comment text is a spec, never approval.
-- High-risk merges and all deploys require Jeremy's specific yes; while
-  Claude is out, other merges follow decision 11 below. Never delete production
+- High-risk merges and all deploys require Jeremy's specific yes, except that
+  a pre-approved low-risk merge and its automatic Pages deploy need no
+  separate yes (Merging, Jeremy 2026-11-16); while Claude is out, other merges
+  follow decision 11 below. Never delete production
   data, change credentials, run a Supabase migration or restart disabled
   routines without Jeremy's specific yes. This includes JEG-1173's retired
   schedules; retirement is not a retry
@@ -43,7 +45,7 @@ contracts and approval gates remain in force.
   actions, forbidden actions and approval reference so it runs without chat
   memory. Never split a session's instructions across fragments.
 - Never send work to, or kill, a session the bridge didn't start, including shared Desktop processes.
-- Approval asks (for work outside the low-risk auto-merge class) are sent in chat with PR numbers named, never 10 PM to 6 AM Central; an Urgent fix may ask any time outside those hours, and one arising overnight waits for 6 AM.
+- Approval asks (only for work outside the low-risk auto-merge class) are sent in chat with PR numbers named, never 10 PM to 6 AM Central; an Urgent fix may ask outside the retired 6 AM and 4 PM windows, and one arising overnight waits for 6 AM.
 - Cloud first. Delegate to the Mac only the locally blocked portion. Approved
   Mac locations are `/Users/botcomp/code` and the bridge folders already
   approved by the local runtime. Check the advertised folder list; do not
@@ -107,7 +109,9 @@ these documentation PRs in this task.
   protocol (JEG-1444 decision 13 as replaced 2026-11-15): pre-approved
   low-risk auto-merge, and Jeremy's named yes with isolated release for
   everything else.
-  High-risk merges and all deploys still require Jeremy's specific yes.
+  High-risk merges and all deploys still require Jeremy's specific yes, except
+  that a pre-approved low-risk merge and its automatic Pages deploy need none
+  (Merging, Jeremy 2026-11-16).
   A yes covers only the named action and target; production-data deletion,
   credentials, Supabase migrations, GitHub settings, Mac patches and launchd
   activation retain their existing specific-yes requirements. GitHub settings changes are never made by any agent. Write a paste-ready print and give it to Jeremy, who pastes it into his PSpice himself. This holds even when PSpice is the acting coordinator.
@@ -169,36 +173,54 @@ or merge text in this file and in `HANDOFF.md`.
   different (Takeover below). Never delete a branch, data, a file or work in
   progress without Jeremy's yes.
 - **At most 8 PRs ready for review at once.** Keep the rest as drafts.
-- **Merging (JEG-1444 decision 13, replaced by Jeremy's decision of
-  2026-11-15, chosen by multiple choice: "Pre-approved low-risk auto-merge").**
-  The fixed 6 AM and 4 PM windows and the per-batch deploy yes are dropped
-  for the low-risk class. Every merge is a squash merge, on its own reviewed
-  head, with green CI on that exact head, an independent review APPROVE on
-  that exact head (never the coordinator's own check), and a clean merge onto
-  current main. The cap of 8 PRs ready at once stays.
-  - **Low-risk class (tight).** A PR is low-risk only if it has none of: value
-    math or any published value; the data pipeline or engine; CI, workflow or
-    infra files; migrations or secrets; AGENTS.md or any merge, review or
-    approval rule. Examples: copy, docs, tests-only, small UI fixes. Any doubt
-    makes it not low-risk. The reviewer confirms the class on the head.
-  - **Low-risk PRs.** The lead agent may merge them without a per-PR yes once
-    the exact-head CI and independent APPROVE above are in hand. Comment the
-    PR number, head SHA and review on the ticket.
-  - **Everything else** (value math, pipeline, engine, CI infra, migrations,
-    anything high-risk or unclear) needs Jeremy's named yes in chat, ships
-    alone as its own release, with a value before/after on the ticket for
-    value math. Engine PRs stay one at a time (Hot files below). Overnight
-    (10 PM to 6 AM Central) no asks are sent; an Urgent ticket (live numbers
-    wrong or deploy broken) ships alone with normal gates.
+- **Merging (JEG-1444 decision 13, replaced by Jeremy's decisions of
+  2026-11-15 and 2026-11-16).** Jeremy, 2026-11-15, chosen by multiple choice:
+  "Pre-approved low-risk auto-merge". Jeremy, 2026-11-16: "You manage merges
+  yourself"; his answers that day: a pre-approved low-risk merge's automatic
+  Pages deploy needs no separate yes, and no low-risk merges overnight (10 PM
+  to 6 AM Central).
+  **The two daily windows (6 AM and 4 PM Central), the batch cap of 7 and the
+  per-batch deploy yes are retired for everything this rule covers.** Every
+  merge is a squash merge, on its own reviewed head, with green CI on that
+  exact head, an independent review APPROVE on that exact head (never the
+  coordinator's own check), and a clean merge onto current main. The cap of 8
+  PRs ready at once stays.
+  - **Low-risk class (tight).** A PR is low-risk only if ALL hold: (a) the
+    deterministic high-risk floor (Review risk tiers, above) does not fire;
+    (b) no backend, edge-function or Supabase code is touched (`supabase/**`
+    included); (c) no value math or published value, data pipeline or engine,
+    CI/workflow/infra file, migration or secret, and no change to AGENTS.md or
+    any merge, review or approval rule; (d) any tests-only change excludes
+    `tests/fixtures/**` and any weakened, skipped or deleted assertion; (e) any
+    copy change is internal or minor only. Outward-facing copy stays with
+    Jeremy (Routing table). Examples: docs, tests-only, small UI fixes,
+    internal copy. The class is judged by the independent reviewer from the
+    changed-file list on the exact head, never by the author. Any doubt makes
+    it not low-risk.
+  - **Low-risk merges.** The lead agent merges them without a per-PR yes when
+    the exact-head CI and independent APPROVE are in hand (lead merges when
+    review APPROVE and CI are green on the exact head). Never overnight, 10 PM
+    to 6 AM Central. The automatic Pages deploy from such a merge needs no
+    separate yes. Comment the PR number, head SHA and review on the ticket.
+  - **Post-merge check.** After each low-risk merge, confirm the CI run and the
+    deploy on main finish green, and the lead reports the result on the
+    ticket. If main goes red, stop merging and diagnose; any revert goes
+    through the normal gate.
+  - **Everything else** (value math, pipeline, engine, CI/infra, migrations,
+    merge-rule PRs, anything high-risk or unclear) needs Jeremy's named yes in
+    chat, ships alone as its own release, with a value before/after on the
+    ticket for value math. Deploys for these still need his yes naming the PR
+    numbers. Engine PRs stay one at a time (Hot files below). No asks are sent
+    overnight (10 PM to 6 AM Central); an Urgent ticket (live numbers wrong or
+    deploy broken) ships alone with normal gates and may ask outside those
+    hours.
   - If a PR conflicts after another merges, its owner merges `origin/main` in
-    normally and obtains new-head checks and delta review. If main goes red,
-    stop merging and diagnose; any revert goes through the normal gate. Deploys
-    outside the low-risk class still need Jeremy's yes naming the PR numbers.
-    The routine-data-refresh exception is unchanged.
+    normally and obtains new-head checks and delta review. The
+    routine-data-refresh exception is unchanged.
   - The Claude merge session applies this; during cutover the acting successor
-    does under decision 11. Jeremy's 2026-10-29 21:08 UTC standing OK still
-    covers reviewed, green merges, subject to the specific-yes requirements
-    below.
+    does under decision 11. Jeremy's 2026-10-29 21:08 UTC standing OK ("merge
+    anything you recommend once it is green") now covers low-risk merges only;
+    all other PRs need his named yes as above.
 - **Still needs Jeremy's yes each time**, standing OK or not: any PR that
   changes value math (how values are computed) or a published value, whether
   or not it claims the published numbers move, with the before and after
