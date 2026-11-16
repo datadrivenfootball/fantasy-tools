@@ -161,6 +161,18 @@
     } catch (e) { /* the parts the engine reports are kept */ }
     return snap;
   }
+  // JEG-1646: the site's standard roster (the engine's own defaults, read once before any saved or linked settings apply)
+  // and whether the roster now in use is exactly that. The settings and team pages say so in plain words.
+  function defaultRoster() { return defaults ? JSON.parse(defaults).roster : null; }
+  function isStandardRoster() {
+    var base = defaultRoster(), cur = settings().roster;
+    return !!base && Object.keys(base).every(function (k) { return cur[k] === base[k]; });
+  }
+  function rosterText(r) {
+    var parts = [["QB", "QB"], ["RB", "RB"], ["WR", "WR"], ["TE", "TE"], ["FLEX", "FLEX"], ["SUPERFLEX", "SUPERFLEX"], ["K", "K"], ["DST", "DEF"]]
+      .filter(function (x) { return r[x[0]] > 0; }).map(function (x) { return r[x[0]] + " " + x[1]; });
+    return parts.concat([r.BENCH + " bench"]).join(", ");
+  }
   function saveSettings() {
     var text = JSON.stringify(snapshot());
     try {
@@ -488,7 +500,7 @@
     controls: function () { return C; },
     players: function () { return build().list; },
     player: function (key) { return build().byKey.get(String(key)) || null; },
-    settings: settings, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
+    settings: settings, defaultRoster: defaultRoster, rosterText: rosterText, isStandardRoster: isStandardRoster, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
     on: function (fn) { listeners.push(fn); return function () { listeners = listeners.filter(function (f) { return f !== fn; }); }; },
     overrides: overrides,
     basis: function () { return JSON.parse(JSON.stringify(state.basis)); },
