@@ -1,0 +1,254 @@
+{
+ "version": "league-state/1",
+ "league": {
+  "id": "1000000000000000001",
+  "platform": "sleeper",
+  "season": 2026
+ },
+ "captured_at": "2026-11-16T12:00:00Z",
+ "my_team_id": "1",
+ "my_team_missing_reason": null,
+ "teams": [
+  {
+   "id": "1",
+   "name": "Alpha",
+   "record": {
+    "value": {
+     "w": 7,
+     "l": 3,
+     "t": 0
+    },
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_for": {
+    "value": 1402.54,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_against": {
+    "value": 1288.1,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "division": {
+    "value": "East",
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   }
+  },
+  {
+   "id": "2",
+   "name": "Bravo",
+   "record": {
+    "value": {
+     "w": 6,
+     "l": 4,
+     "t": 0
+    },
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_for": {
+    "value": 1350.2,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_against": {
+    "value": 1301.7,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "division": {
+    "value": "East",
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   }
+  },
+  {
+   "id": "3",
+   "name": "Charlie",
+   "record": {
+    "value": {
+     "w": 4,
+     "l": 5,
+     "t": 1
+    },
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_for": {
+    "value": 1220.9,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_against": {
+    "value": 1330.4,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "division": {
+    "value": "West",
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   }
+  },
+  {
+   "id": "4",
+   "name": "Delta",
+   "record": {
+    "value": {
+     "w": 3,
+     "l": 7,
+     "t": 0
+    },
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_for": {
+    "value": 1190.0,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "points_against": {
+    "value": 1380.6,
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   },
+   "division": {
+    "value": "West",
+    "source": "sleeper:rosters",
+    "as_of": "2026-11-16T12:00:00Z",
+    "reason": null
+   }
+  }
+ ],
+ "schedule": {
+  "value": [
+   {
+    "week": 11,
+    "median_game": false,
+    "games": [
+     {
+      "home": "1",
+      "away": "3"
+     },
+     {
+      "home": "2",
+      "away": "4"
+     }
+    ]
+   },
+   {
+    "week": 12,
+    "median_game": false,
+    "games": [
+     {
+      "home": "1",
+      "away": "4"
+     },
+     {
+      "home": "2",
+      "away": "3"
+     }
+    ]
+   },
+   {
+    "week": 13,
+    "median_game": false,
+    "games": [
+     {
+      "home": "1",
+      "away": "2"
+     },
+     {
+      "home": "3",
+      "away": "4"
+     }
+    ]
+   },
+   {
+    "week": 14,
+    "median_game": false,
+    "games": [
+     {
+      "home": "4",
+      "away": "1"
+     },
+     {
+      "home": "3",
+      "away": "2"
+     }
+    ]
+   }
+  ],
+  "source": "sleeper:league/{id}/matchups/{week}",
+  "as_of": "2026-11-16T12:00:00Z",
+  "reason": null
+ },
+ "playoff_rules": {
+  "spots": {
+   "value": 3,
+   "source": "sleeper:league.settings.playoff_teams",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "start_week": {
+   "value": 15,
+   "source": "sleeper:league.settings.playoff_week_start",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "last_regular_week": {
+   "value": 14,
+   "source": "derived:start_week-1",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "byes": {
+   "value": 1,
+   "source": "sleeper:league.settings.playoff_teams",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "seeding_rule": {
+   "value": "record",
+   "source": "sleeper:league.settings.playoff_seed_type",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "tiebreak": {
+   "value": "points_for",
+   "source": "sleeper:documented-default",
+   "as_of": "2026-11-16T12:00:00Z",
+   "reason": null
+  },
+  "division_winners_seeded": {
+   "value": null,
+   "source": null,
+   "as_of": null,
+   "reason": "Sleeper does not expose a division-winner seeding flag"
+  }
+ },
+ "trade_deadline_week": {
+  "value": 12,
+  "source": "sleeper:league.settings.trade_deadline",
+  "as_of": "2026-11-16T12:00:00Z",
+  "reason": null
+ }
+}
