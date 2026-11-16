@@ -34,7 +34,7 @@ Status: contract only. Nothing reads or writes it yet; no value math. Planned ho
 | `teams[].points_for`, `points_against` | cell number | >= 0 |
 | `teams[].division` | cell string | |
 | `record_through_week` | cell int 0-21 | Last week whose result is in the records; 0 = none played. Cannot exceed `last_regular_week` |
-| `schedule` | cell of weeks | Remaining games: `[{week 1-22, median_game bool, games:[{home, away}]}]`; team ids must exist, no team twice in a week, unique weeks, each week after `record_through_week` and no later than `last_regular_week` (when known). `median_game` marks the extra vs-league-median result |
+| `schedule` | cell of weeks | Remaining games: `[{week 1-21, median_game bool, games:[{home, away}]}]`; team ids must exist, no team twice in a week, unique weeks, each week after `record_through_week` and no later than `last_regular_week` (when known). `median_game` marks the extra vs-league-median result |
 | `playoff_rules.spots` | cell int | 1 to team count |
 | `playoff_rules.start_week` | cell int | 2-22 |
 | `playoff_rules.last_regular_week` | cell int | Must equal `start_week - 1` when both known |
@@ -45,11 +45,23 @@ Status: contract only. Nothing reads or writes it yet; no value math. Planned ho
 
 Home and away carry no meaning for fantasy matchups; the pair is just the two teams.
 
-## Sleeper mapping (reported, not re-fetched; verify when the importer is wired)
+## Sleeper mapping (verified 2026-11-16, JEG-1656)
 
-`rosters[].settings.wins/losses/ties`, `fpts` + `fpts_decimal`, `fpts_against`, `division`; `league/{id}/matchups/{week}`
-(`matchup_id` pairs); `settings.league_average_match` (median game), `playoff_teams`, `playoff_week_start`,
-`playoff_seed_type` (mapping to `seeding_rule` unverified), `trade_deadline` (99 = none; unverified). Points against also read `fpts_against_decimal`. Byes are derived from `playoff_teams` (unverified); Sleeper has no verified tiebreak setting, so it is null with a reason. ESPN and Yahoo have no unauthenticated source: manual entry or null with reason.
+Importer: `DDF.sleeper.load(id, {leagueState: true})` returns `leagueState` (pure builder `DDF.sleeper.buildLeagueState`).
+Without the option the import is unchanged. Tests: `node tests/test_sleeper_league_state.js`; fixtures
+`tests/fixtures/sleeper-live/` are recorded from live public leagues with fake league ids, no names, avatars or clone links, trimmed players and matchups.
+
+Verified on live 2026 leagues and 2025 completed brackets (about 80 divisional and 1000 other leagues crawled from public user lists):
+
+- Rosters: `settings.wins/losses/ties`, `fpts` + `fpts_decimal`, `fpts_against` + `fpts_against_decimal`, `division` (1-based, count in `league.settings.divisions`, names in `league.metadata.division_N`). Before the draft `fpts_against` is absent: points against is null with a reason, while 0-0-0 and `fpts` 0 are kept as real values.
+- `record_through_week` = `league.settings.last_scored_leg` (6-3-0 teams have `last_scored_leg` 9). Absent before the draft; a pre-draft league with every record 0-0-0 gives 0 (derived). Capped at `last_regular_week` once the regular season is over.
+- `playoff_week_start` is `start_week`; `last_regular_week` = start - 1. `playoff_teams` is `spots`.
+- Byes derive from `playoff_teams` (bracket fills to a power of two): 4 teams 0, 5 teams 3, 6 teams 2, 7 teams 1, 8 teams 0, matching 2025 winners brackets. Other sizes are null with a reason.
+- `trade_deadline` 99 means no deadline: 2025 leagues with 99 completed trades after week 14, leagues with a deadline of 13 or 14 did not. Maps to `"none"`. 0 and other non-week values are null with a reason.
+- `league_average_match` 1 marks the median game.
+- Schedule: `GET league/{id}/matchups/{week}` is public and Sleeper pre-generates every regular and playoff week once the league has a schedule (rows `{roster_id, matchup_id, points}`, pairs by `matchup_id`, `points` 0 for future weeks). Before the draft it returns `[]`, so the schedule is null with a reason. The importer asks only for weeks `last_scored_leg + 1` through `last_regular_week` (the in-progress week counts as remaining); the first week is fetched alone and an empty answer stops there.
+- `playoff_seed_type` (0 or 1) does not map to `seeding_rule`. In 2025 brackets of leagues with divisions, division winners were seeded first and took the byes under both values (all but one of the leagues where it mattered); without divisions record decided it under both. The importer therefore sets `division_winners_first` when `divisions` > 0 and `record` otherwise, and ignores `playoff_seed_type`. What it does control (possibly a tiebreak) is not verified, so `tiebreak` is null with a reason.
+- ESPN and Yahoo have no unauthenticated source: manual entry or null with reason.
 
 ## Errors
 
