@@ -816,6 +816,8 @@ test-core:
 	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
 	python3 -m unittest tests.test_partners_rank_parity
 	python3 -m unittest tests.test_find_chart_links
+	# JEG-1647: the public-charts-agree filter on find.html.
+	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted
@@ -1007,6 +1009,8 @@ test-core-shard-3:
 	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
 	python3 -m unittest tests.test_partners_rank_parity
 	python3 -m unittest tests.test_find_chart_links
+	# JEG-1647: the public-charts-agree filter on find.html.
+	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
 	python3 -m unittest tests.test_league_card_pasted
