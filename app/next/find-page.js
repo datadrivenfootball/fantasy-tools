@@ -167,7 +167,14 @@
   }
 
   /* ---------- results ---------- */
-  function selected(g) { var i = S.pick[g.id] || 0; return g.trades[i] || g.best; }
+  // JEG-1647 part 2: with the public-charts filter on, a group stays listed when any of its variants meets it, and until the
+  // reader picks one the card shows the first variant that does (so the card never contradicts the filter). A variant the
+  // reader picks by hand is kept even if it is under the minimum, until the filter changes.
+  function selected(g) {
+    var i = S.pick[g.id], min = minChartsValue();
+    if (i === undefined && min) i = g.trades.findIndex(function (t) { return DDF.find.meetsChartMin(t, min); });
+    return g.trades[i > 0 ? i : 0] || g.best;
+  }
   function sorter() {
     var by = $("sort").value;
     var val = function (t) { return by === "partner" ? t.them : by === "ddf" ? t.edge : t.you; };
@@ -183,7 +190,7 @@
   function visible() {
     var partner = $("partner").value, fit = $("fit").value;
     var minCharts = minChartsValue();
-    var pool = S.groups.filter(function (g) { return (partner === "all" || String(g.partnerIndex) === partner) && DDF.find.meetsChartMin(selected(g), minCharts); });
+    var pool = S.groups.filter(function (g) { return (partner === "all" || String(g.partnerIndex) === partner) && (g.trades.length ? g.trades : [g.best]).some(function (t) { return DDF.find.meetsChartMin(t, minCharts); }); });
     var cls = function (c) { return pool.filter(function (g) { return g.cls === c; }).sort(sorter()); };
     var nat = fit === "all" || fit === "natural" ? cls("natural") : [];
     var neu = fit === "all" || fit === "neutral" ? cls("neutral").concat(cls("unjudged")) : [];
@@ -374,7 +381,7 @@
         rerun();
       });
     });
-    ["fit", "sort", "min-charts"].forEach(function (id) { $(id).addEventListener("change", render); });
+    ["fit", "sort", "min-charts"].forEach(function (id) { $(id).addEventListener("change", function () { if (id === "min-charts") S.pick = {}; render(); }); });
     $("partner").addEventListener("change", function () { if (sizes().indexOf(4) >= 0) run(false); else render(); });
     $("minimum-gain").addEventListener("change", renderPickups);
     $("see-waivers").addEventListener("change", renderPickups);
