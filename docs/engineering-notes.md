@@ -152,3 +152,9 @@ pages without `ddf-opportunity.js` (Partners, Values) evaluate finder.js alone; 
 adds the wording. Do not re-derive the percent elsewhere: call one of the two. Natural counts moved by under 4% on the
 seeded and two real league rosters (PR for JEG-1639).
 
+
+## Fringe-player repricing is designed pricing (2026-11-16, JEG-1511 / JEG-1651)
+- `OnePlayerPerturbationTest` moves the waiver-line player by +/-1 PPG and bars any other player at the position from moving more than 1.0 Adjusted point. Stars can still move noticeably: the 7-player band moves the waiver line w by 1/7 of the change, every starter's surplus `x - w` moves with it, the starter group total G moves by about avail x starters x dw, and the source budget barely moves, so the rate (budget / G) reprices the whole position. It is largest in thin pools (1QB QB, 8-team TE). Band edges are not the cause.
+- Jeremy, 2026-11-16 (option A): this is designed pricing. No value change, the bar stays at 1.0, and the test carries no exemption list (`KNOWN_OVER_BAR_CASES` is gone). A future breach with this signature goes through `docs/exemption-decision-policy.md` (JEG-1518); do not add cases back to the test or widen the bar.
+- On current data the worst case is 0.648 (half_ppr/8 razzball TE, +1.0), across 286 held-slot cases. Full diagnosis and the probe are on JEG-1511.
+- `_cases` skips a waiver-line seat whose player has no projection record for that source and prints it. ESPN lists players it projects at zero with no `espn_ppg` record (`natives()` carries them at 0.0), so there is nothing to perturb (standard/14 ESPN RB, Adam Randall, was the one that crashed the tests).

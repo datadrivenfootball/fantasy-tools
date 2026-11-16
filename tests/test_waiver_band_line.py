@@ -51,24 +51,13 @@ from lib.roster_convention import (  # noqa: E402
 )
 
 TOLERANCE = 1.0
-# JEG-1511 (Jeremy, 2026-11-05): three known over-bar cases on the Week 9
-# build, all the same mechanism. The band itself moves 1/7 of the
-# perturbation, as designed; the breach comes from the ES expected-start
-# parts repricing when the perturbed player crosses the waiver band
-# (Kyler Murray, razzball QB: the QB starter rate falls and Josh Allen
-# moves ~1.07 with his own projection unchanged; Kyle Pitts and Dalton
-# Kincaid are the TE equivalents in thin 8-team pools, worst moves 1.72
-# and 1.22; full evidence on JEG-1511). Jeremy ruled this is not enough
-# to stop a week from publishing and the real fix comes after, so exactly
-# these cases — (scoring, teams, source, position, player key, delta) —
-# are exempted in the two perturbation tests below and printed whenever
-# the exemption is used. Every other case still fails the bar. Remove
-# these entries when JEG-1511 lands.
-KNOWN_OVER_BAR_CASES = {
-    ("standard", 10, "razzball", "QB", 370, -1.0),
-    ("standard", 8, "razzball", "TE", 1970, -1.0),
-    ("half_ppr", 8, "razzball", "TE", 3279, 1.0),
-}
+# JEG-1511 (Jeremy, 2026-11-16, option A): when the waiver-line player
+# moves, the waiver line moves 1/7 as much, every starter's surplus moves with
+# it, and each source's fixed budget is shared over the new total. Stars in a
+# thin pool (1QB QB, 8-team TE) give up a little share. That is designed
+# pricing, so the bar stays at 1.0 with no in-test exemptions; a future breach
+# of this signature is decided under docs/exemption-decision-policy.md
+# (JEG-1518), not by adding cases here.
 PROJECTIONS = ("espn", "cbsros", "razzball")
 # JEG-1244: the full grid the research and the tolerance name (3 scorings x
 # 4 team counts, default roster). The mutation check keeps the default
@@ -363,7 +352,15 @@ class OnePlayerPerturbationTest(unittest.TestCase):
                                   key=lambda t: (-t[1], t[0]))
                     if n is None or len(work) <= n:
                         continue
-                    out.append((scoring, teams, src, pos, work[n][0]))
+                    key = work[n][0]
+                    # JEG-1651: ESPN lists players it projects at zero with no
+                    # record (natives() carries them at 0.0), so there is no
+                    # projection to perturb. Skip the seat, visibly.
+                    if inp.ppg(key, vr.PPG_FIELD[src], scoring) is None:
+                        print(f"skipped waiver-line seat with no {vr.PPG_FIELD[src]} record (JEG-1651): "
+                              f"{scoring}/{teams} {src} {pos} {key} {inp.players[key]['name']}")
+                        continue
+                    out.append((scoring, teams, src, pos, key))
         return out
 
     def _run(self, scoring, teams, src, pos, replay=None, all_rows=False):
@@ -528,11 +525,6 @@ class OnePlayerPerturbationTest(unittest.TestCase):
         for (scoring, teams, src, pos, key, delta), result in zip(jobs, self._map_worst(jobs)):
             worst, _ = result
             if worst > TOLERANCE:
-                if (scoring, teams, src, pos, key, delta) in KNOWN_OVER_BAR_CASES:
-                    result.record["status"] = "exempt"
-                    emit(result.record)
-                    print(f"known over-bar case (JEG-1511): {scoring}/{teams} {src} {pos} {key} {delta:+}: {worst:.3f}")
-                    continue
                 failures.append(emit(result.record))
         self.assertEqual(failures, [], "one fringe player repriced the position:\n" + "\n".join(failures))
 
@@ -545,11 +537,6 @@ class OnePlayerPerturbationTest(unittest.TestCase):
         for (scoring, teams, src, pos, key, delta), result in zip(jobs, self._map_worst(jobs, False)):
             worst, flipped = result
             if worst > TOLERANCE and not flipped:
-                if (scoring, teams, src, pos, key, delta) in KNOWN_OVER_BAR_CASES:
-                    result.record["status"] = "exempt"
-                    emit(result.record)
-                    print(f"known over-bar case (JEG-1511): {scoring}/{teams} {src} {pos} {key} {delta:+}: {worst:.3f}")
-                    continue
                 bad.append(emit(result.record))
         self.assertEqual(bad, [], "over the bar with the slots unchanged:\n" + "\n".join(bad))
 
