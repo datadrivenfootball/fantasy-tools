@@ -13,15 +13,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tests.test_jeg1632_kdef_slots import SettingsPage as _Base  # noqa: E402
+import tests.test_jeg1632_kdef_slots as _harness  # noqa: E402  (module import: unittest does not re-collect its tests)
 
 STANDARD_TEXT = "1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench"
 
 
 class ChatPromptRoster(unittest.TestCase):
     # Reuse the settings-page harness (server and browser) without inheriting its tests.
-    setUpClass = classmethod(lambda cls: _Base.setUpClass.__func__(cls))
-    tearDownClass = classmethod(lambda cls: _Base.tearDownClass.__func__(cls))
+    setUpClass = classmethod(lambda cls: _harness.SettingsPage.setUpClass.__func__(cls))
+    tearDownClass = classmethod(lambda cls: _harness.SettingsPage.tearDownClass.__func__(cls))
 
     def copied(self, width):
         context = self.browser.new_context(viewport={"width": width, "height": 900 if width > 760 else 812})
