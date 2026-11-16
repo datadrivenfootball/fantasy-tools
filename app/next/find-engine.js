@@ -159,6 +159,8 @@
   }
   // Natural fit is tradeFit's label (both sides, JEG-1324). Partner neutral: not natural, and the other team's side of the
   // fit is not worse than its noise floor (the live "neutral" / "favorable" reading of their side). The rest are force fits.
+  // JEG-1639: a trade whose only failing test is their roster being clearly worse (-3% or more, the Why text's band) is
+  // not natural and, its side being within the noise floor, lands here as Partner neutral.
   function classify(t) {
     if (!t.fit) return "unjudged";
     if (t.fit.label === "natural") return "natural";
