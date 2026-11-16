@@ -191,9 +191,9 @@ or merge text in this file and in `HANDOFF.md`.
     included); (c) no value math or published value, data pipeline or engine,
     CI/workflow/infra file, migration or secret, and no change to AGENTS.md or
     any merge, review or approval rule; (d) any tests-only change excludes
-    `tests/fixtures/**` and any weakened, skipped or deleted assertion; (e) any
-    copy change is internal or minor only. Outward-facing copy stays with
-    Jeremy (Routing table). Examples: docs, tests-only, small UI fixes,
+    `tests/fixtures/**` and any weakened, skipped or deleted assertion; (e) copy
+    changes are internal copy only; any user-visible wording is not low-risk
+    and stays with Jeremy (Routing table). Examples: docs, tests-only, small UI fixes,
     internal copy. The class is judged by the independent reviewer from the
     changed-file list on the exact head, never by the author. Any doubt makes
     it not low-risk.
@@ -210,10 +210,10 @@ or merge text in this file and in `HANDOFF.md`.
     merge-rule PRs, anything high-risk or unclear) needs Jeremy's named yes in
     chat, ships alone as its own release, with a value before/after on the
     ticket for value math. Deploys for these still need his yes naming the PR
-    numbers. Engine PRs stay one at a time (Hot files below). No asks are sent
-    overnight (10 PM to 6 AM Central); an Urgent ticket (live numbers wrong or
-    deploy broken) ships alone with normal gates and may ask outside those
-    hours.
+    numbers. Engine PRs stay one at a time (Hot files below). An Urgent ticket
+    (live numbers wrong or deploy broken) ships alone with normal gates and may
+    ask at any time outside 10 PM to 6 AM Central; one arising overnight waits
+    for 6 AM.
   - If a PR conflicts after another merges, its owner merges `origin/main` in
     normally and obtains new-head checks and delta review. The
     routine-data-refresh exception is unchanged.
