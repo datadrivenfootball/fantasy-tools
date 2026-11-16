@@ -167,7 +167,7 @@ class AuditData(unittest.TestCase):
         p.feed(self.html)
         text = " ".join(p.text)
         # ESPN and Sleeper are named once, as the yardstick for the Strong bar (Jeremy, 2026-11-16), never graded
-        self.assertEqual(1, text.count("ESPN's and Sleeper's own rest-of-season projections"))
+        self.assertEqual(1, text.count("ESPN's and Sleeper's own rest-of-season reorder shares"))
         self.assertEqual(2, text.count("ESPN"))  # the bar sentence names it twice
         for word in ("Razzball", "DynastyProcess", "our model gives", "Our model on the same scorecard"):
             self.assertNotIn(word, text)

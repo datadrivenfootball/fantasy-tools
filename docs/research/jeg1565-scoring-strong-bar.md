@@ -28,10 +28,13 @@ latest run per source; earlier runs identical).
 ## Why a stored value, not a rebuild
 
 The page pipeline reads only repo fixtures and saved history and runs offline
-(`--check` in CI). The warehouse projections are not in the repo, so the bar is a
+(`--check` is run by hand and by `tests/test_research_trade_value_audit.py`; no
+workflow or Makefile target calls it, and on the current tree it fails with a
+pre-existing IndexError in `replacement_qb`, because the fixture has moved past
+week 9). The warehouse projections are not in the repo, so the bar is a
 dated value in `data/research/jeg1565/scoring-strong-bar.json`, loaded by the
 pipeline. To refresh, rerun the measurement above and edit that file (as_of,
-both shares, strong_pct = the lower); the pipeline asserts strong_pct equals the
+both shares, strong_pct = the lower); the pipeline raises ValueError unless strong_pct equals the
 lower of the two. The page method text prints the value and its date.
 
 ## Labels under this bar

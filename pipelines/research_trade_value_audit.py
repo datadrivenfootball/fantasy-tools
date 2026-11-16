@@ -46,7 +46,7 @@ CHARTS = ("cbs", "usatoday", "fantasypros", "fantasycalc")
 ANALYST = ("cbs", "usatoday", "fantasypros")  # the "Avg of Analyst charts" row
 PROJ = ("espn", "cbsros", "razzball")
 NAMES = {"cbs": "CBS Sports", "usatoday": "USA Today", "fantasypros": "FantasyPros",
-         "fantasycalc": "FantasyCalc", "espn": "ESPN", "cbsros": "CBS rest-of-season projections",
+         "fantasycalc": "FantasyCalc", "espn": "ESPN", "cbsros": "CBS rest-of-season reorder shares",
          "razzball": "Razzball"}
 SCORING_LABEL = {"standard": "Standard", "half_ppr": "Half PPR", "ppr": "Full PPR"}
 HIST_INDEX = vr.HISTORY_SCORING_INDEX
@@ -63,7 +63,8 @@ def load_scoring_strong_bar() -> dict:
     rest-of-season Full PPR vs Standard reorder shares (stored, dated; derivation in
     docs/research/jeg1565-scoring-strong-bar.md). The warehouse is not read offline."""
     bar = json.loads(STRONG_BAR_FILE.read_text(encoding="utf-8"))
-    assert bar["strong_pct"] == min(bar["espn_ros_reorder_pct"], bar["sleeper_ros_reorder_pct"])
+    if bar["strong_pct"] != min(bar["espn_ros_reorder_pct"], bar["sleeper_ros_reorder_pct"]):
+        raise ValueError("scoring-strong-bar.json: strong_pct must equal the lower of the ESPN and Sleeper shares")
     return bar
 
 
@@ -504,7 +505,7 @@ def weekly(inp) -> dict:
 
 RULES = {
     "balance": "Position mix vs DDF Value: the chart's own published numbers summed by position, as a share of everything it lists; the score is the share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
-    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least {bar}% of those players change places on average, the lower of ESPN's and Sleeper's own rest-of-season projections (ESPN {espn}%, Sleeper {sleeper}%, measured {asof}); OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
+    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least {bar}% of those players change places on average, the lower of ESPN's and Sleeper's own rest-of-season reorder shares (ESPN {espn}%, Sleeper {sleeper}%, measured {asof}); OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
     "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all the value it publishes for superflex (its superflex numbers where it has them, its one-QB numbers otherwise; Half PPR) and DDF Value's quarterback share in a 12-team Half PPR superflex league. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
