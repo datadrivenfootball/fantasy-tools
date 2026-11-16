@@ -10,7 +10,11 @@ DDF.league):
   DDF Value / Analyst charts on starters, not judged last, then league order);
 - each partner's reason names exactly the get / give positions of that metric, biggest first;
 - the top 3 (with a positive score) carry "Best match"; my team and waivers are never listed or ranked.
-Drift: the same check fails when ddf-league.js is served with the give side of the metric halved.
+- each partner's DDF.league.partnerRank() score equals that metric (JEG-1644).
+Drift: the same check fails when ddf-league.js is served with the give side of the metric halved: on the scores
+everywhere, and on the page order in a case the halved metric must reorder. Whether halving reorders the seeded league
+depends on the week's values (Week 10's rebuild of 2026-11-15 left all 12 settings in the same order, JEG-1644), so
+drift_case() picks that case from the values served, over every team as "me", and fails loudly if none exists.
 Render: with a league the top partner and its reason show; without one the empty state (path to connect.html) shows.
 Copy: no "Player pool", no bare "Market", no demo/sample/mock/illustrative labels, no "choose"/"set up", and the old
 "DDF edge" / "premium" labels are gone.
@@ -76,13 +80,28 @@ ORACLE = r"""(league) => {
   out.sort((a, b) => (a.score !== b.score ? b.score - a.score : 0)
     || (a.ra === b.ra ? 0 : a.ra === null ? 1 : b.ra === null ? -1 : b.ra - a.ra) || a.i - b.i);
   const nTop = Math.min(3, out.filter(t => t.score > 0).length);
-  return out.map((t, k) => ({name: t.name, get: t.get.join(' '), give: t.give.join(' '), best: k < nTop}));
+  return out.map((t, k) => ({name: t.name, score: t.score, get: t.get.join(' '), give: t.give.join(' '), best: k < nTop}));
 }"""
 
 READ = r"""() => [...document.querySelectorAll('#team-list .pt-row')].map(r => ({
   name: r.querySelector('.tn').textContent.trim(), rank: Number(r.dataset.rank), get: r.dataset.get, give: r.dataset.give,
   best: !!r.querySelector('.badge') && r.querySelector('.badge').textContent.trim() === 'Best match',
   why: r.querySelector('.why').textContent.trim(), waivers: r.hasAttribute('data-waivers')}))"""
+
+
+ENGINE_SCORES = "() => DDF.league.partnerRank().map(r => ({name: r.name, score: r.score}))"
+DRIFT_NEEDLE, DRIFT_MUTANT = "score += g + v;", "score += g + 0.5 * v;"
+DRIFTED_ORACLE = ORACLE.replace(DRIFT_NEEDLE, DRIFT_MUTANT)
+assert DRIFTED_ORACLE != ORACLE
+
+
+def rotated_league(k: int) -> dict:
+    """The seeded league with team k's roster as My Squad (and every other roster shifted along with it)."""
+    league = seeded_league()
+    players = [t["players"] for t in league["teams"]]
+    for i, t in enumerate(league["teams"]):
+        t["players"] = players[(i + k) % len(players)]
+    return league
 
 
 def reason_positions(why: str) -> tuple[str, str]:
@@ -95,14 +114,14 @@ def reason_positions(why: str) -> tuple[str, str]:
     return names(get and get.group(1)), names(give and give.group(1))
 
 
-def run_rank(overrides=None, settings=None) -> list[str]:
+def run_rank(overrides=None, settings=None, league=None) -> list[str]:
     try:
         from playwright.sync_api import sync_playwright
     except Exception as exc:  # noqa: BLE001
         raise _render_env.unavailable(f"Playwright not available: {exc}") from exc
     if not all((DIST / p).exists() for p in ("partners.html", "ddf-league.js")):
         raise _render_env.unavailable("dist partners page is not built")
-    league = seeded_league()
+    league = league or seeded_league()
     errors: list[str] = []
     with serve(DIST, overrides) as base, sync_playwright() as pw:
         browser = _browser(pw)
@@ -114,6 +133,11 @@ def run_rank(overrides=None, settings=None) -> list[str]:
                 page.evaluate(APPLY, [scoring, teams, sf])
                 want = page.evaluate(ORACLE, league)
                 got = page.evaluate(READ)
+                scores = {s["name"]: s["score"] for s in page.evaluate(ENGINE_SCORES)}
+                for w in want:
+                    s = scores.get(w["name"])
+                    if s is None or abs(s - w["score"]) > 1e-9:
+                        errors.append(f"{label}: {w['name']} score engine={s} metric={w['score']}")
                 if [g["name"] for g in got] != [w["name"] for w in want]:
                     errors.append(f"{label}: order page={[g['name'] for g in got]} engine={[w['name'] for w in want]}")
                 if [g["rank"] for g in got] != list(range(1, len(got) + 1)):
@@ -132,6 +156,34 @@ def run_rank(overrides=None, settings=None) -> list[str]:
         finally:
             browser.close()
     return errors
+
+
+def drift_case() -> tuple[int, tuple]:
+    """(k, setting): the first setting and seeded rotation where the halved-give metric orders partners differently.
+
+    The oracle with the same mutation predicts it, so the order check has a premise that holds on the values served
+    rather than on one week's values (JEG-1644). No such case among 12 rotations x 12 settings fails the test.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:  # noqa: BLE001
+        raise _render_env.unavailable(f"Playwright not available: {exc}") from exc
+    leagues = [rotated_league(k) for k in range(12)]
+    with serve(DIST) as base, sync_playwright() as pw:
+        browser = _browser(pw)
+        try:
+            page, _ = _open(browser, base, "partners.html", leagues[0])
+            page.wait_for_function(READY, timeout=30000)
+            for setting in SETTINGS:
+                page.evaluate(APPLY, list(setting))
+                for k, league in enumerate(leagues):
+                    names = [[w["name"] for w in page.evaluate(o, league)] for o in (ORACLE, DRIFTED_ORACLE)]
+                    if names[0] != names[1]:
+                        return k, setting
+        finally:
+            browser.close()
+    raise AssertionError("drift premise: halving the give side reorders no seeded rotation in any setting; "
+                         "the order check cannot see this drift on these values (JEG-1644)")
 
 
 VISIBLE_TEXT = r"""() => {
@@ -156,10 +208,14 @@ class PartnersRankParityTest(unittest.TestCase):
         if not path.exists():
             raise _render_env.unavailable("dist/ddf-league.js not built")
         src = path.read_text()
-        needle = "score += g + v;"
-        self.assertIn(needle, src)
-        errors = run_rank({"ddf-league.js": src.replace(needle, "score += g + 0.5 * v;").encode()})
-        self.assertTrue(any("order" in e for e in errors), f"metric drift not caught: {errors[:5]}")
+        self.assertIn(DRIFT_NEEDLE, src)
+        drifted = {"ddf-league.js": src.replace(DRIFT_NEEDLE, DRIFT_MUTANT).encode()}
+        errors = run_rank(drifted)
+        self.assertTrue(any(" score " in e for e in errors), f"metric drift not caught on scores: {errors[:5]}")
+        k, setting = drift_case()
+        errors = run_rank(drifted, settings=[setting], league=rotated_league(k))
+        self.assertTrue(any("order" in e for e in errors),
+                        f"metric drift not caught on the page order (team {k} as me, {setting}): {errors[:5]}")
 
     def _pages(self):
         try:
