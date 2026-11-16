@@ -99,6 +99,15 @@ class AuditData(unittest.TestCase):
         card = self.fresh["scorecard"]
         self.assertEqual("Weak", card["fantasypros"]["scoring"]["label"])
         self.assertEqual("OK", card["fantasycalc"]["scoring"]["label"])
+        # Strong bar = lower of ESPN's and Sleeper's rest-of-season shares (Jeremy, 2026-11-16, no haircut)
+        bar = self.fresh["scoring_strong_bar"]
+        self.assertEqual(min(bar["espn_ros_reorder_pct"], bar["sleeper_ros_reorder_pct"]), bar["strong_pct"])
+        self.assertEqual(74.1, bar["strong_pct"])
+        self.assertEqual("OK", card["usatoday"]["scoring"]["label"])  # 59% is under the bar
+        self.assertEqual("OK", card["cbs"]["scoring"]["label"])       # 32%
+        for k in audit.CHARTS:  # no chart reaches the bar
+            self.assertLess(self.fresh["headline"]["reorder_avg_pct"][k], bar["strong_pct"])
+            self.assertNotEqual("Strong", card[k]["scoring"]["label"])
         self.assertEqual("Weak", card["cbs"]["depth"]["label"])
         self.assertEqual(set(audit.CHARTS), set(card))  # the four redraft charts only; DDF Value is never graded
         self.assertEqual("Strong", card["cbs"]["curve"]["label"])   # close to the reference curve
@@ -157,7 +166,10 @@ class AuditData(unittest.TestCase):
         p = Spans()
         p.feed(self.html)
         text = " ".join(p.text)
-        for word in ("ESPN", "Razzball", "DynastyProcess", "our model gives", "Our model on the same scorecard"):
+        # ESPN and Sleeper are named once, as the yardstick for the Strong bar (Jeremy, 2026-11-16), never graded
+        self.assertEqual(1, text.count("ESPN's and Sleeper's own rest-of-season projections"))
+        self.assertEqual(2, text.count("ESPN"))  # the bar sentence names it twice
+        for word in ("Razzball", "DynastyProcess", "our model gives", "Our model on the same scorecard"):
             self.assertNotIn(word, text)
         self.assertNotIn("ddf", self.fresh["scorecard"])
 

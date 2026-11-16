@@ -55,7 +55,20 @@ TOP_N = 50          # model-free position mix: the source's own top 50
 CURVE_N = 120       # overall curve length drawn on the page
 TRADE_POOL = 150    # players offered in the trade-it-yourself box
 SCORING_TOP = 36    # players per position compared across scoring formats
-SCORING_STRONG_PCT = 42  # Strong at or above this average share reordered (about half the 84% real outcomes reorder)
+STRONG_BAR_FILE = REPO / "data" / "research" / "jeg1565" / "scoring-strong-bar.json"
+
+
+def load_scoring_strong_bar() -> dict:
+    """Strong bar for the scoring test: the lower of ESPN's and Sleeper's own
+    rest-of-season Full PPR vs Standard reorder shares (stored, dated; derivation in
+    docs/research/jeg1565-scoring-strong-bar.md). The warehouse is not read offline."""
+    bar = json.loads(STRONG_BAR_FILE.read_text(encoding="utf-8"))
+    assert bar["strong_pct"] == min(bar["espn_ros_reorder_pct"], bar["sleeper_ros_reorder_pct"])
+    return bar
+
+
+SCORING_BAR = load_scoring_strong_bar()
+SCORING_STRONG_PCT = SCORING_BAR["strong_pct"]  # Strong at or above this average share reordered
 WEEKLY_TOP = 24     # players per position followed week to week
 OUTLIER_DEPTH = 36  # an outlier must be a top-36 player at his position on that chart or by the others
 
@@ -491,7 +504,7 @@ def weekly(inp) -> dict:
 
 RULES = {
     "balance": "Position mix vs DDF Value: the chart's own published numbers summed by position, as a share of everything it lists; the score is the share of value that would have to move between positions to match DDF Value's position budget, Half PPR, 12 teams. Close up to 5 points, OK up to 10, Far above 10. Distance from the reference describes a chart; it does not prove it right or wrong.",
-    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least 42% of those players change places on average (about half of the real-outcomes figure below); OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
+    "scoring": "Scoring formats: compare Standard with Full PPR for the top 36 at RB, WR and TE. Strong when at least {bar}% of those players change places on average, the lower of ESPN's and Sleeper's own rest-of-season projections (ESPN {espn}%, Sleeper {sleeper}%, measured {asof}); OK when the numbers change but fewer change places; Weak when the numbers do not change. For scale: rankings by realized rest-of-season points (2015-2025, snapshot weeks 5-8) reorder about {realized}% of the same top 36 between the two formats.",
     "qb_sf": "QB share in superflex vs DDF Value: distance, in percentage points, between the chart's quarterback share of all the value it publishes for superflex (its superflex numbers where it has them, its one-QB numbers otherwise; Half PPR) and DDF Value's quarterback share in a 12-team Half PPR superflex league. Close up to 5, OK up to 10, Far above 10. Distance describes a chart; it does not prove it right or wrong.",
     "superflex": "Superflex coverage: Strong with superflex values for 24 or more QBs (two per team); OK with fewer; Weak with none.",
     "league_size": "League size: does the chart change its numbers when the number of teams changes (10, 12, 14)? Strong when it offers its numbers by team count; Weak with one table for every league size.",
@@ -909,7 +922,8 @@ def build() -> dict:
     data["should_be"] = should_be(inp, data)
     data["replacement_qb"] = replacement_qb(inp)
     data["realized_scoring"] = realized_scoring_benchmark()
-    data["rules"] = {**data["rules"], "scoring": data["rules"]["scoring"].format(realized=int(data["realized_scoring"]["pooled"]))}
+    data["rules"] = {**data["rules"], "scoring": data["rules"]["scoring"].format(realized=int(data["realized_scoring"]["pooled"]), bar=SCORING_BAR["strong_pct"], espn=SCORING_BAR["espn_ros_reorder_pct"], sleeper=SCORING_BAR["sleeper_ros_reorder_pct"], asof=SCORING_BAR["as_of"])}
+    data["scoring_strong_bar"] = {k: SCORING_BAR[k] for k in ("as_of", "espn_ros_reorder_pct", "sleeper_ros_reorder_pct", "strong_pct")}
     data["cbs_waiver_rb_pct"] = r(data["waiver_line"]["cbs"]["RB"], 1)  # on its own numbers (0: list stops short)
     # DDF Value's fill-in for CBS Sports: the engine's waiver-level running back, % of its #1.
     data["cbs_filled_in_waiver_rb_pct"] = r(100 * base_diag["sources"]["cbs"]["positions"]["RB"]["waiver"] / cbs_top, 1)
