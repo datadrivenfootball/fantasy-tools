@@ -43,7 +43,7 @@ contracts and approval gates remain in force.
   actions, forbidden actions and approval reference so it runs without chat
   memory. Never split a session's instructions across fragments.
 - Never send work to, or kill, a session the bridge didn't start, including shared Desktop processes.
-- Hold every approval ask for the 6 AM or 4 PM Central window. Only an Urgent fix may ask outside them, never 10 PM to 6 AM Central; it then waits for 6 AM.
+- Approval asks (for work outside the low-risk auto-merge class) are sent in chat with PR numbers named, never 10 PM to 6 AM Central; an Urgent fix may ask any time outside those hours, and one arising overnight waits for 6 AM.
 - Cloud first. Delegate to the Mac only the locally blocked portion. Approved
   Mac locations are `/Users/botcomp/code` and the bridge folders already
   approved by the local runtime. Check the advertised folder list; do not
@@ -103,14 +103,10 @@ these documentation PRs in this task.
   still apply; the coordinator never substitutes its own check for review.
 - The acting successor coordinator, PSpice or Muse, merges once that review
   passes and CI is green on that exact head, subject to the approval gates.
-  The acting successor runs the same two daily batch and approval windows,
-  at 6:00 AM and 4:00 PM US Central time, in the Review and merge protocol
-  (JEG-1444 decision 13, timing updated 13:26 UTC), with no merge windows or
-  approval asks overnight and with per-batch deploy approval naming
-  PR numbers and isolated high-risk/value-math releases. Urgent work ships alone with normal gates and may ask Jeremy outside the
-  6 AM and 4 PM windows, but never during sleeping hours, 10 PM to 6 AM
-  US Central. An urgent ask arising then waits for the 6 AM window
-  (JEG-1444 decision 13, Jeremy 2026-10-31 15:40 UTC).
+  The acting successor follows the merge rules in the Review and merge
+  protocol (JEG-1444 decision 13 as replaced 2026-11-15): pre-approved
+  low-risk auto-merge, and Jeremy's named yes with isolated release for
+  everything else.
   High-risk merges and all deploys still require Jeremy's specific yes.
   A yes covers only the named action and target; production-data deletion,
   credentials, Supabase migrations, GitHub settings, Mac patches and launchd
@@ -173,39 +169,36 @@ or merge text in this file and in `HANDOFF.md`.
   different (Takeover below). Never delete a branch, data, a file or work in
   progress without Jeremy's yes.
 - **At most 8 PRs ready for review at once.** Keep the rest as drafts.
-- **Merging (JEG-1444 decision 13; Jeremy, 2026-10-31 13:16 UTC).**
-  Two batch and approval windows run each day, at 6:00 AM and 4:00 PM
-  US Central time (America/Chicago), per Jeremy's 2026-10-31 13:26 UTC update.
-  No merge windows or approval asks overnight (10 PM to 6 AM Central). Each
-  window gathers the PRs that became eligible since the last window, batched by matching risk;
-  a batch holds at most 7 PRs of the same risk. Ask Jeremy for the per-batch deploy yes
-  in that window, naming the PR numbers. Group CI, review, branch
-  integration, merge-gate wake-ups and deploy checks into the window rather
-  than repeating the release cycle per PR. A batch holds at most 7 PRs of
-  the same risk. Each still merges on its own reviewed head with green CI on
-  that exact head and a clean merge onto current main; batching never waives
-  the independent review or per-head CI gate.
-  High-risk and value-math changes ship alone, each as its own release,
-  with a value before/after on the ticket.
-  Engine PRs stay one at a time (Hot files below). An Urgent ticket (live
-  numbers wrong or deploy broken) ships on its own with normal gates and may
-  ask Jeremy outside the 6 AM and 4 PM windows, but never during sleeping
-  hours, 10 PM to 6 AM US Central. An urgent ask arising then waits for the
-  6 AM window (JEG-1444 decision 13, Jeremy 2026-10-31 15:40 UTC).
-  If a PR conflicts after an earlier batch member merges, leave it for the
-  next batch; do not rebase or repair it mid-window. Afterwards its owner
-  merges `origin/main` in normally and obtains the required new-head checks
-  and delta review.
-  After the batch, run one CI run and one deploy check on main. If main goes
-  red at any point, stop the batch and diagnose; any revert goes through the
-  normal gate. Deploys still need Jeremy's yes per batch, naming the PR
-  numbers. The routine-data-refresh exception is unchanged. The two-window
-  cadence and cap of 7 are defaults Jeremy can change.
-  The Claude merge session runs the window normally; during cutover the
-  acting successor runs it under decision 11. Jeremy's 2026-10-29 21:08 UTC
-  standing OK ("merge anything you recommend once it is green") still covers
-  merges whose independent review passed and checks are green, subject to
-  the specific-yes requirements below and the per-batch deploy yes above.
+- **Merging (JEG-1444 decision 13, replaced by Jeremy's decision of
+  2026-11-15, chosen by multiple choice: "Pre-approved low-risk auto-merge").**
+  The fixed 6 AM and 4 PM windows and the per-batch deploy yes are dropped
+  for the low-risk class. Every merge is a squash merge, on its own reviewed
+  head, with green CI on that exact head, an independent review APPROVE on
+  that exact head (never the coordinator's own check), and a clean merge onto
+  current main. The cap of 8 PRs ready at once stays.
+  - **Low-risk class (tight).** A PR is low-risk only if it has none of: value
+    math or any published value; the data pipeline or engine; CI, workflow or
+    infra files; migrations or secrets; AGENTS.md or any merge, review or
+    approval rule. Examples: copy, docs, tests-only, small UI fixes. Any doubt
+    makes it not low-risk. The reviewer confirms the class on the head.
+  - **Low-risk PRs.** The lead agent may merge them without a per-PR yes once
+    the exact-head CI and independent APPROVE above are in hand. Comment the
+    PR number, head SHA and review on the ticket.
+  - **Everything else** (value math, pipeline, engine, CI infra, migrations,
+    anything high-risk or unclear) needs Jeremy's named yes in chat, ships
+    alone as its own release, with a value before/after on the ticket for
+    value math. Engine PRs stay one at a time (Hot files below). Overnight
+    (10 PM to 6 AM Central) no asks are sent; an Urgent ticket (live numbers
+    wrong or deploy broken) ships alone with normal gates.
+  - If a PR conflicts after another merges, its owner merges `origin/main` in
+    normally and obtains new-head checks and delta review. If main goes red,
+    stop merging and diagnose; any revert goes through the normal gate. Deploys
+    outside the low-risk class still need Jeremy's yes naming the PR numbers.
+    The routine-data-refresh exception is unchanged.
+  - The Claude merge session applies this; during cutover the acting successor
+    does under decision 11. Jeremy's 2026-10-29 21:08 UTC standing OK still
+    covers reviewed, green merges, subject to the specific-yes requirements
+    below.
 - **Still needs Jeremy's yes each time**, standing OK or not: any PR that
   changes value math (how values are computed) or a published value, whether
   or not it claims the published numbers move, with the before and after
