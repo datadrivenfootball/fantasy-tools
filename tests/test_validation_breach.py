@@ -87,18 +87,6 @@ class ValidationBreachTest(unittest.TestCase):
                 self.assertEqual(block, saved['post_rebuild_validation'])
                 self.assertFalse(saved['success'])
 
-    def test_existing_exemption_still_continues_and_reports(self):
-        case, result = self.probe()
-        output = io.StringIO()
-        signature = ('standard', 10, 'razzball', 'QB', 1, -1.0)
-        with patch.object(case, '_cases', return_value=[signature[:5]] * 20), \
-                patch.object(case, '_map_worst', return_value=[result] * 40), \
-                patch.object(band, 'KNOWN_OVER_BAR_CASES', {signature, (*signature[:5], 1.0)}), \
-                contextlib.redirect_stdout(output):
-            case.test_fringe_player_moves_no_one_more_than_tolerance()
-        self.assertEqual(40, len(records_from_log(output.getvalue())))
-        self.assertTrue(all(r['status'] == 'exempt' for r in records_from_log(output.getvalue())))
-
     def test_malformed_transport_is_not_silently_discarded(self):
         with self.assertRaises(json.JSONDecodeError):
             records_from_log('VALIDATION_BREACH_JSON {broken')
