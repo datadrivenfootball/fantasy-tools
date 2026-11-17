@@ -88,11 +88,21 @@
           DDF.link && DDF.link.kdefSlots ? DDF.link.kdefSlots(st) : {})});   /* JEG-1632: K and DEF slots */
     } catch (e) { /* settings.html asks again */ }
   }
-  // JEG-1571: a paste that prints QB-eligible flex slot labels (Q/W/R/T, OP, SUPERFLEX...) sets that count; settings.html
-  // shows it for the reader to confirm. A paste without those labels leaves the setting alone.
-  function pastedSettings(res) {
-    if (!res || !Number.isInteger(res.superflexSlots) || !DDF.engine || !DDF.engine.apply) return;
-    try { DDF.engine.apply({superflexSlots: res.superflexSlots}); } catch (e) { /* settings.html asks */ }
+  // JEG-1689 (was JEG-1571's QB flex count alone): the settings a paste shows (league-paste.js inferSettings: team count,
+  // lineup slots, bench, K and DEF) go to the engine, except a field the reader already confirmed or changed on
+  // settings.html for this league. settings.html marks each one "From your paste" for the reader to check.
+  function pastedSettings(record) {
+    var patch = record && DDF.leaguePaste.enginePatch(record.pasteSettings, record.confirmed);
+    if (!patch || !DDF.engine || !DDF.engine.apply) return;
+    try { DDF.engine.apply(patch); } catch (e) { /* settings.html asks */ }
+  }
+  /* the same league read again keeps what the reader confirmed on settings.html (editing the box drops the kept league
+     first, so the last one dropped on this page counts too) */
+  var dropped = null;
+  function withConfirmed(record) {
+    var prior = kept() || dropped;
+    if (record && record.pasteSettings && prior && prior.confirmed && DDF.leaguePaste.sameLeague(prior, record)) record.confirmed = prior.confirmed;
+    return record;
   }
   function save(record) {
     if (editing && editing.source === "link") keepChatSettings();
@@ -104,6 +114,7 @@
   }
   function drop() {
     if (editing) { restoreEditing(); return; }
+    dropped = kept() || dropped;
     DDF.state.remove("pasted");
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: null}));
   }
@@ -199,8 +210,9 @@
       if (res.ok) {
         hideEditNames();
         showResult(res);
-        save(DDF.leaguePaste.record(res, "paste"));
-        pastedSettings(res);
+        var rec = withConfirmed(DDF.leaguePaste.record(res, "paste"));
+        save(rec);
+        pastedSettings(rec);
         askBookmark(res);
         status("Check the list below, then confirm your team.", "ok");
         if (scroll) $("recognized").scrollIntoView({block: "start"});
@@ -237,8 +249,9 @@
       $("edit-names-status").textContent = "";
       hideEditNames();
       showResult(res);
-      save(DDF.leaguePaste.record(res, "paste"));
-      pastedSettings(res);
+      var rec = withConfirmed(DDF.leaguePaste.record(res, "paste"));
+      save(rec);
+      pastedSettings(rec);
       askBookmark(res);
       status("Check the list below, then confirm your team.", "ok");
       $("recognized").scrollIntoView({block: "start"});

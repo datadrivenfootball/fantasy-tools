@@ -18,6 +18,10 @@
  * DDF.leaguePaste.readWithNames(text, names, rows, opts)   same, with team names the reader typed (the edit-names box)
  *   (read / readWithNames add superflexSlots 1-2 when the paste prints QB-eligible flex slot labels, JEG-1571)
  * DDF.leaguePaste.qbFlexSlots(text, teamCount) -> 0-2 QB flex slots per team from the paste's slot labels, or null
+ * res.pasteSettings (read / readWithNames, JEG-1689): inferSettings(text, res), the league settings the paste shows
+ *   -> {v:1, teamsRead, partial, rostered:{perTeam:[{name, count}], total, max}, teams: n|null,
+ *       roster:{QB,RB,WR,TE,FLEX,SUPERFLEX,K,DST,BENCH: n|null}, why:{teams|<slot>: 'partial'|'unsupported'|'mixed'|'no-labels'|'bounds'}}
+ *   null = not inferred (the reader's current setting stays); record() keeps it on ddf:pasted.
  * opts.table: player table rows ("Name|POS|TEAM|player_key"), for the table id of each player (DDF.link IDs).
  */
 (function (root) {
@@ -138,6 +142,93 @@
     if (n / teams < 0.5) return null;
     return Math.min(2, Math.round(n / teams));
   }
+  /* JEG-1689: league settings a paste shows. Team count from the teams read; starting slots, bench, K and DEF from the
+     slot labels each team's roster prints (ESPN SLOT column, Yahoo Pos column, Sleeper's slot line). Rules:
+       - team count: the number of teams read, unless the paste looks cut off (a team with no players, or a team with
+         fewer than half the players of the biggest roster): then null with why 'partial'. A count the engine does not
+         run (8, 10, 12 or 14 teams) is null with why 'unsupported' (the reader picks the size; no rounding).
+       - a slot count is inferred only when every team shows slot labels and every team shows the same count; anything
+         else is null with why 'mixed' (teams disagree) or 'no-labels' (the paste shows no slot labels). A count the
+         engine does not run (curve-widget.js ROSTER_BOUNDS, 1-5 for QB..FLEX) is null with why 'bounds'.
+       - the lineup is read only from whole rosters: every team shows a bench label and at least one slot label per
+         player read; else every slot is null with why 'no-labels'. No K or DEF label anywhere: K and DEF stay null
+         (a copy can leave out a separate kickers and defenses table).
+       - bench: the largest bench shown (a site may hide an empty bench slot), raised to the biggest roster's players
+         (not on IR) minus the starting slots.
+       - SUPERFLEX with no lineup labels falls back to qbFlexSlots (JEG-1571).
+       - a partial paste infers no roster (its labels are cut off too).
+     rostered: players read per team (matched, needs-a-look, not found, kickers and defenses), known data for the
+     settings page; nothing here changes a value formula. */
+  var SLOT_OF = {QB: "QB", RB: "RB", WR: "WR", TE: "TE", K: "K", DEF: "DST", "D/ST": "DST", DST: "DST",
+    FLEX: "FLEX", "W/R/T": "FLEX", "W/R": "FLEX", "W/T": "FLEX", "R/W/T": "FLEX", "RB/WR": "FLEX", "RB/WR/TE": "FLEX", "WR/TE": "FLEX",
+    SUPERFLEX: "SUPERFLEX", SUPER_FLEX: "SUPERFLEX", "SUPER FLEX": "SUPERFLEX", SFLX: "SUPERFLEX", OP: "SUPERFLEX", "Q/W/R/T": "SUPERFLEX", "W/R/T/Q": "SUPERFLEX", QWRT: "SUPERFLEX",
+    BN: "BENCH", BE: "BENCH", Bench: "BENCH", BENCH: "BENCH", IR: "IR", "IR+": "IR"};
+  /* "SF" is never a slot here: it is also San Francisco's team code ("SF WR", a Sleeper defense's "SF" line) */
+  var LABEL_ALT = Object.keys(SLOT_OF).sort(function (a, b) { return b.length - a.length; }).map(function (s) { return s.replace(/[\/+]/g, "\\$&"); }).join("|");
+  var LABEL_ALONE = new RegExp("^\\|?\\s*(" + LABEL_ALT + ")\\d?\\s*(?:[\\t|].*)?$");
+  var LABEL_INLINE = new RegExp("^(" + LABEL_ALT + ")\\d?\\s+(?![-–])(?=.*[a-z])");   /* "QB Josh Allen BUF", never "QB - HOU" */
+  var STARTERS = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"];
+  var BOUNDS = {QB: [1, 5], RB: [1, 5], WR: [1, 5], TE: [1, 5], FLEX: [1, 5], SUPERFLEX: [0, 2], K: [0, 3], DST: [0, 3], BENCH: [0, 14]};
+  var TEAM_SIZES = [8, 10, 12, 14];
+  function slotOf(line) {
+    var t = String(line || "").trim(), m = LABEL_ALONE.exec(t) || LABEL_INLINE.exec(t);
+    return m ? SLOT_OF[m[1]] : null;
+  }
+  function labelCounts(text) {
+    var c = {labels: 0, IR: 0};
+    STARTERS.concat(["BENCH"]).forEach(function (k) { c[k] = 0; });
+    String(text || "").split(/\r?\n/).forEach(function (l) { var s = slotOf(l); if (s) { c[s]++; c.labels++; } });
+    return c;
+  }
+  function inferSettings(text, res) {
+    var teams = (res && res.teams) || [];
+    /* a line read both as a player and as a kicker or defense (a kicker's name close to a skill player's) is one row */
+    var counts = teams.map(function (t) {
+      var lines = {};
+      t.players.forEach(function (p) { if (p.line) lines[p.line] = 1; });
+      return {name: t.name, count: t.players.length + t.unmatched.filter(function (u) { return !lines[u.line]; }).length};
+    });
+    var most = counts.reduce(function (a, t) { return Math.max(a, t.count); }, 0);
+    var partial = teams.length < 2 || counts.some(function (t) { return t.count === 0 || t.count < most / 2; });
+    var out = {v: 1, teamsRead: teams.length, partial: partial,
+      rostered: {perTeam: counts, total: counts.reduce(function (a, t) { return a + t.count; }, 0), max: most},
+      teams: null, roster: {}, why: {}};
+    if (partial) out.why.teams = "partial";
+    else if (TEAM_SIZES.indexOf(teams.length) < 0) out.why.teams = "unsupported";
+    else out.teams = teams.length;
+    STARTERS.concat(["BENCH"]).forEach(function (k) { out.roster[k] = null; });
+    var fallbackSf = qbFlexSlots(text, teams.length);
+    var none = function (why) { Object.keys(out.roster).forEach(function (k) { out.why[k] = why; }); };
+    if (partial) { none("partial"); return out; }
+    var byName = {};
+    blocks(text, teams.map(function (t) { return t.name; })).forEach(function (b) { byName[b.name] = labelCounts(b.text); });
+    var per = teams.map(function (t) { return byName[t.name] || labelCounts(""); });
+    /* a whole roster shows a label on every row (empty slots too) and a bench: anything less is not a lineup to read */
+    if (!per.every(function (c, i) { return c.BENCH > 0 && c.labels >= counts[i].count; })) {
+      none("no-labels");
+      if (fallbackSf !== null) { out.roster.SUPERFLEX = fallbackSf; delete out.why.SUPERFLEX; }
+      return out;
+    }
+    var within = function (k, n) { return n >= BOUNDS[k][0] && n <= BOUNDS[k][1]; };
+    var kdefShown = per.some(function (c) { return c.K + c.DST > 0; });
+    STARTERS.forEach(function (k) {
+      var n = per[0][k];
+      if ((k === "K" || k === "DST") && !kdefShown) out.why[k] = "no-labels";   /* a K and DEF table left out of the copy */
+      else if (!per.every(function (c) { return c[k] === n; })) out.why[k] = "mixed";
+      else if (!within(k, n)) out.why[k] = "bounds";
+      else out.roster[k] = n;
+    });
+    if (out.roster.SUPERFLEX === null && fallbackSf !== null) { out.roster.SUPERFLEX = fallbackSf; delete out.why.SUPERFLEX; }
+    {
+      var bench = per.reduce(function (a, c) { return Math.max(a, c.BENCH); }, 0);
+      if (STARTERS.every(function (k) { return out.roster[k] !== null; })) {
+        var starting = STARTERS.reduce(function (a, k) { return a + out.roster[k]; }, 0);
+        teams.forEach(function (t, i) { bench = Math.max(bench, counts[i].count - per[i].IR - starting); });
+      }
+      if (within("BENCH", bench)) out.roster.BENCH = bench; else out.why.BENCH = "bounds";
+    }
+    return out;
+  }
   function read(text, rows, opts) {
     opts = opts || {};
     var raw = String(text || ""), out = {ok: false, reason: "empty", site: "unknown", strategy: "none", names: [], teams: []};
@@ -159,6 +250,7 @@
       if (!out.names.length || pick.how === "live") out.names = pick.teams.map(function (t) { return t.name; });
       var sf = qbFlexSlots(raw, out.teams.length);
       if (sf !== null) out.superflexSlots = sf;
+      out.pasteSettings = inferSettings(raw, out);
       return summarize(out);
     }
     /* one team's page (the reader copied My Team instead of the rosters page) */
@@ -189,6 +281,7 @@
     out.reason = out.ok ? null : "unreadable";
     var sf = out.ok ? qbFlexSlots(text, teams.length) : null;
     if (sf !== null) out.superflexSlots = sf;
+    if (out.ok) out.pasteSettings = inferSettings(String(text || ""), out);
     return summarize(out);
   }
 
@@ -201,7 +294,8 @@
     var lg = result.league || {};
     return {v: 1, source: source || "paste", site: result.site || "unknown", me: null, enteredAt: today(),
       suggestedName: lg.leagueName || null, leagueId: lg.leagueId || null, platform: lg.platform || null,
-      teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; })};
+      teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; }),
+      pasteSettings: result.pasteSettings || null};
   }
 
   /* teams given as their own blocks of lines ({name, text}), read by the live matcher one team at a time: the same
@@ -220,7 +314,92 @@
     return summarize(out);
   }
 
-  var api = {read: read, readWithNames: readWithNames, fromBlocks: fromBlocks, record: record, qbFlexSlots: qbFlexSlots, _blocks: blocks};
+  /* ---- JEG-1689: paste-read settings on the engine and on settings.html ----
+     ddf:pasted.pasteSettings is what the paste showed; ddf:pasted.confirmed {field: value} is what the reader confirmed
+     or changed on settings.html (a field there is never set from the paste again). Fields: teams and the engine roster
+     keys. */
+  var FIELDS = ["teams", "QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST", "BENCH"];
+  function inferredValue(ps, f) {
+    if (!ps) return null;
+    var v = f === "teams" ? ps.teams : (ps.roster || {})[f];
+    return Number.isInteger(v) ? v : null;
+  }
+  /* the fields the paste set and the reader has not confirmed yet */
+  function pendingFields(ps, confirmed) {
+    confirmed = confirmed || {};
+    return FIELDS.filter(function (f) { return inferredValue(ps, f) !== null && !Object.prototype.hasOwnProperty.call(confirmed, f); });
+  }
+  /* DDF.engine.apply partial for the pending fields; null when there is nothing to set */
+  function enginePatch(ps, confirmed) {
+    var out = {}, roster = {};
+    pendingFields(ps, confirmed).forEach(function (f) {
+      var v = inferredValue(ps, f);
+      if (f === "teams") out.teams = v;
+      else if (f === "SUPERFLEX") out.superflexSlots = v;
+      else roster[f] = v;
+    });
+    if (Object.keys(roster).length) out.roster = roster;
+    return Object.keys(out).length ? out : null;
+  }
+  /* the same league read again (same team names): the reader's confirmations carry over */
+  function sameLeague(a, b) {
+    var names = function (r) { return r && Array.isArray(r.teams) ? r.teams.map(function (t) { return String(t.name || "").toLowerCase(); }).sort().join("\n") : null; };
+    var x = names(a);
+    return x !== null && x === names(b);
+  }
+
+  /* settings.html notice. view: {pending:[field], values:{field: n} (now on the form), standard:{field: n}}.
+     -> {show, lines:[sentence], standardText}: show false = the page keeps its "Roster sizes are optional" text only. */
+  var NAMES = {QB: "QB", RB: "RB", WR: "WR", TE: "TE", FLEX: "FLEX", SUPERFLEX: "SUPERFLEX", K: "K", DST: "DEF", BENCH: "bench"};
+  function listText(parts) {
+    if (parts.length < 2) return parts.join("");
+    return parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1];
+  }
+  function lineupText(fields, values) {
+    return listText(fields.filter(function (f) { return f !== "BENCH" && (f !== "SUPERFLEX" || values[f] > 0); })
+      .map(function (f) { return values[f] + " " + NAMES[f]; }));
+  }
+  function benchText(n) { return n + " bench " + (n === 1 ? "spot" : "spots"); }
+  var plural = function (n, one, many) { return n + " " + (n === 1 ? one : many); };
+  function pasteNotice(ps, view) {
+    view = view || {};
+    var values = view.values || {}, standard = view.standard || {}, pending = view.pending || [];
+    if (!ps) return {show: false, lines: []};
+    var lines = [], r = ps.rostered || {}, per = r.perTeam || [];
+    var inferred = FIELDS.filter(function (f) { return inferredValue(ps, f) !== null; });
+    var slots = inferred.filter(function (f) { return f !== "teams"; });
+    var lineup = slots.filter(function (f) { return f !== "BENCH"; });
+    if (ps.partial) {
+      var short = per.slice().sort(function (a, b) { return a.count - b.count; })[0];
+      lines.push("Your paste looks cut off: " + (short ? short.name + (short.count ? " shows only " + plural(short.count, "player", "players") : " shows no players") : "a team is missing")
+        + ", while other teams show up to " + r.max + ". We left your team count (" + values.teams + ") and lineup as they were. Copy the whole rosters page again, or set them below.");
+      return {show: true, lines: lines, rosterInferred: false};
+    }
+    var unsupported = !!(ps.why && ps.why.teams === "unsupported");
+    if (!inferred.length && !unsupported) return {show: false, lines: [], rosterInferred: false};
+    var even = per.length > 0 && per.every(function (t) { return t.count === r.max; });
+    lines.push("We read " + plural(ps.teamsRead, "team", "teams") + " and " + plural(r.total, "player", "players") + " from your paste, "
+      + (even ? r.max + " on each roster." : "up to " + r.max + " on a roster."));
+    var did = [];
+    if (inferred.indexOf("teams") >= 0) did.push("set the team count to " + values.teams);
+    if (lineup.length) did.push("guessed your lineup as " + lineupText(lineup, values) + (slots.indexOf("BENCH") >= 0 ? ", plus " + benchText(values.BENCH) : ""));
+    else if (slots.indexOf("BENCH") >= 0) did.push("guessed " + benchText(values.BENCH));
+    if (did.length) lines.push("We " + did.join(" and ") + ".");
+    if (unsupported) lines.push("We can value leagues of 8, 10, 12 or 14 teams, so the team count stays at " + values.teams + ". Pick the closest size below.");
+    var left = FIELDS.slice(1).filter(function (f) { return inferred.indexOf(f) < 0 && (f !== "SUPERFLEX" || values[f] > 0); });
+    if (slots.length && left.length) {
+      var std = left.every(function (f) { return values[f] === standard[f]; });
+      var leftText = listText([lineupText(left, values)].concat(left.indexOf("BENCH") >= 0 ? [benchText(values.BENCH)] : []).filter(Boolean));
+      lines.push("Your paste didn't clearly show your " + listText(left.map(function (f) { return NAMES[f]; })) + " spots, so we kept "
+        + (std ? "the standard " : "your current ") + leftText + ".");
+    }
+    if (pending.length) lines.push("Please check each one marked \u201cFrom your paste\u201d against your league's settings. A paste shows who is on each roster, not every league rule, and it doesn't show scoring.");
+    else if (inferred.length) lines.push("You've checked these. You can still change any of them below.");
+    return {show: true, lines: lines, rosterInferred: slots.length > 0};
+  }
+
+  var api = {read: read, readWithNames: readWithNames, fromBlocks: fromBlocks, record: record, qbFlexSlots: qbFlexSlots, inferSettings: inferSettings, slotOf: slotOf, _blocks: blocks,
+    FIELDS: FIELDS, inferredValue: inferredValue, pendingFields: pendingFields, enginePatch: enginePatch, sameLeague: sameLeague, pasteNotice: pasteNotice};
   root.DDF = root.DDF || {};
   root.DDF.leaguePaste = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

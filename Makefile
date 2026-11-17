@@ -780,6 +780,8 @@ test-core:
 	node tests/test_v2_league_paste.js
 	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
 	node tests/test_entry_league_paste.js
+	# JEG-1689: league settings read from a paste (team count, lineup, bench, K and DEF; notice copy).
+	node tests/test_paste_settings.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
@@ -870,6 +872,8 @@ test-core:
 	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
 	python3 -m unittest tests.test_sleeper_entry
 	python3 -m unittest tests.test_jeg1632_kdef_slots
+	# JEG-1689: a paste sets team count and lineup; League settings marks each "From your paste" until confirmed.
+	python3 -m unittest tests.test_jeg1689_paste_settings_render
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -961,6 +965,8 @@ test-core-shard-2:
 	node tests/test_v2_league_paste.js
 	# JEG-1538: connect.html paste reader (live roster-paste.js parity + real Yahoo phone/markdown pastes).
 	node tests/test_entry_league_paste.js
+	# JEG-1689: league settings read from a paste (team count, lineup, bench, K and DEF; notice copy).
+	node tests/test_paste_settings.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
@@ -1116,6 +1122,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_sleeper_entry
 	# JEG-1632: K and DEF slots in Settings (roster spots, link round trip, values unchanged, convention twins).
 	python3 -m unittest tests.test_jeg1632_kdef_slots
+	# JEG-1689: a paste sets team count and lineup; League settings marks each "From your paste" until confirmed.
+	python3 -m unittest tests.test_jeg1689_paste_settings_render
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe

@@ -63,10 +63,14 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 /* JEG-1632 (Jeremy, 2026-11-13): kicker and defense slots are not valued but take roster spots; their own row under the grid */
 .team-page .st-sub{font-size:15px;margin:24px 0 12px}.team-page .st-kdef{margin-top:0}
 .team-page .info summary:focus-visible{outline:3px solid #7fbf9d;outline-offset:2px}
+/* JEG-1689: settings read from a pasted league, each marked until the reader confirms or changes it */
+.team-page .paste-notice{background:#fff8e6;border:1px solid #e9d39a;border-left:4px solid #a3730f;border-radius:10px;padding:14px 16px;margin:16px 0 0;color:#3b2f12;max-width:74ch}.team-page .paste-notice p{margin:0 0 6px;font-size:15px;line-height:1.45}.team-page .paste-notice p:last-child{margin-bottom:0}
+.team-page .st-from{display:inline-block;align-self:flex-start;font-weight:600;font-size:12px;line-height:1.3;padding:2px 8px;border-radius:99px;background:#fff1cc;color:#6b4c00;border:1px solid #e2c676}.team-page .st-from[hidden]{display:none}.team-page .st-lbl .st-from{margin-left:8px;vertical-align:1px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.st-actions{display:none}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
 <section id="settings">
 <h1>League settings</h1>
+<div class="paste-notice" id="paste-notice" role="status" hidden></div>
 <p class="muted" id="roster-optional">Roster sizes are optional. Unless you change them, we use a standard roster: <span id="std-roster-text">1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench</span>. You can change any of it below, or just continue. Leagues you import or paste fill in their own sizes.</p>
 <form id="editor">
 <section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
@@ -171,6 +175,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
 <script src="v2/team-summary.js" defer></script>
 <script src="ddf-engine.js" defer></script>
 <script src="ddf-league.js" defer></script>
+<script src="league-paste.js" defer></script>
 <script type="module">
 /* League settings on the live engine (JEG-1539): the form shows the league's settings (a link's own settings, else the
    engine's saved settings, ddf.v2.league-settings) and confirming writes them through DDF.league.setSettings, which calls
@@ -208,11 +213,62 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     const sfn = Number($('lineup-sf').value);
     if (!Number.isInteger(sfn) || sfn < 0 || sfn > 2) return false;
     if (![$('lineup-k').value, $('lineup-def').value].map(Number).every(n => Number.isInteger(n) && n >= 0 && n <= 3)) return false;
-    try { DDF.league.setSettings(f); return true; } catch (e) { console.error(e); return false; }
+    try { DDF.league.setSettings(f); if (pasteOn) confirmPaste(); return true; } catch (e) { console.error(e); return false; }
   }
+  /* JEG-1689: values read from a pasted league. Each one the reader has not confirmed carries a "From your paste" marker.
+     Changing a value clears its marker; confirming the page (Looks right / save) saves the settings and records every
+     value in ddf:pasted.confirmed, so a new read of the same paste never resets it. An unsaved change is not kept, like
+     any other change on this page. */
+  const FIELD_INPUT = {teams: 'teams', QB: 'lineup-qb', RB: 'lineup-rb', WR: 'lineup-wr', TE: 'lineup-te', FLEX: 'lineup-flex',
+    SUPERFLEX: 'lineup-sf', K: 'lineup-k', DST: 'lineup-def', BENCH: 'lineup-bench'};
+  const LP = () => DDF.leaguePaste;
+  let pasteOn = false;
+  function pastedRecord() { const p = DDF.state.get('pasted', null); return p && p.pasteSettings && LP() ? p : null; }
+  function formValues() { const v = {}; Object.keys(FIELD_INPUT).forEach(f => { v[f] = Number($(FIELD_INPUT[f]).value); }); return v; }
+  function standardValues() {
+    const r = (DDF.engine.defaultRoster && DDF.engine.defaultRoster()) || {}, v = Object.assign({}, r);
+    v.teams = DDF.engine.defaultTeams ? DDF.engine.defaultTeams() : 12;
+    return v;
+  }
+  function marker(f) {
+    let m = $('from-' + f);
+    if (m) return m;
+    const inp = $(FIELD_INPUT[f]);
+    m = document.createElement('span'); m.className = 'st-from'; m.id = 'from-' + f; m.textContent = 'From your paste'; m.hidden = true;
+    if (f === 'teams') $('lbl-teams').appendChild(m);
+    else { const lb = inp.closest('label'); lb.insertBefore(m, lb.querySelector('.stepper') || inp); }
+    const d = (inp.getAttribute('aria-describedby') || '').split(' ').filter(Boolean);
+    if (d.indexOf(m.id) < 0) { d.push(m.id); inp.setAttribute('aria-describedby', d.join(' ')); }
+    return m;
+  }
+  function showPaste() {
+    const rec = pastedRecord(), box = $('paste-notice');
+    if (!pasteOn || !rec) { box.hidden = true; $('roster-optional').hidden = false; return; }
+    const values = formValues(), pending = LP().pendingFields(rec.pasteSettings, rec.confirmed)
+      .filter(f => !touched.has(f) && values[f] === LP().inferredValue(rec.pasteSettings, f));
+    Object.keys(FIELD_INPUT).forEach(f => { const on = pending.indexOf(f) >= 0; if (on || $('from-' + f)) marker(f).hidden = !on; });
+    const n = LP().pasteNotice(rec.pasteSettings, {pending, values, standard: standardValues()});
+    box.hidden = !n.show;
+    box.replaceChildren(...n.lines.map(t => { const p = document.createElement('p'); p.textContent = t; return p; }));
+    $('roster-optional').hidden = !!(n.show && n.rosterInferred);
+  }
+  function confirmPaste() {
+    const rec = pastedRecord();
+    if (!rec) return;
+    const values = formValues(), confirmed = Object.assign({}, rec.confirmed);
+    Object.keys(FIELD_INPUT).forEach(f => { if (LP().inferredValue(rec.pasteSettings, f) !== null) confirmed[f] = values[f]; });
+    rec.confirmed = confirmed;
+    DDF.state.set('pasted', rec);
+    showPaste();
+  }
+  let filling = false;   // fill() sets the form from the settings: not the reader's own change
+  const touched = new Set();
+  Object.keys(FIELD_INPUT).forEach(f => $(FIELD_INPUT[f]).addEventListener('change', () => { if (pasteOn && !filling) { touched.add(f); showPaste(); } }));
   DDF.league.ready.then(c => {
     const s = c ? c.settings : (function () { const e = DDF.engine.settings(), r = e.roster; return {scoring: e.scoring, teams: e.teams, superflex: r.SUPERFLEX > 0, superflexSlots: r.SUPERFLEX, slots: [r.QB, r.RB, r.WR, r.TE, r.FLEX, r.BENCH], kdef: [r.K, r.DST]}; })();
-    fill(s);
+    filling = true; try { fill(s); } finally { filling = false; }
+    pasteOn = !!(c && c.source === 'pasted');
+    showPaste();
     const std = DDF.engine.defaultRoster && DDF.engine.defaultRoster();
     if (std) $('std-roster-text').textContent = DDF.engine.rosterText(std);
     if (!c) $('settings-status').innerHTML = 'No league added yet: these are the settings every page uses. <a href="connect.html">Add your league</a>';
