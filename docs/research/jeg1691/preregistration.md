@@ -7,7 +7,7 @@ current architecture, we are exploring an enhanced value, not doing a cutover." 
 Prior versions: v1 JEG-1597 (#1405), v2 JEG-1605 (#1408, #1414), v3 JEG-1610 (#1415), v4 JEG-1611
 (#1417). Issue numbers below refer to the 22-issue walkthrough of 2026-11-16.
 
-Nothing in sections 1-5 changes after the first holdout number is printed. Any change before that
+Nothing in sections 1-5 changes after the first decisive number (weeks 8-10) is printed. Any change before that
 is appended at the end, dated, with its reason. A change may fix a bug or a missing input; it may
 not loosen a pass rule after a dev number has been seen.
 
@@ -49,17 +49,22 @@ says it is worth at each scoring.
 **What Jeremy fixed on 2026-11-16.** The rebuild starts from the chart's own value and adds only
 the change DDF's ESPN-style pricing gives, so nothing moves at the chart's own scoring. History is
 the stored per-stat lines from 2024 on, nothing new is loaded. A move counts as the right size if it
-is within a factor of 1.5 either way of the reference. Weeks 11-14 decide in one run. Thin
+is within a factor of 1.5 either way of the reference. One decisive run, no peeking. Thin
 histories may be pulled toward the position average, by an amount set on real games only.
 
 **One honest catch.** Two seasons of per-stat history give the real-games test (test 1) little
 power. If it comes out "can't tell" rather than "no", that is not read as a no: it blocks the
 separate value, but allows one more round once more 2026 games are recorded.
 
-**What happens next.** Weeks 5-10 are for building and checking code. Weeks 11-14 are kept
-untouched and decide the result in one run. Three outcomes: **A** close it and keep DDF Value as
-is; **B** one more pre-registered round on the step that failed; **C** build a separate, clearly
-labelled "scoring-aware" value next to DDF Value. In no case is DDF Value replaced.
+**What happens next (Jeremy, 2026-11-16: "nothing in this project needs to wait").** The test
+uses chart snapshots that already exist. Weeks 5-7 were used only to debug the code. Weeks 8-10
+decide the result in one run. Weeks 11-14 re-run the same frozen test later as a check, and no
+decision waits for them. One caveat: weeks 8-9 charts were already looked at in the two earlier
+tries (v3 and v4). v5's method, its ESPN and Sleeper target and these tests were not built on
+them, but because people had seen those weeks, a pass there is somewhat weaker evidence than a
+pass on brand-new weeks would be. Three outcomes: **A** close it and keep DDF Value as is; **B**
+one more pre-registered round on the step that failed; **C** build a separate, clearly labelled
+"scoring-aware" value next to DDF Value. In no case is DDF Value replaced.
 
 **What this cannot settle.** Nobody knows whether a trade chart's number really stands for a points
 forecast (so far, chart points forecast real points worse than projections do). Nobody knows which
@@ -139,13 +144,14 @@ projection: league allocation, waiver line, value above waivers, slices, implied
 Adjusted at the shared weights `W` and the pie. v5 does the same with the assumed line:
 
 - 7a. `P_i(s) = F(shat_i, s)` for each target `s`.
-- 7b. Pseudo-source `c-v5`: natives `P_i(s)`, run at `s` as a projection source **outside `I`**.
+- 7b. Pseudo-source `c-v5`: natives `P_i(s)` for the invertible players and the projections' mean
+  ppg `m_j(s)` for every other player (amendment 4), run at `s` as a projection source **outside `I`**.
   That is the existing VP-1.4 path: it goes through VP-2, VP-3, VP-5 against the run's allocation,
   pie and `W`, and contributes nothing to weights, peers, `m` or DDF Value. The allocation is
   re-derived at `s` as DDF does (Jeremy's literal step 7); a variant holds it at the anchor's.
-  The one stated deviation: the pseudo-source lists only `invertible` players, so its own waiver
-  index `R_p` can fall past its list. Its waiver line is the mean of the projections' blended
-  waiver values in ppg at `s` (v4 iteration 3a, reading 2), with no other change.
+  Because the list holds every player the projections price, its waiver line comes out of the
+  pipeline's own rule at `R_p`; no waiver override is needed (this replaces the waiver deviation
+  first written here, which would have needed a pipeline change).
 - 7c. Delta form (primary): `Av5_i(s) = max(0, A_i(s0) + Aps_i(s) - Aps_i(s0))`, where `Aps` is
   the pseudo-source's Adjusted. The identity at `s = s0` is exact. The scoring response comes only
   from DDF's own ESPN-style pricing of the assumed stat lines, so v4's fixed slope `b_p` is gone.
@@ -184,14 +190,15 @@ in the target it is judged against (section 3), the delta form, and the shrunk m
 
 | Need | Source | Coverage | Notes |
 | --- | --- | --- | --- |
-| Per-stat history (step 5, T1) | Supabase `player_game_stats` (JSONB `stats`) | 2024-2025 full; 2026 weeks 1-4 full (about 1,000-1,100 rows a week); weeks 5-8 partial (258-294 rows a week as of 2026-11-09); ESPN actuals written daily since 2026-10-09 (JEG-521) | Has pass, rush and receiving yards and TDs, receptions, targets, interceptions. No fumbles, no 2-pt. Joins to `player_key` through `players` (complete). |
+| Per-stat history (step 5, T1) | Supabase `player_game_stats` (JSONB `stats`), cache `cache/pgs_weekly_2024_2026.json.gz` (`fetch_history.py`, anon REST, 42,721 rows, fetched 2026-11-17) | 2024-2025, 2026 weeks 1-10. Weeks 1-4 hold about 1,110 rows but only 286-297 with any stat; weeks 5-10 (ESPN actuals, JEG-521) hold 258-294 rows, 241-273 with a stat, so they are not partial in substance (amendment 2) | Pass, rush and receiving yards and TDs, receptions, targets, interceptions; no fumbles or 2-pt. `player_key` via `projection_snapshots` (anon cannot read `players`): 739 keyed players; 929 stat rows stay unkeyed and out. |
 | Per-stat history 2015-2023 | none in repo | none | `data/inputs/weekly_actuals_nflverse_2015_2025.csv.gz` holds points only. The nflverse idmap covers 59.4% of chart players. Not loaded (D2 A, Jeremy 2026-11-16). |
 | Receptions 2015-2025 | `ppr - std` from the nflverse points file | exact | Used only by v4's share model (sensitivity variant V-mix3). |
 | ESPN ROS stat lines | `data/inputs/espn_projections.csv`, 7 categories, at the commit that built each content week's fixture (68 commits since 2026-09-22) | weeks 5-10 dev; 11+ as they land | Divided by team games remaining as in the bake. |
-| ESPN weekly stat lines | `source_weekly_projections` (JEG-1641), 9 keys incl. INT | runs from 2026-11-14 | Cross-check only. |
-| Sleeper stat lines | `source_weekly_projections`, Sleeper's full stat dict (about 56 keys) | runs from 2026-11-14, target weeks content week to 18 | ROS = the sum over the same target weeks as ESPN's window, from the latest run with `as_of` <= the chart snapshot time, divided by the same team games. The Sleeper-to-ESPN key map is pinned in code with a test. |
-| Sleeper before 2026-11-14 | `data/inputs/weekly_projections_sleeper.csv.gz` | points only | Single-week receptions = `pts_ppr - pts_std`, no ROS stat line. Reported for dev weeks 5-9 only. |
-| Charts | weekly saved lists, weeks 5-10 (dev); 11-14 (holdout, as they arrive) | | Same fixtures as v4. |
+| ESPN weekly stat lines | `source_weekly_projections` (JEG-1641), 9 keys incl. INT | first run 2026-11-16 | Not used (the CSV is DDF's own ESPN input). |
+| Sleeper stat lines | `source_weekly_projections`, Sleeper's full stat dict | first Sleeper run 2026-11-16 (not 11-14), target weeks 10-18 | Week 10 only; cache `tools/research/jeg1691/cache/sleeper_ros_week10.json` (read-only SQL, checksums against SQL). |
+| Sleeper before 2026-11-16 | `data/inputs/weekly_projections_sleeper.csv.gz` | one vintage, 2026-10-08 (week 5: 2026-10-10), target weeks 1-18, points only | Weeks 5-9; receptions = `pts_ppr - pts_std`. See 2.6. |
+| ESPN captures | `source_projection_captures`, ESPN, week horizon | 2026-10-24 to 2026-11-15, target weeks 7-18, points by format only | Cross-check, weeks 7-10; cache `cache/espn_captures_ros.json`. |
+| Charts | weekly saved lists in `data/history/week-<w>.json`, weeks 5-7 (dev), 8-10 (decisive), 11-14 (replication, as they arrive) | | Same fixtures as v4. |
 
 ### 2.2 Thin and rookie histories
 
@@ -219,8 +226,9 @@ in the target it is judged against (section 3), the delta form, and the shrunk m
   the 4 weeks starting at the origin. Players with at least 2 truth games are scored.
 - Selection origins (choose `k`, `t`): 2025 weeks 4, 5, 6, 7, 8 (truth windows end by week 11).
 - Test origins (T1 verdict): 2025 weeks 12, 13, 14 (truth through week 17). 2026 origins are added
-  only where every truth week has at least 90% of the 2026 weeks 1-4 median row count. That check
-  runs and is recorded before any T1 number is computed.
+  only where every truth week has at least 80% of the 2026 weeks 1-4 median count of rows with a
+  stat (amendment 2). On 2026-11-17 that gives origins 2026 weeks 5, 6, 7 (truth through week 10).
+  A game counts only when it has a nonzero stat in a scored category or targets.
 - **Power (D2 A).** With per-stat history only from 2024, the selection origins have one prior
   season, and the test origins are three 2025 weeks plus whatever 2026 weeks qualify. That is
   roughly a few hundred RB/WR/TE per origin and heavily overlapping truth windows, against v4's
@@ -229,6 +237,35 @@ in the target it is judged against (section 3), the delta form, and the shrunk m
 - Objective S (selection): with the player's realized anchor points over the window given, predict
   his stat line as `realized F(s0) x m*_i`. S = the sum over categories of squared error divided by
   that category's variance at the position, averaged over players.
+
+### 2.6 Reference pairing with chart weeks (amendment 3)
+
+Rule: every reference comes from a vintage no later than the DDF ESPN snapshot of the same
+content week (`data/history/week-<w>.json`, `sources.espn.captured_at`). The ROS target weeks are
+ESPN's own `weeks_covered` for that snapshot, except where noted. Pinned by
+`tests/test_jeg1691_v5.py::test_reference_caches_respect_cutoffs`.
+
+| Chart week | Charts pulled | ESPN ROS stat line (primary; 7 categories) | ESPN captures (cross-check; receptions only) | Sleeper |
+| --- | --- | --- | --- | --- |
+| 5 (dev) | 2026-10-06..09 | commit 71b5f891d, snapshot 2026-10-12, weeks 6-18 | none (captures start 2026-10-24) | CSV vintage 2026-10-08, weeks 6-18, points only |
+| 6 (dev) | 2026-10-13..14 | e5b571f78, 2026-10-19, weeks 7-18 | none | CSV 2026-10-08, weeks 7-18 |
+| 7 (dev) | 2026-10-22 | 693c0ca4a, 2026-10-25, weeks 7-18 | latest batch before 2026-10-25T19:49Z, weeks 8-18 | CSV 2026-10-08, weeks 7-18 |
+| 8 (decisive) | 2026-10-27..28 | 8a3855823, 2026-10-31, weeks 8-18 | latest batch before 2026-10-31T19:47Z, weeks 9-18 | CSV 2026-10-08, weeks 8-18 (about 3 weeks stale) |
+| 9 (decisive) | 2026-11-03..04 | 284b7efac, 2026-11-09, weeks 10-18 | latest batch before 2026-11-10T01:13Z, weeks 10-18 | CSV 2026-10-08, weeks 10-18 (about 4 weeks stale) |
+| 10 (decisive) | 2026-11-10..12 | 24b3a6519, 2026-11-16, weeks 11-18 | latest batch before 2026-11-16T18:51Z, weeks 11-18 | warehouse run 2026-11-16T18:51Z, weeks 11-18, full stat dict (RotoWire) |
+| 11-14 (replication) | as they arrive | the week's commit, same rule | same rule | the warehouse run nearest before the week's ESPN snapshot |
+
+- ESPN captures (`source_projection_captures`, ESPN, week horizon) hold points by format only, not
+  stat lines. Receptions = Full minus Standard points. They cross-check the CSV's receptions and
+  enter no verdict.
+- Sleeper: no stored history of past Sleeper vintages exists, and Sleeper's API serves only its
+  latest projection for a week, so no back-fill reproduces what Sleeper said on a past date. Weeks
+  5-9 use the one stored vintage (2026-10-08, `data/inputs/weekly_projections_sleeper.csv.gz`, points
+  only). It is older than the charts of weeks 8-9, never newer. Week 10 uses the warehouse (JEG-1641;
+  its first Sleeper run is 2026-11-16). So Sleeper on weeks 8-9 is stale and points-only. That can
+  only widen the ESPN-Sleeper disagreement (`D_src`), and it is stated beside T3.
+- Sleeper's own list as per-game natives (T6-T8) = ROS points / projected weeks. ESPN's own list
+  is DDF's ESPN source as it is.
 
 ### 2.5 Out of scope
 
@@ -243,34 +280,43 @@ Sports or USA Today.
 
 ### 3.1 Split and the rule for touching weeks
 
-- **Dev = content weeks 5-10.** Every one of them has already been seen by v3 or v4 runs, so they
-  can never decide anything. They are used to build the code, run T2, and print descriptive
-  numbers. Dev numbers cannot change a rule (preamble).
-- **Holdout = content weeks 11, 12, 13, 14.** No chart snapshot for them existed at registration.
-  The runner refuses weeks of 11 or later unless given `--holdout <registration commit>`. It runs
-  once, after week 14's charts and that week's Sleeper and ESPN runs exist, and everything it
-  prints is final. Before that, a holdout week may only be checked for row counts (no value is
-  computed).
+- **Dev = content weeks 5-7.** Used only to debug the code (run 2026-11-16, recorded in the
+  amendments), to run T2, and to freeze the T6 widening. No dev number can change a rule.
+- **Decisive = content weeks 8, 9, 10, one run.** The runner (`tools/research/jeg1691/run_v5.py`)
+  refuses weeks 8-10 unless given `--decisive <commit>` equal to the checked-out HEAD, with a clean
+  tree under the registered paths, and refuses a second decisive run. Everything it prints is final.
+- **Honesty about weeks 8-10.** Weeks 8 and 9 chart data were loaded and read in v3 (JEG-1610) and
+  v4 (JEG-1611, the "confirmation run"; issue 13). v4's pass rule planned a week 10 run; whether it
+  ran is not found in the records. v5's method, its ESPN and Sleeper stat-line target, its tests and
+  its thresholds were not tuned on any chart week: the step 5 strength is set on 2025 actuals
+  only, and every rule here was written before any v5 number on weeks 8-10 existed. What lowers
+  confidence: the people who wrote v5 knew v3's and v4's results on weeks 8-9 (for example that the
+  rebuild overshoots the publishers), and the design choices of v5 (judge against ESPN and Sleeper;
+  DDF's own pricing in step 7) were made knowing them. A pass on weeks 8-10 is therefore weaker
+  evidence than a pass on unseen weeks, and the replication on weeks 11-14 is reported beside it.
+- **Replication = content weeks 11-14**, run later with `--replication <commit>` and the same frozen
+  rules. It blocks no decision. If its verdict differs from the decisive one, that is stated next to
+  the decision; it does not reopen it.
 - The T1 split is on actuals (2.4) and is separate from the chart weeks.
 - Intervals: paired player bootstrap, 2,000 resamples, seed 16911, with players resampled within
-  position and the holdout weeks averaged within each resample. Shuffle control: within position,
+  position and the decisive weeks averaged within each resample. Shuffle control: within position,
   each player's mix is replaced by another same-position player's, 1,000 permutations, seed 16911.
 - Pooling: Tier 1 statistics pool RB, WR and TE (equal weight per position). Per-position values
   are always reported, and a TE result is named when it differs in sign.
-- References for T3-T6: `ESPN+Sleeper` = the mean of the two where both exist (all holdout weeks).
-  On dev weeks 5-9, ESPN alone (labelled).
+- References for T3-T8: `ESPN+Sleeper` = the mean of the two, on players both price. The exact
+  pairing of reference vintages with chart weeks is in 2.6.
 
-### 3.2 Tier 1 (all must pass on the holdout for outcome C)
+### 3.2 Tier 1 (all must pass on the decisive weeks for outcome C)
 
 | # | Test | Statistic | Pass rule |
 | --- | --- | --- | --- |
 | T1 | **Mechanism on actuals** (no charts): does the player's own full-category mix predict later stat lines better than the position-average mix? | On the test origins (2.4): (a) the error in rescored points when the realized Half points are split by the mix and rescored at Standard and at Full, MAE averaged over both; (b) objective S. Player mix (selected `k`, `t`) vs position mix (`k = infinity`), paired difference. | PASS if, for (a) pooled RB/WR/TE, the interval of (position-mix error - player-mix error) is entirely above 0 **and** the player mix beats the shuffle control's 5th-percentile error. FAIL if the interval is entirely below 0. Otherwise INCONCLUSIVE. (b) is reported with the same labels and is not part of the verdict. |
 | T1b | Custom scorings on actuals (descriptive) | (a) at TE premium (+0.5 per TE catch on Full), 6-pt passing TD (Half), and -1 per interception (Half) | Reported, no verdict: the only place the full mix differs from a reception share. |
 | T2 | **Exactness** | (i) `Av5_i(s0) = A_i(s0)` for every invertible player, chart and week; (ii) current DDF Value reproduced exactly; (iii) **ESPN-path parity**: run step 7b with ESPN's own ROS stat lines (and ESPN's own waiver line) and it reproduces ESPN's Adjusted at all three scorings | PASS if the max absolute difference is 0.0 (for iii: at most 1e-9, since the bake rounds). (i)-(ii) cannot fail by design and are labelled so. (iii) is the proof that step 7 is the ESPN path. |
-| T3 | **Scale and consistency of the mix** (shape) vs ESPN and Sleeper | For holdout chart players: `D_v5` = median over players of abs(log(receptions per anchor point in `m*_i` / the same in the reference)), per position; `D_src` = median abs(log(ESPN's / Sleeper's)) for the same players | PASS if, pooled, the point estimate of `D_v5` is at most `D_src` **and** `D_v5` is below the shuffle control's 5th percentile. FAIL if `D_v5 > 2 D_src`. Otherwise PARTIAL. Every other category is reported the same way, no verdict. |
+| T3 | **Scale and consistency of the mix** (shape) vs ESPN and Sleeper | For the decisive weeks' chart players: `D_v5` = median over players of abs(log(receptions per anchor point in `m*_i` / the same in the reference)), per position; `D_src` = median abs(log(ESPN's / Sleeper's)) for the same players | PASS if, pooled, the point estimate of `D_v5` is at most `D_src` **and** `D_v5` is below the shuffle control's 5th percentile. FAIL if `D_v5 > 2 D_src`. Otherwise PARTIAL. Every other category is reported the same way, no verdict. |
 | T4 | **Scoring response, rank level** (Standard to Full) | Within position, the percentile move of `Av5` (Standard to Full) vs that of the **reference-mix rebuild**: the same chart points `P_i(s0)` split by ESPN+Sleeper's own mix and taken through the same step 7. This isolates the mix: same points, same machinery. Spearman, both charts. | PASS if, for both charts, the pooled correlation's interval is entirely above 0 **and** its point estimate is above the shuffle control's 95th percentile. |
 | T5 | **Scoring response, size** | SD of v5's percentile moves / SD of the reference-mix rebuild's, both charts | PASS if the point estimate is in [2/3, 3/2] for both charts: within a factor of 1.5 either way (D3 A, Jeremy 2026-11-16). The interval is reported, not part of the rule. |
-| T6 | **Scoring response, level shift** | Standard-to-Full log change of the WR/RB and TE/RB ratios of summed Adjusted over the top 24 RB, 24 WR and 12 TE, for `Av5`, against **ESPN's and Sleeper's own lists** priced by DDF at Standard and Full (Sleeper as a VP-1.4 pseudo-source) | PASS if both ratios, for both charts, lie within [min, max] of ESPN's and Sleeper's own moves, widened on each side by the week-to-week SD of ESPN's own moves over dev weeks 5-10 (ESPN is the only granular list on every dev week), computed and committed before the holdout run. The overshoot count (both references on one side, v5 beyond both) is reported. |
+| T6 | **Scoring response, level shift** | Standard-to-Full log change of the WR/RB and TE/RB ratios of summed Adjusted over the top 24 RB, 24 WR and 12 TE, for `Av5`, against **ESPN's and Sleeper's own lists** priced by DDF at Standard and Full (Sleeper as a VP-1.4 pseudo-source) | PASS if both ratios, for both charts, lie within [min, max] of ESPN's and Sleeper's own moves, each ratio averaged over the decisive weeks, widened on each side by the week-to-week SD of ESPN's own moves over dev weeks 5-7 (frozen in `out/t6_widening.json` by the dev run, before the decisive run). The overshoot count (both references on one side, v5 beyond both) is reported. |
 | T7 | **No harm vs unchanged** | Within-position Spearman (RB/WR/TE pooled) of the chart's Adjusted at `s` against ESPN+Sleeper's own Adjusted at `s`: v5 minus unchanged. Cells: FantasyCalc at Standard and Half; FantasyPros at Standard and Full. | Per cell: PASS if the interval's lower bound is at least 0; HARM if the upper bound is below 0; else INCONCLUSIVE. The test passes if no cell is HARM. INCONCLUSIVE cells are named and reported as "not shown to harm", never "improves". |
 | T8 | **No harm vs current DDF Value** | The same statistic for DDF Value v5 minus current DDF Value, at Standard, Half and Full | Same labels and rule as T7. |
 
@@ -288,7 +334,7 @@ not passed. Sleeper is not a DDF input.
   (columns barely reorder, the two publishers agree at 0.29) and section 3.4.
 - Level consistency (stat lines per game, not per point) of `shat` vs ESPN and Sleeper. This
   carries the chart's own level opinion (step 4), so it is not a mix test.
-- Calibration of `P_i(s0)` against realized ppg (issue 16), repeated on holdout weeks as truth
+- Calibration of `P_i(s0)` against realized ppg (issue 16), repeated on the decisive weeks as truth
   accrues.
 - Realized points, pre-registered here for when truth exists (season end): within-position
   Spearman at Standard and Full of v5, unchanged, current DDF Value, and FantasyPros as published
@@ -318,7 +364,7 @@ It cannot fix:
 - It says nothing about whether a chart's number means a points forecast (issues 8 and 16). T3-T6
   take `P_i(s0)` as given.
 - ESPN is also an input to steps 4 and 7 (guarded by the ESPN-left-out run, not removed).
-- Sleeper ROS stat lines exist only from 2026-11-14, so dev weeks 5-9 have ESPN only.
+- Sleeper stat lines exist only from 2026-11-16. Weeks 8-9 use a stale, points-only Sleeper vintage (2.6).
 - Levels inside DDF are still set by the shared weights `W` (issue 9). T6 compares DDF-priced moves
   with DDF-priced moves.
 
@@ -344,13 +390,13 @@ next to the verdict.
 
 ## 5. Stop rules and what each outcome means
 
-Order: T2 first, on dev. A T2 failure is a bug: fix it, rerun dev, and never run the holdout with a
+Order: T2 first, on dev. A T2 failure is a bug: fix it, rerun dev, and never run the decisive weeks with a
 T2 failure. T1 can be run as soon as the actuals split is in place. It uses no chart week.
 
 | Outcome | When | What it means for Jeremy's decision |
 | --- | --- | --- |
 | **A: close** | T1 FAIL (the position mix beats the player's own mix on real games), or T1 INCONCLUSIVE with a point estimate at or below 0, or T4 FAIL, or any HARM cell in T7 or T8 | "How the player tends to earn points" is not supported on this data, or the rebuild damages the order. Keep DDF Value as is. The v4 recommendation A stands. No further iteration of the chart unwind. |
-| **B: iterate once** | T2 and T4 pass, no HARM, and either (i) T1 passes but T3, T5 or T6 fail or are PARTIAL, or a verdict hinges on an anchor; or (ii) T1 is INCONCLUSIVE with a point estimate above 0 (low power, D2 A), whatever T3, T5 and T6 show | (i) The premise holds but the size, levels or mix shape is off: one more pre-registered round changes only the failing step. (ii) The mix is not shown to fail, only underpowered: the round re-runs T1 with 2026 origins added as their actuals reach the 90% coverage rule. No other change, and no new history source (D2 A stands). Either way the round is written before its run, with holdout weeks 15-17. If it does not reach C, close (A). |
+| **B: iterate once** | T2 and T4 pass, no HARM, and either (i) T1 passes but T3, T5 or T6 fail or are PARTIAL, or a verdict hinges on an anchor; or (ii) T1 is INCONCLUSIVE with a point estimate above 0 (low power, D2 A), whatever T3, T5 and T6 show | (i) The premise holds but the size, levels or mix shape is off: one more pre-registered round changes only the failing step. (ii) The mix is not shown to fail, only underpowered: the round re-runs T1 with 2026 origins added as their actuals reach the coverage rule of 2.4. No other change, and no new history source (D2 A stands). Either way the round is written before its run. Its decisive weeks are the first unused chart weeks (11-14, which then stop being a replication of this round). This is the only case where anything waits for new weeks. If it does not reach C, close (A). |
 | **C: proceed to a separate enhanced value** | Every Tier 1 test passes (T7/T8 with no HARM), no hinge on either anchor | Open a new ticket to design a separate, labelled "scoring-aware" value shown beside DDF Value (like Personalized DDF). DDF Value, the charts and the pipeline stay as they are. The new value gets its own review and Jeremy's go before anything is published. C is not a finding that charts encode stat lines (section 6). |
 
 Prediction, written now so the result can be compared with it:
@@ -390,7 +436,8 @@ needs the interval entirely above 0, which two seasons may not give even for a r
   DDF does not price (JEG-1688 is Backlog).
 - **Data.** Per-stat history starts in 2024 (two seasons plus part of 2026), so T1 has few test
   origins. Fumbles and 2-pt are absent (JEG-1687). 2026 weeks 5+ actuals are partial.
-- **Small, overlapping sample.** Four holdout weeks of slowly changing rest-of-season lists are not
+- **Weeks 8-10 were not unseen** (3.1). The decisive weeks were read by v3 and v4.
+- **Small, overlapping sample.** Three decisive weeks of slowly changing rest-of-season lists are not
   four independent tests. The bootstrap is over players, not weeks.
 - **Close kin to a failed variant.** `v3_proj` (step 7 by the projections' maps) lost 0 of 40
   against the publishers. v5 is judged against a different target. If v5 passes here, the reading
@@ -405,7 +452,7 @@ needs the interval entirely above 0, which two seasons may not give even for a r
 | D1 A | Step 7 in delta form: exact at the anchor; the response is DDF's ESPN-style pricing of the assumed line | Step 7c primary; the literal form is reported only |
 | D2 A | History = stored `player_game_stats`, 2024 on; no nflverse per-stat load | Step 5, 2.1, 2.4 (power note), section 5 |
 | D3 A | T5 passes within a factor of 1.5 either way, [2/3, 3/2] | T5 |
-| D4 A | Holdout weeks 11-14, one decisive run | 3.1 |
+| D4 (week choice replaced 2026-11-16) | Jeremy, 2026-11-16: "nothing in this project needs to wait". Decisive run once on existing weeks 8-10; dev 5-7 for debugging only; weeks 11-14 an automatic later replication that blocks nothing (amendment 1). One run, no peeking, as D4 A asked | 3.1, section 5 |
 | D5 A | Shrinkage allowed, strength chosen by forward CV on real games only, never on charts | Step 5; V-mix0 (raw) stays a reported variant |
 
 ## Amendments
@@ -414,3 +461,46 @@ needs the interval entirely above 0, which two seasons may not give even for a r
   - Rules changed: T5 band confirmed; the T1 power note added (2.4); stop rules split T1
     INCONCLUSIVE by the sign of its point estimate (A vs B(ii)); the summary updated.
   - No pass threshold was loosened, and no dev number existed.
+- 2026-11-16, before any v5 number on weeks 8-10 (coordinator relaying Jeremy: "nothing in this
+  project needs to wait"). These are implementation and data findings; no pass threshold was
+  loosened.
+  1. **Weeks.** Decisive run once on the existing weeks 8-10. Weeks 5-7 are for debugging only.
+     Weeks 11-14 are a later replication that blocks nothing (3.1, section 5). The seen-weeks
+     caveat is in 3.1 and section 6.
+  2. **Game rows and 2026 coverage.** A game counts only when it has a stat. The 2026 weeks 1-4 rows
+     are mostly zero-stat rows, and weeks 5-10 are complete in substance. So the T1 coverage rule
+     uses rows with a stat, at 80% of the weeks 1-4 median, instead of 90% of all rows (2.4).
+  3. **Reference pairing** fixed in 2.6. Two discoveries:
+     - Sleeper's first warehouse run is 2026-11-16, not 11-14.
+     - No source holds past Sleeper vintages, so weeks 8-9 use the stale 2026-10-08 points-only
+       vintage.
+  4. **Step 7b.** The pseudo-source lists the projections' mean ppg for every other player. Its
+     waiver line then comes from the unmodified pipeline, with no override.
+  5. **Shuffle control for T4.** Each permutation is priced through the pseudo-source's own
+     ppg-to-Adjusted map from the primary run (`unwind.forward`). That replaces 1,000 new pipeline
+     runs per chart-week. The permutation itself is unchanged.
+  6. **T2 tolerances.**
+     - The identity is exact (0.0).
+     - DDF Value reproduction: at most 1e-9, because sums run in a different order.
+     - ESPN-path parity of the pipeline: exact.
+     - ESPN scoring parity against the CSV stat lines: at most 1e-4, because the bake rounds ppg to
+       6 dp.
+  7. **Implementation choices.**
+     - T6 uses the mean over the decisive weeks.
+     - T3 compares v5 with the geometric mean of ESPN and Sleeper (log measure).
+     - The reference mix for T4/T5 is the arithmetic mean of their receptions per anchor point.
+     - T4, T5 and T3 use the invertible RB/WR/TE players both references price.
+     - Step 5's strengths are chosen at the Half anchor and applied at both anchors.
+     - The search is coordinate descent: two passes, categories in a fixed order, ties to the
+       larger `k`.
+  8. **Code base.** v4's lane code (`tools/research/jeg1597`, `jeg1605`, `jeg1610`, `jeg1611`, and
+     `out/shrink/model.json`) is copied unchanged from commit 7c53ed9 of PR #1417, so the harness
+     runs on current main's pipeline. v4's own tests pass there (20 of 20).
+  9. **Dev run done 2026-11-16.**
+     - `run_v5.py --weeks 5 6 7` (quick mode while debugging, then full) ran on dev weeks only.
+     - It found and fixed one bug: floating-point order in the delta form broke the exact identity.
+     - The T6 widening was frozen from these weeks.
+     - It also ran the step 5 selection, which uses selection origins only.
+     - No T1 test origin was run, and no week 8-10 value was computed or printed. v4's loader reads
+       the history files whole, as v4 noted.
+
