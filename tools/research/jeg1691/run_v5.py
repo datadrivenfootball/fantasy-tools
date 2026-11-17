@@ -152,6 +152,9 @@ def main():
     args = ap.parse_args()
     if args.quick and (args.decisive or args.replication):
         sys.exit("--quick is dev only")
+    if args.no_sensitivity and (args.decisive or args.replication):
+        sys.exit("--no-sensitivity is dev only: the decisive and replication runs need every sensitivity "
+                 "run to pick the outcome")
     mode, record = guard(args)
     nb, ns = (50, 50) if args.quick else (TS.st.N_BOOT, TS.st.N_SHUFFLE)
     out = OUT / mode

@@ -25,3 +25,11 @@ statements. Dev weeks 5-7 only; no week 8-10 value was computed.
 - Amendments 2-9 said no pass threshold was loosened. T2(iii) went from 1e-9 to 1e-4 after the dev
   run showed 1e-6, and the first dev files (21:32 CST) were written on code committed only at 21:53.
   Both are now recorded in the pre-registration's amendment 16.
+
+### Re-review fix (2026-11-17)
+- Verified: `--no-sensitivity` with `--decisive` or `--replication` is refused before any lock is
+  written (`test_no_sensitivity_refused_outside_dev`, both flags). `pytest` passes, 36 tests on
+  Python 3.9.
+- Claimed: no Python 3.12 environment with numpy and scipy could be built. The local pip cache
+  (`~/Library/Caches/pip`) holds only HTTP cache entries and no cp312 wheels, and a download was
+  not allowed.

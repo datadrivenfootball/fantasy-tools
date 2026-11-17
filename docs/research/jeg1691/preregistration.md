@@ -471,6 +471,25 @@ needs the interval entirely above 0, which two seasons may not give even for a r
 
 ---
 
+### How to run the decisive run (amendment 17)
+
+1. After the review, commit `tools/research/jeg1691/APPROVAL.json`:
+   `{"reviewed_commit": "<full sha>", "reviewer": "...", "date": "..."}`. Push it.
+2. Make a fresh clone of the branch and work only in it. `pip` and caches play no part; the clone
+   needs Python with numpy and scipy.
+3. Run `python3 tools/research/jeg1691/run_v5.py --weeks 8 9 10 --decisive <reviewed sha>`. The
+   runner refuses `--quick`, `--no-sensitivity`, a subset of the weeks, or a tree that differs from
+   the reviewed commit.
+4. Straight away, commit and push `tools/research/jeg1691/DECISIVE.lock` and
+   `tools/research/jeg1691/out/decisive/` together, in one commit. Then copy the outcome and its
+   rules from `out/decisive/verdict.json` into Linear.
+
+Known limits of the guard:
+- Git-ignored files such as `__pycache__` are not checked.
+- Until the lock commit is pushed, someone who deletes the worktree lock and the home record
+  (`~/.local/state/jeg1691/`), or who uses another clone, can run again. Pushing the lock commit at
+  once is what closes this.
+
 ## 6. Limits: what stays unsolved
 
 - **Issue 16: chart points are not a calibrated forecast.** v4's slopes of realized ppg on
@@ -597,4 +616,8 @@ needs the interval entirely above 0, which two seasons may not give even for a r
         but the widening reads only ESPN's own level moves, which the fix does not touch.
       - The status line "No experiment has been run" stayed in the header after the dev run. It is
         now corrected.
+- 2026-11-17, after re-review of e81238c16, before any week 8-10 v5 number.
+  17. `--no-sensitivity` is now refused with `--decisive` or `--replication`. It would have used
+      up the lock and written no decision. The "How to run" procedure was added, with the guard's
+      known limits.
 

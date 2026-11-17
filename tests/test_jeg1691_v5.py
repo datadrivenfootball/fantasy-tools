@@ -206,3 +206,12 @@ def test_espn_left_out_of_step4_keeps_references(dev_week):
     p0 = {k: v[0] for k, v in ch["P"][("fantasycalc", "v5")].items()}
     p1 = {k: v[0] for k, v in cx["P"][("fantasycalc", "v5")].items()}
     assert any(abs(p0[k] - p1[k]) > 1e-9 for k in p0 if k in p1)
+
+
+@pytest.mark.parametrize("flag", ["--decisive", "--replication"])
+def test_no_sensitivity_refused_outside_dev(flag):
+    weeks = ["8", "9", "10"] if flag == "--decisive" else ["11", "12", "13", "14"]
+    r = subprocess.run([sys.executable, str(H / "run_v5.py"), "--weeks", *weeks, flag, "HEAD", "--no-sensitivity"],
+                       capture_output=True, text=True)
+    assert r.returncode != 0 and "--no-sensitivity is dev only" in (r.stderr + r.stdout)
+    assert not (H / "DECISIVE.lock").exists() and not (H / "REPLICATION.lock").exists()
