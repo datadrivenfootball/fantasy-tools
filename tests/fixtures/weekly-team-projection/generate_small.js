@@ -12,9 +12,13 @@ const state = {version: "league-state/1", league: {id: "fake-league-1", provider
 const players = [
   ["fk-qa1", "QB", "AAA", 20], ["fk-qa2", "QB", "BBB", 15], ["fk-ra1", "RB", "AAA", 14], ["fk-ra2", "RB", "CCC", 12],
   ["fk-ra3", "RB", "DDD", 9], ["fk-wa1", "WR", "LAR", 16], ["fk-wa2", "WR", "BBB", 11], ["fk-wa3", "WR", "CCC", 8],
-  ["fk-ta1", "TE", "DDD", 7], ["fk-ta2", "TE", "AAA", 10],
+  ["fk-ta1", "TE", "DDD", 9.5], ["fk-ta2", "TE", "AAA", 10],
   ["fk-qb1", "QB", "CCC", 18], ["fk-qb2", "QB", "DDD", 13], ["fk-rb1", "RB", "BBB", 10], ["fk-rb2", "RB", "AAA", 6],
-  ["fk-wr1", "WR", "CCC", 12], ["fk-wr2", "WR", "BBB", 9], ["fk-wr3", "WR", "AAA", 5], ["fk-te1", "TE", "CCC", 6]];
+  ["fk-wr1", "WR", "CCC", 12], ["fk-wr2", "WR", "BBB", 9], ["fk-wr3", "WR", "AAA", 5], ["fk-te1", "TE", "CCC", 6],
+  ["fk-wr4", "WR", "AAA", 20], ["fk-rb3", "RB", "BBB", 11]];
+// out players: ESPN 0 in these weeks (zero-padded, as ESPN gives an out player); fk-rb3 has no ESPN row at all
+const espnZero = {"fk-ta2": [12], "fk-qb1": [12], "fk-wr4": [12, 13]};
+const noEspn = ["fk-rb3"];
 // nflverse codes: LA is the Rams (Sleeper LAR). DDD on bye week 12, LA on bye week 13.
 const schedule = [
   [12, "AAA", "BBB"], [12, "CCC", "LA"], [12, "EEE", "FFF"],
@@ -30,7 +34,7 @@ const keyOf = id => 900000 + players.findIndex(p => p[0] === id);
   // Sleeper: no row for a bye week (as Sleeper gives it); fk-wa3 has no week 14 row (the missing week)
   if (!bye && !(id === "fk-wa3" && w === 14)) rows.push(Object.assign({source: "sleeper", as_of: AS, season: 2026, content_week: 12, target_week: w, source_player_id: id, sleeper_id: id, player_key: keyOf(id), position: pos, team: t, opponent: null, stats: {rec_yd: x * 10}}, pts("sleeper", x)));
   // ESPN cross-check: weeks 12-13 only, 1 point lower, and a 0 row for a bye (MR-20)
-  if (w <= 13) rows.push(Object.assign({source: "espn", as_of: ASE, season: 2026, content_week: 12, target_week: w, source_player_id: "e" + id, sleeper_id: /^fk-.a/.test(id) ? null : id, player_key: keyOf(id), position: pos, team: code(t), opponent: null, stats: null}, bye ? {points_std: 0, points_half_ppr: 0, points_ppr: 0, scoring_basis: "espn:stat line rescored with v_player_game_actuals"} : pts("espn", x - 1)));
+  if (w <= 13 && !noEspn.includes(id)) rows.push(Object.assign({source: "espn", as_of: ASE, season: 2026, content_week: 12, target_week: w, source_player_id: "e" + id, sleeper_id: /^fk-.a/.test(id) ? null : id, player_key: keyOf(id), position: pos, team: code(t), opponent: null, stats: null}, bye || (espnZero[id] || []).includes(w) ? {points_std: 0, points_half_ppr: 0, points_ppr: 0, scoring_basis: "espn:stat line rescored with v_player_game_actuals"} : pts("espn", x - 1)));
 }));
 rows.push(Object.assign({source: "espn", as_of: ASE, season: 2026, content_week: 12, target_week: 12, source_player_id: "e-unresolved", sleeper_id: null, player_key: null, position: "WR", team: "EEE", opponent: null, stats: null}, pts("espn", 30)));
 const out = {
@@ -39,11 +43,13 @@ const out = {
   slots: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "SUPER_FLEX", "BN", "BN", "BN", "BN", "K", "DEF"],
   scoring: "half_ppr",
   rosters: {"1": ["fk-qa1", "fk-qa2", "fk-ra1", "fk-ra2", "fk-ra3", "fk-wa1", "fk-wa2", "fk-wa3", "fk-ta1", "fk-ta2", "fk-k1"],
-            "2": ["fk-qb1", "fk-qb2", "fk-rb1", "fk-rb2", "fk-wr1", "fk-wr2", "fk-wr3", "fk-te1", "KC"]},
+            "2": ["fk-qb1", "fk-qb2", "fk-rb1", "fk-rb2", "fk-rb3", "fk-wr1", "fk-wr2", "fk-wr3", "fk-wr4", "fk-te1", "KC"]},
   players: {"fk-k1": ["Fake Kicker", "K", "AAA"], "KC": ["KC", "DEF", "KC"]},
   schedule,
   injuries: [
-    {sleeper_id: "fk-ta2", status: "IR", week: 11, return_week: 13, source: "manual:expected return"},
+    {sleeper_id: "fk-ta2", status: "Out", week: 11, source: "nflverse_injury_snapshots"},
+    {sleeper_id: "fk-wr4", status: "Out", week: 11, source: "nflverse_injury_snapshots"},
+    {sleeper_id: "fk-rb3", status: "Out", week: 11, source: "nflverse_injury_snapshots"},
     {sleeper_id: "fk-qb1", status: "Out", week: 12, source: "nflverse_injury_snapshots"},
     {sleeper_id: "fk-wr2", status: "Questionable", week: 12, source: "nflverse_injury_snapshots"}],
   projections: rows

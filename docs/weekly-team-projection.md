@@ -29,27 +29,35 @@ starter slots, from that week's Sleeper projections, with ESPN's figure for the 
 
 | Case | Rule |
 | --- | --- |
-| Bye | nflverse schedule (REG games): the player's team has no game. Team codes normalised to nflverse (`LAR` to `LA`, `JAC` to `JAX`, `WSH` to `WAS`). The team comes from that week's row, else the player's newest row in any source and week (Sleeper has no row in a bye week), else `players`. A week with no schedule rows is `bye_unknown`. |
-| Out with an expected return week | Out (excluded) before it; counted from it, flagged `uncertain_return` |
-| Weekly `Out` (injury report), no return week | Out for the report week only; counted after it, flagged |
-| IR, PUP, NFI, suspended, no return week | The provider's weeks as given (its 0 is out), flagged |
+| Bye | nflverse schedule (REG games): the player's team has no game. Team codes normalised to nflverse (`LAR` to `LA`, `JAC` to `JAX`, `WSH` to `WAS`). The team comes from that week's row, else the player's newest row in any source and week (Sleeper has no row in a bye week), else `players`. A week with no schedule rows is `bye_unknown`. The bye check runs before the out rule, so ESPN's 0 in a bye week is a bye, not an out week. |
+| Listed out now (Out, IR, PUP, NFI, suspended) | Counts only in the weeks where ESPN's projection for him is above 0, flagged `uncertain_return`; a week ESPN projects at 0 (or has no row for him) is out. ESPN zero-pads bye, out and no-role weeks, so its first week above 0 is his expected return. |
+| Out, no ESPN row at all | The Sleeper weeks are used, flagged |
+| Out, week past ESPN's coverage | The Sleeper weeks are used for that week, flagged |
+| IR-type, no ESPN week above 0 | The Sleeper weeks are used, flagged |
+| Weekly Out, every ESPN week at 0 | Out every week |
 | Questionable, Doubtful | Counted, no flag |
 | No row for the player that week | Excluded with `points: null` and a reason; the next player fills in |
 | Source has no rows for the week | The team week is `null` with a reason (never 0) |
 | Week 18 | `flags.rest_starters_risk` |
 
-No source gives an expected return week. nflverse injuries carry only the latest report week; Sleeper
-`player_status_history` carries status only. So `return_week` has to come from the user or a later source.
+ESPN rows whose points are null (for example under a rescoring function with no ESPN stat line) are no evidence,
+so they count as "no ESPN row". The ESPN rule reads `opts.returnSource` (default `espn`) through the same points
+function. Without a schedule a bye cannot be seen, so ESPN's 0 that week reads as out (the week is `bye_unknown`).
 
 ## Join keys (checked on the warehouse, 2026-11-16, latest runs)
 
 - Rosters are Sleeper player ids. Sleeper rows: `sleeper_id` always set (3,715 rows, weeks 10-18).
 - ESPN rows: 4,104 of 5,517 have no `sleeper_id`, but all have `player_key`. The module maps `player_key` to the
   Sleeper id through the Sleeper rows; every ESPN row above 5 half-PPR points joins that way.
-- Team codes: ESPN rows already use nflverse codes; Sleeper writes `LAR` (the only mismatch, 118 rows).
+- Team codes: ESPN rows already use nflverse codes; Sleeper writes `LAR` (its only mismatch, 118 rows); CBS rows
+  also use `LAR` and `JAC`. All are mapped.
 - Sleeper has no row for a player on bye; ESPN has a 0 row (MR-20).
 
-## Data path (finding, 2026-11-16)
+## Data path (finding and decision, 2026-11-16)
+
+Decision (Jeremy, 2026-11-16, multiple choice): option A, a static `weekly-projections.json` built with the site, on a
+separate pipeline ticket (not in the module PR).
+
 
 The browser cannot read the warehouse. `source_weekly_projections`, `nflverse_schedule_snapshots` and
 `nflverse_injury_snapshots` have RLS on with all privileges revoked from `anon` and `authenticated`

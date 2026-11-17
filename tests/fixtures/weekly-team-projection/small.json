@@ -200,9 +200,11 @@
    "fk-qb2",
    "fk-rb1",
    "fk-rb2",
+   "fk-rb3",
    "fk-wr1",
    "fk-wr2",
    "fk-wr3",
+   "fk-wr4",
    "fk-te1",
    "KC"
   ]
@@ -287,10 +289,21 @@
  "injuries": [
   {
    "sleeper_id": "fk-ta2",
-   "status": "IR",
+   "status": "Out",
    "week": 11,
-   "return_week": 13,
-   "source": "manual:expected return"
+   "source": "nflverse_injury_snapshots"
+  },
+  {
+   "sleeper_id": "fk-wr4",
+   "status": "Out",
+   "week": 11,
+   "source": "nflverse_injury_snapshots"
+  },
+  {
+   "sleeper_id": "fk-rb3",
+   "status": "Out",
+   "week": 11,
+   "source": "nflverse_injury_snapshots"
   },
   {
    "sleeper_id": "fk-qb1",
@@ -641,9 +654,9 @@
    "team": "AAA",
    "opponent": null,
    "stats": null,
-   "points_std": 8,
-   "points_half_ppr": 9,
-   "points_ppr": 10,
+   "points_std": 0,
+   "points_half_ppr": 0,
+   "points_ppr": 0,
    "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
   },
   {
@@ -679,9 +692,9 @@
    "team": "CCC",
    "opponent": null,
    "stats": null,
-   "points_std": 16,
-   "points_half_ppr": 17,
-   "points_ppr": 18,
+   "points_std": 0,
+   "points_half_ppr": 0,
+   "points_ppr": 0,
    "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
   },
   {
@@ -929,6 +942,64 @@
    "points_half_ppr": 5,
    "points_ppr": 6,
    "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 12,
+   "source_player_id": "fk-wr4",
+   "sleeper_id": "fk-wr4",
+   "player_key": 900018,
+   "position": "WR",
+   "team": "AAA",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 200
+   },
+   "points_std": 19,
+   "points_half_ppr": 20,
+   "points_ppr": 21,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
+  },
+  {
+   "source": "espn",
+   "as_of": "2026-11-16T12:40:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 12,
+   "source_player_id": "efk-wr4",
+   "sleeper_id": "fk-wr4",
+   "player_key": 900018,
+   "position": "WR",
+   "team": "AAA",
+   "opponent": null,
+   "stats": null,
+   "points_std": 0,
+   "points_half_ppr": 0,
+   "points_ppr": 0,
+   "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 12,
+   "source_player_id": "fk-rb3",
+   "sleeper_id": "fk-rb3",
+   "player_key": 900019,
+   "position": "RB",
+   "team": "BBB",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 110
+   },
+   "points_std": 10,
+   "points_half_ppr": 11,
+   "points_ppr": 12,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
   },
   {
    "source": "sleeper",
@@ -1227,11 +1298,11 @@
    "team": "DDD",
    "opponent": null,
    "stats": {
-    "rec_yd": 70
+    "rec_yd": 95
    },
-   "points_std": 6,
-   "points_half_ppr": 7,
-   "points_ppr": 8,
+   "points_std": 8.5,
+   "points_half_ppr": 9.5,
+   "points_ppr": 10.5,
    "scoring_basis": "sleeper:pts_* as given (RotoWire)"
   },
   {
@@ -1247,9 +1318,9 @@
    "team": "DDD",
    "opponent": null,
    "stats": null,
-   "points_std": 5,
-   "points_half_ppr": 6,
-   "points_ppr": 7,
+   "points_std": 7.5,
+   "points_half_ppr": 8.5,
+   "points_ppr": 9.5,
    "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
   },
   {
@@ -1599,6 +1670,64 @@
    "as_of": "2026-11-16T13:30:00Z",
    "season": 2026,
    "content_week": 12,
+   "target_week": 13,
+   "source_player_id": "fk-wr4",
+   "sleeper_id": "fk-wr4",
+   "player_key": 900018,
+   "position": "WR",
+   "team": "AAA",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 200
+   },
+   "points_std": 19,
+   "points_half_ppr": 20,
+   "points_ppr": 21,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
+  },
+  {
+   "source": "espn",
+   "as_of": "2026-11-16T12:40:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 13,
+   "source_player_id": "efk-wr4",
+   "sleeper_id": "fk-wr4",
+   "player_key": 900018,
+   "position": "WR",
+   "team": "AAA",
+   "opponent": null,
+   "stats": null,
+   "points_std": 0,
+   "points_half_ppr": 0,
+   "points_ppr": 0,
+   "scoring_basis": "espn:stat line rescored with v_player_game_actuals"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 13,
+   "source_player_id": "fk-rb3",
+   "sleeper_id": "fk-rb3",
+   "player_key": 900019,
+   "position": "RB",
+   "team": "BBB",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 110
+   },
+   "points_std": 10,
+   "points_half_ppr": 11,
+   "points_ppr": 12,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
    "target_week": 14,
    "source_player_id": "fk-qa1",
    "sleeper_id": "fk-qa1",
@@ -1747,11 +1876,11 @@
    "team": "DDD",
    "opponent": null,
    "stats": {
-    "rec_yd": 70
+    "rec_yd": 95
    },
-   "points_std": 6,
-   "points_half_ppr": 7,
-   "points_ppr": 8,
+   "points_std": 8.5,
+   "points_half_ppr": 9.5,
+   "points_ppr": 10.5,
    "scoring_basis": "sleeper:pts_* as given (RotoWire)"
   },
   {
@@ -1932,6 +2061,46 @@
    "points_std": 5,
    "points_half_ppr": 6,
    "points_ppr": 7,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 14,
+   "source_player_id": "fk-wr4",
+   "sleeper_id": "fk-wr4",
+   "player_key": 900018,
+   "position": "WR",
+   "team": "AAA",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 200
+   },
+   "points_std": 19,
+   "points_half_ppr": 20,
+   "points_ppr": 21,
+   "scoring_basis": "sleeper:pts_* as given (RotoWire)"
+  },
+  {
+   "source": "sleeper",
+   "as_of": "2026-11-16T13:30:00Z",
+   "season": 2026,
+   "content_week": 12,
+   "target_week": 14,
+   "source_player_id": "fk-rb3",
+   "sleeper_id": "fk-rb3",
+   "player_key": 900019,
+   "position": "RB",
+   "team": "BBB",
+   "opponent": null,
+   "stats": {
+    "rec_yd": 110
+   },
+   "points_std": 10,
+   "points_half_ppr": 11,
+   "points_ppr": 12,
    "scoring_basis": "sleeper:pts_* as given (RotoWire)"
   },
   {

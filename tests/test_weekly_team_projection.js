@@ -45,23 +45,25 @@ test("window: first unscored week to the last playoff week; a week with no rows 
   });
 });
 
-test("bye, out-until-return and missing week: team 1", () => {
+test("bye, out player back per ESPN, TE at FLEX and missing week: team 1", () => {
   const r = run();
   const w12 = wk(r, "1", 12), w13 = wk(r, "1", 13), w14 = wk(r, "1", 14);
-  // week 12: DDD on bye (ra3, ta1), ta2 on IR until week 13, so the TE slot is empty; qa2 fills SUPER_FLEX
+  // week 12: DDD on bye (ra3, ta1); ta2 is Out and ESPN projects him 0, so the TE slot is empty; qa2 fills SUPER_FLEX
   assert.strictEqual(w12.points, 96);
   assert.deepStrictEqual(w12.flags.empty_slots, ["TE"]);
   assert.ok(/^bye \(DDD/.test(reasonOf(w12, "fk-ra3")));
   assert.ok(/^bye \(DDD/.test(reasonOf(w12, "fk-ta1")));
-  assert.ok(/IR, expected back week 13/.test(reasonOf(w12, "fk-ta2")));
+  assert.ok(/ESPN projects 0 for week 12 \(first week above 0: 13\)/.test(reasonOf(w12, "fk-ta2")));
   assert.ok(starters(w12).includes("SUPER_FLEX:fk-qa2"));
-  // week 13: LAR (nflverse LA) on bye; ta2 back and flagged uncertain; ra3 takes FLEX
-  assert.strictEqual(w13.points, 99);
+  // week 13: LAR (nflverse LA) on bye; ta2 back (ESPN above 0) and flagged; a TE (ta1 9.5) beats the RB (ra3 9) at FLEX
+  assert.strictEqual(w13.points, 99.5);
   assert.ok(/^bye \(LA /.test(reasonOf(w13, "fk-wa1")));
   assert.deepStrictEqual(w13.flags.uncertain_return.map(u => u.player_id), ["fk-ta2"]);
-  assert.ok(starters(w13).includes("TE:fk-ta2") && starters(w13).includes("FLEX:fk-ra3"));
-  // week 14: wa3 has no Sleeper row, so he is null with a reason and the next player fills in
-  assert.strictEqual(w14.points, 107);
+  assert.ok(/ESPN projects him from week 13/.test(w13.flags.uncertain_return[0].reason));
+  assert.ok(starters(w13).includes("TE:fk-ta2") && starters(w13).includes("FLEX:fk-ta1"));
+  // week 14: past ESPN's weeks, so ta2 uses the Sleeper weeks (flagged); wa3 has no Sleeper row: null, next player fills in
+  assert.strictEqual(w14.points, 107.5);
+  assert.ok(/ESPN has no week 14, so the Sleeper weeks are used/.test(w14.flags.uncertain_return[0].reason));
   assert.ok(/no Sleeper projection for week 14/.test(reasonOf(w14, "fk-wa3")));
   assert.strictEqual(w14.unavailable.find(u => u.player_id === "fk-wa3").points, null);
   assert.ok(!starters(w14).some(s => s.endsWith("fk-wa3")));
@@ -70,25 +72,41 @@ test("bye, out-until-return and missing week: team 1", () => {
   assert.ok(!w12.lineup.some(l => l.slot === "K"));
 });
 
-test("weekly Out is out for its report week only; questionable plays; empty QB and SUPER_FLEX are flagged", () => {
+test("out players, team 2: ESPN 0 then above 0, all-zero ESPN, no ESPN row (fallback); questionable plays", () => {
   const r = run();
-  const w12 = wk(r, "2", 12), w13 = wk(r, "2", 13);
-  assert.ok(/Out on the week 12 injury report/.test(reasonOf(w12, "fk-qb1")));
+  const w12 = wk(r, "2", 12), w13 = wk(r, "2", 13), w14 = wk(r, "2", 14);
+  assert.ok(/ESPN projects 0 for week 12/.test(reasonOf(w12, "fk-qb1")));
   assert.ok(/^bye/.test(reasonOf(w12, "fk-qb2")));
-  assert.deepStrictEqual(w12.flags.empty_slots.sort(), ["QB", "SUPER_FLEX"]);
-  assert.strictEqual(w12.points, 48);
-  assert.ok(starters(w12).includes("WR:fk-wr2"));             // questionable: counted
-  assert.strictEqual(w13.points, 79);
-  assert.deepStrictEqual(w13.flags.uncertain_return.map(u => u.player_id), ["fk-qb1"]);
+  [w12, w13, w14].forEach(w => assert.ok(/ESPN projects 0 in every week/.test(reasonOf(w, "fk-wr4")), "wr4 week " + w.week));
+  assert.ok(starters(w12).includes("RB:fk-rb3"));             // no ESPN row: Sleeper weeks, flagged
+  assert.ok(/no ESPN row for him, so the Sleeper weeks are used/.test(w12.flags.uncertain_return.find(u => u.player_id === "fk-rb3").reason));
+  assert.deepStrictEqual(w12.flags.empty_slots, ["QB"]);
+  assert.strictEqual(w12.points, 59);
+  assert.ok(starters(w12).includes("WR:fk-wr2"));             // questionable: counted, no flag
+  assert.ok(!w12.flags.uncertain_return.some(u => u.player_id === "fk-wr2"));
+  assert.strictEqual(w13.points, 85);
+  assert.deepStrictEqual(w13.flags.uncertain_return.map(u => u.player_id).sort(), ["fk-qb1", "fk-rb3"]);
   assert.ok(starters(w13).includes("QB:fk-qb1") && starters(w13).includes("SUPER_FLEX:fk-qb2"));
+  assert.strictEqual(w14.points, 85);
 });
 
-test("an IR player with no return week uses the provider's weeks, flagged uncertain", () => {
-  const r = run(d => { d.injuries[0].return_week = null; });
-  const w12 = wk(r, "1", 12);
-  assert.ok(starters(w12).includes("TE:fk-ta2"));
-  assert.ok(/no expected return week/.test(w12.flags.uncertain_return[0].reason));
-  assert.strictEqual(w12.points, 106);   // 96 + ta2's 10 in the empty TE slot
+test("IR with no ESPN week above 0 uses the Sleeper weeks, flagged; a weekly Out with the same rows stays out", () => {
+  const r = run(d => { d.injuries.find(j => j.sleeper_id === "fk-wr4").status = "IR"; });
+  const w12 = wk(r, "2", 12);
+  assert.ok(starters(w12).includes("WR:fk-wr4"));
+  assert.ok(/IR with no ESPN week above 0, so the Sleeper weeks are used/.test(w12.flags.uncertain_return.find(u => u.player_id === "fk-wr4").reason));
+  assert.strictEqual(w12.points, 74);   // RB 11 + 10, WR 20 + 12, TE 6, FLEX 9, SUPER_FLEX 6
+  assert.ok(/ESPN projects 0 in every week/.test(reasonOf(wk(run(), "2", 12), "fk-wr4")));
+});
+
+test("a bye is not read as an out week: ESPN's bye 0 is a bye, and the player is back after it", () => {
+  const r = run(d => { d.injuries.push({sleeper_id: "fk-ra3", status: "Out", week: 11, source: "test"}); });
+  const w12 = wk(r, "1", 12), w13 = wk(r, "1", 13);
+  assert.ok(/^bye \(DDD/.test(reasonOf(w12, "fk-ra3")));    // ESPN 0 there because of the bye
+  assert.ok(!w13.unavailable.some(u => u.player_id === "fk-ra3"), "ra3 is available in week 13 (ESPN 8)");
+  // without a schedule the bye cannot be seen, so ESPN's 0 that week reads as out (bye_unknown is flagged on the week)
+  const noBye = run(d => { d.injuries.push({sleeper_id: "fk-ra3", status: "Out", week: 11, source: "test"}); d.schedule = null; });
+  assert.ok(/ESPN projects 0 for week 12 \(first week above 0: 13\)/.test(reasonOf(wk(noBye, "1", 12), "fk-ra3")));
 });
 
 test("ESPN cross-check: its own lineup beside Sleeper, never blended", () => {
@@ -96,6 +114,8 @@ test("ESPN cross-check: its own lineup beside Sleeper, never blended", () => {
   const w12 = wk(r, "1", 12), w14 = wk(r, "1", 14);
   assert.strictEqual(w12.cross_check.source, "espn");
   assert.strictEqual(w12.cross_check.points, 89);     // same seven starters, each 1 lower
+  assert.strictEqual(wk(r, "1", 13).cross_check.points, 91.5);
+  assert.strictEqual(wk(r, "1", 13).cross_check.diff, 8);
   // team 1's ESPN rows have no sleeper_id (as 74% of live ESPN rows): they join through player_key and the Sleeper rows
   assert.strictEqual(w12.cross_check.diff, 7);
   assert.strictEqual(w12.points, 96);                 // the Sleeper figure is unchanged by ESPN
@@ -117,12 +137,12 @@ test("a provider 0 is a value, not missing", () => {
 });
 
 test("scoring format picks the stored column; the points function is one swappable function", () => {
-  assert.strictEqual(wk(run(d => { d.scoring = "ppr"; }), "1", 13).points, 99 + 8);
-  assert.strictEqual(wk(run(d => { d.scoring = "standard"; }), "1", 13).points, 99 - 8);
+  assert.strictEqual(wk(run(d => { d.scoring = "ppr"; }), "1", 13).points, 99.5 + 8);
+  assert.strictEqual(wk(run(d => { d.scoring = "standard"; }), "1", 13).points, 99.5 - 8);
   // a stand-in for JEG-1688 rescoring: points from the stat line only
   const calls = [];
   const r = run(null, {points: (row, ctx) => { calls.push(ctx); return row.stats ? row.stats.rec_yd / 10 : null; }});
-  assert.strictEqual(wk(r, "1", 13).points, 99);
+  assert.strictEqual(wk(r, "1", 13).points, 99.5);   // ESPN rows give no points here, so out players fall back to Sleeper weeks
   assert.ok(calls.every(c => c.scoring === "half_ppr" && typeof c.week === "number" && typeof c.source === "string"));
   assert.strictEqual(wk(r, "1", 13).cross_check.points, 0);   // ESPN rows have no stats here: every row null, every slot empty
   assert.ok(/ESPN row has no half_ppr points/.test(reasonOf(wk(r, "1", 13).cross_check, "fk-qa1")));
@@ -137,7 +157,7 @@ test("week 18 carries the rest-starters flag; weeks past 18 are capped", () => {
   assert.strictEqual(wk(r, "1", 18).flags.rest_starters_risk, true);
   assert.strictEqual(wk(r, "1", 17).flags.rest_starters_risk, false);
   assert.strictEqual(wk(r, "1", 18).flags.bye_unknown, true);   // no schedule rows for week 18 in the fixture
-  assert.strictEqual(wk(r, "1", 18).points, 107);
+  assert.strictEqual(wk(r, "1", 18).points, 107.5);
 });
 
 test("window derivation from playoff spots, and missing inputs give a reason", () => {
@@ -155,19 +175,28 @@ test("window derivation from playoff spots, and missing inputs give a reason", (
   assert.ok(wk(noRoster, "2", 12).points === null && /no roster/.test(wk(noRoster, "2", 12).reason));
 });
 
+test("a TE starts at FLEX when he is the best one left", () => {
+  const best = WTP.bestLineup(["TE", "FLEX"], [{id: "t1", pos: "TE", points: 10}, {id: "t2", pos: "TE", points: 8}, {id: "r", pos: "RB", points: 3}]);
+  assert.deepStrictEqual(best.lineup.map(l => l.slot + ":" + l.player_id), ["TE:t1", "FLEX:t2"]);
+  assert.strictEqual(best.points, 18);
+});
+
 test("exact lineup where greedy fails (overlapping WRRB_FLEX and REC_FLEX)", () => {
   const best = WTP.bestLineup(["WRRB_FLEX", "REC_FLEX"], [{id: "w", pos: "WR", points: 10}, {id: "r", pos: "RB", points: 8}, {id: "t", pos: "TE", points: 2}]);
   assert.strictEqual(best.points, 18);   // greedy (best player first into the first slot) gives 12
   assert.deepStrictEqual(best.lineup.map(l => l.slot + ":" + l.player_id), ["WRRB_FLEX:r", "REC_FLEX:w"]);
 });
 
+// The brute force has its own eligibility table, so a wrong table in the module cannot also pass here.
+const BRUTE_ELIGIBLE = {QB: ["QB"], RB: ["RB"], WR: ["WR"], TE: ["TE"], FLEX: ["RB", "WR", "TE"], WRRB_FLEX: ["RB", "WR"],
+  REC_FLEX: ["WR", "TE"], SUPER_FLEX: ["QB", "RB", "WR", "TE"]};
 function brute(slots, players) {
-  const st = slots.filter(s => WTP.ELIGIBLE[s]);
+  const st = slots.filter(s => BRUTE_ELIGIBLE[s]);
   let best = 0;
   (function go(i, used, sum) {
     if (i === st.length) { if (sum > best) best = sum; return; }
     go(i + 1, used, sum);   // leave empty
-    players.forEach((p, j) => { if (!used[j] && WTP.ELIGIBLE[st[i]].includes(p.pos)) { used[j] = true; go(i + 1, used, sum + p.points); used[j] = false; } });
+    players.forEach((p, j) => { if (!used[j] && BRUTE_ELIGIBLE[st[i]].includes(p.pos)) { used[j] = true; go(i + 1, used, sum + p.points); used[j] = false; } });
   })(0, [], 0);
   return Math.round(best * 100) / 100;
 }
@@ -184,7 +213,7 @@ test("best lineup equals brute force on 300 random rosters (superflex and mixed 
     assert.strictEqual(got.points, brute(slots, players), JSON.stringify({slots, players}));
     const ids = got.lineup.filter(l => l.player_id).map(l => l.player_id);
     assert.strictEqual(new Set(ids).size, ids.length, "a player starts twice");
-    got.lineup.forEach(l => { if (l.player_id) assert.ok(WTP.ELIGIBLE[l.slot].includes(l.pos)); });
+    got.lineup.forEach(l => { if (l.player_id) assert.ok(BRUTE_ELIGIBLE[l.slot].includes(l.pos)); });
   }
 });
 

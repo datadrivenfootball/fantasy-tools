@@ -8,9 +8,11 @@
  *   (opts.points, default providerPoints) so per-league rescoring from stat lines (JEG-1688) replaces it alone.
  * - ESPN is computed the same way as a cross-check and shown beside the Sleeper figure, never blended.
  * - A player on bye (nflverse schedule: his team has no game that week) does not play.
- * - A player listed out does not play before his expected return week; from it on he counts, flagged uncertain.
- *   A weekly "Out" with no return week given is out for that report week only. IR/PUP/NFI/suspended with no return
- *   week uses the provider's weeks as given (zero = out), flagged uncertain.
+ * - A player listed out now (Out, IR, PUP, NFI, suspended) counts only in the weeks where ESPN's weekly projection
+ *   for him is above 0 (ESPN zero-pads bye, out and no-role weeks, so its first non-zero week is his expected return),
+ *   flagged uncertain; a week ESPN projects at 0 is out. The bye check runs first, so a bye's ESPN 0 is a bye, not an
+ *   out week. Fallbacks to the primary (Sleeper) weeks, flagged uncertain: no ESPN row for him at all, a week past
+ *   ESPN's coverage, or IR-type with no ESPN week above 0. A weekly Out with every ESPN week at 0 is out every week.
  * - A player with no projection for a week is null with a reason and the next player fills in. A week the source has
  *   no rows for at all is null with a reason for every team. Missing is never zero; a provider's 0 is a value.
  * - Week 18 carries a "teams may rest starters" flag. No betting lines.
@@ -19,8 +21,9 @@
  *   state:  league-state/1 (DDF.leagueState)
  *   inputs: {rosters: {teamId: [sleeper player id]}, slots: [Sleeper roster_positions], scoring: ppr|half_ppr|standard,
  *            projections: [warehouse source_weekly_projections rows], schedule: [{week, home_team, away_team}] | null,
- *            injuries: [{sleeper_id, status, week?, return_week?, source?}], players?: {id: [name, pos, team]}}
- *   opts:   {fromWeek, lastWeek, primary: "sleeper", crossCheck: "espn" | null, points(row, ctx) -> number | null}
+ *            injuries: [{sleeper_id, status, week?, source?}], players?: {id: [name, pos, team]}}
+ *   opts:   {fromWeek, lastWeek, primary: "sleeper", crossCheck: "espn" | null, returnSource: "espn",
+ *            points(row, ctx) -> number | null}
  * DDF.weeklyTeamProjection.providerPoints(row, ctx)  the stored points_<format> (the JEG-1688 swap point)
  * DDF.weeklyTeamProjection.bestLineup(slots, players) -> {points, lineup, empty_slots} (exact assignment)
  * DDF.weeklyTeamProjection.slotsFromSettings(settings) -> roster_positions from DDF settings {roster, superflex, superflexSlots}
@@ -125,26 +128,35 @@
       out[String(j.sleeper_id)] = {
         status: status, long: LONG_OUT.indexOf(s) >= 0,
         week: isWhole(num(j.week), 1, 22) ? num(j.week) : null,
-        return_week: isWhole(num(j.return_week), 1, 22) ? num(j.return_week) : null,
         source: j.source || null
       };
     });
     return out;
   }
 
-  /* availability of one player in one week, before projections: {out: reason} or {uncertain: reason} or {} */
-  function injuryRule(inj, week) {
+  /* Availability of a player listed out, in one week (the bye check has already run): {out: reason}, {uncertain:
+     reason} or {}. Jeremy 2026-11-16: ESPN's non-zero weeks define when he is back (ESPN zero-pads bye, out and
+     no-role weeks); with no usable ESPN week, the primary source's weeks are used. Both are flagged uncertain. */
+  function injuryRule(inj, id, week, ctx) {
     if (!inj) return {};
-    if (inj.return_week !== null) {
-      if (week < inj.return_week) return {out: inj.status + ", expected back week " + inj.return_week};
-      return {uncertain: inj.status + " now, expected back week " + inj.return_week};
+    var src = ctx.returnSource, e = src ? ctx.proj.bySource[src] : null;
+    var mine = [];   /* this player's ESPN weeks: [{week, points}] */
+    if (e) Object.keys(e.byWeek).forEach(function (w) {
+      var r = e.byWeek[w][id];
+      var pts = r ? num(ctx.points(r, {scoring: ctx.scoring, source: src, week: Number(w)})) : null;
+      if (pts !== null) mine.push({week: Number(w), points: pts});   /* a row with no usable points is no evidence */
+    });
+    var fallback = " the " + label(ctx.primary) + " weeks are used";
+    if (!mine.length) return {uncertain: inj.status + " now; no " + label(src) + " row for him, so" + fallback};
+    var nonZero = mine.filter(function (m) { return m.points > 0; }).map(function (m) { return m.week; }).sort(function (a, b) { return a - b; });
+    if (!nonZero.length) {
+      if (inj.long) return {uncertain: inj.status + " with no " + label(src) + " week above 0, so" + fallback};
+      return {out: inj.status + " now; " + label(src) + " projects 0 in every week"};
     }
-    if (!inj.long) {
-      if (inj.week === null) return {out: inj.status + " on the injury report (report week unknown, so every week)"};
-      if (week <= inj.week) return {out: inj.status + " on the week " + inj.week + " injury report"};
-      return {uncertain: inj.status + " on the week " + inj.week + " injury report, assumed back after it"};
-    }
-    return {uncertain: inj.status + " with no expected return week; " + "the provider's weeks are used as given"};
+    if (!e.weeks[week]) return {uncertain: inj.status + " now; " + label(src) + " has no week " + week + ", so" + fallback};
+    var here = mine.filter(function (m) { return m.week === week; })[0];
+    if (here && here.points > 0) return {uncertain: inj.status + " now; " + label(src) + " projects him from week " + nonZero[0]};
+    return {out: inj.status + " now; " + label(src) + (here ? " projects 0 for week " + week : " has no row for him in week " + week) + " (first week above 0: " + nonZero[0] + ")"};
   }
 
   /* Exact best lineup: assignment of starter slots to players maximising points (Hungarian method). Greedy filling is
@@ -270,7 +282,7 @@
       if (pos === "DEF" || pos === "K") return;   /* not projected in the warehouse; their slots are listed as not projected */
       var team = teamCode(row && row.team ? row.team : ctx.proj.teamOf[id] || (info ? info[2] : null));
       if (playing && team && !playing[team]) { unavailable.push({player_id: id, reason: "bye (" + team + " has no game in week " + week + ")"}); return; }
-      var inj = injuryRule(ctx.inj[id], week);
+      var inj = injuryRule(ctx.inj[id], id, week, ctx);
       if (inj.out) { unavailable.push({player_id: id, reason: inj.out}); return; }
       if (!row) { unavailable.push({player_id: id, points: null, reason: "no " + label(src) + " projection for week " + week}); return; }
       var pts = num(ctx.points(row, {scoring: ctx.scoring, source: src, week: week}));
@@ -316,7 +328,8 @@
     if (win.reason) { out.reason = win.reason; return out; }
 
     var ctx = {proj: proj, sched: indexSchedule(inputs.schedule), inj: indexInjuries(inputs.injuries), players: inputs.players || {},
-      points: typeof opts.points === "function" ? opts.points : providerPoints, scoring: scoring, slots: slots};
+      points: typeof opts.points === "function" ? opts.points : providerPoints, scoring: scoring, slots: slots,
+      primary: primary, returnSource: opts.returnSource === undefined ? "espn" : opts.returnSource};
     var rosters = inputs.rosters || {};
     out.teams = state.teams.map(function (t) {
       var ids = Array.isArray(rosters[t.id]) ? rosters[t.id].map(String) : null;
