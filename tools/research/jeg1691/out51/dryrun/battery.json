@@ -1,0 +1,325 @@
+{
+ "config": {
+  "name": "dryrun-2015",
+  "anchor": "half_ppr",
+  "truth": "w4",
+  "origins": [
+   11,
+   15
+  ],
+  "eval_seasons": [
+   2015
+  ],
+  "sel_start": 2015,
+  "drop_seasons": [],
+  "b1_needed": 1,
+  "b5": false,
+  "b5_origins": [
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14
+  ],
+  "b5_season": 2025,
+  "dry_sel_origins": [
+   11
+  ]
+ },
+ "k_by_season": {
+  "2015": {
+   "QB": 8.0,
+   "RB": 4.0,
+   "WR": 4.0,
+   "TE": 8.0
+  }
+ },
+ "cap_hits": {
+  "2015": [
+   "QB",
+   "TE"
+  ]
+ },
+ "excluded": {
+  "2015-11": {
+   "no_history": 16,
+   "nonpositive_history_points": 2,
+   "no_position_share": 0
+  },
+  "2015-15": {
+   "no_history": 5,
+   "nonpositive_history_points": 1,
+   "no_position_share": 0
+  }
+ },
+ "n_eval_rows": 272,
+ "B1": {
+  "RB": {
+   "seasons_won": 1,
+   "seasons": 1,
+   "needed": 1,
+   "diff": 0.74587,
+   "ci95": [
+    0.267174,
+    1.14466
+   ],
+   "E_RL": 1.162704,
+   "shuffle_p5": 2.120683,
+   "label": "PASS",
+   "per_season": {
+    "2015": {
+     "E_RL": 1.162704,
+     "E_pos": 1.908574
+    }
+   }
+  },
+  "WR": {
+   "seasons_won": 1,
+   "seasons": 1,
+   "needed": 1,
+   "diff": 0.064378,
+   "ci95": [
+    -0.243125,
+    0.304482
+   ],
+   "E_RL": 1.068877,
+   "shuffle_p5": 1.399254,
+   "label": "INCONCLUSIVE",
+   "per_season": {
+    "2015": {
+     "E_RL": 1.068877,
+     "E_pos": 1.133256
+    }
+   }
+  },
+  "TE": {
+   "seasons_won": 0,
+   "seasons": 1,
+   "needed": 1,
+   "diff": -0.094524,
+   "ci95": [
+    -0.34706,
+    0.115016
+   ],
+   "E_RL": 1.182007,
+   "shuffle_p5": 0.90839,
+   "label": "INCONCLUSIVE",
+   "per_season": {
+    "2015": {
+     "E_RL": 1.182007,
+     "E_pos": 1.087483
+    }
+   }
+  }
+ },
+ "B2": {
+  "RB": {
+   "diff": 0.093205,
+   "ci95": [
+    -0.024228,
+    0.217282
+   ],
+   "label": "INCONCLUSIVE"
+  },
+  "WR": {
+   "diff": 0.005541,
+   "ci95": [
+    -0.194391,
+    0.218429
+   ],
+   "label": "INCONCLUSIVE"
+  },
+  "TE": {
+   "diff": 0.04716,
+   "ci95": [
+    -0.090409,
+    0.189745
+   ],
+   "label": "INCONCLUSIVE"
+  }
+ },
+ "B3": {
+  "RB": {
+   "slope": 0.996288,
+   "band": [
+    0.666667,
+    1.5
+   ],
+   "pass": true,
+   "slope_Rv5": 1.345564,
+   "slope_R0": 0.609515,
+   "slope_Rpos": null
+  },
+  "WR": {
+   "slope": 0.546152,
+   "band": [
+    0.666667,
+    1.5
+   ],
+   "pass": false,
+   "slope_Rv5": 3.919656,
+   "slope_R0": 0.357519,
+   "slope_Rpos": null
+  },
+  "TE": {
+   "slope": 0.281355,
+   "band": [
+    0.666667,
+    1.5
+   ],
+   "pass": false,
+   "slope_Rv5": 0.256259,
+   "slope_R0": 0.185201,
+   "slope_Rpos": null
+  }
+ },
+ "B4": {
+  "RB": {
+   "E_R0": 1.561161,
+   "slope_R0": 0.609515
+  },
+  "WR": {
+   "E_R0": 1.336827,
+   "slope_R0": 0.357519
+  },
+  "TE": {
+   "E_R0": 1.472868,
+   "slope_R0": 0.185201
+  }
+ },
+ "reported": {
+  "QB": {
+   "E": {
+    "RL": 0.000413,
+    "R0": 0.000852,
+    "Rv5": 0.000161,
+    "Rpos": 0.000161
+   },
+   "share_slope": {
+    "RL": 0.0,
+    "R0": 0.0,
+    "Rv5": null,
+    "Rpos": null
+   },
+   "catch_slope_descriptive": {
+    "RL": 0.0,
+    "R0": 0.0,
+    "Rv5": 0.0,
+    "Rpos": 0.0
+   },
+   "spearman": {
+    "RL": NaN,
+    "R0": NaN,
+    "Rv5": NaN,
+    "Rpos": NaN
+   },
+   "n_rows": 32,
+   "n_players": 32
+  },
+  "RB": {
+   "E": {
+    "RL": 1.162704,
+    "R0": 1.561161,
+    "Rv5": 1.255909,
+    "Rpos": 1.908574
+   },
+   "share_slope": {
+    "RL": 0.996288,
+    "R0": 0.609515,
+    "Rv5": 1.345564,
+    "Rpos": null
+   },
+   "catch_slope_descriptive": {
+    "RL": 0.86584,
+    "R0": 0.698466,
+    "Rv5": 0.871493,
+    "Rpos": 0.710552
+   },
+   "spearman": {
+    "RL": 0.7229,
+    "R0": 0.638003,
+    "Rv5": 0.70311,
+    "Rpos": 0.584259
+   },
+   "n_rows": 78,
+   "n_players": 78
+  },
+  "WR": {
+   "E": {
+    "RL": 1.068877,
+    "R0": 1.336827,
+    "Rv5": 1.074418,
+    "Rpos": 1.133256
+   },
+   "share_slope": {
+    "RL": 0.546152,
+    "R0": 0.357519,
+    "Rv5": 3.919656,
+    "Rpos": null
+   },
+   "catch_slope_descriptive": {
+    "RL": 0.762804,
+    "R0": 0.729779,
+    "Rv5": 0.739516,
+    "Rpos": 0.727217
+   },
+   "spearman": {
+    "RL": 0.838454,
+    "R0": 0.794532,
+    "Rv5": 0.856846,
+    "Rpos": 0.853459
+   },
+   "n_rows": 109,
+   "n_players": 109
+  },
+  "TE": {
+   "E": {
+    "RL": 1.182007,
+    "R0": 1.472868,
+    "Rv5": 1.229167,
+    "Rpos": 1.087483
+   },
+   "share_slope": {
+    "RL": 0.281355,
+    "R0": 0.185201,
+    "Rv5": 0.256259,
+    "Rpos": null
+   },
+   "catch_slope_descriptive": {
+    "RL": 0.699481,
+    "R0": 0.666086,
+    "Rv5": 0.70017,
+    "Rpos": 0.71546
+   },
+   "spearman": {
+    "RL": 0.86126,
+    "R0": 0.808105,
+    "Rv5": 0.84225,
+    "Rpos": 0.878855
+   },
+   "n_rows": 53,
+   "n_players": 53
+  }
+ },
+ "B0": {
+  "identities": {
+   "RL_k0_eq_R0": true,
+   "RL_kinf_eq_Rpos": true,
+   "Rv5_k0_tinf_eq_R0": true
+  },
+  "integrity": {
+   "rows": 61977,
+   "integrity_bad": 0,
+   "zero_rows_dropped": 9684,
+   "negative_receptions": 0
+  },
+  "integrity_share": 0.0,
+  "pass": true
+ }
+}
