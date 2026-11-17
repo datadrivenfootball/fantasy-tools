@@ -104,6 +104,19 @@
     if (record && record.pasteSettings && prior && prior.confirmed && DDF.leaguePaste.sameLeague(prior, record)) record.confirmed = prior.confirmed;
     return record;
   }
+  /* JEG-1685: the league's last regular-season week and playoff start (league-state/1) fill the ES-12 weeks, unless the
+     reader changed them (they differ from the site's standard and from what the last import filled). Returns the weeks
+     now in use from the league state, or null when none were filled. */
+  function fillWeeks(ls) {
+    var LS = DDF.leagueState, E = DDF.engine;
+    if (!ls || !LS || !E || !E.weeks || !E.apply) return null;
+    var prior = kept() || dropped, cur = E.weeks();
+    var fill = LS.weekFill(ls, cur, E.defaultWeeks ? E.defaultWeeks() : null, prior && prior.weeksFilled);
+    if (!fill.patch) return fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo
+      ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
+    try { E.apply({weeks: fill.patch}); } catch (e) { return null; /* settings.html asks */ }
+    return fill.patch;
+  }
   function save(record) {
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
@@ -275,7 +288,8 @@
     }
     var rec = {v: 1, source: "manual", site: "unknown", me: mine,
       enteredAt: prior && prior.source === "manual" && prior.enteredAt ? prior.enteredAt : (DDF.leagueMeta ? DDF.leagueMeta.today() : null),
-      teams: manual.teams.map(function (t) { return {name: t.name, players: t.players.slice(), unmatched: []}; })};
+      teams: manual.teams.map(function (t) { return {name: t.name, players: t.players.slice(), unmatched: []}; }),
+      leagueState: null, leagueStateReason: "A league entered by hand has no season state (records, schedule, playoff rules).", weeksFilled: null};   /* JEG-1685 */
     if (prior && prior.source === "manual" && prior.name) rec.name = prior.name;
     return rec;
   }
@@ -391,7 +405,7 @@
     sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
     linkMsg("Loading your league from Sleeper...", "loading");
     return whenRows().then(function (rows) {
-      return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
+      return DDF.sleeper.load(id, {rows: rows, table: table(), leagueState: true}).then(function (out) {
         if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
         sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
@@ -400,7 +414,10 @@
         if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
         hideEditNames();
         showResult(res, "sleeper");
-        save(DDF.leaguePaste.record(res, "sleeper"));
+        res.leagueState = out.leagueState || null;
+        var rec = DDF.leaguePaste.record(res, "sleeper");
+        rec.weeksFilled = fillWeeks(out.leagueState);
+        save(rec);
         askBookmark(res);
         var lg = res.league || {};
         linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then press Next to confirm your team.", "ok");

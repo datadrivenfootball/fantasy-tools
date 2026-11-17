@@ -7934,6 +7934,7 @@
       engine: C,
       view: () => VIEW_NAME[currentView()] || "",
       leagueQuery: () => leagueLinkParts().join("&"),
+      leagueState: () => window.TradeValueWorkspace?.store?.get()?.leagueState || null,   // JEG-1685
       applyLinkLeague,
       leagueText: () => `${$("v2LeagueName").textContent}, ${$("v2RosterLine").textContent}`,
       sources: () => C.getActiveSources(),

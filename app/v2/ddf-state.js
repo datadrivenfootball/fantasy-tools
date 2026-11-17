@@ -65,6 +65,8 @@
       if (sources.length) state.sources = sources;
     }
     if (typeof input.asOf === "string" && /^\d{4}-\d{2}-\d{2}/.test(input.asOf)) state.asOf = input.asOf.slice(0, 10);
+    const ls = cleanLeagueState(input.leagueState, warnings);
+    if (ls) state.leagueState = ls;
     if (!state.league && !state.work) return {state: null, warnings: warnings.concat("no usable league or work in the state")};
     return {state, warnings};
   }
@@ -114,6 +116,21 @@
       if (Object.keys(weeks).length) out.weeks = weeks;
     }
     return out;
+  }
+
+  // JEG-1685: the league-state/1 object (docs/contract/league-state-v1.md) rides in the block and JSON only, never the URL
+  // query (a schedule is too long for a link). This codec checks the envelope and a size cap; app/next/league-state.js
+  // validate() is the full check, run by the site before it uses the state. An absent field is fine (older states).
+  const MAX_LEAGUE_STATE = 60000;
+  function cleanLeagueState(ls, warnings) {
+    if (ls === undefined || ls === null) return null;
+    const ok = ls && typeof ls === "object" && !Array.isArray(ls) && ls.version === "league-state/1"
+      && ls.league && typeof ls.league === "object" && Array.isArray(ls.teams) && ls.teams.length > 0;
+    if (!ok) { warnings.push("leagueState: not a league-state/1 object, dropped"); return null; }
+    let text;
+    try { text = JSON.stringify(ls); } catch (e) { text = ""; }
+    if (!text || text.length > MAX_LEAGUE_STATE) { warnings.push("leagueState: too large, dropped"); return null; }
+    return JSON.parse(text);
   }
 
   function cleanWork(w, warnings) {

@@ -106,7 +106,7 @@ test("unreadable and empty pastes", () => {
 test("record: the ddf:pasted shape setup.html reads", () => {
   const res = LP.read(fs.readFileSync(path.join(DIR, "03-espn.txt"), "utf8"), TABLE_ROWS, {table: TABLE});
   const rec = LP.record(res, "paste");
-  assert.deepStrictEqual(Object.keys(rec).sort(), ["enteredAt", "leagueId", "me", "pasteSettings", "platform", "site", "source", "suggestedName", "teams", "v"]);
+  assert.deepStrictEqual(Object.keys(rec).sort(), ["enteredAt", "leagueId", "leagueState", "leagueStateReason", "me", "pasteSettings", "platform", "site", "source", "suggestedName", "teams", "v", "weeksFilled"]);   // JEG-1685: leagueState (null with a reason for a paste), weeksFilled
   assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(rec.enteredAt), "enteredAt is a local date");
   assert.strictEqual(rec.me, null);
   assert.deepStrictEqual(Object.keys(rec.teams[0]).sort(), ["name", "players", "unmatched"]);

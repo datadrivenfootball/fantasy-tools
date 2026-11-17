@@ -11,6 +11,10 @@
  * DDF.leagueState.known(value, source, asOf) -> cell
  * DDF.leagueState.missing(reason)           -> cell
  * DDF.leagueState.validate(state)           -> {ok, errors: [{path, code, message}]}
+ * DDF.leagueState.weekPlan(state)           -> {regularEnd, playoffLo, source, as_of} | {why}   (JEG-1685: the ES-12 week settings the state knows)
+ * DDF.leagueState.weekFill(state, cur, def, prior) -> {patch, plan, why}   cur/def/prior = {regularEnd, playoffLo, playoffHi} | null
+ *     patch is the engine weeks to apply, or null with why. A value the reader changed (cur differs from the site default
+ *     and from what a state filled before, prior) is never replaced.
  *     codes: shape | version | cell | null_without_reason | no_source | no_as_of | value | reference | duplicate | cross
  */
 (function (root) {
@@ -146,7 +150,28 @@
     return {ok: errors.length === 0, errors: errors};
   }
 
-  var api = {VERSION: VERSION, known: known, missing: missing, validate: validate};
+  // JEG-1685: the ES-12 week settings (playoffs start week, last regular-season week) a state knows. Needs a valid state and a
+  // known start_week or last_regular_week; the other is derived (last = start - 1). source and as_of come from the cell used.
+  function weekPlan(state) {
+    if (!validate(state).ok) return {why: "The league state is not valid, so its weeks are not used."};
+    var pr = state.playoff_rules, s = pr.start_week, l = pr.last_regular_week, c;
+    if (s.value !== null) c = s; else if (l.value !== null) c = l;
+    else return {why: s.reason || l.reason};
+    var lo = s.value !== null ? s.value : l.value + 1;
+    return {regularEnd: lo - 1, playoffLo: lo, source: c.source, as_of: c.as_of};
+  }
+  function sameWeeks(a, b) { return !!a && !!b && a.regularEnd === b.regularEnd && a.playoffLo === b.playoffLo && a.playoffHi === b.playoffHi; }
+  function weekFill(state, cur, def, prior) {
+    var plan = weekPlan(state);
+    if (plan.why) return {patch: null, plan: null, why: plan.why};
+    if (!cur) return {patch: null, plan: plan, why: "The engine's current weeks are not available."};
+    if (!sameWeeks(cur, def) && !sameWeeks(cur, prior)) return {patch: null, plan: plan, why: "The weeks were set by the reader; they stay."};
+    if (plan.playoffLo > 18 || plan.regularEnd < 1) return {patch: null, plan: plan, why: "The league's weeks are outside the engine's 1 to 18."};
+    if (plan.playoffLo > cur.playoffHi) return {patch: null, plan: plan, why: "The league's playoffs start after the engine's last playoff week; the league does not say when they end."};
+    return {patch: {regularEnd: plan.regularEnd, playoffLo: plan.playoffLo, playoffHi: cur.playoffHi}, plan: plan, why: null};
+  }
+
+  var api = {VERSION: VERSION, known: known, missing: missing, validate: validate, weekPlan: weekPlan, weekFill: weekFill};
   root.DDF = root.DDF || {};
   root.DDF.leagueState = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
