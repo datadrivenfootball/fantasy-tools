@@ -6,7 +6,8 @@ retention in the offseason. For these tables, that replaces the 2026-10-23 choic
 of two copies a week. Source survey: JEG-1640 (`06-audit/weekly-projection-sources-2026-11-14.md`
 in the handoff folder).
 
-Storage only. No value, page, view or API reads these tables. Nothing is blended
+Storage only. No value, page, view or API reads these tables. The pure module `app/next/weekly-team-projection.js` takes these rows as input (JEG-1658,
+`docs/weekly-team-projection.md`); the browser has no read path to them yet. Nothing is blended
 with ROS (Jeremy 2026-10-29), and a missing number is null, never 0.
 Migration: `supabase/migrations/jeg1641_weekly_projection_warehouse_20261114.sql`
 (project `iskiybsimubiujwuchsl`). All four tables are append-only: triggers
