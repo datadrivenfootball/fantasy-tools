@@ -1,38 +1,46 @@
-# JEG-1691 v5.1: pre-registration of the one more round (written 2026-11-17, before any v5.1 code or run)
+# JEG-1691 v5.1: pre-registration of the one more round (first written 2026-11-17; redesigned 2026-11-17 on Jeremy's answers)
 
-Status: **draft for review. No v5.1 code exists and nothing has run on weeks 11-14.** Jeremy chose
-outcome B for v5 on 2026-11-17. This is the "one more pre-registered round that changes only the
-failing step" of v5's section 5. The locked v5 files (`DECISIVE.lock`, `out/decisive/`, and every
-file in v5's executed tree) are not touched. Research only, nothing published. Jeremy, 2026-11-16:
-"Don't mess with the current architecture, we are exploring an enhanced value, not doing a cutover."
+Status: **draft for review. No v5.1 code exists and nothing has run.** Jeremy chose outcome B for
+v5 on 2026-11-17, and this is the "one more pre-registered round" of v5's section 5. The first
+version (878582a0e) gated on chart weeks 11-12. Jeremy's answers of 2026-11-17 (quoted in
+"Frozen decisions") replace that with a **backtest on historical actuals**. The locked v5 files
+(`DECISIVE.lock`, `out/decisive/`, v5's executed tree) are not touched. Research only, nothing
+published. Jeremy, 2026-11-16: "Don't mess with the current architecture, we are exploring an
+enhanced value, not doing a cutover."
 
-Nothing in sections 2-5 changes after the first v5.1 decisive number is printed. Any change before
-that is appended at the end, dated, with its reason.
+Nothing in sections 2-6 changes after the first backtest number is printed. Any change before that
+is appended at the end, dated, with its reason.
 
 ---
 
 ## Summary for a fantasy manager
 
-- **What failed in v5.** When a league moves from Standard to Full PPR, v5 moved FantasyPros' wide
-  receivers about a quarter as far as ESPN's and Sleeper's stat lines say they should.
-  FantasyCalc's wide receivers looked fine, but only because about a third of them were pushed down
-  to zero value in Standard, and that floor makes everyone move the same way.
-- **Why.** v5 estimates how much of a receiver's scoring comes from catches using his past games,
-  and pulls thin histories toward the average receiver. For receivers the method pulled very hard.
-  On the dev weeks, receivers' estimated catch shares were about one fifth as spread out as ESPN's
-  and Sleeper's. They were still in the right order, and even the best order of the three against
-  what happened next. They were just squeezed together.
-- **The one change.** Choose how hard to pull the catch share using a test on real games that looks
-  only at catches per point, which is the one thing that matters in DDF's three scoring formats.
-  v5 chose it with a score that mixed in every other stat. Everything else stays exactly as in v5.
-- **When it runs.** Once, as soon as the chart weeks 11 and 12 exist (around 2026-11-25), with
-  weeks 13-14 as a later check that blocks nothing.
-- **What can happen.** This is the last round. It either passes every test (**C**: build a
-  separate, labelled scoring-aware value next to DDF Value) or it closes (**A**: keep DDF Value as
-  it is). There is no further iteration.
-- **Honest expectation.** It may still fail. Receivers' catch shares are noisy from game to game,
-  and the no-harm test for FantasyPros in Standard was already borderline (it showed harm on week
-  10 alone).
+- **What failed in v5.** When a league moves from Standard to Full PPR, v5 moved wide receivers
+  about a quarter as far as ESPN's and Sleeper's stat lines say they should. The cause: v5 pulled
+  each receiver's catch share hard toward the average receiver, so every receiver looked alike.
+- **Jeremy's answer.** The catch share should reflect the player's own history. Pull toward the
+  average only as much as the data prove is needed for very small samples.
+- **How it is tested now: a backtest, not future weeks.** For every season from 2017 to 2025, we
+  stand at weeks 5, 9 and 13. From each player's past games we predict his catches per point over
+  the next four weeks, then compare with what he actually did. Four rules are compared:
+  - his raw history;
+  - v5's heavy pull;
+  - the new light pull, set by testing on earlier seasons only;
+  - the position average.
+
+  A second check rebuilds whole stat lines (yards, touchdowns, catches) from points for 2025, and a
+  fake version that hands each player someone else's history is the control.
+- **What can happen.** This is the last round.
+  - **C:** the light pull predicts better than the position average at running back, receiver and
+    tight end, is not worse than v5's, and is well calibrated. A separate, labelled scoring-aware
+    value can then be designed next to DDF Value.
+  - **A:** otherwise. Keep DDF Value as it is.
+- **Charts.** The chart tests (T4-T8) are re-run only to describe what happens, on the chart weeks
+  that exist (2026 weeks 5-10). No chart snapshots exist before 2026, so the charts themselves
+  cannot be backtested.
+- **What the backtest cannot settle.** It tests the stat-mix step only. Whether a chart's value
+  really stands for a points forecast (issues 8, 16), and which scoring FantasyCalc and FantasyPros
+  assume (issue 10), stay open.
 
 ---
 
@@ -58,140 +66,165 @@ mix renormalised at each step. Receptions are one term of seven, and for WRs the
 dominate. So `S` cannot see that the presets respond only to receptions per point.
 
 What would distinguish this from "the projectors are over-dispersed": the calibration slope of
-realized on predicted receptions per point, on the **2025 selection origins**. A v5 slope well above
-1 there confirms over-shrinkage on the selection data. It is computed and reported by the v5.1
-selection step (3.3) before any decisive number exists.
+realized on predicted receptions per point on historical actuals. A v5 slope well above 1 confirms
+over-shrinkage. The backtest reports it for every rule (B3, with Rv5 beside RL), on 2017-2025
+evaluation seasons that no diagnosis used.
 
-## 2. The one change (step 5, reception category only)
+## 2. The change (step 5, the catch share): a light, data-justified shrinkage
 
-- **v5:** `k_rec,p` and `t_p` were chosen jointly with the other six categories by the objective
-  `S` (2.4 of the v5 pre-registration).
-- **v5.1:** `t_p` and the six non-reception strengths `k_c,p` stay **exactly as v5 selected them**
-  (frozen in `out/decisive/selection.json`). Only `k_rec,p` is re-chosen. It takes the value in v5's
-  grid `K_GRID` = {0, 2, 4, 8, 16, 32, 64, 128, inf} that minimises
-  `S_rec` = the mean squared error of receptions per anchor point
-  (`realized receptions / realized F(s0)` against `m*_rec`, Half anchor). The search uses the same
-  selection origins (2025 weeks 4-8), truth windows, eligibility, renormalisation and tie rule
-  (larger `k`) as v5.
-- Positions: RB, WR, TE, QB, each re-chosen; QB is reported, not judged.
-- Nothing else changes: steps 1-4, 6, 7, the references, the pairing rule, the shuffle, the
-  bootstrap and every band.
-- Code: a new module `tools/research/jeg1691/v51/` that imports the v5 modules unchanged and
-  replaces only `k_rec` in the selection. It is written after this pre-registration and Jeremy's
-  decisions, checked on dev weeks 5-7 only, and reviewed before any run.
+The catch share is `q_i` = receptions per Half-PPR point, the only quantity DDF's three formats see
+(v5 section 1, algebra). Four rules predict it from a player's games before the origin:
 
-## 3. Tests (same as v5, same bands; additions only where the change needs them)
+| Rule | Definition |
+| --- | --- |
+| **RL (light, the v5.1 rule)** | `q_i = a_i q_raw,i + (1 - a_i) q_pos`, with `a_i = n_i / (n_i + k_p)`. `n_i` = the player's history games, all weighted equally (no recency weighting: "the player's historical mix"). `k_p` per position comes from the light grid `G_L` = {0, 0.5, 1, 2, 4, 8} (decision D-a), chosen by nested forward CV (2.2). Ties go to the **smaller** `k`, the lighter pull. |
+| R0 (raw history) | `k = 0`: the player's own history only |
+| Rv5 (v5 shrunk) | v5's frozen choices from `out/decisive/selection.json` (RB `k_rec` 8, half-life 17; WR 64, 8; TE 2, 8), applied to the catch share |
+| Rpos (position average) | `k = inf`: the games-weighted mean `q` of the position's players with at least 8 history games |
 
-### 3.1 Tier 1, carried unchanged
+Shared rules:
+- Players with no history get `q_pos` under every rule. They are counted and excluded from the
+  comparison, since every rule gives them the same prediction.
+- A game is a row with nonzero Standard or PPR points.
+- History runs from 2015 to the week before the origin.
 
-T1, T2, T3, T4, T5 (pooled and per position, [2/3, 3/2]), T6, T7 and T8 have the definitions and
-rules of v5 section 3.2. The runner reuses `tests5.py`, unchanged.
+### 2.1 Data
 
-### 3.2 Tier 1, added for the change
+- **2015-2025:** `data/inputs/weekly_actuals_nflverse_2015_2025.csv.gz`.
+  - 61,977 player-weeks, with gsis id and position.
+  - Points by format only, so receptions = PPR minus Standard points, exactly.
+  - Identity is the gsis id, so the backtest needs no player_key and the 59.4% idmap does not limit
+    it.
+- **2024-2025 per-stat lines (B5 only):** the committed `player_game_stats` cache
+  (`tools/research/jeg1691/cache/pgs_weekly_2024_2026.json.gz`), rows of 2024-2025 only.
+- **2026:** no 2026 data enters the backtest. The runner refuses any 2026 row.
 
-| # | Test | Rule |
+### 2.2 Choosing `k_p` (nested, forward only)
+
+For each evaluation season `Y` (2017-2025), `k_p` is the value in `G_L` that minimises the
+reconstructed-receptions error (metric E below) on all origins of seasons 2016 to `Y - 1`. Ties go
+to the smaller `k`. The `k_p` for season 2026 use (the chart chain) is chosen on 2016-2025. No
+fold ever sees its own season or a later one.
+
+### 2.3 Metrics
+
+Origins: weeks 5, 9 and 13 of each season. Truth: the player's games in the 4 weeks from the origin
+(5-8, 9-12, 13-16; these windows do not overlap). Eligible: RB, WR or TE (QB reported), at least 2
+truth games, truth Half points above 0, and at least 1 history game.
+
+- **E (stat-line reconstruction, receptions):** predicted receptions per game
+  = `q_pred x` (realized Half points per game), against realized receptions per game. Squared
+  error, averaged over players.
+- **Calibration:** the OLS slope of realized `q` on predicted `q`, pooled over the evaluation seasons,
+  per position.
+- **Order:** the within-position Spearman of predicted against realized `q` (reported).
+- **Shuffle control:** within position and origin, the rule's predictions are permuted among
+  players. 1,000 permutations, seed 16911.
+- **Intervals:** cluster bootstrap by player (gsis id) within position, 2,000 draws, seed 16911.
+
+## 3. Pre-registered tests and bands
+
+| # | Test | Rule (per position RB, WR, TE unless said) |
 | --- | --- | --- |
-| T1c | **The change does not hurt the mechanism.** On T1's test origins: the v5.1 mix against the v5 mix, paired, with the T1(a) error (rescored points at Standard and Full) and with `S_rec`. | No-harm labels as T7. HARM on T1(a) leads to A. |
-| T5u | **T5 without the floor artifact (decision D3).** T5's statistic on players with a nonzero Adjusted value at both Standard and Full in both v5.1 and the reference-mix rebuild, pooled and per position. | The same band and rule as T5. |
+| B0 | **Exactness** (code) | RL with `k = 0` reproduces R0, RL with `k = inf` reproduces Rpos, and Rv5 reproduces v5's `shrunk_mix` reception component on the same history, all exactly. Otherwise the run is **void**. |
+| B1 | **History predicts catches** (RL against Rpos) | PASS if all three hold: RL has the lower E in at least 7 of the 9 evaluation seasons; the pooled interval of (E_pos - E_RL) is entirely above 0; RL's pooled E is below the shuffle control's 5th percentile. FAIL if the pooled interval is entirely below 0. Otherwise INCONCLUSIVE. |
+| B2 | **No worse than v5's pull** (RL against Rv5) | Pooled interval of (E_v5 - E_RL): PASS if the lower bound is at least 0; HARM if the upper bound is below 0; otherwise INCONCLUSIVE. |
+| B3 | **Calibrated** | RL's pooled calibration slope is in [2/3, 3/2] (the factor-1.5 band of D3). |
+| B5 | **Whole stat-line reconstruction, 2024+ per-stat** | Origins: 2025 weeks 4-14, history 2024 to the origin, truth 4-week windows. Rule: RL's `k_p` (chosen on 2016-2024) for the reception category, and v5's frozen strengths for the other six. Metric: v5's T1(a) error (rescored points at Standard and Full, given realized Half points), pooled RB/WR/TE. PASS if the interval of (Rpos error - RL error) is entirely above 0 and RL beats the shuffle 5th percentile. HARM if, against Rv5, the interval is entirely below 0. The per-category objective S is reported. |
+| B4 | Raw against light (reported) | E and calibration for R0. This shows what the safeguard buys. |
 
-### 3.3 Reported (Tier 2)
+B5's origins (2025) overlap v5's selection and T1 origins, which were scored in v5; this is stated
+next to the result. 2026 is not used.
 
-- v5's Tier 2 list.
-- The selected `k_rec,p` against v5's.
-- The calibration slope of realized on predicted receptions per point, on the selection origins,
-  for v5 and v5.1 (section 1's distinguishing check).
-- The SD of receptions per anchor point for v5.1, v5, raw history and the reference.
-- The floored-player count per chart, position and week.
+### 3.1 Sensitivity runs (a verdict that flips under any of them blocks C)
 
-### 3.4 What the decisive weeks see
+| Run | Change |
+| --- | --- |
+| S-anchor-Full | `q` per Full-PPR point instead of Half |
+| S-truth-ROS | truth = the rest of the season instead of 4 weeks |
+| S-origins-alt | origins at weeks 4, 8 and 12 |
+| S-no-2020 | the 2020 season left out (shortened preseason; one season held out) |
 
-- T1 and T1c use v5's T1 test origins: 2025 weeks 12-14 and 2026 weeks 5-7. These were already
-  scored in v5, for the v5 mix against the position mix, so v5.1's T1 is not on unseen origins.
-  That is stated next to the result.
-- A fresh-origin T1 (2026 origins 8 onward, truth from week 11 on) is reported in the replication
-  only.
+## 4. Chart-based replays: descriptive only
 
-## 4. Decisive weeks and the sequential rule (decision D2)
+- **No pre-2026 chart snapshots exist**, so the chart unwind cannot be backtested.
+- After the backtest, the v5 chart chain is re-run with RL's 2026 `k_p` on the existing chart
+  weeks. That covers dev weeks 5-7 and weeks 8-10, which were already burned for v5's verdict.
+- T2-T8 are reported, including T5 per position and T5u (D3: "If the logic plays out that way,
+  that's ok"), next to v5's numbers. **None of them gates the outcome.**
+- Weeks 11+ are an optional later replication with the same frozen code. It blocks nothing.
+- That replay needs RL's catch share on 2026 chart players. It uses the per-stat history as in v5
+  (2024+ `player_game_stats`, keyed), because the 2015-2023 points file joins chart players only
+  through the 59.4% idmap. This is stated as a limit.
 
-- Weeks 8-10 are burned. Dev for code checks is weeks 5-7 only.
-- **Primary proposal (D2-A): one decisive run as soon as content weeks 11 and 12 both exist.** That
-  is about 2026-11-25. "Exist" means all of the following, checked by the runner:
-  - a chart snapshot in `data/history/week-<w>.json` for all four charts;
-  - an ESPN CSV commit whose `espn_snapshot_date` equals the week's ESPN snapshot;
-  - a Sleeper warehouse run no later than that snapshot;
-  - the references paired by v5's rule (v5 2.6), with fresh Sleeper for every week.
-- No look before both weeks exist. Weeks 13 and 14 then run as a replication that blocks nothing:
-  - with the same frozen code, each week alone and the four weeks together;
-  - a replication verdict that differs is stated beside the decision and does not reopen it.
-- **Confidence by choice.** Rest-of-season lists change slowly, so consecutive weeks are highly
-  dependent, and extra weeks add less than their count suggests.
-  - Two fresh weeks (D2-A, earliest): the first test on chart weeks nobody has seen, and fresh
-    Sleeper on every week. It is the weakest sample.
-  - Three weeks (D2-B, about 2026-12-02): somewhat tighter intervals. Most of the gain is in T7
-    and T8, which were inconclusive in v5.
-  - Four weeks (D2-C, about 2026-12-09): the most data. It waits two weeks longer for modest gain.
-- **Week-alone hinge.** Every decisive week has fresh Sleeper, so v5's "W10-only" sensitivity is
-  replaced by "each decisive week alone". A Tier 1 test that passes on the pooled weeks and fails on
-  one week alone counts as a hinge.
-
-## 5. Stop rules and outcomes (mechanical, as v5; this is the last round)
-
-v5's section 5 says this round reaches C or closes. So the v5 outcome function is reused with one
-mapping: **every rule that gave B in v5 gives A here.**
+## 5. Outcomes (mechanical; this is the last round)
 
 | Outcome | When |
 | --- | --- |
-| **void** | T2 fails on the decisive weeks. The run is void. After a dated bug fix, the next unused weeks (13-14) become the decisive weeks, run once. |
-| **A: close** | Any of the following, or any rule that gave B in v5 (a Tier 1 test failing in the primary; a hinge on an anchor, on ESPN, CBS ROS or Razzball left out of step 4, on one chart dropped, or on one decisive week alone; T1 INCONCLUSIVE with point estimate above 0): T1 FAIL; T1 INCONCLUSIVE with point estimate at or below 0; T1c HARM; T4 FAIL; any HARM in T7 or T8. |
-| **C: proceed to a separate enhanced value** | T1 PASS, T1c with no HARM, and every Tier 1 test (with T5u if D3-A) passes in the primary and in every sensitivity run. A new ticket designs a separate, labelled value beside DDF Value. Nothing replaces DDF Value. |
+| **void** | B0 fails. Fix the bug with a dated amendment, then rerun once. |
+| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, B2 HARM, or B3 outside the band. Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
+| **C: proceed to design a separate enhanced value** | B1 PASS, B2 no HARM and B3 in band at all three positions, and B5 PASS, with no flip under any sensitivity run. |
 
-- **The FantasyPros Standard T7 HARM seen on week 10 alone in v5.** It gets no special treatment:
-  - HARM in the primary leads to A;
-  - HARM on one week alone is a hinge, and a hinge leads to A.
-- **Prediction, written now.** Widening WR moves (the purpose of the change) can deepen that harm:
-  - v5's weeks 8-10 FantasyPros Standard T7 was -0.011 [-0.032, +0.001].
-  - So T7 is the most likely test to close the round, after T5u.
-  - Expected outcome: **A**, with the failure most likely at T5u or T7. C needs both to clear.
+- The outcome is picked by code and written to `out51/backtest/verdict.json` with every rule that
+  fired.
+- What C means: the history-based mix step is supported by the backtest. It does **not** validate
+  the chart unwind (issues 8, 10, 16). A separate enhanced value would carry those as open limits.
+- Decision D-b asks whether a subset of positions can reach C.
+
+Prediction, written now:
+- RB passes B1-B3: split-half 0.77 on 2025.
+- TE is uncertain.
+- WR is the open question. Its split-half is 0.26, so a light pull may predict worse than the
+  position average (B1), and the slope may fall outside the band (B3).
+- Expected outcome: **A if WR fails, C only if WR passes**.
 
 ## 6. Harness (kept hardened)
 
-- Runner `tools/research/jeg1691/v51/run_v51.py`. The v5 files are imported and never edited, and
-  the v5 manifest stays verifiable.
-- Guards:
+- New code under `tools/research/jeg1691/v51/` (backtest runner, rules, tests). The v5 files are
+  imported or read, never edited.
+- Guards, carried from v5:
   - `V51_APPROVAL.json` (committed) names the reviewed commit;
-  - the executed tree is blob-identical to that commit (v5's manifest plus `v51/`);
-  - the once-only lock `V51_DECISIVE.lock` is written before any value is computed, and is also
-    checked in git history and in `~/.local/state/jeg1691/v51-decisive.json`;
-  - `--quick` and `--no-sensitivity` are refused outside dev;
-  - the runner refuses any week set other than the registered one (D2), and refuses before those
-    weeks exist.
-- The outcome is written to `out51/decisive/verdict.json` with every rule that fired. The lock and
-  outputs are committed and pushed together straight away, per v5's "How to run".
+  - the executed tree is blob-identical to that commit;
+  - a once-only lock `V51_BACKTEST.lock` is written before any number, in the worktree, in git
+    history and in `~/.local/state/jeg1691/`;
+  - sensitivity runs are required, and `--quick` is dev only.
+- The runner reads no 2026 row in backtest mode. Dev code checks use synthetic fixtures and 2015
+  only (2015 is never an evaluation season).
+- Run from a fresh clone. Commit the lock and outputs together straight away.
 
-## 7. Limits (unchanged or new)
+## 7. Limits
 
-- **Issue 16:** chart-implied points are not a calibrated forecast. Step 4 is unchanged.
-- **Issue 8:** invertibility. The stat line is the player's history scaled to the chart's level,
-  not something the chart says.
-- **Issue 10:** the anchors (FantasyCalc Full, FantasyPros Half) are assumed. Anchor runs are hinges.
-- **T6 stays near-mechanical.** DDF prices every source's position totals the same way, so a T6 pass
-  says little. v5's T6 failure (FantasyCalc TE/RB 0.645 against the edge at 0.644) was by a hair,
-  and this change does not target it. T6 can still decide the round either way by small margins.
-- **T4 and T5 compare with a rebuild through the same machinery,** so they test the mix's order and
-  spread only.
-- **Seen data.** The T1 test origins were scored in v5. The diagnosis's calibration check (*) reads
-  weeks 6-10 game outcomes.
-- **One more round only.** If v5.1 ends in A, the chart-unwind line closes. The fresh-origin T1 and
-  the replication stay reported, not reopened.
+- **The backtest tests the mix step only.** Issue 16 (chart points are not a calibrated forecast),
+  issue 8 (invertibility) and issue 10 (anchors) are not tested by it and stay open. Passing says
+  "a player's history predicts how he earns points", not "the charts encode stat lines".
+- **Data.** 2015-2023 has points only, so the backtest covers receptions only. That suffices for
+  DDF's three formats (catches are the only weight that differs), not for custom scoring. The full
+  seven-category check (B5) has one season (2025) of 2024-based history.
+- **Seen data.**
+  - The diagnosis (section 1) used 2026 weeks 6-10 outcomes.
+  - B5's 2025 origins were scored in v5.
+  - The chart replays reuse burned weeks and are descriptive only.
+- **Not a forecast of future charts.** The chart chain's behaviour is only described (section 4).
+- **T6 stays near-mechanical, and T7's FantasyPros Standard HARM on week 10** is reported in the
+  replay without a verdict.
+
+## Frozen decisions (Jeremy, 2026-11-17, answers on PR #1478)
+
+| # | Jeremy's answer | How it binds |
+| --- | --- | --- |
+| D1 | "It should reflect that player's historical mix" | RL: own history, shrinkage only as light as forward CV on 2015-2025 actuals justifies (sections 2-2.2). This replaces the first version's `k_rec`-by-reception-objective change. |
+| D2 | "Focus on backtesting not forward results for now" | The decisive evidence is the backtest (section 3). The chart replays are descriptive. Weeks 11+ are an optional replication that blocks nothing (section 4). |
+| D3 | "If the logic plays out that way, that's ok" | T5u is reported and does not gate. |
 
 ## Decisions for Jeremy before any v5.1 code
 
 | # | Question | Options (recommendation first) |
 | --- | --- | --- |
-| D1 | The one change | **A** re-choose only `k_rec` by a receptions-per-point forward-CV objective on the same 2025 selection origins / **B** re-choose `k_rec` so the calibration slope of realized on predicted is closest to 1 on those origins / **C** no change; close now (A), because WR catch shares carry little signal (split-half 0.26) |
-| D2 | Decisive weeks | **A** one run as soon as weeks 11 and 12 exist (about 2026-11-25); 13-14 replicate / **B** weeks 11-13 (about 2026-12-02) / **C** weeks 11-14 (about 2026-12-09) |
-| D3 | The floor artifact | **A** add T5u (T5 without floored players) to Tier 1 / **B** report it only (then FantasyCalc can pass T5 by the artifact) |
+| D-a | How light the safeguard can be | **A** light grid {0, 0.5, 1, 2, 4, 8} (at most 8 games of pull, so history dominates once a player has a few games) / B v5's full grid up to infinity (the data may choose a heavy pull, as v5 did for WR) |
+| D-b | Can a subset of positions reach C? | **A** no: C needs RB, WR and TE / B yes: C for the positions that pass; the others keep the position average |
 
 ## Amendments
 
-None yet.
+- 2026-11-17: redesigned on Jeremy's answers D1-D3 before any v5.1 code or number. The first
+  version's change (`k_rec` by a reception objective), its chart-week gate (weeks 11-12) and T1c
+  are withdrawn. T5u is reported only.
