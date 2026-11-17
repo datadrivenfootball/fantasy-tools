@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-17T03:29:11.465317+00:00",
+  "run_at": "2026-11-17T03:45:42.645397+00:00",
   "nfl_week": 10,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -16,9 +16,10 @@
   "success": false,
   "outcome": "failed",
   "held": [
+    "fantasycalc",
     "usatoday"
   ],
-  "hold_severity": "amber",
+  "hold_severity": "red",
   "list_changes": {},
   "held_detail": {
     "usatoday": {
@@ -31,6 +32,18 @@
       ],
       "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
       "hold_severity": "amber",
+      "week": 10
+    },
+    "fantasycalc": {
+      "reason": "fidelity: scrape_validity",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "player count dropped vs week 9: stored TE 30->26, chart TE 30->26",
+      "hold_severity": "red",
       "week": 10
     }
   },
@@ -228,7 +241,8 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored"
+    "usatoday": "fidelity: publisher_vs_stored",
+    "fantasycalc": "fidelity: scrape_validity"
   },
   "post_rebuild_validation": {
     "status": "failed",
@@ -240,7 +254,7 @@
       "Makefile:707: value-check-compare"
     ],
     "detail": "make validate-data failed at Makefile:707: value-check-compare",
-    "recorded_at": "2026-11-17T03:38:02.309793+00:00",
+    "recorded_at": "2026-11-17T03:59:44.359897+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
