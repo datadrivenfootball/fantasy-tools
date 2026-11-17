@@ -475,9 +475,11 @@ needs the interval entirely above 0, which two seasons may not give even for a r
 
 1. After the review, commit `tools/research/jeg1691/APPROVAL.json`:
    `{"reviewed_commit": "<full sha>", "reviewer": "...", "date": "..."}`. Push it.
-2. Make a fresh clone of the branch and work only in it. `pip` and caches play no part; the clone
-   needs Python with numpy and scipy.
-3. Run `python3 tools/research/jeg1691/run_v5.py --weeks 8 9 10 --decisive <reviewed sha>`. The
+2. Make a fresh clone of the branch and work only in it. Run with a Python 3.12 interpreter that
+   has numpy and scipy. The decisive run of 2026-11-17 used a throwaway venv
+   (`scratchpad/v5venv/bin/python`: Python 3.12.12, numpy 2.5.5, scipy 1.18.1). The system
+   `python3` (3.9) also has numpy and scipy, but it is not the registered interpreter.
+3. Run `<that interpreter> tools/research/jeg1691/run_v5.py --weeks 8 9 10 --decisive <reviewed sha>`. The
    runner refuses `--quick`, `--no-sensitivity`, a subset of the weeks, or a tree that differs from
    the reviewed commit.
 4. Straight away, commit and push `tools/research/jeg1691/DECISIVE.lock` and
