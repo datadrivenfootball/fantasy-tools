@@ -142,3 +142,67 @@ def test_pseudo_source_does_not_move_included_sources(dev_week):
             a = {i: r["adjusted"].get(k) for i, r in rows.items() if r["adjusted"].get(k) is not None}
             b = cur["adj"]
             assert all(a[i] == b[i][k] for i in a if i in b and b[i].get(k) is not None)
+
+
+def _battery(**over):
+    """A synthetic battery where every Tier 1 chart test passes."""
+    b = {"T2": {8: {"pass": True}}, "T3": {"fantasycalc": {"label": "PASS"}},
+         "T4": {"fantasycalc": {"pass": True}}, "T5": {"fantasycalc": {"pass": True}},
+         "T6": {"fantasycalc": {"WR/RB": {"pass": True}, "TE/RB": {"pass": True}}},
+         "T7": {"fantasycalc|standard": {"label": "INCONCLUSIVE"}}, "T8": {"ppr": {"label": "PASS"}}}
+    b.update(over)
+    return b
+
+
+T1_PASS = {"verdict": "PASS", "a": {"diff": 0.1}}
+
+
+def test_outcome_rules_are_mechanical():
+    import outcome as oc
+    assert oc.decide(_battery(), {"S-FP-Full": _battery()}, T1_PASS)["outcome"] == "C"
+    # a FantasyPros T5 failure under the Full anchor blocks C
+    d = oc.decide(_battery(), {"S-FP-Full": _battery(T5={"fantasypros": {"pass": False}})}, T1_PASS)
+    assert d["outcome"] == "B" and any("hinges on S-FP-Full" in r["rule"] for r in d["rules_fired"])
+    assert oc.decide(_battery(T4={"x": {"pass": False}}), {}, T1_PASS)["outcome"] == "A"
+    assert oc.decide(_battery(T8={"ppr": {"label": "HARM"}}), {}, T1_PASS)["outcome"] == "A"
+    assert oc.decide(_battery(), {}, {"verdict": "INCONCLUSIVE", "a": {"diff": -0.01}})["outcome"] == "A"
+    assert oc.decide(_battery(), {}, {"verdict": "INCONCLUSIVE", "a": {"diff": 0.01}})["outcome"] == "B"
+    assert oc.decide(_battery(), {}, {"verdict": "FAIL", "a": {"diff": -0.1}})["outcome"] == "A"
+    assert oc.decide(_battery(T2={8: {"pass": False}}), {}, T1_PASS)["outcome"] == "B (void run)"
+    assert oc.decide(_battery(), {"S-drop-cbs": _battery(T8={"ppr": {"label": "HARM"}})}, T1_PASS)["outcome"] == "B"
+    assert oc.decide(_battery(), {"W10-only (fresh Sleeper)": _battery(T3={"f": {"label": "PARTIAL"}})},
+                     T1_PASS)["outcome"] == "B"
+    assert oc.decide(_battery(T6={"f": {"WR/RB": {"pass": None}}}), {}, T1_PASS)["outcome"] == "B"
+
+
+def test_guard_requires_committed_approval():
+    r = subprocess.run([sys.executable, str(H / "run_v5.py"), "--weeks", "8", "9", "10", "--decisive", "HEAD"],
+                       capture_output=True, text=True)
+    assert r.returncode != 0 and "APPROVAL" in (r.stderr + r.stdout)
+    r = subprocess.run([sys.executable, str(H / "run_v5.py"), "--weeks", "8", "--decisive", "HEAD"],
+                       capture_output=True, text=True)
+    assert r.returncode != 0          # all three decisive weeks, never a subset
+
+
+def test_manifest_covers_the_executed_tree():
+    import run_v5 as R
+    for p in ("pipelines/value_reference.py", "tools/research/jeg1611/v4.py",
+              "data/inputs/weekly_projections_sleeper.csv.gz", "tools/research/jeg1691/v5.py",
+              "tools/research/jeg1691/cache/sleeper_ros_week10.json", "tools/research/jeg1691/out/t6_widening.json",
+              "docs/research/jeg1691/preregistration.md"):
+        assert R.in_manifest(p), p
+    for p in ("tools/research/jeg1691/out/decisive/verdict.json", "tools/research/jeg1691/APPROVAL.json",
+              "tools/research/jeg1691/DECISIVE.lock"):
+        assert not R.in_manifest(p), p
+
+
+def test_espn_left_out_of_step4_keeps_references(dev_week):
+    W, ch = dev_week
+    cx = W.chain(exclude=("espn",))
+    for s in ("standard", "ppr"):
+        a, b = ch["runs"][s]["rows"], cx["runs"][s]["rows"]
+        assert all(a[i]["adjusted"].get("espn") == b[i]["adjusted"].get("espn") for i in a if i in b)
+        assert ch["ps_adj"][("sleeper_own", s)] == cx["ps_adj"][("sleeper_own", s)]
+    p0 = {k: v[0] for k, v in ch["P"][("fantasycalc", "v5")].items()}
+    p1 = {k: v[0] for k, v in cx["P"][("fantasycalc", "v5")].items()}
+    assert any(abs(p0[k] - p1[k]) > 1e-9 for k in p0 if k in p1)

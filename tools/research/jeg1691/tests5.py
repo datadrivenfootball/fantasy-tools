@@ -243,7 +243,8 @@ def nh_boot(pieces, rng, n):
 # the battery
 # ---------------------------------------------------------------------------
 
-def battery(weeks: list, chains: dict, n_boot=st.N_BOOT, n_shuffle=st.N_SHUFFLE, widening=None):
+def battery(weeks: list, chains: dict, n_boot=st.N_BOOT, n_shuffle=st.N_SHUFFLE, widening=None,
+            drop_charts=()):
     """weeks: [Week5]; chains: {w: chain dict}. Returns every Tier 1 statistic and G2."""
     rng = random.Random(st.SEED)
     ctx = weeks[0].ctx
@@ -283,8 +284,12 @@ def battery(weeks: list, chains: dict, n_boot=st.N_BOOT, n_shuffle=st.N_SHUFFLE,
         out["T4"][c] = {"corr": corr, "ci95": ci_c, "shuffle_p95": p95,
                         "pass": bool(ci_c[0] is not None and ci_c[0] > 0 and p95 is not None and corr > p95),
                         "per_position": [{p: x[0].get(p) for p in POOL} for x in cr]}
-        out["T5"][c] = {"sd_ratio": ratio, "ci95": ci_r,
-                        "pass": bool(ratio is not None and T5_BAND[0] <= ratio <= T5_BAND[1]),
+        per_pos = {p: st.mean_or_none([x[1].get(p) for x in cr]) for p in POOL}
+        pooled_ok = bool(ratio is not None and T5_BAND[0] <= ratio <= T5_BAND[1])
+        # amendment 12: every position, week-averaged, must also lie in the band
+        pos_ok = all(v is not None and T5_BAND[0] <= v <= T5_BAND[1] for v in per_pos.values())
+        out["T5"][c] = {"sd_ratio": ratio, "ci95": ci_r, "pass_pooled": pooled_ok, "pass_positions": pos_ok,
+                        "pass": pooled_ok and pos_ok, "per_position_mean": per_pos,
                         "per_position": [{p: x[1].get(p) for p in POOL} for x in cr]}
         # T6
         lv = {"v5": [], "espn": [], "sleeper": []}
@@ -350,8 +355,8 @@ def battery(weeks: list, chains: dict, n_boot=st.N_BOOT, n_shuffle=st.N_SHUFFLE,
         for W in weeks:
             ch = chains[W.w]
             res = ch["runs"][s]
-            keys_c = v5.chart_keys(ctx, res, s)
-            rep = {c: W.av5(ch, c, "v5", s) for c in ch["U"]}
+            keys_c = [k for k in v5.chart_keys(ctx, res, s) if k not in drop_charts]
+            rep = {c: W.av5(ch, c, "v5", s) for c in ch["U"] if c not in drop_charts}
             new, cur = v5.ddf_from_rows(res, keys_c, rep), v5.ddf_from_rows(res, keys_c)
             ref = ref_adjusted(W, ch, s)
             keys = [k for k, v in cur.items() if v]

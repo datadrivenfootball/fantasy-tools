@@ -51,8 +51,24 @@ class Week5:
         self._runs, self._mix = {}, {}
 
     # -- steps 1-4 (v4, unchanged) -------------------------------------------
-    def unwound(self, chart, anchor="primary", drop=()):
+    def unwound(self, chart, anchor="primary", drop=(), exclude=()):
+        """exclude: projections left out of step 4's maps only (amendment 10); the pipeline
+        runs, and so the references, keep every source."""
         s0 = ANCHORS[anchor][chart]
+        if exclude:
+            if chart == "fantasycalc" and anchor == "fc_half":
+                dg, s00, _x, _t = self.wk.anchor4(chart, "fchalf", drop)
+            elif chart == "fantasypros" and anchor == "fp_full":
+                dg, s00, _x, _t = self.wk.anchor_at(chart, "ppr", drop)
+            else:
+                dg, s00, _x, _t = self.wk.anchor4(chart, "primary", drop)
+            recs = dg["charts"][chart]
+            priced = [k for k, r in recs.items() if r[1] > 0]
+            mixes = self.wk.mixes("share", priced, s00, priced)
+            pairs = {j: by for j, by in dg["pairs"].items() if j not in exclude}
+            u = v4.unwind4(recs, uw.maps_by_position(pairs), mixes, dg["R"], s00)
+            assert u.s0 == s0
+            return u
         if chart == "fantasycalc" and anchor == "fc_half":
             u, _x, _dg, _t = self.wk.unwound(chart, variant="fchalf", drop=drop)
         elif chart == "fantasypros" and anchor == "fp_full":
@@ -94,7 +110,7 @@ class Week5:
         return out
 
     # -- step 7 ---------------------------------------------------------------
-    def base(self, s, drop=()):
+    def base(self, s, drop=(), exclude=()):
         nat = R3.current_natives(self.wk.natives, s)
         nat = {k: v for k, v in nat.items() if k not in drop}
         pos_of = {i: p for i, p in self.ctx["pos_of"].items() if p in vr.POSITIONS}
@@ -102,7 +118,7 @@ class Week5:
                                                    if vr._finite(x) and i in pos_of})
                for k in vr.SOURCES if k in nat}
         inc = [k for k in self.ctx["inc_list"][s] if k in src]
-        return nat, src, inc, vr.mean_ppg(src, inc)
+        return nat, src, inc, vr.mean_ppg(src, [k for k in inc if k not in exclude])
 
     def run(self, s, extras: dict, tag, drop=()):
         """The unmodified pipeline at s with extra projection sources outside I."""
@@ -118,14 +134,14 @@ class Week5:
                                               lineup=live.lineup, hidden=hidden, flex_bench_seats=True)
         return self._runs[key]
 
-    def chain(self, anchor="primary", drop=(), kinds=("v5",)):
+    def chain(self, anchor="primary", drop=(), kinds=("v5",), exclude=()):
         """Everything the tests read for one anchor variant and drop set."""
         pos_of = self.ctx["pos_of"]
         U, P, labels = {}, {}, {}
         for c in CHARTS5:
             if c in drop:
                 continue
-            u = self.unwound(c, anchor, drop)
+            u = self.unwound(c, anchor, drop, exclude)
             U[c] = u
             inv = [k for k, r in u.records.items() if r["label"] == "invertible" and r.get("P0") is not None
                    and pos_of.get(k) in vr.POSITIONS]
@@ -140,7 +156,8 @@ class Week5:
             P[(c, "ref")] = ref
         runs, ps_adj, ps_maps = {}, {}, {}
         for s in SCORINGS:
-            _nat, _src, _inc, m = self.base(s, drop)
+            # the pad (waiver pool) is the projections' mean ppg without the excluded ones
+            _nat, _src, _inc, m = self.base(s, drop, exclude)
             extras = {}
             for (c, kind), pm in P.items():
                 s0 = U[c].s0
@@ -151,7 +168,7 @@ class Week5:
             extras["sleeper_own"] = self.refs.sleeper_ppg(s)
             if "espn" in _nat:
                 extras["espn_twin"] = dict(_nat["espn"])
-            res = self.run(s, extras, f"{anchor}|{','.join(kinds)}", drop)
+            res = self.run(s, extras, f"{anchor}|{','.join(kinds)}|x={','.join(exclude)}", drop)
             runs[s] = res
             for name in extras:
                 pl = res["sources"][name]["players"]
@@ -159,7 +176,7 @@ class Week5:
                 ps_maps[(name, s)] = [(float(r["native"]), float(r["adjusted"])) for r in pl.values()
                                       if r.get("adjusted") is not None and r.get("native") is not None]
         return {"U": U, "P": P, "labels": labels, "runs": runs, "ps_adj": ps_adj, "ps_maps": ps_maps,
-                "anchor": anchor, "drop": drop}
+                "anchor": anchor, "drop": drop, "exclude": exclude}
 
     def av5(self, ch, c, kind, s):
         """{key: Av5_i(s)} for the invertible players (delta form)."""
