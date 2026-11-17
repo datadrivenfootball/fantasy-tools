@@ -211,7 +211,9 @@ def test_espn_left_out_of_step4_keeps_references(dev_week):
 @pytest.mark.parametrize("flag", ["--decisive", "--replication"])
 def test_no_sensitivity_refused_outside_dev(flag):
     weeks = ["8", "9", "10"] if flag == "--decisive" else ["11", "12", "13", "14"]
+    snap = {n: ((H / n).read_bytes() if (H / n).exists() else None) for n in ("DECISIVE.lock", "REPLICATION.lock")}
     r = subprocess.run([sys.executable, str(H / "run_v5.py"), "--weeks", *weeks, flag, "HEAD", "--no-sensitivity"],
                        capture_output=True, text=True)
     assert r.returncode != 0 and "--no-sensitivity is dev only" in (r.stderr + r.stdout)
-    assert not (H / "DECISIVE.lock").exists() and not (H / "REPLICATION.lock").exists()
+    # 2026-11-17 (after the v5 lock was committed): the refused call must leave both locks as they were
+    assert {n: ((H / n).read_bytes() if (H / n).exists() else None) for n in snap} == snap
