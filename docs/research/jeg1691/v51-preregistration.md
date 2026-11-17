@@ -155,15 +155,14 @@ truth Half points above 0, and at least 1 history game.
 | B4 | Raw against light (reported) | E and calibration for R0. |
 | — | Cap report | Per fold and position, whether `k_p` hit the cap of 8. Reported only. |
 
-### 3.1 What C needs from B2 (amendment 8; an outcome rule Jeremy has not chosen yet, decision D-c)
+### 3.1 What C needs from B2 (amendment 8; Jeremy's chosen outcome rule D-c, 2026-11-17)
 
 The change matters where v5's pull was heavy: WR (`k` 64 against at most 8). RB (8) and TE (2) are
 already near the light grid.
 - **C requires B2 PASS at WR** (the light pull predicts better than v5's) **and no HARM at RB and
   TE.**
 - An INCONCLUSIVE B2 at WR does not reach C, because it would not show that the change helps.
-- This is the lead's proposal, not yet Jeremy's choice. It is put to him as D-c, and the backtest
-  does not run before he answers.
+- Proposed by the lead and kept by Jeremy (D-c, 2026-11-17: "Keep it (Recommended)").
 
 ### 3.2 Weak tests, said plainly (amendment 8)
 
@@ -208,8 +207,8 @@ S-no-2025 is there because 2025 is not clean (amendment 3):
 | Outcome | When |
 | --- | --- |
 | **void** | B0 fails. Fix the bug with a dated amendment, then rerun once. |
-| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, or B3 outside the band. Or B2 HARM at any position, or B2 not PASS at WR (pending D-c). Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
-| **C: proceed to design a separate enhanced value** | B1 PASS and B3 in band at RB, WR and TE (D-b A); B2 PASS at WR and no HARM at RB and TE (3.1, pending D-c); B5 PASS; no flip under any sensitivity run (an absent test is not a flip). |
+| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, or B3 outside the band. Or B2 HARM at any position, or B2 not PASS at WR (D-c). Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
+| **C: proceed to design a separate enhanced value** | B1 PASS and B3 in band at RB, WR and TE (D-b A); B2 PASS at WR and no HARM at RB and TE (3.1, D-c); B5 PASS; no flip under any sensitivity run (an absent test is not a flip). |
 
 - The outcome is picked by code and written to `out51/backtest/verdict.json` with every rule that
   fired.
@@ -261,17 +260,13 @@ Prediction, written now:
 | D1 (2026-11-17) | "It should reflect that players historical mix" | RL: own history, shrinkage only as light as forward CV on 2015-2025 actuals justifies (sections 2-2.2). This replaces the first version's `k_rec`-by-reception-objective change. |
 | D2 (2026-11-17) | "Focus on backtesting not forward results for now" | The decisive evidence is the backtest (section 3). The chart replays are descriptive. Weeks 11+ are an optional replication that blocks nothing (section 4). |
 | D3 (2026-11-17) | "If the logic plays out that way, that's ok" | T5u is reported and does not gate. |
-| D-a (2026-11-17) | Question "how much may the catch share be pulled toward the position average?"; answer "A: At most 8 games of pull (Recommended)". Light grid {0, 0.5, 1, 2, 4, 8} | RL's grid (section 2). The cap was informed by the diagnosis (v5's WR `k` 64 compressed the spread about 5x). Jeremy's D1 ("reflect that player's historical mix") supports a light cap. A fold choosing 8 is reported, not acted on. |
+| D-a (2026-11-17) | Question "how much may the catch share be pulled toward the position average?"; answer "A: At most 8 games of pull (Recommended)". Light grid {0, 0.5, 1, 2, 4, 8} | RL's grid (section 2). The cap was informed by the diagnosis (v5's WR `k` 64 compressed the spread about 5x). Jeremy's D1 ("It should reflect that players historical mix") supports a light cap. A fold choosing 8 is reported, not acted on. |
 | D-b (2026-11-17) | Question "how many positions must pass before the new rule counts as a win?"; answer "A: RB, WR and TE all pass (Recommended)" | Section 5 |
 
-Jeremy's answers to D1, D2, D3, D-a and D-b were multiple-choice answers in the lead session on
+| D-c (2026-11-17) | Question "a win (outcome C) currently needs running backs, receivers and tight ends all to pass; the author also added that the light pull must beat v5's heavy pull at receivers, with no harm at running backs or tight ends. Keep that extra rule?"; answer "Keep it (Recommended)" | 3.1 and section 5: C needs B2 PASS at WR and no HARM at RB and TE |
+
+Jeremy's answers to D1, D2, D3, D-a, D-b and D-c were multiple-choice answers in the lead session on
 2026-11-17, quoted verbatim.
-
-## Decision for Jeremy before the backtest runs
-
-| # | Question | Options (recommendation first) |
-| --- | --- | --- |
-| D-c | What must B2 (light against v5's pull) show for C? | **A** B2 PASS at WR (the light pull predicts receivers better than v5's) and no HARM at RB and TE / B no HARM at any position (C then does not show that the change helps receivers) |
 
 ## Amendments
 
@@ -300,5 +295,5 @@ Jeremy's answers to D1, D2, D3, D-a and D-b were multiple-choice answers in the 
   10. Jeremy's D1, D2, D3, D-a and D-b are quoted verbatim, dated 2026-11-17.
   11. B5 is absent under S-no-2025, and an absent test is not a flip.
   12. The 2.2 sentence on which pull is used for 2026 and which for B5 is reworded.
-  13. The B2-at-WR condition for C is marked as pending Jeremy (D-c).
+  13. The B2-at-WR condition for C is recorded as Jeremy's chosen rule D-c (2026-11-17: "Keep it (Recommended)").
 
