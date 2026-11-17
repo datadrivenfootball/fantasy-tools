@@ -155,6 +155,19 @@ test("weeks an earlier import filled are replaced by the next import; weeks chan
   const edited = Object.assign({}, first, {playoffHi: 18});
   assert.strictEqual(LS.weekFill(sleeperState(16), edited, DEF, first).patch, null);
 });
+test("standard weeks after a non-standard import fill are the reader's choice; weeks still equal to the fill are replaced", () => {
+  const filled = {regularEnd: 13, playoffLo: 14, playoffHi: 17};
+  const f = LS.weekFill(sleeperState(16), DEF, DEF, filled);
+  assert.strictEqual(f.patch, null);
+  assert.ok(/reader/.test(f.why));
+  assert.deepStrictEqual(LS.weekFill(sleeperState(16), filled, DEF, filled).patch, {regularEnd: 15, playoffLo: 16, playoffHi: 17});
+  // an import that filled the standard weeks: still its own while they match; changed ones are the reader's
+  assert.deepStrictEqual(LS.weekFill(sleeperState(14), DEF, DEF, DEF).patch, {regularEnd: 13, playoffLo: 14, playoffHi: 17});
+  assert.strictEqual(LS.weekFill(sleeperState(14), filled, DEF, DEF).patch, null);
+});
+test("the League settings wording is one plain string", () => {
+  assert.strictEqual(LS.WEEKS_FROM({source: "sleeper:league.settings.playoff_week_start", as_of: "2026-11-16T18:00:00Z"}), "From Sleeper, as of Nov 16");
+});
 test("unknown weeks fill nothing and say why (manual league, pre-draft Sleeper, invalid state)", () => {
   const manual = fx("manual");
   manual.playoff_rules.start_week = LS.missing("not entered");

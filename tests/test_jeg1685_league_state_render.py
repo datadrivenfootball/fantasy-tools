@@ -26,14 +26,20 @@ FIX = ROOT / "tests" / "fixtures"
 START = 14   # playoffs start in week 14 (the site standard is 15): last regular week 13
 
 
-def sleeper_fixture():
+def sleeper_fixture(start=START, league_id=None):
     d = json.loads((FIX / "sleeper-live" / "full.json").read_text(encoding="utf-8"))
     d = copy.deepcopy(d)
     ids = list(json.loads((ROOT / "dist" / "sleeper-players.json").read_text(encoding="utf-8"))["p"].keys())[:60]
     for i, r in enumerate(d["rosters"]):
         r["players"] = ids[i * 4:i * 4 + 4]
-    d["league"]["settings"]["playoff_week_start"] = START
-    d["matchups"] = {k: v for k, v in d["matchups"].items() if int(k) <= START - 1}
+    d["league"]["settings"]["playoff_week_start"] = start
+    d["matchups"] = {k: v for k, v in d["matchups"].items() if int(k) <= start - 1}
+    if league_id:
+        old = d["league"]["league_id"]
+        d["league"]["league_id"] = league_id
+        for r in d["rosters"]:
+            if "league_id" in r:
+                r["league_id"] = league_id
     return d
 
 
@@ -57,6 +63,7 @@ class LeagueStateRender(unittest.TestCase):
             cls._serve.__exit__(None, None, None)
             raise _render_env.unavailable(f"Chromium not available: {exc}") from exc
         cls.fx = sleeper_fixture()
+        cls.fx_b = sleeper_fixture(16, "900000000000000002")
 
     @classmethod
     def tearDownClass(cls):
@@ -64,8 +71,8 @@ class LeagueStateRender(unittest.TestCase):
         cls._pwcm.__exit__(None, None, None)
         cls._serve.__exit__(None, None, None)
 
-    def sleeper_api(self, route):
-        fx = self.fx
+    def sleeper_api(self, route, fx=None):
+        fx = fx or self.fx
         lid = fx["league"]["league_id"]
         path = route.request.url.split("/v1/", 1)[1].split("?")[0]
         table = {f"league/{lid}": fx["league"], f"league/{lid}/users": fx["users"], f"league/{lid}/rosters": fx["rosters"], "state/nfl": fx["state"]}
@@ -76,11 +83,16 @@ class LeagueStateRender(unittest.TestCase):
         else:
             route.fulfill(status=404, content_type="application/json", body="null")
 
-    def page(self):
+    def context(self):
         ctx = self.browser.new_context(viewport={"width": 1000, "height": 900})
         self.addCleanup(ctx.close)
-        page = ctx.new_page()
-        page.route("https://api.sleeper.app/v1/**", self.sleeper_api)
+        return ctx
+
+    def page(self, ctx=None, fx=None):
+        """A tab. Tabs of one context share localStorage and not sessionStorage, like tabs of one browser."""
+        page = (ctx or self.context()).new_page()
+        page.fx = fx or self.fx
+        page.route("https://api.sleeper.app/v1/**", lambda route: self.sleeper_api(route, page.fx))
         page.route(lambda u: not (u.startswith("http://127.0.0.1") or u.startswith("http://localhost") or u.startswith("https://api.sleeper.app/")), lambda r: r.abort())
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -97,9 +109,9 @@ class LeagueStateRender(unittest.TestCase):
     def sleeper_import(self, page):
         self.go(page, "connect.html")
         page.click("button[data-provider=sleeper]")
-        page.fill("#league-ref", self.fx["league"]["league_id"])
+        page.fill("#league-ref", page.fx["league"]["league_id"])
         page.click("#get-link")
-        page.wait_for_function("() => { const p = DDF.state.get('pasted', null); return p && p.source === 'sleeper'; }", timeout=30000)
+        page.wait_for_function("(id) => { const p = DDF.state.get('pasted', null); return p && p.source === 'sleeper' && p.leagueId === id; }", arg=page.fx["league"]["league_id"], timeout=30000)
 
     def weeks(self, page):
         return page.evaluate("() => DDF.engine.weeks()")
@@ -131,8 +143,7 @@ class LeagueStateRender(unittest.TestCase):
         self.go(page, "settings.html")
         note = page.inner_text("#weeks-note")
         self.assertIn(f"Last regular-season week {START - 1}, playoffs start week {START}", note)
-        self.assertIn("Source: sleeper:", note)
-        self.assertRegex(note, r"as of 2026-\d\d-\d\d\.")
+        self.assertRegex(note, r"From Sleeper, as of [A-Z][a-z]{2} \d{1,2}\.$")
         self.assertEqual(self.weeks(page), rec["weeksFilled"], "the weeks survive a reload")
 
         # a week changed elsewhere is the reader's: the line goes away rather than claim the league
@@ -140,6 +151,83 @@ class LeagueStateRender(unittest.TestCase):
         self.go(page, "settings.html")
         self.assertTrue(page.locator("#weeks-note").is_hidden())
         self.assertEqual(page.errors, [])
+
+    def test_settings_line_is_plain_words(self):
+        page = self.page()
+        self.sleeper_import(page)
+        self.go(page, "settings.html")
+        self.assertRegex(page.inner_text("#weeks-note"), rf"^Last regular-season week {START - 1}, playoffs start week {START}\. ")
+        self.assertRegex(page.inner_text("#weeks-note"), r"From Sleeper, as of [A-Z][a-z]{2} \d{1,2}\.$")
+        self.assertNotIn("sleeper:", page.inner_text("#weeks-note"))
+
+    def test_new_tab_import_replaces_the_weeks_the_last_import_filled(self):
+        ctx = self.context()
+        a = self.page(ctx)
+        self.sleeper_import(a)
+        self.assertEqual(self.weeks(a), {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17})
+        saved = a.evaluate("() => JSON.parse(localStorage.getItem('ddf.v2.league-settings')).weeksFilled")
+        self.assertEqual(saved, {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17}, "the marker travels with the weeks")
+        # a new tab: its sessionStorage is empty, the weeks and the marker are in localStorage
+        b = self.page(ctx, self.fx_b)
+        self.sleeper_import(b)
+        self.assertEqual(self.weeks(b), {"regularEnd": 15, "playoffLo": 16, "playoffHi": 17})
+        rec = b.evaluate("() => DDF.state.get('pasted')")
+        self.assertEqual(rec["weeksFilled"], {"regularEnd": 15, "playoffLo": 16, "playoffHi": 17})
+        self.assertEqual(b.evaluate("() => DDF.engine.weeksFilled()"), rec["weeksFilled"])
+        self.assertEqual(a.errors + b.errors, [])
+
+    def test_a_later_paste_or_manual_league_does_not_inherit_import_weeks(self):
+        ctx = self.context()
+        a = self.page(ctx)
+        self.sleeper_import(a)
+        self.assertEqual(self.weeks(a), {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17})
+        std = {"regularEnd": 14, "playoffLo": 15, "playoffHi": 17}
+        # a paste in a new tab
+        b = self.page(ctx)
+        self.go(b, "connect.html")
+        self.assertEqual(self.weeks(b), {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17})
+        b.fill("#rosters", (FIX / "paste_defaults" / "espn-10team.txt").read_text(encoding="utf-8"))
+        b.evaluate("() => DDF.connectEntry.check(false, false)")
+        b.wait_for_function("() => { const p = DDF.state.get('pasted', null); return p && p.source === 'paste'; }", timeout=20000)
+        self.assertEqual(self.weeks(b), std)
+        self.assertIsNone(b.evaluate("() => DDF.engine.weeksFilled()"))
+        self.assertIsNone(b.evaluate("() => DDF.state.get('pasted').leagueState"))
+        # a manual league in another new tab, after another import
+        c = self.page(ctx)
+        self.sleeper_import(c)
+        self.assertEqual(self.weeks(c), {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17})
+        d = self.page(ctx)
+        self.go(d, "connect.html")
+        d.evaluate("() => { const t = document.getElementById('manual-names'); t.value = 'A\\nB'; t.dispatchEvent(new Event('input', {bubbles: true})); }")
+        d.wait_for_function("() => { const p = DDF.state.get('pasted', null); return p && p.source === 'manual'; }", timeout=20000)
+        self.assertEqual(self.weeks(d), std)
+        self.assertIsNone(d.evaluate("() => DDF.engine.weeksFilled()"))
+        self.assertIsNone(d.evaluate("() => DDF.state.get('pasted').leagueState"))
+        self.assertEqual(a.errors + b.errors + c.errors + d.errors, [])
+
+    def test_a_paste_keeps_weeks_the_reader_set(self):
+        ctx = self.context()
+        a = self.page(ctx)
+        self.sleeper_import(a)
+        a.evaluate("() => DDF.engine.apply({weeks: {regularEnd: 12, playoffLo: 13, playoffHi: 16}})")
+        b = self.page(ctx)
+        self.go(b, "connect.html")
+        b.fill("#rosters", (FIX / "paste_defaults" / "espn-10team.txt").read_text(encoding="utf-8"))
+        b.evaluate("() => DDF.connectEntry.check(false, false)")
+        b.wait_for_function("() => { const p = DDF.state.get('pasted', null); return p && p.source === 'paste'; }", timeout=20000)
+        self.assertEqual(self.weeks(b), {"regularEnd": 12, "playoffLo": 13, "playoffHi": 16})
+
+    def test_standard_weeks_after_a_nonstandard_import_are_the_readers_choice(self):
+        ctx = self.context()
+        a = self.page(ctx)
+        self.sleeper_import(a)
+        self.assertEqual(self.weeks(a), {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17})
+        a.evaluate("() => DDF.engine.apply({weeks: {regularEnd: 14, playoffLo: 15, playoffHi: 17}})")   # back to the site standard
+        b = self.page(ctx, self.fx_b)
+        self.sleeper_import(b)
+        self.assertEqual(self.weeks(b), {"regularEnd": 14, "playoffLo": 15, "playoffHi": 17}, "the deliberate standard weeks stay")
+        self.assertIsNone(b.evaluate("() => DDF.state.get('pasted').weeksFilled"))
+        self.assertEqual(b.errors, [])
 
     def test_weeks_the_reader_set_win(self):
         page = self.page()
@@ -170,6 +258,33 @@ class LeagueStateRender(unittest.TestCase):
         cur = page.evaluate("() => DDF.league.current()")
         self.assertIsNone(cur["leagueState"])
         self.assertTrue(cur["leagueStateReason"])
+
+
+class AssistStateGuard(unittest.TestCase):
+    """v2.js: the ddf-state block carries the reader's saved league-state, and not on a page showing a shared link's league."""
+
+    def test_link_league_page_carries_no_state(self):
+        _render_env.ensure_built()
+        from playwright.sync_api import sync_playwright
+        from tests._dist_server import serve, V2_URL
+        ls = json.loads((FIX / "league-state" / "sleeper.json").read_text(encoding="utf-8"))
+        ws = {"v": 1, "activeId": "league_1", "workspaces": [{"id": "league_1", "name": "L", "teams": [], "myTeamId": None, "leagueState": ls}]}
+        with serve() as base, sync_playwright() as pw:
+            browser = pw.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=_render_env.chromium_executable())
+            ctx = browser.new_context(viewport={"width": 1200, "height": 900})
+            ctx.add_init_script("localStorage.setItem('ddf.v2.workspaces', %s)" % json.dumps(json.dumps(ws)))
+            page = ctx.new_page()
+            page.route(lambda u: not (u.startswith("http://127.0.0.1") or u.startswith("http://localhost")), lambda r: r.abort())
+            build = "() => { const r = DDFAssist.buildState(); return r.state && r.state.leagueState ? r.state.leagueState.version : null; }"
+            page.goto(f"{base}/{V2_URL}#compare-trade", wait_until="networkidle", timeout=90000)
+            page.wait_for_function("() => window.DDFAssist && window.TradeValueV2 && window.TradeValueV2.leagueInputs", timeout=60000)
+            self.assertEqual(page.evaluate("() => TradeValueV2.leagueInputs().source !== 'link'"), True)
+            self.assertEqual(page.evaluate(build), "league-state/1", "the reader's own saved league carries its state")
+            page.goto(f"{base}/{V2_URL}#compare-trade?scoring=ppr&teams=10", wait_until="networkidle", timeout=90000)
+            page.reload(wait_until="networkidle")
+            page.wait_for_function("() => window.TradeValueV2 && TradeValueV2.leagueInputs().source === 'link'", timeout=60000)
+            self.assertIsNone(page.evaluate(build), "a shared link's league has no state of its own")
+            browser.close()
 
 
 if __name__ == "__main__":

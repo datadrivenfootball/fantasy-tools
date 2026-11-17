@@ -104,20 +104,34 @@
     if (record && record.pasteSettings && prior && prior.confirmed && DDF.leaguePaste.sameLeague(prior, record)) record.confirmed = prior.confirmed;
     return record;
   }
-  /* JEG-1685: the league's last regular-season week and playoff start (league-state/1) fill the ES-12 weeks, unless the
-     reader changed them (they differ from the site's standard and from what the last import filled). Returns the weeks
-     now in use from the league state, or null when none were filled. */
+  /* JEG-1685: the league's last regular-season week and playoff start (league-state/1) fill the ES-12 weeks, unless the reader
+     set them. What an import filled is saved with the weeks (DDF.engine.weeksFilled, in ddf.v2.league-settings), so every tab
+     tells import-filled weeks from the reader's own; weeks that differ from that marker, standard ones included, are the
+     reader's. Returns the weeks now in use that came from this league's state, or null. */
+  function sameWeeks(a, b) { return !!a && !!b && a.regularEnd === b.regularEnd && a.playoffLo === b.playoffLo && a.playoffHi === b.playoffHi; }
+  /* a league with no weeks of its own (paste, manual, a state without them) must not inherit the last import's weeks: back to
+     the standard, but only while they are still exactly what that import filled */
+  function releaseWeeks() {
+    var E = DDF.engine;
+    if (!E || !E.weeks || !E.weeksFilled || !E.defaultWeeks) return;
+    var mark = E.weeksFilled(), def = E.defaultWeeks();
+    if (mark && def && sameWeeks(E.weeks(), mark)) { try { E.apply({weeks: def, weeksFilled: null}); } catch (e) { /* settings.html asks */ } }
+  }
   function fillWeeks(ls) {
     var LS = DDF.leagueState, E = DDF.engine;
-    if (!ls || !LS || !E || !E.weeks || !E.apply) return null;
-    var prior = kept() || dropped, cur = E.weeks();
-    var fill = LS.weekFill(ls, cur, E.defaultWeeks ? E.defaultWeeks() : null, prior && prior.weeksFilled);
-    if (!fill.patch) return fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo
-      ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
-    try { E.apply({weeks: fill.patch}); } catch (e) { return null; /* settings.html asks */ }
-    return fill.patch;
+    if (!E || !E.weeks || !E.apply || !E.weeksFilled) return null;
+    if (!ls || !LS) { releaseWeeks(); return null; }
+    var cur = E.weeks(), prior = E.weeksFilled();
+    var fill = LS.weekFill(ls, cur, E.defaultWeeks ? E.defaultWeeks() : null, prior);
+    if (fill.patch) {
+      try { E.apply({weeks: fill.patch, weeksFilled: fill.patch}); } catch (e) { return null; /* settings.html asks */ }
+      return fill.patch;
+    }
+    if (sameWeeks(cur, prior)) { releaseWeeks(); return null; }   // the last import's weeks, and this league cannot set its own
+    return fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
   }
   function save(record) {
+    if (record && !record.leagueState) releaseWeeks();   /* JEG-1685: a paste or manual league has no weeks of its own */
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);

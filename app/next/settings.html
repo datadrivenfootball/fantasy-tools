@@ -271,7 +271,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     if (!w || !cur || !DDF.leagueState || !c.leagueState || cur.regularEnd !== w.regularEnd || cur.playoffLo !== w.playoffLo || cur.playoffHi !== w.playoffHi) return;
     const plan = DDF.leagueState.weekPlan(c.leagueState);
     if (plan.why) return;
-    box.textContent = 'Last regular-season week ' + w.regularEnd + ', playoffs start week ' + w.playoffLo + '. Source: ' + plan.source + ', as of ' + String(plan.as_of).slice(0, 10) + '.';
+    box.textContent = 'Last regular-season week ' + w.regularEnd + ', playoffs start week ' + w.playoffLo + '. ' + DDF.leagueState.WEEKS_FROM(plan) + '.';
     box.hidden = false;
   }
   let filling = false;   // fill() sets the form from the settings: not the reader's own change

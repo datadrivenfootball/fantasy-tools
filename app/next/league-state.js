@@ -13,8 +13,10 @@
  * DDF.leagueState.validate(state)           -> {ok, errors: [{path, code, message}]}
  * DDF.leagueState.weekPlan(state)           -> {regularEnd, playoffLo, source, as_of} | {why}   (JEG-1685: the ES-12 week settings the state knows)
  * DDF.leagueState.weekFill(state, cur, def, prior) -> {patch, plan, why}   cur/def/prior = {regularEnd, playoffLo, playoffHi} | null
- *     patch is the engine weeks to apply, or null with why. A value the reader changed (cur differs from the site default
- *     and from what a state filled before, prior) is never replaced.
+ *     patch is the engine weeks to apply, or null with why. prior = the weeks an earlier import filled (saved with the settings):
+ *     with it, only weeks still equal to it are replaced (standard weeks after a non-standard fill are the reader's choice);
+ *     without it, only weeks equal to the site default are replaced.
+ * DDF.leagueState.WEEKS_FROM(plan)         -> "From Sleeper, as of Nov 16" (the League settings line; one place to change the wording)
  *     codes: shape | version | cell | null_without_reason | no_source | no_as_of | value | reference | duplicate | cross
  */
 (function (root) {
@@ -165,13 +167,22 @@
     var plan = weekPlan(state);
     if (plan.why) return {patch: null, plan: null, why: plan.why};
     if (!cur) return {patch: null, plan: plan, why: "The engine's current weeks are not available."};
-    if (!sameWeeks(cur, def) && !sameWeeks(cur, prior)) return {patch: null, plan: plan, why: "The weeks were set by the reader; they stay."};
+    // Whose weeks are these? With an earlier import's marker (prior): only weeks still equal to what it filled are the import's;
+    // anything else, standard weeks included, is the reader's choice. Without one: only the site standard is untouched.
+    if (!sameWeeks(cur, prior || def)) return {patch: null, plan: plan, why: "The weeks were set by the reader; they stay."};
     if (plan.playoffLo > 18 || plan.regularEnd < 1) return {patch: null, plan: plan, why: "The league's weeks are outside the engine's 1 to 18."};
     if (plan.playoffLo > cur.playoffHi) return {patch: null, plan: plan, why: "The league's playoffs start after the engine's last playoff week; the league does not say when they end."};
     return {patch: {regularEnd: plan.regularEnd, playoffLo: plan.playoffLo, playoffHi: cur.playoffHi}, plan: plan, why: null};
   }
 
-  var api = {VERSION: VERSION, known: known, missing: missing, validate: validate, weekPlan: weekPlan, weekFill: weekFill};
+  // The League settings line for filled weeks (plain words; the source string's provider word, the as_of date). One constant, one place.
+  var MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var WEEKS_FROM = function (plan) {
+    var provider = String(plan.source || "").split(":")[0], name = provider ? provider.charAt(0).toUpperCase() + provider.slice(1) : "the league";
+    return "From " + name + ", as of " + MONTHS[+String(plan.as_of).slice(5, 7) - 1] + " " + (+String(plan.as_of).slice(8, 10));
+  };
+
+  var api = {WEEKS_FROM: WEEKS_FROM, VERSION: VERSION, known: known, missing: missing, validate: validate, weekPlan: weekPlan, weekFill: weekFill};
   root.DDF = root.DDF || {};
   root.DDF.leagueState = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
