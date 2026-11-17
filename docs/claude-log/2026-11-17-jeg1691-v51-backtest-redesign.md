@@ -14,3 +14,8 @@ that's ok") to the v5.1 pre-registration. No code and no run; the locked v5 file
 - That PPR minus Standard equals receptions exactly in that file for every row (true by the
   scoring definition; no row-level check yet). The backtest's B0 exactness check is where this gets
   verified.
+
+### Review round 1 fixes (2026-11-17)
+- Applied the reviewer's eight points and Jeremy's D-a A and D-b A as dated amendments.
+- Verified: the doc edits only (`git diff`); no code and no run. The figures 9,684 zero rows and
+  87% / 96% keyed coverage are the reviewer's counts and were not re-counted here.

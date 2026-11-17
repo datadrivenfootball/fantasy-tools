@@ -25,16 +25,25 @@ is appended at the end, dated, with its reason.
   the next four weeks, then compare with what he actually did. Four rules are compared:
   - his raw history;
   - v5's heavy pull;
-  - the new light pull, set by testing on earlier seasons only;
+  - the new light pull (at most 8 games' worth, Jeremy 2026-11-17), set by testing on earlier
+    seasons only;
   - the position average.
 
-  A second check rebuilds whole stat lines (yards, touchdowns, catches) from points for 2025, and a
-  fake version that hands each player someone else's history is the control.
+  A second check repeats this for 2025 using the 2024+ stat history the chart chain actually uses.
+  In DDF's three formats only catches matter, so both checks test catches. A fake version that
+  hands each player someone else's history is the control.
 - **What can happen.** This is the last round.
-  - **C:** the light pull predicts better than the position average at running back, receiver and
-    tight end, is not worse than v5's, and is well calibrated. A separate, labelled scoring-aware
-    value can then be designed next to DDF Value.
+  - **C:** all of the following hold, and a separate, labelled scoring-aware value can then be
+    designed next to DDF Value:
+    - the light pull predicts better than the position average at running back, receiver and
+      tight end;
+    - it predicts receivers clearly better than v5's heavy pull, and is not worse at the other two;
+    - it is well calibrated.
   - **A:** otherwise. Keep DDF Value as it is.
+- **Weak spots, said plainly.**
+  - Running backs will almost surely beat the position average, so that part says little.
+  - The fake-history control adds nothing once the position average is beaten.
+  - 2025 was already looked at, so the result is also run without 2025.
 - **Charts.** The chart tests (T4-T8) are re-run only to describe what happens, on the chart weeks
   that exist (2026 weeks 5-10). No chart snapshots exist before 2026, so the charts themselves
   cannot be backtested.
@@ -68,56 +77,65 @@ dominate. So `S` cannot see that the presets respond only to receptions per poin
 What would distinguish this from "the projectors are over-dispersed": the calibration slope of
 realized on predicted receptions per point on historical actuals. A v5 slope well above 1 confirms
 over-shrinkage. The backtest reports it for every rule (B3, with Rv5 beside RL), on 2017-2025
-evaluation seasons that no diagnosis used.
+evaluation seasons. Section 1 used 2025 actuals, so 2025 is not clean (amendment 3, S-no-2025).
 
-## 2. The change (step 5, the catch share): a light, data-justified shrinkage
+## 2. The change (step 5, the catch share): a light, data-justified pull
 
-The catch share is `q_i` = receptions per Half-PPR point, the only quantity DDF's three formats see
-(v5 section 1, algebra). Four rules predict it from a player's games before the origin:
+The catch share is `q` = receptions per Half-PPR point, the only quantity DDF's three formats see
+(v5 section 1, algebra). Every rule below is a **two-bucket** rule (catches, other points), because
+2015-2023 has points only (amendment 2).
+- **History share:** `q_hist,i` = total receptions / total Half points over the history games
+  (a ratio of totals, amendment 2), recency-weighted only where a rule says so. A player whose
+  history Half points total at most 0 gets the position share, counted.
+- **Position share:** `q_pos,p,o` at origin `o` = the games-weighted mean of `q_hist` over the
+  position's players with at least 8 history games. It uses games **before `o` only**.
 
 | Rule | Definition |
 | --- | --- |
-| **RL (light, the v5.1 rule)** | `q_i = a_i q_raw,i + (1 - a_i) q_pos`, with `a_i = n_i / (n_i + k_p)`. `n_i` = the player's history games, all weighted equally (no recency weighting: "the player's historical mix"). `k_p` per position comes from the light grid `G_L` = {0, 0.5, 1, 2, 4, 8} (decision D-a), chosen by nested forward CV (2.2). Ties go to the **smaller** `k`, the lighter pull. |
-| R0 (raw history) | `k = 0`: the player's own history only |
-| Rv5 (v5 shrunk) | v5's frozen choices from `out/decisive/selection.json` (RB `k_rec` 8, half-life 17; WR 64, 8; TE 2, 8), applied to the catch share |
-| Rpos (position average) | `k = inf`: the games-weighted mean `q` of the position's players with at least 8 history games |
+| **RL (light, the v5.1 rule)** | `q_i = a_i q_hist,i + (1 - a_i) q_pos`, `a_i = n_i / (n_i + k_p)`, with all history games equally weighted ("the player's historical mix"). `k_p` per position comes from the light grid `G_L` = {0, 0.5, 1, 2, 4, 8} (D-a A: at most 8 games of pull), chosen by nested forward CV (2.2), ties to the **smaller** `k`. When the chosen `k_p` is 8, the cap, that is reported and not acted on (amendment 4). |
+| R0 (raw history) | `k = 0` |
+| Rv5 (v5's pull, two-bucket) | the same form with v5's frozen catch strength and half-life from `out/decisive/selection.json` (RB `k` 8, half-life 17 games; WR 64, 8; TE 2, 8): `a_i = n_eff,i / (n_eff,i + k)`, history recency-weighted (`0.5 ** (age / t)`). This is **not** v5's seven-category `shrunk_mix`, which pulls each category separately and renormalises; 2015-2023 has no seven-category history. Rv5 is the closest two-bucket stand-in, and no exactness to `shrunk_mix` is claimed (amendment 1). |
+| Rpos (position average) | `k = inf` |
 
 Shared rules:
 - Players with no history get `q_pos` under every rule. They are counted and excluded from the
-  comparison, since every rule gives them the same prediction.
-- A game is a row with nonzero Standard or PPR points.
+  comparison.
+- A game is a row with nonzero Standard or PPR points. Dropping the 9,684 all-zero rows shortens
+  some players' game counts (played, no stat), which slightly increases their pull; this is stated.
 - History runs from 2015 to the week before the origin.
 
 ### 2.1 Data
 
-- **2015-2025:** `data/inputs/weekly_actuals_nflverse_2015_2025.csv.gz`.
-  - 61,977 player-weeks, with gsis id and position.
-  - Points by format only, so receptions = PPR minus Standard points, exactly.
-  - Identity is the gsis id, so the backtest needs no player_key and the 59.4% idmap does not limit
-    it.
-- **2024-2025 per-stat lines (B5 only):** the committed `player_game_stats` cache
-  (`tools/research/jeg1691/cache/pgs_weekly_2024_2026.json.gz`), rows of 2024-2025 only.
-- **2026:** no 2026 data enters the backtest. The runner refuses any 2026 row.
+- **2015-2025:** `data/inputs/weekly_actuals_nflverse_2015_2025.csv.gz`, 61,977 player-weeks with
+  gsis id and position. Points by format only; receptions = PPR minus Standard points. Identity is
+  the gsis id, so the idmap does not limit the backtest.
+- **2024-2025 per-stat (B5 only):** the committed `player_game_stats` cache, keyed rows only:
+  about 87% of 2024 and 96% of 2025 rows with a stat carry a player_key. B5 covers only that
+  subset, stated next to its result.
+- **2026:** no 2026 row enters the backtest; the runner refuses one.
 
 ### 2.2 Choosing `k_p` (nested, forward only)
 
-For each evaluation season `Y` (2017-2025), `k_p` is the value in `G_L` that minimises the
-reconstructed-receptions error (metric E below) on all origins of seasons 2016 to `Y - 1`. Ties go
-to the smaller `k`. The `k_p` for season 2026 use (the chart chain) is chosen on 2016-2025. No
-fold ever sees its own season or a later one.
+- For each evaluation season `Y` (2017-2025), `k_p` is the value in `G_L` minimising E (2.3) on all
+  origins of seasons 2016 to `Y - 1`, with ties to the smaller `k`.
+- The bootstrap holds each fold's chosen `k_p` fixed (it resamples players, not the selection).
+- The `k_p` used for 2026 (the chart replay and B5's 2025 run uses the 2016-2024 choice) is chosen
+  on 2016-2025.
+- A sensitivity run that removes a season removes it from the selection folds too.
 
 ### 2.3 Metrics
 
-Origins: weeks 5, 9 and 13 of each season. Truth: the player's games in the 4 weeks from the origin
-(5-8, 9-12, 13-16; these windows do not overlap). Eligible: RB, WR or TE (QB reported), at least 2
-truth games, truth Half points above 0, and at least 1 history game.
+Origins: weeks 5, 9 and 13. Truth: the player's games in the 4 weeks from the origin (5-8, 9-12,
+13-16; the windows do not overlap). Eligible: RB, WR or TE (QB reported), at least 2 truth games,
+truth Half points above 0, and at least 1 history game.
 
-- **E (stat-line reconstruction, receptions):** predicted receptions per game
-  = `q_pred x` (realized Half points per game), against realized receptions per game. Squared
-  error, averaged over players.
-- **Calibration:** the OLS slope of realized `q` on predicted `q`, pooled over the evaluation seasons,
-  per position.
-- **Order:** the within-position Spearman of predicted against realized `q` (reported).
+- **E (catch reconstruction):** predicted catches per game = `q x` (realized Half points per game),
+  against realized catches per game. Squared error, mean over players.
+- **Calibration (amendment 5):** the OLS slope of realized catches per game on predicted catches per
+  game, on the same scale as E, pooled over evaluation seasons, per position. The slope of realized
+  `q` on predicted `q`, weighted by truth Half points, is reported beside it. An unweighted window
+  share has no upper bound, because Standard points go as low as -6.96.
+- **Order:** within-position Spearman of predicted against realized catches per game (reported).
 - **Shuffle control:** within position and origin, the rule's predictions are permuted among
   players. 1,000 permutations, seed 16911.
 - **Intervals:** cluster bootstrap by player (gsis id) within position, 2,000 draws, seed 16911.
@@ -126,24 +144,44 @@ truth games, truth Half points above 0, and at least 1 history game.
 
 | # | Test | Rule (per position RB, WR, TE unless said) |
 | --- | --- | --- |
-| B0 | **Exactness** (code) | RL with `k = 0` reproduces R0, RL with `k = inf` reproduces Rpos, and Rv5 reproduces v5's `shrunk_mix` reception component on the same history, all exactly. Otherwise the run is **void**. |
-| B1 | **History predicts catches** (RL against Rpos) | PASS if all three hold: RL has the lower E in at least 7 of the 9 evaluation seasons; the pooled interval of (E_pos - E_RL) is entirely above 0; RL's pooled E is below the shuffle control's 5th percentile. FAIL if the pooled interval is entirely below 0. Otherwise INCONCLUSIVE. |
-| B2 | **No worse than v5's pull** (RL against Rv5) | Pooled interval of (E_v5 - E_RL): PASS if the lower bound is at least 0; HARM if the upper bound is below 0; otherwise INCONCLUSIVE. |
-| B3 | **Calibrated** | RL's pooled calibration slope is in [2/3, 3/2] (the factor-1.5 band of D3). |
-| B5 | **Whole stat-line reconstruction, 2024+ per-stat** | Origins: 2025 weeks 4-14, history 2024 to the origin, truth 4-week windows. Rule: RL's `k_p` (chosen on 2016-2024) for the reception category, and v5's frozen strengths for the other six. Metric: v5's T1(a) error (rescored points at Standard and Full, given realized Half points), pooled RB/WR/TE. PASS if the interval of (Rpos error - RL error) is entirely above 0 and RL beats the shuffle 5th percentile. HARM if, against Rv5, the interval is entirely below 0. The per-category objective S is reported. |
-| B4 | Raw against light (reported) | E and calibration for R0. This shows what the safeguard buys. |
+| B0 | **Exactness and data integrity** | RL at `k = 0` reproduces R0; RL at `k = inf` reproduces Rpos; Rv5 at `k = 0`, `t = inf` reproduces R0; all exactly. Rows where Half points differ from the mean of Standard and PPR by more than 0.011 are counted. Void if any identity fails or more than 0.5% of rows break that relation. |
+| B1 | **History predicts catches** (RL against Rpos) | PASS if all hold: RL has the lower E in at least 7 of the 9 evaluation seasons; the pooled interval of (E_pos - E_RL) is entirely above 0; RL's pooled E is below the shuffle 5th percentile. FAIL if the pooled interval is entirely below 0. Otherwise INCONCLUSIVE. |
+| B2 | **Light against v5's pull** (RL against Rv5) | Pooled interval of (E_v5 - E_RL): PASS if the lower bound is above 0; HARM if the upper bound is below 0; otherwise INCONCLUSIVE. |
+| B3 | **Calibrated** | RL's pooled calibration slope (catches scale) is in [2/3, 3/2]. |
+| B5 | **Catch reconstruction on the chain's own history source** | Origins: 2025 weeks 4-14. History: per-stat `player_game_stats` from 2024 up to the origin (keyed subset). Truth: 4-week windows. RL's two-bucket share with the `k_p` chosen on 2016-2024 (the same rule as B1, amendment 2). PASS if the interval of (Rpos error - RL error) on E is entirely above 0 and RL beats the shuffle 5th percentile. HARM if, against Rv5, the interval is entirely below 0. It tests catches only, like B1. A custom-scoring error that sees the other six categories (v5's T1b scorings, other categories from v5's frozen mix) is reported only. |
+| B4 | Raw against light (reported) | E and calibration for R0. |
+| — | Cap report | Per fold and position, whether `k_p` hit the cap of 8. Reported only. |
 
-B5's origins (2025) overlap v5's selection and T1 origins, which were scored in v5; this is stated
-next to the result. 2026 is not used.
+### 3.1 What C needs from B2 (amendment 8, the lead's call, written now)
 
-### 3.1 Sensitivity runs (a verdict that flips under any of them blocks C)
+The change matters where v5's pull was heavy: WR (`k` 64 against at most 8). RB (8) and TE (2) are
+already near the light grid.
+- **C requires B2 PASS at WR** (the light pull predicts better than v5's) **and no HARM at RB and
+  TE.**
+- An INCONCLUSIVE B2 at WR does not reach C, because it would not show that the change helps.
 
-| Run | Change |
-| --- | --- |
-| S-anchor-Full | `q` per Full-PPR point instead of Half |
-| S-truth-ROS | truth = the rest of the season instead of 4 weeks |
-| S-origins-alt | origins at weeks 4, 8 and 12 |
-| S-no-2020 | the 2020 season left out (shortened preseason; one season held out) |
+### 3.2 Weak tests, said plainly (amendment 8)
+
+- B1's shuffle condition cannot fail on its own. A rule that beats the position average also beats
+  its own shuffled predictions, so the condition adds nothing.
+- B1 at RB is near certain to pass (split-half 0.77 in 2025).
+- B0 checks code and data only.
+- The tests that can fail on the idea are B1 at WR and TE, B2 at WR, B3 and B5.
+
+### 3.3 Sensitivity runs (a verdict that flips under any of them blocks C)
+
+| Run | Change | B1 seasons threshold |
+| --- | --- | --- |
+| S-anchor-Full | `q` per Full-PPR point instead of Half | 7 of 9 |
+| S-truth-ROS | truth = the rest of the season instead of 4 weeks | 7 of 9 |
+| S-origins-alt | origins at weeks 4, 8 and 12 | 7 of 9 |
+| S-no-2020 | 2020 removed from evaluation seasons and selection folds | 6 of 8 |
+| S-no-2025 | 2025 removed from evaluation seasons and selection folds; B5 not run (it is 2025) | 6 of 8 |
+
+S-no-2025 is there because 2025 is not clean (amendment 3):
+- the diagnosis (section 1) used 2025 actuals;
+- v5's strengths, which Rv5 uses, were chosen on 2025 weeks 4-8. That makes Rv5 partly in-sample
+  in 2025 and biases B2 toward HARM there.
 
 ## 4. Chart-based replays: descriptive only
 
@@ -162,14 +200,14 @@ next to the result. 2026 is not used.
 | Outcome | When |
 | --- | --- |
 | **void** | B0 fails. Fix the bug with a dated amendment, then rerun once. |
-| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, B2 HARM, or B3 outside the band. Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
-| **C: proceed to design a separate enhanced value** | B1 PASS, B2 no HARM and B3 in band at all three positions, and B5 PASS, with no flip under any sensitivity run. |
+| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, or B3 outside the band. Or B2 HARM at any position, or B2 not PASS at WR. Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
+| **C: proceed to design a separate enhanced value** | B1 PASS and B3 in band at RB, WR and TE (D-b A); B2 PASS at WR and no HARM at RB and TE (3.1); B5 PASS; no flip under any sensitivity run. |
 
 - The outcome is picked by code and written to `out51/backtest/verdict.json` with every rule that
   fired.
 - What C means: the history-based mix step is supported by the backtest. It does **not** validate
   the chart unwind (issues 8, 10, 16). A separate enhanced value would carry those as open limits.
-- Decision D-b asks whether a subset of positions can reach C.
+- D-b A (Jeremy, 2026-11-17): C needs all three positions; no partial C.
 
 Prediction, written now:
 - RB passes B1-B3: split-half 0.77 on 2025.
@@ -215,16 +253,28 @@ Prediction, written now:
 | D1 | "It should reflect that player's historical mix" | RL: own history, shrinkage only as light as forward CV on 2015-2025 actuals justifies (sections 2-2.2). This replaces the first version's `k_rec`-by-reception-objective change. |
 | D2 | "Focus on backtesting not forward results for now" | The decisive evidence is the backtest (section 3). The chart replays are descriptive. Weeks 11+ are an optional replication that blocks nothing (section 4). |
 | D3 | "If the logic plays out that way, that's ok" | T5u is reported and does not gate. |
-
-## Decisions for Jeremy before any v5.1 code
-
-| # | Question | Options (recommendation first) |
-| --- | --- | --- |
-| D-a | How light the safeguard can be | **A** light grid {0, 0.5, 1, 2, 4, 8} (at most 8 games of pull, so history dominates once a player has a few games) / B v5's full grid up to infinity (the data may choose a heavy pull, as v5 did for WR) |
-| D-b | Can a subset of positions reach C? | **A** no: C needs RB, WR and TE / B yes: C for the positions that pass; the others keep the position average |
+| D-a A (2026-11-17) | at most 8 games of pull: light grid {0, 0.5, 1, 2, 4, 8} | RL's grid (section 2). The cap was informed by the diagnosis (v5's WR `k` 64 compressed the spread about 5x). Jeremy's D1 ("reflect that player's historical mix") supports a light cap. A fold choosing 8 is reported, not acted on. |
+| D-b A (2026-11-17) | C needs RB, WR and TE all to pass | Section 5 |
 
 ## Amendments
 
 - 2026-11-17: redesigned on Jeremy's answers D1-D3 before any v5.1 code or number. The first
   version's change (`k_rec` by a reception objective), its chart-week gate (weeks 11-12) and T1c
   are withdrawn. T5u is reported only.
+- 2026-11-17, review round 1 of #1478 (head a283bfa0); D-a A and D-b A recorded. No code, no number.
+  1. Rv5 is a two-bucket catch-share pull with v5's catch strength and half-life. Exactness to v5's
+     seven-category `shrunk_mix` is dropped, since that cannot be checked on 2015-2023.
+  2. Every rule is two-bucket, and the history share is a ratio of totals. B5 is relabelled "catch
+     reconstruction on the chain's own history source" and uses the same RL share as B1. At DDF's
+     three formats it sees catches only; a custom-scoring error is reported for the other six.
+  3. 2025 is not clean: section 1 used it, and Rv5's strengths were chosen on 2025 weeks 4-8. This
+     is disclosed, and S-no-2025 is added (6 of 8).
+  4. RL's pull hitting the cap of 8 is reported, not acted on.
+  5. Calibration is on the catches scale, with a points-weighted share slope reported. The window
+     share is unbounded, so it is not regressed unweighted.
+  6. S-no-2020 needs 6 of 8 seasons, and 2020 also leaves the selection folds.
+  7. Specified: the position share uses games before the origin only; the bootstrap holds each
+     fold's pull fixed; the all-zero rows (9,684) are dropped and that is stated; B5's keyed subset
+     (about 87% of 2024 rows, 96% of 2025) is stated.
+  8. The weak tests are stated (3.2). C needs B2 PASS at WR (3.1).
+
