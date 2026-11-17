@@ -128,16 +128,23 @@ def load_pgs_twobucket(anchor: str, path: Path = PGS, max_season: int = MAX_SEAS
                 pos.setdefault(int(r["player_key"]), r["pos"])
     for p in json.loads(PLAYERS.read_text(encoding="utf-8"))["players"]:
         pos.setdefault(int(p["player_key"]), p["pos"])
-    out, unpos = {}, 0
+    out, unpos, dropped_late = {}, 0, 0
     for k, rows in H["by_player"].items():
         if k not in pos:
             unpos += 1
             continue
-        g = [(s, w, pos[k], ln["rec"], mx.F(ln, anchor), ln) for (s, w), ln in rows
-             if s <= max_season and mx.game_has_stats(ln)]
+        g = []
+        for (s, w), ln in rows:
+            if s > max_season:
+                dropped_late += 1      # amendment 24: dropped at load, counted, never used
+                continue
+            # a game = nonzero Standard or PPR points (section 2), as for the nflverse rows
+            if mx.F(ln, "standard") == 0 and mx.F(ln, "ppr") == 0:
+                continue
+            g.append((s, w, pos[k], ln["rec"], mx.F(ln, anchor), ln))
         if g:
             out[k] = g
-    return out, {"players": len(out), "keyed_without_position": unpos,
+    return out, {"players": len(out), "keyed_without_position": unpos, "rows_after_2025_dropped": dropped_late,
                  "unkeyed_rows_with_stats": H["unkeyed_rows_with_stats"]}
 
 
@@ -294,6 +301,11 @@ def cluster_ci(pids, diffs, rng, n=N_BOOT):
 
 def shuffle_p5(rows, preds, rng, n=N_SHUFFLE):
     """5th percentile of the mean E when predictions are permuted within (season, origin)."""
+    return float(np.percentile(shuffle_dist(rows, preds, rng, n), 5))
+
+
+def shuffle_dist(rows, preds, rng, n=N_SHUFFLE):
+    """The n shuffled values of the mean E (permutation within season and origin)."""
     groups = {}
     for i, r in enumerate(rows):
         groups.setdefault((r["season"], r["origin"]), []).append(i)
@@ -306,7 +318,7 @@ def shuffle_p5(rows, preds, rng, n=N_SHUFFLE):
         for idx in groups.values():
             qq[idx] = q[rng.permutation(idx)]
         vals[b] = np.mean((qq * a - c) ** 2)
-    return float(np.percentile(vals, 5))
+    return vals
 
 
 def label_pos(ci):
@@ -466,14 +478,16 @@ def b5(pgs: dict, cfg: Config, v5p: dict, k25: dict, rng, n_boot, n_shuffle) -> 
         return pt, (float(np.percentile(draws, 2.5)), float(np.percentile(draws, 97.5)))
     pt, ci = pooled_diff("Rpos", "RL", rng)
     pt2, ci2 = pooled_diff("Rv5", "RL", rng)
-    p5s = []
-    e_rl = []
+    # the registered form: the 5th percentile of the pooled shuffled statistic (each permutation's
+    # equal-weight mean over positions), not a mean of per-position percentiles
+    dists, e_rl = [], []
     for p in POOL:
         ix = [i for i, x in enumerate(posl) if x == p]
         if ix:
-            p5s.append(shuffle_p5([rows[i] for i in ix], [preds_rl[i] for i in ix], rng, n_shuffle))
+            dists.append(shuffle_dist([rows[i] for i in ix], [preds_rl[i] for i in ix], rng, n_shuffle))
             e_rl.append(float(np.mean([allE["RL"][i] for i in ix])))
-    e_rl_pooled, p5 = float(np.mean(e_rl)), float(np.mean(p5s))
+    e_rl_pooled = float(np.mean(e_rl))
+    p5 = float(np.percentile(np.mean(np.vstack(dists), axis=0), 5))
     passed = ci[0] > 0 and e_rl_pooled < p5
     harm = ci2[1] < 0
     out = {"n_rows": len(rows), "k": k25, "diff_vs_pos": pt, "ci95_vs_pos": ci, "diff_vs_v5": pt2,

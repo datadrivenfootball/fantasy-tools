@@ -25,6 +25,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -45,6 +46,7 @@ STATE = Path(os.path.expanduser("~/.local/state/jeg1691")) / "v51-backtest.json"
 MANIFEST_ROOTS = ("data/inputs", "data/fixtures/current", "tools/research/jeg1691", "docs/research/jeg1691")
 MANIFEST_EXCLUDE = ("tools/research/jeg1691/out51/", "tools/research/jeg1691/v51/V51_APPROVAL.json",
                     "tools/research/jeg1691/v51/V51_BACKTEST.lock")
+SHA40 = re.compile(r"[0-9a-f]{40}")
 DRY = replace(bt.PRIMARY, name="dryrun-2015", eval_seasons=(2015,), sel_start=2015, origins=(11, 15),
               dry_sel_origins=(11,), b1_needed=1, b5=False)
 
@@ -104,14 +106,25 @@ def guard(args):
         sys.exit("--n-boot, --n-shuffle and --no-sensitivity are dry-run only")
     if not args.approved:
         sys.exit("--mode backtest needs --approved <reviewed sha>")
+    if not SHA40.fullmatch(args.approved):
+        sys.exit("--approved must be a full 40-hex commit sha (no HEAD, branch or short sha)")
     if not APPROVAL.exists():
         sys.exit("no V51_APPROVAL.json: the reviewed commit must be named in a committed approval file")
     rel = str(APPROVAL.relative_to(REPO))
     if not git("ls-files", rel) or git("status", "--porcelain", rel):
         sys.exit("V51_APPROVAL.json must be committed and unmodified")
-    reviewed = git("rev-parse", json.loads(APPROVAL.read_text(encoding="utf-8"))["reviewed_commit"], check=False)
-    if not reviewed or git("rev-parse", args.approved, check=False) != reviewed:
+    named = str(json.loads(APPROVAL.read_text(encoding="utf-8")).get("reviewed_commit", ""))
+    if not SHA40.fullmatch(named):
+        sys.exit("V51_APPROVAL.json reviewed_commit must be a full 40-hex commit sha")
+    if named != args.approved:
         sys.exit("--approved is not the reviewed commit named in V51_APPROVAL.json")
+    if git("cat-file", "-t", named, check=False) != "commit":
+        sys.exit("the reviewed commit does not exist in this clone")
+    head = git("rev-parse", "HEAD")
+    is_anc = subprocess.run(["git", "-C", str(REPO), "merge-base", "--is-ancestor", named, head]).returncode == 0
+    if named == head or not is_anc:
+        sys.exit("the reviewed commit must be a strict ancestor of HEAD (HEAD = the approval commit on top)")
+    reviewed = named
     probs = worktree_problems(reviewed)
     if probs:
         sys.exit("executed tree differs from the reviewed commit: " + "; ".join(probs[:10]))

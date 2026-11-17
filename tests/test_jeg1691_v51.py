@@ -167,15 +167,31 @@ def _run(*a):
     return subprocess.run([sys.executable, str(V51 / "run_v51.py"), *a], capture_output=True, text=True)
 
 
+def _lock_snapshot():
+    f = V51 / "V51_BACKTEST.lock"
+    return f.read_bytes() if f.exists() else None
+
+
 def test_guard_refuses():
-    r = _run("--mode", "backtest")
-    assert r.returncode != 0 and "--approved" in r.stderr + r.stdout
-    r = _run("--mode", "backtest", "--approved", "HEAD")
-    assert r.returncode != 0 and "V51_APPROVAL" in r.stderr + r.stdout
-    for extra in (("--n-boot", "10"), ("--n-shuffle", "10"), ("--no-sensitivity",)):
-        r = _run("--mode", "backtest", "--approved", "HEAD", *extra)
-        assert r.returncode != 0 and "dry-run only" in r.stderr + r.stdout
-    assert not (V51 / "V51_BACKTEST.lock").exists()
+    """Every call here is refused before the lock is written; none can start the real backtest
+    (no valid 40-hex sha equal to a committed approval is ever passed)."""
+    before = _lock_snapshot()
+    fake = "f" * 40
+    cases = [
+        (("--mode", "backtest"), "--approved"),
+        (("--mode", "backtest", "--approved", "HEAD"), "40-hex"),
+        (("--mode", "backtest", "--approved", "abc1234"), "40-hex"),
+        (("--mode", "backtest", "--approved", "claude/JEG-1691-v51-prereg"), "40-hex"),
+        (("--mode", "backtest", "--approved", fake, "--n-boot", "10"), "dry-run only"),
+        (("--mode", "backtest", "--approved", fake, "--n-shuffle", "10"), "dry-run only"),
+        (("--mode", "backtest", "--approved", fake, "--no-sensitivity"), "dry-run only"),
+    ]
+    for args, msg in cases:
+        r = _run(*args)
+        assert r.returncode != 0 and msg in r.stderr + r.stdout, (args, r.stderr)
+    r = _run("--mode", "backtest", "--approved", fake)
+    assert r.returncode != 0 and ("V51_APPROVAL" in r.stderr + r.stdout or "reviewed commit" in r.stderr + r.stdout)
+    assert _lock_snapshot() == before
 
 
 def test_manifest_scope():

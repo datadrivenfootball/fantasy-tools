@@ -305,15 +305,16 @@ Jeremy's answers to D1, D2, D3, D-a, D-b and D-c were multiple-choice answers in
       - B5 is not run, since its 2024-2025 data overlaps evaluation seasons.
       - No 2017-2025 number is produced.
   15. **B3 and the position average.** Section 3's expectation that the position average's slope
-      is "undefined or far from 1" does not hold in general. On planted synthetic data, its slope
-      lands near 1 through drift between origins, because the position share tracks the position
-      mean. The position average is ruled out by B1, not by B3. B3 can fail for a heavy pull and
+      is "undefined or far from 1" does not hold in general. On planted synthetic data its slope was
+      RB 1.05 (inside the band), WR -4.77 and TE -0.96. Drift between origins can put it inside the
+      band, so the position average is ruled out by B1, not by B3. B3 can fail for a heavy pull and
       for raw history (both shown on synthetic data), as the review required.
   16. **B5 pooled interval.** A joint bootstrap: each draw resamples players within every position
       and averages the per-position means.
   17. **Where the sensitivity runs apply to B5.** S-anchor-Full and S-truth-ROS change B5 too.
-      S-origins-alt changes B1-B4 only, so B5 keeps 2025 weeks 4-14. S-no-2020 changes B5's pull
-      through the selection folds. Under S-no-2025, B5 is absent.
+      S-origins-alt keeps B5's origins (2025 weeks 4-14), but B5's pull is then chosen on the
+      selection folds at origins 4, 8 and 12, so B5 changes too. S-no-2020 changes B5's pull through
+      the selection folds. Under S-no-2025, B5 is absent.
   18. **Positions.** An nflverse player's position is that of his latest history game. B5 keyed
       players take their position from the Sleeper idmap, else `players.json`; the counts are
       reported.
@@ -321,8 +322,32 @@ Jeremy's answers to D1, D2, D3, D-a, D-b and D-c were multiple-choice answers in
       the eligible rows at each origin. This is labelled in the output and never a gate.
   20. **Data integrity (B0), from the dry run's loader.** 61,977 rows, 0 rows outside the Half
       tolerance, 9,684 all-zero rows dropped, 0 negative receptions.
-  21. **A v5 test now fails after the decisive run.**
-      `tests/test_jeg1691_v5.py::test_no_sensitivity_refused_outside_dev` asserts that no
-      `DECISIVE.lock` exists. The lock now exists by design. The file is a locked v5 file and is
-      left unedited.
+  21. **Test-only change, 2026-11-17, made after v5's lock was committed.**
+      `tests/test_jeg1691_v5.py::test_no_sensitivity_refused_outside_dev` asserted that no
+      `DECISIVE.lock` exists, which the committed lock made false.
+      - It now snapshots `DECISIVE.lock` and `REPLICATION.lock` before the refused call and
+        asserts they are unchanged after it.
+      - `tests/` is outside v5's guarded manifest (v5's `MANIFEST_ROOTS` in `run_v5.py`, checked
+        at 98c375d0f), so v5's executed tree and its verdict are unaffected.
+      - No harness file changed.
+- 2026-11-17, review of the harness (head 4d15d969). Fixes; no real backtest run.
+  22. **Guard.**
+      - `--approved` and `V51_APPROVAL.json`'s `reviewed_commit` must be full 40-hex shas and equal.
+      - The reviewed commit must exist and be a strict ancestor of HEAD (HEAD is the approval commit
+        on top), so symbolic HEAD, branch names and short shas are refused.
+      - The guard tests pass only invalid or fake shas and snapshot the lock before and after, so
+        they cannot start the real backtest.
+  23. **Players whose history points total 0 or less** are excluded from the comparison and counted
+      (`excluded.nonpositive_history_points`), exactly like players with no history. Every rule
+      would give them the same position share, so excluding them changes no paired difference. This
+      is the reading of section 2's "gets the position share, counted"; the code keeps it.
+  24. **2026 rows of the per-stat cache** are dropped at load and counted
+      (`rows_after_2025_dropped`), never used. That replaces 2.1's "the runner refuses one", since
+      the committed cache holds 2026 rows. The nflverse loader refuses a 2026 row, and that file
+      has none.
+  25. **B5's shuffle threshold** now follows the registered form: the 5th percentile of the pooled
+      shuffled statistic (each permutation's equal-weight mean over positions). The first harness
+      used the mean of the per-position 5th percentiles.
+  26. **B5's game definition** now follows section 2: a per-stat row counts as a game only when
+      its Standard or PPR points are nonzero. The first harness also counted targets-only rows.
 
