@@ -164,6 +164,8 @@
   // JEG-1646: the site's standard roster (the engine's own defaults, read once before any saved or linked settings apply)
   // and whether the roster now in use is exactly that. The settings and team pages say so in plain words.
   function defaultRoster() { return defaults ? JSON.parse(defaults).roster : null; }
+  // JEG-1689: the site's standard team count, read the same way (settings.html names what a paste left standard).
+  function defaultTeams() { return defaults ? JSON.parse(defaults).teams : null; }
   function isStandardRoster() {
     var base = defaultRoster(), cur = settings().roster;
     return !!base && Object.keys(base).every(function (k) { return cur[k] === base[k]; });
@@ -500,7 +502,7 @@
     controls: function () { return C; },
     players: function () { return build().list; },
     player: function (key) { return build().byKey.get(String(key)) || null; },
-    settings: settings, defaultRoster: defaultRoster, rosterText: rosterText, isStandardRoster: isStandardRoster, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
+    settings: settings, defaultRoster: defaultRoster, defaultTeams: defaultTeams, rosterText: rosterText, isStandardRoster: isStandardRoster, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
     on: function (fn) { listeners.push(fn); return function () { listeners = listeners.filter(function (f) { return f !== fn; }); }; },
     overrides: overrides,
     basis: function () { return JSON.parse(JSON.stringify(state.basis)); },
