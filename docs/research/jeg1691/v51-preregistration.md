@@ -92,7 +92,7 @@ The catch share is `q` = receptions per Half-PPR point, the only quantity DDF's 
 
 | Rule | Definition |
 | --- | --- |
-| **RL (light, the v5.1 rule)** | `q_i = a_i q_hist,i + (1 - a_i) q_pos`, `a_i = n_i / (n_i + k_p)`, with all history games equally weighted ("the player's historical mix"). `k_p` per position comes from the light grid `G_L` = {0, 0.5, 1, 2, 4, 8} (D-a A: at most 8 games of pull), chosen by nested forward CV (2.2), ties to the **smaller** `k`. When the chosen `k_p` is 8, the cap, that is reported and not acted on (amendment 4). |
+| **RL (light, the v5.1 rule)** | `q_i = a_i q_hist,i + (1 - a_i) q_pos`, `a_i = n_i / (n_i + k_p)`, with all history games equally weighted ("that players historical mix"). `k_p` per position comes from the light grid `G_L` = {0, 0.5, 1, 2, 4, 8} (D-a, Jeremy 2026-11-17: "A: At most 8 games of pull (Recommended)"), chosen by nested forward CV (2.2), ties to the **smaller** `k`. When the chosen `k_p` is 8, the cap, that is reported and not acted on (amendment 4). |
 | R0 (raw history) | `k = 0` |
 | Rv5 (v5's pull, two-bucket) | the same form with v5's frozen catch strength and half-life from `out/decisive/selection.json` (RB `k` 8, half-life 17 games; WR 64, 8; TE 2, 8): `a_i = n_eff,i / (n_eff,i + k)`, history recency-weighted (`0.5 ** (age / t)`). This is **not** v5's seven-category `shrunk_mix`, which pulls each category separately and renormalises; 2015-2023 has no seven-category history. Rv5 is the closest two-bucket stand-in, and no exactness to `shrunk_mix` is claimed (amendment 1). |
 | Rpos (position average) | `k = inf` |
@@ -119,8 +119,8 @@ Shared rules:
 - For each evaluation season `Y` (2017-2025), `k_p` is the value in `G_L` minimising E (2.3) on all
   origins of seasons 2016 to `Y - 1`, with ties to the smaller `k`.
 - The bootstrap holds each fold's chosen `k_p` fixed (it resamples players, not the selection).
-- The `k_p` used for 2026 (the chart replay and B5's 2025 run uses the 2016-2024 choice) is chosen
-  on 2016-2025.
+- B5 (2025 origins) uses the `k_p` chosen on 2016-2024. The chart replay (2026) uses the `k_p`
+  chosen on 2016-2025.
 - A sensitivity run that removes a season removes it from the selection folds too.
 
 ### 2.3 Metrics
@@ -131,10 +131,13 @@ truth Half points above 0, and at least 1 history game.
 
 - **E (catch reconstruction):** predicted catches per game = `q x` (realized Half points per game),
   against realized catches per game. Squared error, mean over players.
-- **Calibration (amendment 5):** the OLS slope of realized catches per game on predicted catches per
-  game, on the same scale as E, pooled over evaluation seasons, per position. The slope of realized
-  `q` on predicted `q`, weighted by truth Half points, is reported beside it. An unweighted window
-  share has no upper bound, because Standard points go as low as -6.96.
+- **Calibration, gating (amendment 9):** the weighted least-squares slope of realized window share
+  `q_true` (window receptions / window Half points) on predicted `q`. Weights are the truth Half
+  points, which bound the influence of near-zero-point windows. Pooled over evaluation seasons, per
+  position. An undefined slope (no variation in predicted `q`) counts as outside the band.
+- **Calibration, descriptive:** the OLS slope of realized catches per game on predicted catches per
+  game. It is not a gate: predicted catches = share x realized points, so this slope is driven by
+  points varying between players and sits near 1 for any rule.
 - **Order:** within-position Spearman of predicted against realized catches per game (reported).
 - **Shuffle control:** within position and origin, the rule's predictions are permuted among
   players. 1,000 permutations, seed 16911.
@@ -147,18 +150,20 @@ truth Half points above 0, and at least 1 history game.
 | B0 | **Exactness and data integrity** | RL at `k = 0` reproduces R0; RL at `k = inf` reproduces Rpos; Rv5 at `k = 0`, `t = inf` reproduces R0; all exactly. Rows where Half points differ from the mean of Standard and PPR by more than 0.011 are counted. Void if any identity fails or more than 0.5% of rows break that relation. |
 | B1 | **History predicts catches** (RL against Rpos) | PASS if all hold: RL has the lower E in at least 7 of the 9 evaluation seasons; the pooled interval of (E_pos - E_RL) is entirely above 0; RL's pooled E is below the shuffle 5th percentile. FAIL if the pooled interval is entirely below 0. Otherwise INCONCLUSIVE. |
 | B2 | **Light against v5's pull** (RL against Rv5) | Pooled interval of (E_v5 - E_RL): PASS if the lower bound is above 0; HARM if the upper bound is below 0; otherwise INCONCLUSIVE. |
-| B3 | **Calibrated** | RL's pooled calibration slope (catches scale) is in [2/3, 3/2]. |
+| B3 | **Calibrated** | RL's pooled points-weighted share slope (2.3) is in [2/3, 3/2]. Expected behaviour, reasoned without a run: the position average predicts almost the same share for every player of a position at an origin, varying only a little across origins and seasons. Its slope is driven by season drift and is expected to be undefined or far from 1, so it would fail. v5's heavy WR pull compresses the shares (in the 2026 diagnosis its share slope was 4.85), so it is expected above 3/2 and would fail. Raw history over-disperses at low split-half reliability (WR 0.26) and is expected below 2/3. So B3 can fail on either side, and only a pull near the right strength passes. |
 | B5 | **Catch reconstruction on the chain's own history source** | Origins: 2025 weeks 4-14. History: per-stat `player_game_stats` from 2024 up to the origin (keyed subset). Truth: 4-week windows. RL's two-bucket share with the `k_p` chosen on 2016-2024 (the same rule as B1, amendment 2). PASS if the interval of (Rpos error - RL error) on E is entirely above 0 and RL beats the shuffle 5th percentile. HARM if, against Rv5, the interval is entirely below 0. It tests catches only, like B1. A custom-scoring error that sees the other six categories (v5's T1b scorings, other categories from v5's frozen mix) is reported only. |
 | B4 | Raw against light (reported) | E and calibration for R0. |
 | — | Cap report | Per fold and position, whether `k_p` hit the cap of 8. Reported only. |
 
-### 3.1 What C needs from B2 (amendment 8, the lead's call, written now)
+### 3.1 What C needs from B2 (amendment 8; an outcome rule Jeremy has not chosen yet, decision D-c)
 
 The change matters where v5's pull was heavy: WR (`k` 64 against at most 8). RB (8) and TE (2) are
 already near the light grid.
 - **C requires B2 PASS at WR** (the light pull predicts better than v5's) **and no HARM at RB and
   TE.**
 - An INCONCLUSIVE B2 at WR does not reach C, because it would not show that the change helps.
+- This is the lead's proposal, not yet Jeremy's choice. It is put to him as D-c, and the backtest
+  does not run before he answers.
 
 ### 3.2 Weak tests, said plainly (amendment 8)
 
@@ -176,7 +181,10 @@ already near the light grid.
 | S-truth-ROS | truth = the rest of the season instead of 4 weeks | 7 of 9 |
 | S-origins-alt | origins at weeks 4, 8 and 12 | 7 of 9 |
 | S-no-2020 | 2020 removed from evaluation seasons and selection folds | 6 of 8 |
-| S-no-2025 | 2025 removed from evaluation seasons and selection folds; B5 not run (it is 2025) | 6 of 8 |
+| S-no-2025 | 2025 removed from evaluation seasons and selection folds | 6 of 8 |
+
+Under S-no-2025, B5 is absent (it is a 2025 test). An absent test is not a flip, and C then rests
+on the primary B5.
 
 S-no-2025 is there because 2025 is not clean (amendment 3):
 - the diagnosis (section 1) used 2025 actuals;
@@ -200,8 +208,8 @@ S-no-2025 is there because 2025 is not clean (amendment 3):
 | Outcome | When |
 | --- | --- |
 | **void** | B0 fails. Fix the bug with a dated amendment, then rerun once. |
-| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, or B3 outside the band. Or B2 HARM at any position, or B2 not PASS at WR. Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
-| **C: proceed to design a separate enhanced value** | B1 PASS and B3 in band at RB, WR and TE (D-b A); B2 PASS at WR and no HARM at RB and TE (3.1); B5 PASS; no flip under any sensitivity run. |
+| **A: close** | At any of RB, WR or TE: B1 FAIL or INCONCLUSIVE, or B3 outside the band. Or B2 HARM at any position, or B2 not PASS at WR (pending D-c). Or B5 not PASS, or B5 HARM. Or any verdict that flips under a sensitivity run. |
+| **C: proceed to design a separate enhanced value** | B1 PASS and B3 in band at RB, WR and TE (D-b A); B2 PASS at WR and no HARM at RB and TE (3.1, pending D-c); B5 PASS; no flip under any sensitivity run (an absent test is not a flip). |
 
 - The outcome is picked by code and written to `out51/backtest/verdict.json` with every rule that
   fired.
@@ -250,11 +258,20 @@ Prediction, written now:
 
 | # | Jeremy's answer | How it binds |
 | --- | --- | --- |
-| D1 | "It should reflect that player's historical mix" | RL: own history, shrinkage only as light as forward CV on 2015-2025 actuals justifies (sections 2-2.2). This replaces the first version's `k_rec`-by-reception-objective change. |
-| D2 | "Focus on backtesting not forward results for now" | The decisive evidence is the backtest (section 3). The chart replays are descriptive. Weeks 11+ are an optional replication that blocks nothing (section 4). |
-| D3 | "If the logic plays out that way, that's ok" | T5u is reported and does not gate. |
-| D-a A (2026-11-17) | at most 8 games of pull: light grid {0, 0.5, 1, 2, 4, 8} | RL's grid (section 2). The cap was informed by the diagnosis (v5's WR `k` 64 compressed the spread about 5x). Jeremy's D1 ("reflect that player's historical mix") supports a light cap. A fold choosing 8 is reported, not acted on. |
-| D-b A (2026-11-17) | C needs RB, WR and TE all to pass | Section 5 |
+| D1 (2026-11-17) | "It should reflect that players historical mix" | RL: own history, shrinkage only as light as forward CV on 2015-2025 actuals justifies (sections 2-2.2). This replaces the first version's `k_rec`-by-reception-objective change. |
+| D2 (2026-11-17) | "Focus on backtesting not forward results for now" | The decisive evidence is the backtest (section 3). The chart replays are descriptive. Weeks 11+ are an optional replication that blocks nothing (section 4). |
+| D3 (2026-11-17) | "If the logic plays out that way, that's ok" | T5u is reported and does not gate. |
+| D-a (2026-11-17) | Question "how much may the catch share be pulled toward the position average?"; answer "A: At most 8 games of pull (Recommended)". Light grid {0, 0.5, 1, 2, 4, 8} | RL's grid (section 2). The cap was informed by the diagnosis (v5's WR `k` 64 compressed the spread about 5x). Jeremy's D1 ("reflect that player's historical mix") supports a light cap. A fold choosing 8 is reported, not acted on. |
+| D-b (2026-11-17) | Question "how many positions must pass before the new rule counts as a win?"; answer "A: RB, WR and TE all pass (Recommended)" | Section 5 |
+
+Jeremy's answers to D1, D2, D3, D-a and D-b were multiple-choice answers in the lead session on
+2026-11-17, quoted verbatim.
+
+## Decision for Jeremy before the backtest runs
+
+| # | Question | Options (recommendation first) |
+| --- | --- | --- |
+| D-c | What must B2 (light against v5's pull) show for C? | **A** B2 PASS at WR (the light pull predicts receivers better than v5's) and no HARM at RB and TE / B no HARM at any position (C then does not show that the change helps receivers) |
 
 ## Amendments
 
@@ -277,4 +294,11 @@ Prediction, written now:
      fold's pull fixed; the all-zero rows (9,684) are dropped and that is stated; B5's keyed subset
      (about 87% of 2024 rows, 96% of 2025) is stated.
   8. The weak tests are stated (3.2). C needs B2 PASS at WR (3.1).
+- 2026-11-17, review round 2 of #1478 (head b6ed6b9d). No code, no number.
+  9. B3 now gates on the points-weighted share slope, with the expected behaviour of the position
+     average, v5's pull and raw history stated. The catches-per-game slope is descriptive.
+  10. Jeremy's D1, D2, D3, D-a and D-b are quoted verbatim, dated 2026-11-17.
+  11. B5 is absent under S-no-2025, and an absent test is not a flip.
+  12. The 2.2 sentence on which pull is used for 2026 and which for B5 is reworded.
+  13. The B2-at-WR condition for C is marked as pending Jeremy (D-c).
 
