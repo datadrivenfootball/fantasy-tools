@@ -12,7 +12,8 @@ line, Edit league, Customize, ⋯ and the "On the chart" line are not shown, and
 sources in the legend; open, those controls show, Edit league opens its panel, and nothing scrolls sideways. At 1440x900
 the summary is not rendered and Edit league and Customize show as before.
 Discrimination: test_guard_fails_without_the_collapse serves v2.css without the JEG-1134 block (the wrapped row on main
-before this change) and requires failures. Each run prints one JEG1134-MEASURE line per width with the row's height.
+before this change) and requires failures. Served weeks are pinned (tests/_served_weeks.py): during a week transition
+the week selector adds its own line under the summary by design (v2.css), which test_week_selector_render covers. Each run prints one JEG1134-MEASURE line per width with the row's height.
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ import unittest
 from pathlib import Path
 
 from tests import _render_env
+from tests._served_weeks import route_pinned_weeks
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist"
@@ -102,6 +104,7 @@ def run_checks(css=None) -> list[str]:
                 page_errors: list[str] = []
                 page.on("pageerror", lambda e: page_errors.append(str(e)))
                 page.add_init_script(_render_env.pin_data_week_script())
+                route_pinned_weeks(page, DIST)
                 if css is not None:
                     page.route("**/v2/v2.css*", lambda route: route.fulfill(status=200, content_type="text/css", body=css))
                 page.goto(base + "#player-values", wait_until="networkidle")
@@ -169,6 +172,7 @@ class PhoneContextRowTest(unittest.TestCase):
                     with self.subTest(width=width, font=font or "default"):
                         page = browser.new_page(viewport={"width": width, "height": height})
                         page.add_init_script(_render_env.pin_data_week_script())
+                        route_pinned_weeks(page, DIST)
                         page.goto(base + "#player-values", wait_until="networkidle")
                         page.wait_for_function("() => window.TradeValueV2 && document.querySelector('#v2Table tbody tr')")
                         if font:
