@@ -99,7 +99,10 @@ A lagging source is real data in the committed fixture, so a render test that
 assumes "every source on its newest week" goes red on the day's data, not on the
 product (2026-11-17: USA Today on Week 10 for the Week 11 rollover reddened the
 week selector, contract, phone context row, Learn parity, Compare examples,
-Find filter and 2-QB endpoint tests on main).
+Find filter and 2-QB endpoint tests on main; a second pass found
+`test_jeg1366_two_qb_native_share` (reference without history),
+`test_ddf_why` (Find cards all unjudged) and `test_jeg1213_acceptance_render`
+(em dashes in the finder's team columns and fit explanations)).
 
 - A test whose premise is no transition pins the served weeks with
   `tests/_served_weeks.py` (`pin_served_weeks_in_dist` on a copied dist,
