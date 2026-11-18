@@ -1,7 +1,7 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-18T12:52:54.636595Z",
- "run_id": "01a7c924-2467-4b08-bab1-1709252d5a70",
+ "checked_at": "2026-11-18T12:54:11.095017Z",
+ "run_id": "b3687970-3ef3-4a92-8135-2330ed357a37",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
@@ -33,7 +33,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-18@2026-11-18T04:45:35.527495Z",
    "measured_site": null,
-   "since": "2026-11-18T12:52:54.636595Z",
+   "since": "2026-11-18T12:54:11.095017Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -45,7 +45,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-18@2026-11-18T12:18:34.516832Z",
    "measured_site": null,
-   "since": "2026-11-18T12:52:54.636595Z",
+   "since": "2026-11-18T12:54:11.095017Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -264,13 +264,13 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "amber",
-     "summary": "785/1158 values match exactly across 6 columns; 373 of 1158 values moved since the save at 2026-11-18T11:05:45.955623Z (largest 800%; 1 outside the max(25%, 50) band: Tyler Shough); 4 players entered or left the bottom of the list since the save (churn)",
+     "summary": "598/1157 values match exactly across 6 columns; 559 of 1157 values moved since the save at 2026-11-18T11:05:45.955623Z (largest 800%; 2 outside the max(25%, 50) band: Tyler Shough); 4 players entered or left the bottom of the list since the save (churn)",
      "counts": {
       "publisher_players": 196,
       "stored_players": 194,
-      "compared": 1158,
-      "matched": 785,
-      "mismatched": 373,
+      "compared": 1157,
+      "matched": 598,
+      "mismatched": 559,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
@@ -298,11 +298,11 @@
        "extra": 1
       },
       "half|1": {
-       "left": 193,
+       "left": 195,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 3,
+       "extra": 1
       },
       "half|2": {
        "left": 193,
@@ -349,6 +349,16 @@
       },
       {
        "type": "value_mismatch",
+       "grain": "half|1",
+       "player_key": 3803,
+       "name": "Tyler Shough",
+       "pos": "QB",
+       "left": "476",
+       "right": 635.0,
+       "delta": 159.0
+      },
+      {
+       "type": "value_mismatch",
        "grain": "std|1",
        "player_key": 3803,
        "name": "Tyler Shough",
@@ -379,6 +389,16 @@
       },
       {
        "type": "value_mismatch",
+       "grain": "half|1",
+       "player_key": 337,
+       "name": "Bucky Irving",
+       "pos": "RB",
+       "left": "5844",
+       "right": 5974.0,
+       "delta": 130.0
+      },
+      {
+       "type": "value_mismatch",
        "grain": "full|2",
        "player_key": 4048,
        "name": "Chuba Hubbard",
@@ -386,26 +406,6 @@
        "left": "4772",
        "right": 4898.0,
        "delta": 126.0
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "std|1",
-       "player_key": 4589,
-       "name": "Jaylen Warren",
-       "pos": "RB",
-       "left": "4526",
-       "right": 4649.0,
-       "delta": 123.0
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "std|1",
-       "player_key": 4048,
-       "name": "Chuba Hubbard",
-       "pos": "RB",
-       "left": "5917",
-       "right": 6037.0,
-       "delta": 120.0
       }
      ],
      "outside_universe": [],
@@ -498,7 +498,7 @@
        "publisher": {
         "QB": 32,
         "RB": 61,
-        "WR": 74,
+        "WR": 76,
         "TE": 26
        },
        "stored": {
@@ -589,6 +589,17 @@
     {
      "stage": "publisher_vs_stored",
      "type": "value_mismatch",
+     "grain": "half|1",
+     "player_key": 3803,
+     "name": "Tyler Shough",
+     "pos": "QB",
+     "left": "476",
+     "right": 635.0,
+     "delta": 159.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
      "grain": "std|1",
      "player_key": 3803,
      "name": "Tyler Shough",
@@ -622,6 +633,17 @@
     {
      "stage": "publisher_vs_stored",
      "type": "value_mismatch",
+     "grain": "half|1",
+     "player_key": 337,
+     "name": "Bucky Irving",
+     "pos": "RB",
+     "left": "5844",
+     "right": 5974.0,
+     "delta": 130.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
      "grain": "full|2",
      "player_key": 4048,
      "name": "Chuba Hubbard",
@@ -629,28 +651,6 @@
      "left": "4772",
      "right": 4898.0,
      "delta": 126.0
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "std|1",
-     "player_key": 4589,
-     "name": "Jaylen Warren",
-     "pos": "RB",
-     "left": "4526",
-     "right": 4649.0,
-     "delta": 123.0
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "std|1",
-     "player_key": 4048,
-     "name": "Chuba Hubbard",
-     "pos": "RB",
-     "left": "5917",
-     "right": 6037.0,
-     "delta": 120.0
     }
    ],
    "held": null,
@@ -2019,7 +2019,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-18@2026-11-18T04:45:35.527495Z",
     "measured_site": null,
-    "since": "2026-11-18T12:52:54.636595Z",
+    "since": "2026-11-18T12:54:11.095017Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -2088,7 +2088,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-18@2026-11-18T12:18:34.516832Z",
     "measured_site": null,
-    "since": "2026-11-18T12:52:54.636595Z",
+    "since": "2026-11-18T12:54:11.095017Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -2126,5 +2126,5 @@
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
  "resyncs": {},
- "holds_changed": true
+ "holds_changed": false
 }
