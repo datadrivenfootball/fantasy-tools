@@ -59,7 +59,9 @@ ORACLE = r"""(o) => {
   const info = C.getSourceInfo();
   const available = new Set(info.filter(i => i.available).map(i => i.key));
   const gate = F.CHART_KEYS.filter(k => available.has(k));
-  const analyst = ['cbs', 'usatoday', 'fantasypros'].every(k => available.has(k)) ? ['cbs', 'usatoday', 'fantasypros'] : null;
+  // Two of the three analyst charts are enough for their average (Jeremy 2026-11-18, option A).
+  const analystOn = ['cbs', 'usatoday', 'fantasypros'].filter(k => available.has(k));
+  const analyst = analystOn.length >= 2 ? analystOn : null;
   const shape = C.getRosterShape();
   const expected = F.expectedDepth(C.getAdjustmentWeights().allocation, C.getState().teams);
   const readout = C.getBenchShareReadout ? C.getBenchShareReadout() : null;
