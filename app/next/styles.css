@@ -504,3 +504,12 @@ a[href],button,input,select,textarea,summary,label,[role=button],[role=tab],[rol
 .ddf-fresh-dot[data-state=all]{background:#1f9d55}
 .ddf-fresh-dot[data-state=some]{background:#e8820c}
 .ddf-fresh-dot[data-state=none]{background:#d03a2f}
+
+/* Header dot: the entry to Source freshness, beside the Menu button (44px target) */
+.ddf-fresh-hdr{display:inline-flex;align-items:center}
+.ddf-fresh-hdr a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0;border-radius:9px;background:transparent}
+.ddf-fresh-hdr a:hover{background:rgba(255,255,255,.12)}
+.ddf-fresh-hdr .ddf-fresh-dot{width:13px;height:13px;margin:0;border:2px solid rgba(255,255,255,.85)}
+.ddf-fresh-lbl{display:none;color:#eaf3ec;font-size:14px;font-weight:600;margin-left:7px}
+@media(min-width:901px){.ddf-fresh-hdr a{padding:0 10px}.ddf-fresh-lbl{display:inline}}
+@media(max-width:359px){.ddf-fresh-hdr a{min-width:36px}}

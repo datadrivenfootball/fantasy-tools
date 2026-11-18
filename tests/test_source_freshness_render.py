@@ -79,6 +79,36 @@ class SourceFreshnessTest(unittest.TestCase):
                 with self.subTest(state=state, page=name):
                     self.assertEqual(self.dot(self.open(name, body)), (state, label))
 
+    def test_header_dot_is_the_entry_beside_the_menu_button(self):
+        cases = {"all": status({}), "some": status({"usatoday": 10}), "none": status({k: 10 for k in SOURCES})}
+        words = {"all": "All sources fresh", "some": "Some sources fresh", "none": "No sources fresh"}
+        for width in (375, 1280):
+            for state, body in cases.items():
+                for name in ("index", "values"):
+                    with self.subTest(width=width, state=state, page=name):
+                        page = self.open(name, body, width=width)
+                        link = page.locator("header .ddf-fresh-hdr a")
+                        self.assertEqual(link.count(), 1)
+                        self.assertEqual(link.get_attribute("href"), "freshness.html")
+                        self.assertIn(words[state], link.get_attribute("aria-label"))
+                        self.assertEqual(link.locator(".ddf-fresh-dot").get_attribute("data-state"), state)
+                        box = link.bounding_box()
+                        self.assertGreaterEqual(box["height"], 44)
+                        self.assertGreaterEqual(box["width"], 44)
+                        self.assertLessEqual(box["x"] + box["width"], width)
+                        self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width)
+        page = self.open("values", cases["some"])
+        page.click("header .ddf-fresh-hdr a")
+        page.wait_for_url("**/freshness.html")
+        self.assertIn("Source freshness", page.inner_text("h1"))
+        page = self.open("values", cases["some"])
+        page.click(".morewrap > button")
+        self.assertTrue(page.locator(".morewrap.open .menu").count())
+
+    def test_no_header_dot_when_status_unreadable(self):
+        page = self.open("values", {}, code=404)
+        self.assertEqual(page.locator("header .ddf-fresh-hdr").count(), 0)
+
     def test_no_dot_when_status_unreadable(self):
         for name in ("values", "freshness"):
             with self.subTest(page=name):

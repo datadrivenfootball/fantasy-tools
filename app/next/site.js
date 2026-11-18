@@ -1744,7 +1744,23 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       .then(function(j){ return summarize(j, new Date()); }).catch(function(){ return null; });
     return pending;
   }
+  /* The dot beside the Menu button is its own link (a link cannot sit inside the button) to freshness.html. */
+  function paintHeader(sum){
+    var nav = document.querySelector('header nav[aria-label="Main navigation"]');
+    if(!nav) return;
+    var wrap = nav.querySelector('.morewrap'), box = nav.querySelector('.ddf-fresh-hdr');
+    if(!sum){ if(box) box.remove(); return; }
+    if(!box){
+      box = document.createElement('span'); box.className = 'ddf-fresh-hdr';
+      box.innerHTML = '<a href="freshness.html"><span class="ddf-fresh-dot" aria-hidden="true"></span><span class="ddf-fresh-lbl" aria-hidden="true">Sources</span></a>';
+      nav.insertBefore(box, wrap || null);
+    }
+    var a = box.firstChild, d = a.firstChild;
+    a.setAttribute('aria-label', 'Source freshness: ' + dotLabel(sum) + '. Open details'); a.title = dotLabel(sum);
+    d.setAttribute('data-state', sum.state);
+  }
   function paint(sum){
+    paintHeader(sum);
     Array.prototype.forEach.call(document.querySelectorAll('.morewrap .menu a[href="freshness.html"]'), function(a){
       var d = a.querySelector('.ddf-fresh-dot');
       if(!sum){ if(d) d.remove(); return; }
