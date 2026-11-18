@@ -38,7 +38,9 @@ ROOT_PAGES = ("values.html", "learn.html", "build.html",
               "index.html", "team.html", "explore.html", "partners.html", "find.html", "waivers.html",
               "settings.html", "ai.html", "compare.html",
               # JEG-1538: the entry pages; connect.html reads pasted rosters against the engine's player rows.
-              "connect.html", "setup.html")
+              "connect.html", "setup.html",
+              # Source freshness: reads modules/comparison-chain-status.json, no engine.
+              "freshness.html")
 # A page gets the engine when its source carries the <!-- ddf-engine --> marker; ENGINE_PAGES must carry it.
 ENGINE_PAGES = frozenset({"values.html", "learn.html", "build.html", "connect.html"})
 # Files the root pages load from beside them (copied from app/next/). v2/*.js are already published by build_v2_page.
@@ -67,7 +69,9 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
               "sleeper-import.js",
               # JEG-1548: the visit counter wrapper site.js loads (sends nothing until its site code is set).
-              "analytics.js")
+              "analytics.js",
+              # Source freshness page script.
+              "freshness-page.js")
 # JEG-1570: Sleeper player id -> [name, pos, team], from the pipeline's Sleeper identity table, written beside the pages.
 SLEEPER_IDENTITY = ROOT / "data" / "inputs" / "sleeper_identity_base.json"
 SLEEPER_PLAYERS = "sleeper-players.json"

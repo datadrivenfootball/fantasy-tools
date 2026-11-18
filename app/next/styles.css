@@ -498,3 +498,9 @@ a[href],button,input,select,textarea,summary,label,[role=button],[role=tab],[rol
 @media(max-width:480px){.ddf-sf-actions{flex-direction:column-reverse}.ddf-sf-actions button{width:100%}}
 /* JEG-1568: the link notice dismiss button meets the 44px target rule */
 .ddf-link-notice button{min-width:44px;min-height:44px}
+
+/* Source freshness dot (menu) */
+.ddf-fresh-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-left:8px;vertical-align:baseline;border:1px solid rgba(0,0,0,.25)}
+.ddf-fresh-dot[data-state=all]{background:#1f9d55}
+.ddf-fresh-dot[data-state=some]{background:#e8820c}
+.ddf-fresh-dot[data-state=none]{background:#d03a2f}
