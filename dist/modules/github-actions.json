@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-18T04:11:35.830780+00:00",
+  "generated_at": "2026-11-18T04:37:41.377554+00:00",
   "repo": "datadrivenfootball/fantasy-tools",
   "workflows": [
     {
@@ -1898,17 +1898,26 @@
         "schedule": "On push to main",
         "key_task": "Production deployment"
       },
-      "health": "fail",
+      "health": "running",
       "last_run": {
-        "created_at": "2026-11-18T03:41:22Z",
-        "updated_at": "2026-11-18T04:01:53Z",
-        "status": "completed",
-        "conclusion": "failure",
+        "created_at": "2026-11-18T04:11:42Z",
+        "updated_at": "2026-11-18T04:37:39Z",
+        "status": "queued",
+        "conclusion": null,
         "event": "push",
-        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/44232164463",
-        "duration_s": 1231
+        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/44235614555",
+        "duration_s": 1557
       },
       "recent_runs": [
+        {
+          "created_at": "2026-11-18T04:11:42Z",
+          "updated_at": "2026-11-18T04:37:39Z",
+          "status": "queued",
+          "conclusion": null,
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/44235614555",
+          "duration_s": 1557
+        },
         {
           "created_at": "2026-11-18T03:41:22Z",
           "updated_at": "2026-11-18T04:01:53Z",
@@ -1944,22 +1953,13 @@
           "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/44223137374",
           "duration_s": 1065
-        },
-        {
-          "created_at": "2026-11-18T01:17:11Z",
-          "updated_at": "2026-11-18T01:51:31Z",
-          "status": "completed",
-          "conclusion": "failure",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/44214615751",
-          "duration_s": 2060
         }
       ],
-      "recent_failures": 5,
-      "consecutive_failures": 5,
+      "recent_failures": 4,
+      "consecutive_failures": 0,
       "last_success_at": null,
-      "failing_streak": true,
-      "alert_needed": true
+      "failing_streak": false,
+      "alert_needed": false
     },
     {
       "id": 377507485,
@@ -2146,10 +2146,10 @@
     "active": 29,
     "healthy": 23,
     "warn": 1,
-    "failing": 6,
-    "running": 0,
-    "failing_streak_count": 5,
-    "alert_needed_count": 5,
+    "failing": 5,
+    "running": 1,
+    "failing_streak_count": 4,
+    "alert_needed_count": 4,
     "max_consecutive_failures": 5,
     "gaps_count": 25
   }
