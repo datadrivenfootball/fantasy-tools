@@ -1,11 +1,11 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-18T12:28:24.925246Z",
- "run_id": "87d9a1c4-5927-46ad-a4a8-4128a86bd77a",
+ "checked_at": "2026-11-18T12:52:54.636595Z",
+ "run_id": "01a7c924-2467-4b08-bab1-1709252d5a70",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
-  "built_at": "2026-11-18T07:29:07.511265+00:00",
+  "built_at": "2026-11-18T11:09:18.539523+00:00",
   "error": null
  },
  "rules": {
@@ -24,18 +24,6 @@
   "resave": "stage 2: a same-day re-save after the chart was built (the snapshot's last row write, or the probe fingerprint acknowledged with that save, is after the chart's raw_built_at) is amber until the next chain run for every changed, added or dropped player stage 1 shows equal to the publisher"
  },
  "holds": {
-  "fantasycalc": {
-   "stage": "stored_vs_chart",
-   "stages": [
-    "stored_vs_chart"
-   ],
-   "hold_level": "amber",
-   "reason": "fidelity: stored_vs_chart",
-   "identity": "fcwk11_2026-11-18t1105_v1",
-   "measured_site": "2026-11-18T04:05:26+00:00",
-   "since": "2026-11-18T12:28:24.925246Z",
-   "summary": "1170/1170 chart values equal stored bake fcwk11_2026-11-18t0405_v1; newer stored bake fcwk11_2026-11-18t1105_v1 (week 11, saved 2026-11-18T11:05:45.955623Z) is not on the chart yet: 1122 values changed, 20 added, 30 dropped"
-  },
   "draftsharks": {
    "stage": "stored_vs_chart",
    "stages": [
@@ -45,7 +33,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-18@2026-11-18T04:45:35.527495Z",
    "measured_site": null,
-   "since": "2026-11-18T12:28:24.925246Z",
+   "since": "2026-11-18T12:52:54.636595Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -57,7 +45,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-18@2026-11-18T12:18:34.516832Z",
    "measured_site": null,
-   "since": "2026-11-18T12:28:24.925246Z",
+   "since": "2026-11-18T12:52:54.636595Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -153,7 +141,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-18T07:26:27Z",
+     "chart_imported_at": "2026-11-18T11:06:36Z",
      "bake_id": "usatwk11_2026-11-18t0330_v1",
      "bake_saved_at": "2026-11-18T03:30:40.607236Z",
      "behind": null,
@@ -275,18 +263,18 @@
    "stored_bake": "fcwk11_2026-11-18t1105_v1",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1160/1160 values match exactly across 6 columns",
+     "status": "amber",
+     "summary": "785/1158 values match exactly across 6 columns; 373 of 1158 values moved since the save at 2026-11-18T11:05:45.955623Z (largest 800%; 1 outside the max(25%, 50) band: Tyler Shough); 4 players entered or left the bottom of the list since the save (churn)",
      "counts": {
-      "publisher_players": 194,
+      "publisher_players": 196,
       "stored_players": 194,
-      "compared": 1160,
-      "matched": 1160,
-      "mismatched": 0,
+      "compared": 1158,
+      "matched": 785,
+      "mismatched": 373,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 0,
+      "list_churn": 4,
       "unresolved_names": 0
      },
      "url": "https://api.fantasycalc.com/values/current (12 teams, 1 and 2 QB, 3 scorings)",
@@ -303,6 +291,154 @@
        "extra": 0
       },
       "full|2": {
+       "left": 195,
+       "right": 194,
+       "mismatched": 187,
+       "missing": 2,
+       "extra": 1
+      },
+      "half|1": {
+       "left": 193,
+       "right": 193,
+       "mismatched": 0,
+       "missing": 0,
+       "extra": 0
+      },
+      "half|2": {
+       "left": 193,
+       "right": 193,
+       "mismatched": 0,
+       "missing": 0,
+       "extra": 0
+      },
+      "std|1": {
+       "left": 195,
+       "right": 193,
+       "mismatched": 186,
+       "missing": 3,
+       "extra": 1
+      },
+      "std|2": {
+       "left": 193,
+       "right": 193,
+       "mismatched": 0,
+       "missing": 0,
+       "extra": 0
+      }
+     },
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 1743,
+       "name": "J.J. McCarthy",
+       "pos": "QB",
+       "left": "1084",
+       "right": 1319.0,
+       "delta": 235.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 697,
+       "name": "Cam Ward",
+       "pos": "QB",
+       "left": "1280",
+       "right": 1095.0,
+       "delta": -185.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 3803,
+       "name": "Tyler Shough",
+       "pos": "QB",
+       "left": "470",
+       "right": 627.0,
+       "delta": 157.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 337,
+       "name": "Bucky Irving",
+       "pos": "RB",
+       "left": "5880",
+       "right": 6012.0,
+       "delta": 132.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 3803,
+       "name": "Tyler Shough",
+       "pos": "QB",
+       "left": "2532",
+       "right": 2663.0,
+       "delta": 131.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 4048,
+       "name": "Chuba Hubbard",
+       "pos": "RB",
+       "left": "4772",
+       "right": 4898.0,
+       "delta": 126.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 4589,
+       "name": "Jaylen Warren",
+       "pos": "RB",
+       "left": "4526",
+       "right": 4649.0,
+       "delta": 123.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 4048,
+       "name": "Chuba Hubbard",
+       "pos": "RB",
+       "left": "5917",
+       "right": 6037.0,
+       "delta": 120.0
+      }
+     ],
+     "outside_universe": [],
+     "unresolved": []
+    },
+    "stored_vs_chart": {
+     "status": "green",
+     "summary": "1160/1160 chart values equal stored bake fcwk11_2026-11-18t1105_v1",
+     "counts": {
+      "chart_players": 194,
+      "stored_players": 194,
+      "compared": 1160,
+      "matched": 1160,
+      "mismatched": 0,
+      "missing_on_chart": 0,
+      "extra_on_chart": 0,
+      "outside_universe": 0,
+      "unresolved_names": 0
+     },
+     "chart_week": 11,
+     "chart_imported_at": "2026-11-18T11:06:34Z",
+     "bake_id": "fcwk11_2026-11-18t1105_v1",
+     "bake_saved_at": "2026-11-18T11:05:45.955623Z",
+     "behind": null,
+     "grains": {
+      "full|1": {
+       "left": 194,
+       "right": 194,
+       "mismatched": 0,
+       "missing": 0,
+       "extra": 0
+      },
+      "full|2": {
        "left": 194,
        "right": 194,
        "mismatched": 0,
@@ -333,81 +469,6 @@
       "std|2": {
        "left": 193,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      }
-     },
-     "examples": [],
-     "outside_universe": [],
-     "unresolved": []
-    },
-    "stored_vs_chart": {
-     "status": "amber",
-     "summary": "1170/1170 chart values equal stored bake fcwk11_2026-11-18t0405_v1; newer stored bake fcwk11_2026-11-18t1105_v1 (week 11, saved 2026-11-18T11:05:45.955623Z) is not on the chart yet: 1122 values changed, 20 added, 30 dropped",
-     "counts": {
-      "chart_players": 195,
-      "stored_players": 195,
-      "compared": 1170,
-      "matched": 1170,
-      "mismatched": 0,
-      "missing_on_chart": 0,
-      "extra_on_chart": 0,
-      "outside_universe": 0,
-      "unresolved_names": 0
-     },
-     "chart_week": 11,
-     "chart_imported_at": "2026-11-18T07:26:25Z",
-     "bake_id": "fcwk11_2026-11-18t0405_v1",
-     "bake_saved_at": "2026-11-18T04:05:33.392890Z",
-     "behind": {
-      "bake_id": "fcwk11_2026-11-18t1105_v1",
-      "saved_at": "2026-11-18T11:05:45.955623Z",
-      "pulled_at": "2026-11-18T11:05:37Z",
-      "week": 11,
-      "changed_values": 1122,
-      "added": 20,
-      "dropped": 30
-     },
-     "grains": {
-      "full|1": {
-       "left": 195,
-       "right": 195,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      },
-      "full|2": {
-       "left": 195,
-       "right": 195,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      },
-      "half|1": {
-       "left": 195,
-       "right": 195,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      },
-      "half|2": {
-       "left": 195,
-       "right": 195,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      },
-      "std|1": {
-       "left": 195,
-       "right": 195,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
-      },
-      "std|2": {
-       "left": 195,
-       "right": 195,
        "mismatched": 0,
        "missing": 0,
        "extra": 0
@@ -448,8 +509,8 @@
        },
        "chart": {
         "QB": 32,
-        "RB": 60,
-        "WR": 77,
+        "RB": 61,
+        "WR": 74,
         "TE": 26
        },
        "prior_week": {
@@ -502,20 +563,98 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 1743,
+     "name": "J.J. McCarthy",
+     "pos": "QB",
+     "left": "1084",
+     "right": 1319.0,
+     "delta": 235.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 697,
+     "name": "Cam Ward",
+     "pos": "QB",
+     "left": "1280",
+     "right": 1095.0,
+     "delta": -185.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 3803,
+     "name": "Tyler Shough",
+     "pos": "QB",
+     "left": "470",
+     "right": 627.0,
+     "delta": 157.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 337,
+     "name": "Bucky Irving",
+     "pos": "RB",
+     "left": "5880",
+     "right": 6012.0,
+     "delta": 132.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 3803,
+     "name": "Tyler Shough",
+     "pos": "QB",
+     "left": "2532",
+     "right": 2663.0,
+     "delta": 131.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 4048,
+     "name": "Chuba Hubbard",
+     "pos": "RB",
+     "left": "4772",
+     "right": 4898.0,
+     "delta": 126.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 4589,
+     "name": "Jaylen Warren",
+     "pos": "RB",
+     "left": "4526",
+     "right": 4649.0,
+     "delta": 123.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 4048,
+     "name": "Chuba Hubbard",
+     "pos": "RB",
+     "left": "5917",
+     "right": 6037.0,
+     "delta": 120.0
+    }
+   ],
    "held": null,
-   "hold": {
-    "stage": "stored_vs_chart",
-    "stages": [
-     "stored_vs_chart"
-    ],
-    "hold_level": "amber",
-    "reason": "fidelity: stored_vs_chart",
-    "identity": "fcwk11_2026-11-18t1105_v1",
-    "measured_site": "2026-11-18T04:05:26+00:00",
-    "since": "2026-11-18T12:28:24.925246Z",
-    "summary": "1170/1170 chart values equal stored bake fcwk11_2026-11-18t0405_v1; newer stored bake fcwk11_2026-11-18t1105_v1 (week 11, saved 2026-11-18T11:05:45.955623Z) is not on the chart yet: 1122 values changed, 20 added, 30 dropped"
-   }
+   "hold": null
   },
   {
    "source": "fantasypros",
@@ -523,7 +662,7 @@
    "status": "green",
    "stored_week": 11,
    "chart_week": 11,
-   "stored_bake": "fpwk11_2026-11-17t1535_v1",
+   "stored_bake": "fpwk11_2026-11-18t1235_v1",
    "stages": {
     "publisher_vs_stored": {
      "status": "green",
@@ -543,8 +682,8 @@
      "url": "https://www.fantasypros.com/2026/11/fantasy-football-trade-value-chart-week-11-2026/",
      "page_week": 11,
      "page_modified": "2026-11-17T14:07:42+00:00",
-     "bake_id": "fpwk11_2026-11-17t1535_v1",
-     "bake_saved_at": "2026-11-17T15:35:43.006708Z",
+     "bake_id": "fpwk11_2026-11-18t1235_v1",
+     "bake_saved_at": "2026-11-18T12:35:42.368836Z",
      "grains": {
       "full|1": {
        "left": 178,
@@ -608,7 +747,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-18T07:26:28Z",
+     "chart_imported_at": "2026-11-18T11:06:38Z",
      "bake_id": "fpwk11_2026-11-17t1535_v1",
      "bake_saved_at": "2026-11-17T15:35:43.006708Z",
      "behind": null,
@@ -812,7 +951,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-18T07:26:31Z",
+     "chart_imported_at": "2026-11-18T11:06:41Z",
      "bake_id": "cbswk11_2026-11-17t2250_v1",
      "bake_saved_at": "2026-11-17T22:50:38.967236Z",
      "behind": null,
@@ -1124,7 +1263,7 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "amber",
-     "summary": "1053/1098 values match exactly across 3 columns; 45 value mismatches, 0 publisher players not stored, 1 stored players not on the page; daily update, ingest pending: the publisher changed since the save (fingerprint 6bdfcccacc7c007d4deb254c at the save, 6299905ef1ac63dc8667cc6e now); 3 players at the page's last listed value swapped in or out (ties at the row cap: Ashton Dulin, Grant Calcaterra, John Bates); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
+     "summary": "1053/1098 values match exactly across 3 columns; 45 value mismatches, 0 publisher players not stored, 1 stored players not on the page; daily update, ingest pending: the publisher changed since the save (fingerprint 6bdfcccacc7c007d4deb254c at the save, 6299905ef1ac63dc8667cc6e now); 3 players at the page's last listed value swapped in or out (ties at the row cap: Ashton Dulin, Bauer Sharp, John Bates); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
      "counts": {
       "publisher_players": 368,
       "stored_players": 368,
@@ -1626,13 +1765,13 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "amber",
-     "summary": "2740/2740 values match exactly across 3 columns; 26 publisher names do not resolve to a canonical player",
+     "summary": "2737/2740 values match exactly across 3 columns; 3 value mismatches, 0 publisher players not stored, 0 stored players not on the page; daily update, ingest pending: the publisher changed since the save (fingerprint 9cbacc0cdf9efb18 at the save, 17c702319fe6423a now); 26 publisher names do not resolve to a canonical player",
      "counts": {
       "publisher_players": 915,
       "stored_players": 915,
       "compared": 2740,
-      "matched": 2740,
-      "mismatched": 0,
+      "matched": 2737,
+      "mismatched": 3,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
@@ -1647,28 +1786,59 @@
       "full|1": {
        "left": 913,
        "right": 913,
-       "mismatched": 0,
+       "mismatched": 1,
        "missing": 0,
        "extra": 0
       },
       "half|1": {
        "left": 913,
        "right": 913,
-       "mismatched": 0,
+       "mismatched": 1,
        "missing": 0,
        "extra": 0
       },
       "std|1": {
        "left": 914,
        "right": 914,
-       "mismatched": 0,
+       "mismatched": 1,
        "missing": 0,
        "extra": 0
       }
      },
-     "publisher_version": null,
+     "publisher_version": "changed",
      "resync": null,
-     "examples": [],
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "full|1",
+       "player_key": 3541,
+       "name": "Kirk Cousins",
+       "pos": "QB",
+       "left": "7.7",
+       "right": 7.5,
+       "delta": -0.2
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|1",
+       "player_key": 3541,
+       "name": "Kirk Cousins",
+       "pos": "QB",
+       "left": "5.6",
+       "right": 5.4,
+       "delta": -0.2
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|1",
+       "player_key": 3541,
+       "name": "Kirk Cousins",
+       "pos": "QB",
+       "left": "1.6",
+       "right": 1.4,
+       "delta": -0.2
+      }
+     ],
      "outside_universe": [],
      "unresolved": [
       {
@@ -1804,7 +1974,41 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|1",
+     "player_key": 3541,
+     "name": "Kirk Cousins",
+     "pos": "QB",
+     "left": "7.7",
+     "right": 7.5,
+     "delta": -0.2
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|1",
+     "player_key": 3541,
+     "name": "Kirk Cousins",
+     "pos": "QB",
+     "left": "5.6",
+     "right": 5.4,
+     "delta": -0.2
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|1",
+     "player_key": 3541,
+     "name": "Kirk Cousins",
+     "pos": "QB",
+     "left": "1.6",
+     "right": 1.4,
+     "delta": -0.2
+    }
+   ],
    "held": null,
    "hold": {
     "stage": "stored_vs_chart",
@@ -1815,7 +2019,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-18@2026-11-18T04:45:35.527495Z",
     "measured_site": null,
-    "since": "2026-11-18T12:28:24.925246Z",
+    "since": "2026-11-18T12:52:54.636595Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -1884,7 +2088,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-18@2026-11-18T12:18:34.516832Z",
     "measured_site": null,
-    "since": "2026-11-18T12:28:24.925246Z",
+    "since": "2026-11-18T12:52:54.636595Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -1911,13 +2115,13 @@
   "summary": "1163 players searchable; 965 active NFL players (502 active roster, 178 practice squad, 95 injured reserve, 0 pup, 2 reserve, 188 free agent)"
  },
  "last_good": {
-  "usatoday": "2026-11-18T07:29:07.511265+00:00",
-  "fantasycalc": "2026-11-18T07:29:07.511265+00:00",
-  "fantasypros": "2026-11-18T07:29:07.511265+00:00",
-  "cbs": "2026-11-18T07:29:07.511265+00:00",
-  "espn": "2026-11-18T07:29:07.511265+00:00",
-  "cbsros": "2026-11-18T07:29:07.511265+00:00",
-  "razzball": "2026-11-18T07:29:07.511265+00:00",
+  "usatoday": "2026-11-18T11:09:18.539523+00:00",
+  "fantasycalc": "2026-11-18T11:09:18.539523+00:00",
+  "fantasypros": "2026-11-18T11:09:18.539523+00:00",
+  "cbs": "2026-11-18T11:09:18.539523+00:00",
+  "espn": "2026-11-18T11:09:18.539523+00:00",
+  "cbsros": "2026-11-18T11:09:18.539523+00:00",
+  "razzball": "2026-11-18T11:09:18.539523+00:00",
   "draftsharks": "2026-10-16T07:19:25.781124+00:00",
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
