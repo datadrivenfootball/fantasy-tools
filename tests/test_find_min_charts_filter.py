@@ -45,7 +45,9 @@ UNIT = r"""() => { const f = DDF.find, t = (ok, n) => ({rivalOkCount: ok, chartC
 
 # Synthetic groups on the page's own state (the seeded league has 3 charts, so no real offer reaches 4 of 4).
 INJECT = r"""() => {
-  const S = DDF.findPage.state, g0 = S.groups.find(g => g.cls === 'natural') || S.groups.find(g => g.cls === 'neutral');
+  // Any listed (non-force) group is a template. 'unjudged' counts: with an analyst chart left out of the week (2026-11-17:
+  // USA Today still on Week 10) every offer's fit is unjudged and there is no natural or neutral group.
+  const S = DDF.findPage.state, g0 = ['natural', 'neutral', 'unjudged'].map(c => S.groups.find(g => g.cls === c)).find(Boolean);
   const mk = (id, oks) => Object.assign({}, g0, {id, partner: 'SynTeam', trades: oks.map(ok => Object.assign({}, g0.trades[0], {rivalOkCount: ok, chartCount: 4})),
     best: Object.assign({}, g0.trades[0], {rivalOkCount: oks[0], chartCount: 4})});
   S.groups = S.groups.concat([mk('syn|variants', [1, 3]), mk('syn|four', [4]), mk('syn|three', [3])]);

@@ -5,10 +5,11 @@ the default is the newer week once MORE than half of the league's sources serve 
 a missing source is named and left out (no carry-forward), the reader's pick is kept for the session and
 rides in share links as `wk=`, and the selector goes away once every source has the newer week.
 
-The committed data has every source on its newest week (derived below). Each scenario serves a history index that puts the lagging
-sources back on week 6 (the engine drops a source whose served week is before the view's week; the BE sentinel,
-tests/test_week_history.py WeekTransitionSentinelTest, pins the value math of a real transition). Coverage is
-sources on week 7 of the 7 that feed DDF Value at Full PPR / 12: 0, 3 (43%), 4 (57%) and 7 (100%).
+NEWER is the newest week any source serves in the committed data (derived below). Each scenario serves a history index that puts
+every source on NEWER and the lagging sources back on the week before (transition_index sets both, so a source that
+is really still a week behind after a rollover does not change the scenario). The engine drops a source whose served
+week is before the view's week; the BE sentinel, tests/test_week_history.py WeekTransitionSentinelTest, pins the value
+math of a real transition. Coverage is sources on NEWER (week 7 in the original wording) of the 7 that feed DDF Value at Full PPR / 12: 0, 3 (43%), 4 (57%) and 7 (100%).
 The page is served with every source's validation and promotion hold taken off (hold_free_sources), so a
 fidelity hold in the day's committed data cannot shrink the 7 and turn this week-selector test red: holds have
 their own tests. On 2026-10-30 a red Razzball hold did exactly that (6 of 6 sources, JEG-1178).
@@ -144,9 +145,14 @@ def served_dist(overrides: dict):
 
 
 def transition_index(lagging) -> str:
+    """The served-week index for a scenario: `lagging` on OLDER, every other source on NEWER.
+
+    Both sides are set, never left to the day's data: after a rollover a real source can still be on the older week
+    (2026-11-17: USA Today on Week 10, the rest on Week 11), and it would silently count as lagging in every scenario."""
     index = json.loads((DIST / "assets" / "history" / "index.json").read_text(encoding="utf-8"))
-    for source in lagging:
-        index["served"][source] = {**index["served"][source], "week": OLDER, "label_week": OLDER}
+    for source in SOURCES:
+        week = OLDER if source in lagging else NEWER
+        index["served"][source] = {**index["served"][source], "week": week, "label_week": week}
     return json.dumps(index)
 
 
@@ -266,6 +272,15 @@ def check_scenario(browser, base, label, spec, width, height, errors, now=None, 
             errors.append(f"{tag}: Week {NEWER} note: {newer['note']!r}")
         if newer["priced"] < 50:
             errors.append(f"{tag}: Week {NEWER} view priced only {newer['priced']} players (blank values)")
+        # A source left out of the newer view is never "Current" in the freshness dialog, even with a green pipeline.
+        if width >= 768:
+            rows = page.evaluate(FRESHNESS_ROWS)
+            for source in lagging:
+                status = rows.get(source)
+                if status is None:
+                    errors.append(f"{tag}: freshness dialog has no row for {source}: {rows}")
+                elif status == "current":
+                    errors.append(f"{tag}: freshness dialog calls {source} Current while it is left out of Week {NEWER}")
         # The older week has every source and shows no missing-source note.
         pick_week(page, OLDER)
         page.wait_for_timeout(300)
@@ -285,6 +300,14 @@ def check_scenario(browser, base, label, spec, width, height, errors, now=None, 
     page.close()
 
 
+FRESHNESS_ROWS = """async () => {
+  document.getElementById('v2Freshness').click();
+  await new Promise(resolve => setTimeout(resolve, 200));
+  const rows = Object.fromEntries([...document.querySelectorAll('#v2Popover tbody tr')].map(tr => [tr.dataset.source, tr.dataset.status]));
+  document.querySelector('#v2Popover .v2-panel-close')?.click();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return rows;
+}"""
 CONTRIBUTED = """() => {
   const info = window.TradeValueV2.view().infoByKey;
   const out = {};

@@ -23,6 +23,7 @@ import unittest
 
 from tests import _render_env
 from tests._dist_server import DIST, serve
+from tests._served_weeks import route_pinned_weeks
 from tests.test_team_engine_parity import APPLY, READY, seed_script, seeded_league
 
 SETTINGS = [("half_ppr", 12, False), ("ppr", 10, True), ("standard", 12, False)]
@@ -156,6 +157,7 @@ def run(overrides=None, settings=None, widths=(1440,), me=0, exclude=False, obse
                 page_errors: list[str] = []
                 page.on("pageerror", lambda e: page_errors.append(str(e)))
                 page.route(lambda u: not u.startswith(base), lambda route: route.abort())
+                route_pinned_weeks(page, DIST)   # a source on last week leaves the fit unjudged (tests/_served_weeks.py)
                 page.add_init_script(seed_script(league))
                 page.goto(f"{base}/team.html", wait_until="networkidle", timeout=60000)
                 page.wait_for_function(READY, timeout=30000)

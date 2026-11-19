@@ -16,6 +16,7 @@ import unittest
 
 from tests import _render_env
 from tests._dist_server import DIST, serve
+from tests._served_weeks import route_pinned_weeks
 from tests.test_team_engine_parity import SETTINGS, seed_script, seeded_league
 
 READY = "() => window.DDF && DDF.findPage && /^Searched|^$/.test(document.getElementById('search-status').textContent) && DDF.findPage.state.sig !== '' && !DDF.findPage.state.running"
@@ -164,6 +165,7 @@ def _run(overrides=None, settings=None, extra=True):
                 label = f"scoring={scoring} teams={teams} sf={sf}"
                 ctx = browser.new_context(viewport={"width": 1440, "height": 900})
                 ctx.route(lambda u: not u.startswith("http://127.0.0.1"), lambda r: r.abort())
+                route_pinned_weeks(ctx, DIST)   # a source on last week leaves every offer unjudged (tests/_served_weeks.py)
                 ctx.add_init_script(seed_script(league))
                 page = ctx.new_page()
                 page_errors = []
