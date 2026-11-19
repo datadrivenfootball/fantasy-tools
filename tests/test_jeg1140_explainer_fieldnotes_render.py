@@ -161,7 +161,7 @@ class ExplainerGuardTest(unittest.TestCase):
         stripped = re.sub(r'html\[data-design="fieldnotes"\][^{]*\{[^}]*\}\n?', "", text)
         self.assertNotIn('html[data-design="fieldnotes"]:root {', stripped)
         # every Fieldnotes rule is scoped to the flag
-        for sel in re.findall(r'^([^\n{@/*][^{]*)\{', text[text.index("/* Fieldnotes (JEG-1140)"):text.index("</style>")], re.M):
+        for sel in re.findall(r'^([^\n{@/*][^{]*)\{', text[text.index("/* Fieldnotes:"):text.index("</style>")], re.M):
             self.assertIn('[data-design="fieldnotes"]', sel, sel)
 
 
