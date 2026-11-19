@@ -12,6 +12,8 @@ the page sees a hold (TradeValueCurveControls.getSourceInfo reports them unavail
 - USA Today and FantasyPros on hold (1 of 3): fails closed: no Natural fits, every listed offer is "Fit not judged", and
   the Natural fit empty text says fit can't be judged and names both charts instead of "No offers clear the bar";
 - on 375 the page does not scroll sideways and the empty text is on screen.
+The charts held are picked from the served week (plan()): in a week that already has one on hold, the 2-of-3 case is the
+week as served and the expected copy names whichever charts are held.
 Discrimination: with the old all-three rule served (MIN_ANALYST = 3) the 2-of-3 case has no Natural fits (the test fails).
 """
 from __future__ import annotations
@@ -65,9 +67,27 @@ RECOMPUTE = r"""(keys) => {
   return out;
 }"""
 
-NOTE = "USA Today is on hold this week, so fit on the analyst charts uses CBS Sports and FantasyPros."
-EMPTY = ("Fit can’t be judged this week: USA Today and FantasyPros are on hold. "
-         "Offers are listed under Partner neutral as “Fit not judged”.")
+ANALYST = ["cbs", "usatoday", "fantasypros"]
+NAMES = {"cbs": "CBS Sports", "usatoday": "USA Today", "fantasypros": "FantasyPros"}
+
+
+def names(keys):
+    n = [NAMES[k] for k in keys]
+    return "".join(n) if len(n) < 2 else ", ".join(n[:-1]) + " and " + n[-1]
+
+
+def held_text(keys):
+    return names(keys) + (" is" if len(keys) == 1 else " are") + " on hold"
+
+
+def plan(available):
+    """Which charts to hold for the 2-of-3 and 1-of-3 cases, from what the served week already has: with all three,
+    USA Today is held (then FantasyPros too); in a week with one already on hold, the 2-of-3 case is the week as served."""
+    missing = [k for k in ANALYST if k not in available]
+    two = missing if missing else ["usatoday"]
+    left = [k for k in ANALYST if k not in two]
+    one = [k for k in ANALYST if k in two or k == left[-1]]
+    return two, one
 
 
 def _league():
@@ -100,11 +120,15 @@ def _run(viewport, overrides=None, full=True):
             page.wait_for_timeout(300)
             page.wait_for_function(READY, timeout=120000)
             out["all"] = page.evaluate(READ)
-            page.evaluate(HOLD, ["usatoday"])
+            if len(out["all"]["analyst"] or []) < 2:
+                raise unittest.SkipTest(f"the served week has fewer than two analyst charts: {out['all']['missing']}")
+            two_hold, one_hold = plan(out["all"]["analyst"])
+            out["plan"] = (two_hold, one_hold)
+            page.evaluate(HOLD, two_hold)
             page.wait_for_function(READY, timeout=120000)
             out["two"] = page.evaluate(READ)
             if full:
-                out["two_fit"] = page.evaluate(RECOMPUTE, ["cbs", "fantasypros"])
+                out["two_fit"] = page.evaluate(RECOMPUTE, [k for k in ANALYST if k not in two_hold])
                 page.evaluate(SET, ["their-valuation", "DDF"])
                 page.wait_for_timeout(300)
                 page.wait_for_function(READY, timeout=120000)
@@ -112,7 +136,7 @@ def _run(viewport, overrides=None, full=True):
                 page.evaluate(SET, ["their-valuation", "Market"])
                 page.wait_for_timeout(300)
                 page.wait_for_function(READY, timeout=120000)
-                page.evaluate(HOLD, ["usatoday", "fantasypros"])
+                page.evaluate(HOLD, one_hold)
                 page.wait_for_function(READY, timeout=120000)
                 out["one"] = page.evaluate(READ)
             ctx.close()
@@ -132,15 +156,17 @@ class FindHeldChartTest(unittest.TestCase):
         r = _run(viewport)
         self.assertEqual(r["errors"], [])
         a, two, ddf, one = r["all"], r["two"], r["two_ddf"], r["one"]
-        self.assertEqual(a["analyst"], ["cbs", "usatoday", "fantasypros"], f"the served week must have all three analyst charts: {a}")
-        self.assertEqual(a["note"], "")
-        self.assertGreater(a["natural"], 0, a)
+        two_hold, one_hold = r["plan"]
+        if a["analyst"] == ANALYST:
+            self.assertEqual(a["note"], "")
+            self.assertGreater(a["natural"], 0, a)
         # 2 of 3: fit is judged on the other two and said so.
-        self.assertEqual(two["analyst"], ["cbs", "fantasypros"])
-        self.assertEqual(two["missing"], ["usatoday"])
+        kept = [k for k in ANALYST if k not in two_hold]
+        self.assertEqual(two["analyst"], kept)
+        self.assertEqual(two["missing"], two_hold)
         self.assertGreater(two["natural"], 0, two)
         self.assertEqual(two["unjudged"], 0, two)
-        self.assertEqual(two["note"], NOTE)
+        self.assertEqual(two["note"], held_text(two_hold) + " this week, so fit on the analyst charts uses " + names(kept) + ".")
         self.assertTrue(r["two_fit"])
         self.assertEqual([x for x in r["two_fit"] if not (x["page"] or "").startswith("Them " + x["want"] + " ")], [], r["two_fit"][:3])
         self.assertEqual(ddf["note"], "", "no note when neither side reads the analyst charts")
@@ -150,7 +176,8 @@ class FindHeldChartTest(unittest.TestCase):
         self.assertGreater(one["neutral"], 0, one)
         self.assertEqual(one["unjudged"], one["groups"], one)
         self.assertEqual(one["note"], "")
-        self.assertEqual(one["empty"], EMPTY)
+        self.assertEqual(one["empty"], "Fit can’t be judged this week: " + held_text(one_hold)
+                         + ". Offers are listed under Partner neutral as “Fit not judged”.")
         self.assertNotIn("clear the bar", one["empty"])
         return one
 

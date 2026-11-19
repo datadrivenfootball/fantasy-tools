@@ -31,7 +31,16 @@ Seen in a USO league report (Team 3, snapshot `tests/fixtures/league_levels/raw/
 - USO, Team 3, half PPR, 3 WR + flex, 5 bench, dist build: all charts 13 Natural fit groups; USA Today held 14 (was 0);
   USA Today and FantasyPros held 0, with the new empty text.
 
+### Review (round 1, APPROVE with follow-ups)
+- Fixed here: the test picks the charts to hold from the served week (`plan()`), so a real hold week still tests 2-of-3
+  and 1-of-3 instead of failing; the unjudged status / empty text names the cause when it is missing lineup settings, not
+  charts ("Fit can't be judged: this league's lineup settings are not available").
+- Open: the Team page opportunity line, the Why panel, pickups' market view and Build a Trade also run on two charts in a
+  hold week but do not say so.
+
 ### Local test note
 Homebrew python3.12 has Playwright 1.63, whose headless shell (1243) is not downloaded here; the cached 1208 shell works:
 `CHROMIUM_PATH=~/Library/Caches/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-mac-arm64/chrome-headless-shell`.
 `tests.test_waiver_gain_basis` (bench basis: no cards) fails on main too at this data; not from this change.
+Under heavy machine load `ensure_built()`'s sync can time out in `pipelines/answer_tables.cjs` (900s); when dist/ already
+matches app/next, run the modules with `tests._render_env._built = True` set first.
