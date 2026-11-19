@@ -120,9 +120,11 @@ def _run(viewport, overrides=None, full=True):
             page.wait_for_timeout(300)
             page.wait_for_function(READY, timeout=120000)
             out["all"] = page.evaluate(READ)
-            if len(out["all"]["analyst"] or []) < 2:
+            # From the charts the week is missing, not context().analyst (null under the old rule in a hold week).
+            available = [k for k in ANALYST if k not in out["all"]["missing"]]
+            if len(available) < 2:
                 raise unittest.SkipTest(f"the served week has fewer than two analyst charts: {out['all']['missing']}")
-            two_hold, one_hold = plan(out["all"]["analyst"])
+            two_hold, one_hold = plan(available)
             out["plan"] = (two_hold, one_hold)
             page.evaluate(HOLD, two_hold)
             page.wait_for_function(READY, timeout=120000)
