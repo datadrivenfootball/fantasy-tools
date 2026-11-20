@@ -6,7 +6,7 @@
 
 import { type Deps, finish, prepare } from "./state.ts";
 import { type Finder, type FinderRow, findTradesForPair } from "./find-trades.ts";
-import { closestNames, type NameMatch, matchName, splitNames } from "./names.ts";
+import { closestNames, type NameMatch, matchName, notEvaluated, splitNames } from "./names.ts";
 import { type BenchShareReadout, type FitContext, type FitFinder, type FitRow, type FitSides, benchWeightsFromReadout, buildFitContext, fitForTrade } from "./fit.ts";
 import {
   type RosterShape,
@@ -629,6 +629,12 @@ function resolveNames<T extends PlayerValue>(players: T[], names: string[]): Res
   const ambiguous: Array<{ input: string; suggestions: string[] }> = [];
   const notes: string[] = [];
   for (const input of names) {
+    // A kicker or defense is not valued: left out with a note, never matched to another player and never a stop.
+    const kd = notEvaluated(input);
+    if (kd) {
+      notes.push(`${input}: ${kd.pos === "K" ? "kicker" : "defense"}, not valued; left out.`);
+      continue;
+    }
     const hit: NameMatch<T> = matchName(players, input);
     if (hit.match === "ambiguous") {
       ambiguous.push({ input, suggestions: hit.suggestions.map((p) => p.name) });
