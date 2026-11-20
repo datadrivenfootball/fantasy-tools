@@ -1,12 +1,12 @@
 {
  "meta": {
-  "as_of": "2026-11-19",
+  "as_of": "2026-11-20",
   "prior_blend_snapshot": "2026-09-23",
   "espn_snapshot": "2026-11-19",
   "rz_snapshot": "2026-11-19",
-  "cbsros_snapshot": "2026-11-19",
+  "cbsros_snapshot": "2026-11-20",
   "espn_snapshot_id": "sha256:2722c390764e4306991a409cb6d054df8bfcb557c2a6e068f92bf37055c9c0ca",
-  "cbsros_snapshot_id": "sha256:08b3c9d0abe7f74dee2d39cc66da63807e803563d140239cc49928f31627bb79",
+  "cbsros_snapshot_id": "sha256:74e4992426c6fa7c93966ba6211f5ec98539702f86907aaf87b81d2ef5663c44",
   "rz_snapshot_id": "sha256:e903bd81f8cd549ec66ee8283e3fb9735d445ca813db3aaf9db4131e70d2b1ae",
   "n_players": 1163,
   "n_espn_complete": 347,
@@ -168,8 +168,8 @@
   "pricing_note": "pricing labels are uniform 'espn_only' across all positions (JEG-ECR-EXIT 2026-10-05): the primary value IS ESPN, with ESPN-purity (every ESPN-labeled field sourced ONLY from ESPN projections) for every charted position. The source-accounting audit rejects any other label.",
   "content_observation_scopes": {},
   "dataset_status": {
-   "built_at": "2026-11-19T23:27:12Z",
-   "as_of": "2026-11-19",
+   "built_at": "2026-11-20T03:50:26Z",
+   "as_of": "2026-11-20",
    "summary": {
     "live": 0,
     "stale": 4,
@@ -213,7 +213,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671033Z"
+        "evaluated_at": "2026-11-20T03:50:26.868506Z"
        }
       ]
      },
@@ -260,7 +260,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671033Z"
+        "evaluated_at": "2026-11-20T03:50:26.868506Z"
        }
       ]
      },
@@ -306,7 +306,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671223Z"
+        "evaluated_at": "2026-11-20T03:50:26.868681Z"
        }
       ]
      },
@@ -352,7 +352,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671368Z"
+        "evaluated_at": "2026-11-20T03:50:26.868824Z"
        }
       ]
      },
@@ -398,7 +398,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671506Z"
+        "evaluated_at": "2026-11-20T03:50:26.868961Z"
        }
       ]
      },
@@ -444,7 +444,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671645Z"
+        "evaluated_at": "2026-11-20T03:50:26.869123Z"
        }
       ]
      },
@@ -473,7 +473,7 @@
       "note": "CBS native ROS stat coverage from the bake."
      },
      "freshness": {
-      "snapshot_date": "2026-11-19",
+      "snapshot_date": "2026-11-20",
       "content_date": null,
       "note": "Fetch and numeric-change clocks are independent; unknown vintage is non-green.",
       "observations": [
@@ -490,7 +490,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-19T23:27:12.671779Z"
+        "evaluated_at": "2026-11-20T03:50:26.869261Z"
        }
       ]
      },
@@ -2726,9 +2726,9 @@
    "delta_rz_espn": -17.2,
    "delta_rz_espn_ppg": -2.15,
    "cbsros_ppg": {
-    "standard": 12.575,
-    "half_ppr": 13.637,
-    "ppr": 14.7
+    "standard": 12.475,
+    "half_ppr": 13.475,
+    "ppr": 14.475
    },
    "prior_espn_ros": {
     "standard": 158.13,
@@ -27756,13 +27756,9 @@
     "ppr",
     "standard"
    ],
-   "cbsros_complete": true,
-   "cbsros_comp_count": 3,
-   "cbsros_covered": [
-    "half_ppr",
-    "ppr",
-    "standard"
-   ],
+   "cbsros_complete": false,
+   "cbsros_comp_count": 0,
+   "cbsros_covered": [],
    "blend_ros": {
     "standard": 5.87,
     "half_ppr": 8.42,
@@ -27808,11 +27804,6 @@
    },
    "delta_rz_espn": 13.03,
    "delta_rz_espn_ppg": 1.63,
-   "cbsros_ppg": {
-    "standard": 0.175,
-    "half_ppr": 0.362,
-    "ppr": 0.55
-   },
    "prior_espn_ros": null,
    "prior_blend_ros": {
     "standard": 29.89,
@@ -47850,9 +47841,13 @@
    "rz_complete": false,
    "rz_comp_count": 0,
    "rz_covered": [],
-   "cbsros_complete": false,
-   "cbsros_comp_count": 0,
-   "cbsros_covered": [],
+   "cbsros_complete": true,
+   "cbsros_comp_count": 3,
+   "cbsros_covered": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
    "blend_ros": {
     "standard": 0.0,
     "half_ppr": 0.0,
@@ -47861,12 +47856,20 @@
    "pricing": "espn_only",
    "espn_zeroed": true,
    "espn_status": "ineligible",
+   "universe_sources": [
+    "cbsros"
+   ],
    "roster_status": "practice_squad",
    "roster_status_label": "Practice squad",
    "sleeper_id": "11304",
    "roster_status_inferred": true,
    "games_remaining": 8,
    "espn_expected_games": null,
+   "cbsros_ppg": {
+    "standard": 0.175,
+    "half_ppr": 0.425,
+    "ppr": 0.675
+   },
    "prior_espn_ros": null,
    "prior_blend_ros": null,
    "preseason_ecr_rank": 158
