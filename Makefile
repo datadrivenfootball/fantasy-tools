@@ -867,6 +867,8 @@ test-core:
 	python3 -m unittest tests.test_bookmark_freshness
 	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
 	python3 -m unittest tests.test_edit_league
+	# JEG-1696: a kept league stays editable; Viewing as any team (league menu, step trail), banner back to yours, 375px.
+	python3 -m unittest tests.test_league_view_as_render
 	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
 	python3 -m unittest tests.test_entry_sticky_bar
 	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
@@ -1116,6 +1118,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_bookmark_freshness
 	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
 	python3 -m unittest tests.test_edit_league
+	# JEG-1696: a kept league stays editable; Viewing as any team (league menu, step trail), banner back to yours, 375px.
+	python3 -m unittest tests.test_league_view_as_render
 	# JEG-1568 follow-up: one sticky Back/Next bar on every entry page (connect, setup, settings).
 	python3 -m unittest tests.test_entry_sticky_bar
 	# JEG-1570: connect.html with Sleeper selected loads the league from its link or ID.
