@@ -18,6 +18,12 @@ const players = [
   { player_key: 14, name: "Jahmyr Gibbs", pos: "RB", value: 62.4, tier: "starter" },
   { player_key: 15, name: "Chuba Hubbard", pos: "RB", value: 27.0, tier: "starter" },
   { player_key: 16, name: "Taysom Hill", pos: "TE", value: 3.0, tier: "bench" },
+  { player_key: 17, name: "Kenneth Walker III", pos: "RB", value: 30.0, tier: "starter" },
+  { player_key: 18, name: "Khalil Shakir", pos: "WR", value: 12.0, tier: "starter" },
+  { player_key: 19, name: "J.K. Dobbins", pos: "RB", value: 10.0, tier: "bench" },
+  { player_key: 20, name: "Malik Washington", pos: "WR", value: 5.0, tier: "bench" },
+  { player_key: 21, name: "Darnell Washington", pos: "TE", value: 2.0, tier: "waiver" },
+  { player_key: 22, name: "Dameon Houston", pos: "RB", value: 1.0, tier: "waiver" },
 ];
 const pick = (q) => { const m = matchName(players, q); return [m.match, m.player?.player_key ?? null]; };
 
@@ -42,6 +48,22 @@ assert.deepEqual(pick("Sanders QB"), ["partial", 3602]);
 assert.equal(pick("Sanders")[0], "ambiguous");
 assert.deepEqual(pick("Taysom Hill QB"), ["exact", 16]);
 assert.match(matchName(players, "Sanders TE").note, /"Sanders TE"/, "the note quotes what was typed");
+// a K initial is a name, not a kicker tag
+assert.deepEqual(pick("K. Walker"), ["partial", 17]);
+assert.deepEqual(pick("K. Shakir"), ["partial", 18]);
+assert.deepEqual(pick("J. K. Dobbins"), ["partial", 19]);
+for (const q of ["K. Walker", "K. Shakir", "J. K. Dobbins", "K Allen"]) assert.equal(notEvaluated(q, players), null, q);
+// a city that is also a surname stays ambiguous (the defense is one of the options); a city no player holds is the defense
+for (const q of ["Washington", "Houston"]) {
+  const m = matchName(players, q);
+  assert.equal(m.match, "ambiguous", q);
+  assert.match(m.note, /defense \(not valued\)/, q);
+  assert.equal(notEvaluated(q, players), null, q);
+}
+assert.deepEqual(notEvaluated("Washington Commanders", players), { pos: "DEF", team: "WAS" });
+assert.deepEqual(notEvaluated("Washington D/ST", players), { pos: "DEF", team: "WAS" });
+assert.deepEqual(notEvaluated("Miami", players), { pos: "DEF", team: "MIA" });
+
 // typos still resolve
 assert.deepEqual(pick("Christian Mccafrey"), ["fuzzy", 13]);
 assert.deepEqual(positionTag("Kelce TE KC"), { name: "kelce", pos: "TE", team: null });
@@ -61,4 +83,13 @@ assert.notEqual(r.result.isError, true, text);
 assert.match(text, /Jason Sanders K: kicker, not valued; left out/, text);
 assert.match(text, /Dolphins D\/ST: defense, not valued; left out/, text);
 assert.doesNotMatch(text, /Ja'Tavion|Tyler Badie/, text);
+// a K initial in a trade is priced, never left out as a kicker; a bare "Washington" stops and asks
+const call = (a, b2) => handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "compare_trade",
+  arguments: { scoring: "ppr", side_a: a, side_b: b2 } } }, stub, { codec, siteOrigin: "https://site.test" });
+const walker = (await call("K. Walker, K. Shakir", "Jahmyr Gibbs")).result;
+assert.notEqual(walker.isError, true, walker.content[0].text);
+assert.doesNotMatch(walker.content[0].text, /kicker/, walker.content[0].text);
+const wash = (await call("Washington", "Jahmyr Gibbs")).result;
+assert.equal(wash.isError, true, wash.content[0].text);
+assert.match(wash.content[0].text, /Malik Washington/, wash.content[0].text);
 console.log("ok");

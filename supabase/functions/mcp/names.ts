@@ -64,10 +64,17 @@ const DEFENSES: ReadonlyArray<readonly [string, string, string]> = [
   ["seattle", "seahawks", "SEA"], ["tampa bay", "buccaneers", "TB"], ["tennessee", "titans", "TEN"], ["washington", "commanders", "WAS"],
 ];
 const DEFENSE_NAMES = new Map<string, string>();
+// A city alone ("Miami") names its defense only when no player's name carries that word ("Washington", "Houston").
+const DEFENSE_CITIES = new Map<string, string>();
 for (const [city, mascot, team] of DEFENSES) {
   DEFENSE_NAMES.set(mascot, team);
   DEFENSE_NAMES.set(`${city} ${mascot}`, team);
-  if (DEFENSES.filter(([c]) => c === city).length === 1) DEFENSE_NAMES.set(city, team);
+  if (DEFENSES.filter(([c]) => c === city).length === 1) DEFENSE_CITIES.set(city, team);
+}
+
+/** Some player's name holds these words as whole words ("washington" in Malik Washington). */
+function nameHolds<T extends Named>(players: readonly T[], words: string): boolean {
+  return players.some((p) => ` ${tokens(p.name).join(" ")} `.includes(` ${words} `));
 }
 
 export interface TaggedName {
@@ -77,6 +84,8 @@ export interface TaggedName {
   pos: string | null;
   /** The defense's team for a team-only defense name ("Miami", "49ers"), or null. */
   team: string | null;
+  /** The name is a city alone ("Miami", "Washington"): a defense only when no player's name holds it. */
+  cityOnly?: boolean;
 }
 
 /**
@@ -91,21 +100,32 @@ export function positionTag(text: string): TaggedName {
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
     if (w === "d" && words[i + 1] === "st") { pos = "DEF"; i++; continue; }
-    if (words.length > 1 && KICKER_TAGS.has(w)) { pos = pos ?? "K"; continue; }
+    // "k" is a tag only after the name and away from initials: "K. Walker", "J. K. Dobbins" and "K Allen" are names.
+    const initialNear = words[i - 1]?.length === 1 || words[i + 1]?.length === 1;
+    if (i > 0 && !initialNear && KICKER_TAGS.has(w)) { pos = pos ?? "K"; continue; }
     if (DEFENSE_TAGS.has(w)) { pos = "DEF"; continue; }
     if (words.length > 1 && SKILL_TAGS.has(w)) { pos = pos ?? w.toUpperCase(); continue; }
     kept.push(w);
   }
   const named = pos ? kept.filter((w) => !TEAM_CODES.has(w)) : kept;
   const rest = (named.length ? named : kept).join(" ");
-  const team = DEFENSE_NAMES.get(rest) ?? (pos === "DEF" && kept.length === 1 && TEAM_CODES.has(kept[0]) ? kept[0].toUpperCase() : null);
+  const city = DEFENSE_CITIES.get(rest) ?? null;
+  const team = DEFENSE_NAMES.get(rest) ?? city
+    ?? (pos === "DEF" && kept.length === 1 && TEAM_CODES.has(kept[0]) ? kept[0].toUpperCase() : null);
+  const cityOnly = !pos && !DEFENSE_NAMES.has(rest) && city !== null;
   if (!pos && team) pos = "DEF";
-  return { name: rest, pos, team: pos === "DEF" ? team : null };
+  return cityOnly ? { name: rest, pos, team, cityOnly } : { name: rest, pos, team: pos === "DEF" ? team : null };
+}
+
+/** positionTag, with a city alone left untagged when a player's name holds it (the line stays a name to match). */
+function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedName {
+  const tag = positionTag(text);
+  return tag.cityOnly && nameHolds(players, tag.name) ? { name: tag.name, pos: null, team: null, cityOnly: true } : tag;
 }
 
 /** A kicker or defense line: never priced (the values hold neither), so never matched to another player. */
-export function notEvaluated(text: string): { pos: "K" | "DEF"; team: string | null } | null {
-  const tag = positionTag(text);
+export function notEvaluated<T extends Named>(text: string, players: readonly T[] = []): { pos: "K" | "DEF"; team: string | null } | null {
+  const tag = tagFor(text, players);
   return tag.pos === "K" || tag.pos === "DEF" ? { pos: tag.pos, team: tag.team } : null;
 }
 const SUGGESTIONS = 5;
@@ -240,7 +260,13 @@ export function matchName<T extends Named>(players: T[], query: string): NameMat
   const raw = String(query ?? "").trim();
   if (!raw) return { player: null, match: "none", suggestions: [], note: "" };
   // A kicker or defense is never given to another player; a skill position tag limits the pool to that position.
-  const tag = positionTag(raw);
+  const tag = tagFor(raw, players);
+  if (tag.cityOnly && !tag.pos) {
+    // "Washington": Malik Washington, Darnell Washington or the Washington defense. Never guessed, so the model asks.
+    const hit = ambiguous(raw, players.filter((p) => nameHolds([p], tag.name)));
+    const team = DEFENSE_CITIES.get(tag.name);
+    return { ...hit, match: "ambiguous", note: `${raw}: AMBIGUOUS. Could be ${listNames(hit.suggestions)}, or the ${team} defense (not valued). Use a fuller name.` };
+  }
   if (tag.pos === "K" || tag.pos === "DEF") {
     return { player: null, match: "none", suggestions: [], note: `${raw}: ${tag.pos === "K" ? "kicker" : "defense"}, not valued` };
   }

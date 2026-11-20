@@ -177,3 +177,8 @@ seeded and two real league rosters (PR for JEG-1639).
   multi-word fuzzy match must keep its surname (`surnameFits`: "Tyler Bass" is not Tyler Badie). The connector has
   no kicker list, so an untagged kicker name is "matches no player" (the model asks), not a kicker.
 - Tests: `tests/test_kdef_paste_matching.js`, `tests/node/mcp_kdef_names_check.mjs` (run by `tests.test_mcp_remote`).
+- Review follow-up (2026-11-20): "k" is a kicker tag only when it is not an initial. In chat it must not be the first
+  word or next to a one-letter word ("K. Walker", "J. K. Dobbins", "K Allen" are names). In a paste it must have no dot
+  and not sit next to an initial, so the slot label "K Jason Sanders" stays a tag. A city alone ("Washington",
+  "Dallas") is a defense only when no player's name holds that word. Otherwise it is ambiguous, listing those players
+  and the defense as an option. A paste also reads spaced initials ("J. K. Dobbins" as J.K. Dobbins).

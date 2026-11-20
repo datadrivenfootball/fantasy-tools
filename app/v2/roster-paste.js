@@ -186,18 +186,34 @@
   // A whole line that is only a team ("Miami", "49ers", "Dolphins", "Miami Dolphins", "San Francisco 49ers") names
   // that team's defense. "New York" and "Los Angeles" alone fit two teams and name none.
   var DEFENSE_NAME_TEAM = {};
+  var DEFENSE_CITY = {};   // keys of DEFENSE_NAME_TEAM that are a city alone ("miami", "washington")
   (function () {
     for (var c in CITY_TO_MASCOT) {
       var m = CITY_TO_MASCOT[c].toLowerCase(), code = MASCOT_TEAM[m];
       DEFENSE_NAME_TEAM[m] = code;
       DEFENSE_NAME_TEAM[c] = code;   // "miami", or the whole name where the city key carries it ("new york jets")
-      if (c.slice(-m.length - 1) !== " " + m) DEFENSE_NAME_TEAM[c + " " + m] = code;
+      if (c.slice(-m.length - 1) !== " " + m) { DEFENSE_NAME_TEAM[c + " " + m] = code; DEFENSE_CITY[c] = true; }
     }
   })();
-  function defenseLineTeam(text) {
-    var k = String(text || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim()
-      .replace(/\s+(d st|dst|def|defense|defence)$/, "").trim();
+  // index (optional): a city alone is a defense only when no player's name holds that word ("Washington": Malik and
+  // Darnell Washington); then it is left to the caller as a name (cityHolders).
+  function defenseLineTeam(text, index) {
+    var k = defenseKey(text);
+    if (index && DEFENSE_CITY[k] && cityHolders(k, index).length) return null;
     return DEFENSE_NAME_TEAM[k] || null;
+  }
+  function defenseKey(text) {
+    return String(text || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim()
+      .replace(/\s+(d st|dst|def|defense|defence)$/, "").trim();
+  }
+  // The players whose names hold a city's words ("washington" -> Malik Washington, Darnell Washington).
+  function cityHolders(cityKey, index) {
+    var out = [], seenKey = {};
+    Object.keys(index.byName).forEach(function (n) {
+      if ((" " + n + " ").indexOf(" " + cityKey + " ") < 0) return;
+      index.byName[n].forEach(function (h) { var k = String(h.row.player_key); if (!seenKey[k]) { seenKey[k] = 1; out.push(h); } });
+    });
+    return out;
   }
   // Kickers on an NFL team now (window.TradeValueKDef, kdef-names.js), by normalised name. Absent: no kicker list.
   function kickerNames() {
@@ -1133,9 +1149,13 @@
     var posHint = null;
     var teamHint = null;
     var posSet = {};
+    // A one-letter word, with or without its dot ("K.", "J"), is an initial.
+    var initial = function (t) { return !!t && /^[A-Za-z]\.?,?$/.test(t); };
     for (var i = 0; i < tokens.length; i++) {
       var raw = tokens[i];
       var upper = raw.toUpperCase().replace(/[^A-Z/]/g, "");
+      // "K" is a kicker tag, never the initial of a name: "K. Walker", "J. K. Dobbins" (a slot label "K Jason Sanders" stays a tag)
+      if (upper === "K" && (/\./.test(raw) || initial(tokens[i - 1]) || initial(tokens[i + 1]))) continue;
       if (!posHint && POSITIONS[upper]) posHint = upper;
       if (upper === "D/ST" || upper === "DST") posHint = "DEF";
       if (POSITIONS[upper]) posSet[upper] = 1;
@@ -1162,6 +1182,10 @@
     // Direct lookup
     var hits = index.byName[normed];
     if (hits && hits.length > 0) return {hits: hits, normed: normed, form: "exact"};
+
+    // Spaced initials: "J. K. Dobbins" -> "jk dobbins"
+    var joined = normed.replace(/^((?:[a-z] )+)/, function (m) { return m.replace(/ /g, "") + " "; });
+    if (joined !== normed && index.byName[joined] && index.byName[joined].length) return {hits: index.byName[joined], normed: joined, form: "exact"};
 
     // Nickname variant
     var nick = nickVariant(normed);
@@ -1416,9 +1440,16 @@
             reported = true;
           }
         }
-        var defTeam = !reported && !foundOnLine.length ? defenseLineTeam(cleaned) : null;
+        var defTeam = !reported && !foundOnLine.length ? defenseLineTeam(cleaned, index) : null;
         if (defTeam) {
           addDefense({line: trimmed, reason: "defence not matched", pos: "DEF", team: defTeam});
+          reported = true;
+        }
+        // a city that is also a surname ("Washington"): the players it could be, and none chosen
+        var holders = !reported && !foundOnLine.length && DEFENSE_CITY[defenseKey(cleaned)] ? cityHolders(defenseKey(cleaned), index) : [];
+        if (holders.length) {
+          unmatched.push({line: trimmed, reason: ambiguousReason(holders) + " / " + DEFENSE_NAME_TEAM[defenseKey(cleaned)] + " defense",
+            pos: "", team: "", candidates: candidatesOf(holders)});
           reported = true;
         }
         if (!reported && !foundOnLine.length && offPosition) {

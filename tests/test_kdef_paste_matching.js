@@ -34,6 +34,10 @@ const ROWS = [
   {player_key: 17, name: "Josh Allen", pos: "QB", team: "BUF"},
   {player_key: 18, name: "Derrick Henry", pos: "RB", team: "BAL"},
   {player_key: 19, name: "Chigoziem Okonkwo", pos: "TE", team: "WAS"},
+  {player_key: 20, name: "Kenneth Walker III", pos: "RB", team: "KC"},
+  {player_key: 21, name: "J.K. Dobbins", pos: "RB", team: "DEN"},
+  {player_key: 22, name: "Malik Washington", pos: "WR", team: "MIA"},
+  {player_key: 23, name: "Darnell Washington", pos: "TE", team: "PIT"},
 ];
 const KICKERS = {defenses: [], kickers: [
   {name: "Jason Sanders", team: "MIA"}, {name: "Jake Bates", team: "DET"}, {name: "Tyler Bass", team: "BUF"},
@@ -102,6 +106,25 @@ test("an initial at another position is reported with that player's position, no
 });
 test("an exact full name is kept even under another slot label", () => {
   assert.deepStrictEqual(ids(read("RB  Josh Allen  BUF")), [17]);
+});
+
+test("a K initial is a name, not a kicker tag: K. Walker, J. K. Dobbins", () => {
+  assert.deepStrictEqual(ids(read("K. Walker")), [20]);
+  assert.deepStrictEqual(ids(read("K. Walker RB")), [20]);
+  assert.deepStrictEqual(ids(read("J. K. Dobbins")), [21]);
+  assert.deepStrictEqual(ids(read("J. K. Dobbins RB DEN")), [21]);
+  assert.ok(read("K Jason Sanders MIA").unmatched.some(u => u.pos === "K"), "a leading K slot label is still a tag");
+});
+test("a city that is also a surname is ambiguous, never a defense: Washington", () => {
+  const res = read("Washington");
+  assert.deepStrictEqual(ids(res), []);
+  assert.ok(!res.unmatched.some(u => u.pos === "DEF"), JSON.stringify(res.unmatched));
+  const u = res.unmatched.find(x => /^ambiguous/.test(x.reason));
+  assert.deepStrictEqual(u.candidates.map(c => `${c.name} ${c.pos}`).sort(), ["Darnell Washington TE", "Malik Washington WR"]);
+  assert.match(u.reason, /WAS defense/);
+  assert.deepStrictEqual(read("Washington D/ST").unmatched.map(x => [x.pos, x.team]), [["DEF", "WAS"]], "tagged: the defense");
+  assert.deepStrictEqual(read("Commanders").unmatched.map(x => [x.pos, x.team]), [["DEF", "WAS"]], "a mascot: the defense");
+  assert.deepStrictEqual(read("Houston").unmatched.map(x => [x.pos, x.team]), [["DEF", "HOU"]], "no Houston in these rows");
 });
 
 // --- 3. unmatched kickers and defenses are reported as such ---

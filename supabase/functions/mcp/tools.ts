@@ -630,7 +630,7 @@ function resolveNames<T extends PlayerValue>(players: T[], names: string[]): Res
   const notes: string[] = [];
   for (const input of names) {
     // A kicker or defense is not valued: left out with a note, never matched to another player and never a stop.
-    const kd = notEvaluated(input);
+    const kd = notEvaluated(input, players);
     if (kd) {
       notes.push(`${input}: ${kd.pos === "K" ? "kicker" : "defense"}, not valued; left out.`);
       continue;
