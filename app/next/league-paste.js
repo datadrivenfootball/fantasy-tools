@@ -14,7 +14,8 @@
  *       matched, look, missing, notEvaluated}
  *   reason (when !ok): 'empty' | 'one-team' | 'unreadable'
  *   unmatched reason: 'look' (more than one player fits) | 'missing' (no player found) | 'kdef' (kicker or defense, not evaluated;
- *   carries the live roster key "x:POS:..." and team)
+ *   carries the live roster key "x:POS:..." and team). 'look' (and 'missing' for a name only at another position) carries
+ *   options:[{name, pos, team}], the players the line could be, so the reader picks one; none is chosen for them.
  * DDF.leaguePaste.readWithNames(text, names, rows, opts)   same, with team names the reader typed (the edit-names box)
  *   (read / readWithNames add superflexSlots 1-2 when the paste prints QB-eligible flex slot labels, JEG-1571)
  * DDF.leaguePaste.qbFlexSlots(text, teamCount) -> 0-2 QB flex slots per team from the paste's slot labels, or null
@@ -63,6 +64,9 @@
         return !((u.pos === "K" || u.pos === "DEF") && (!/[a-z]/.test(line) || (lib && lib.isSlotLabel && lib.isSlotLabel(line))));
       }).map(function (u) {
         var out = {line: String(u.line || "").trim().slice(0, 80), reason: reasonOf(u), pos: u.pos || ""};
+        if (out.reason !== "kdef" && Array.isArray(u.candidates) && u.candidates.length) {
+          out.options = u.candidates.slice(0, 5).map(function (c) { return {name: String(c.name || ""), pos: String(c.pos || ""), team: String(c.team || "")}; });
+        }
         /* K and DEF keep the live roster key ("x:POS:TEAM" or "x:POS:<name>", league.js) so the live store lists them too */
         if (out.reason === "kdef") { var lib = P(); out.team = u.team || ""; out.key = "x:" + out.pos + ":" + (u.team || (lib && lib.normName ? lib.normName(out.line) : out.line.toLowerCase())); }
         return out;
