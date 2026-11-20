@@ -1,11 +1,11 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-20T06:40:21.536743Z",
- "run_id": "0b77680c-f478-428e-a68a-3f93ba3dab09",
+ "checked_at": "2026-11-20T09:40:22.482372Z",
+ "run_id": "998a41ce-0a26-4433-9d77-6269480841a4",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
-  "built_at": "2026-11-20T05:08:22.785715+00:00",
+  "built_at": "2026-11-20T06:44:15.792882+00:00",
   "error": null
  },
  "rules": {
@@ -33,7 +33,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-20@2026-11-20T04:45:36.783147Z",
    "measured_site": null,
-   "since": "2026-11-20T06:40:21.536743Z",
+   "since": "2026-11-20T09:40:22.482372Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -45,7 +45,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-19@2026-11-19T12:18:42.370648Z",
    "measured_site": null,
-   "since": "2026-11-20T06:40:21.536743Z",
+   "since": "2026-11-20T09:40:22.482372Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -141,7 +141,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-20T05:06:20Z",
+     "chart_imported_at": "2026-11-20T06:42:06Z",
      "bake_id": "usatwk11_2026-11-18t0330_v1",
      "bake_saved_at": "2026-11-18T03:30:40.607236Z",
      "behind": null,
@@ -203,7 +203,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -263,18 +263,18 @@
    "stored_bake": "fcwk11_2026-11-20t0505_v1",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1164/1164 values match exactly across 6 columns",
+     "status": "amber",
+     "summary": "24/1146 values match exactly across 6 columns; 1122 of 1146 values moved since the save at 2026-11-20T05:05:35.943996Z (largest 125%; 6 outside the max(25%, 50) band: J.K. Dobbins, Tyler Shough); 5 players entered or left the bottom of the list since the save (churn)",
      "counts": {
-      "publisher_players": 194,
+      "publisher_players": 193,
       "stored_players": 194,
-      "compared": 1164,
-      "matched": 1164,
-      "mismatched": 0,
+      "compared": 1146,
+      "matched": 24,
+      "mismatched": 1122,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 0,
+      "list_churn": 5,
       "unresolved_names": 0
      },
      "url": "https://api.fantasycalc.com/values/current (12 teams, 1 and 2 QB, 3 scorings)",
@@ -284,49 +284,130 @@
      "bake_saved_at": "2026-11-20T05:05:35.943996Z",
      "grains": {
       "full|1": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 189,
+       "missing": 2,
+       "extra": 3
       },
       "full|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 185,
+       "missing": 2,
+       "extra": 3
       },
       "half|1": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 189,
+       "missing": 2,
+       "extra": 3
       },
       "half|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 185,
+       "missing": 2,
+       "extra": 3
       },
       "std|1": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 189,
+       "missing": 2,
+       "extra": 3
       },
       "std|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 185,
+       "missing": 2,
+       "extra": 3
       }
      },
-     "examples": [],
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 3225,
+       "name": "Trevor Lawrence",
+       "pos": "QB",
+       "left": "6240",
+       "right": 6507.0,
+       "delta": 267.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 3225,
+       "name": "Trevor Lawrence",
+       "pos": "QB",
+       "left": "6245",
+       "right": 6512.0,
+       "delta": 267.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 3225,
+       "name": "Trevor Lawrence",
+       "pos": "QB",
+       "left": "6170",
+       "right": 6434.0,
+       "delta": 264.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 28,
+       "name": "Aaron Rodgers",
+       "pos": "QB",
+       "left": "1604",
+       "right": 1381.0,
+       "delta": -223.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 28,
+       "name": "Aaron Rodgers",
+       "pos": "QB",
+       "left": "1605",
+       "right": 1382.0,
+       "delta": -223.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 28,
+       "name": "Aaron Rodgers",
+       "pos": "QB",
+       "left": "1586",
+       "right": 1365.0,
+       "delta": -221.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 3843,
+       "name": "Christian Watson",
+       "pos": "WR",
+       "left": "4787",
+       "right": 4569.0,
+       "delta": -218.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 3843,
+       "name": "Christian Watson",
+       "pos": "WR",
+       "left": "4754",
+       "right": 4537.0,
+       "delta": -217.0
+      }
+     ],
      "outside_universe": [],
      "unresolved": []
     },
@@ -345,7 +426,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-20T05:06:19Z",
+     "chart_imported_at": "2026-11-20T06:42:05Z",
      "bake_id": "fcwk11_2026-11-20t0505_v1",
      "bake_saved_at": "2026-11-20T05:05:35.943996Z",
      "behind": null,
@@ -406,7 +487,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "amber",
@@ -416,8 +497,8 @@
        "week_compared": 10,
        "publisher": {
         "QB": 33,
-        "RB": 61,
-        "WR": 74,
+        "RB": 62,
+        "WR": 72,
         "TE": 26
        },
        "stored": {
@@ -482,7 +563,96 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 3225,
+     "name": "Trevor Lawrence",
+     "pos": "QB",
+     "left": "6240",
+     "right": 6507.0,
+     "delta": 267.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 3225,
+     "name": "Trevor Lawrence",
+     "pos": "QB",
+     "left": "6245",
+     "right": 6512.0,
+     "delta": 267.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 3225,
+     "name": "Trevor Lawrence",
+     "pos": "QB",
+     "left": "6170",
+     "right": 6434.0,
+     "delta": 264.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 28,
+     "name": "Aaron Rodgers",
+     "pos": "QB",
+     "left": "1604",
+     "right": 1381.0,
+     "delta": -223.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 28,
+     "name": "Aaron Rodgers",
+     "pos": "QB",
+     "left": "1605",
+     "right": 1382.0,
+     "delta": -223.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 28,
+     "name": "Aaron Rodgers",
+     "pos": "QB",
+     "left": "1586",
+     "right": 1365.0,
+     "delta": -221.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 3843,
+     "name": "Christian Watson",
+     "pos": "WR",
+     "left": "4787",
+     "right": 4569.0,
+     "delta": -218.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 3843,
+     "name": "Christian Watson",
+     "pos": "WR",
+     "left": "4754",
+     "right": 4537.0,
+     "delta": -217.0
+    }
+   ],
    "held": null,
    "hold": null
   },
@@ -577,7 +747,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-20T05:06:22Z",
+     "chart_imported_at": "2026-11-20T06:42:09Z",
      "bake_id": "fpwk11_2026-11-19t0935_v1",
      "bake_saved_at": "2026-11-19T09:35:41.880220Z",
      "behind": null,
@@ -639,7 +809,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -781,7 +951,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-20T05:06:25Z",
+     "chart_imported_at": "2026-11-20T06:42:11Z",
      "bake_id": "cbswk11_2026-11-17t2250_v1",
      "bake_saved_at": "2026-11-17T22:50:38.967236Z",
      "behind": null,
@@ -843,7 +1013,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1006,7 +1176,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1093,17 +1263,17 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "green",
-     "summary": "1101/1101 values match exactly across 3 columns; 2 players at the page's last listed value swapped in or out (ties at the row cap: Eli Stowers, Justin Joly); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
+     "summary": "1104/1104 values match exactly across 3 columns; parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
      "counts": {
       "publisher_players": 368,
       "stored_players": 368,
-      "compared": 1101,
-      "matched": 1101,
+      "compared": 1104,
+      "matched": 1104,
       "mismatched": 0,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 2,
+      "list_churn": 0,
       "unresolved_names": 0
      },
      "url": "https://www.cbssports.com/fantasy/football/stats/QB/2026/restofseason/projections/nonppr/",
@@ -1115,22 +1285,22 @@
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 1,
-       "extra": 1
+       "missing": 0,
+       "extra": 0
       },
       "half|1": {
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 1,
-       "extra": 1
+       "missing": 0,
+       "extra": 0
       },
       "std|1": {
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 1,
-       "extra": 1
+       "missing": 0,
+       "extra": 0
       }
      },
      "publisher_version": null,
@@ -1192,7 +1362,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1367,7 +1537,7 @@
     "reference_vs_engine": {
      "status": "green",
      "summary": "engine and Python reference agree (1123974 values compared in the whole report)",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1577,7 +1747,7 @@
     "reference_vs_engine": {
      "status": "n/a",
      "summary": "dist/modules/value-check.json: report does not cover draftsharks",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1620,7 +1790,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-20@2026-11-20T04:45:36.783147Z",
     "measured_site": null,
-    "since": "2026-11-20T06:40:21.536743Z",
+    "since": "2026-11-20T09:40:22.482372Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -1651,7 +1821,7 @@
     "reference_vs_engine": {
      "status": "n/a",
      "summary": "dist/modules/value-check.json: report does not cover fantasysharks",
-     "report_generated_at": "2026-11-20T05:20:19.404357+00:00"
+     "report_generated_at": "2026-11-20T07:00:56.723188+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1689,7 +1859,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-19@2026-11-19T12:18:42.370648Z",
     "measured_site": null,
-    "since": "2026-11-20T06:40:21.536743Z",
+    "since": "2026-11-20T09:40:22.482372Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -1716,16 +1886,16 @@
   "summary": "1163 players searchable; 961 active NFL players (503 active roster, 182 practice squad, 96 injured reserve, 0 pup, 1 reserve, 179 free agent)"
  },
  "last_good": {
-  "usatoday": "2026-11-20T05:08:22.785715+00:00",
-  "fantasycalc": "2026-11-20T05:08:22.785715+00:00",
-  "fantasypros": "2026-11-20T05:08:22.785715+00:00",
-  "cbs": "2026-11-20T05:08:22.785715+00:00",
-  "espn": "2026-11-20T05:08:22.785715+00:00",
-  "cbsros": "2026-11-20T05:08:22.785715+00:00",
-  "razzball": "2026-11-20T05:08:22.785715+00:00",
+  "usatoday": "2026-11-20T06:44:15.792882+00:00",
+  "fantasycalc": "2026-11-20T06:44:15.792882+00:00",
+  "fantasypros": "2026-11-20T06:44:15.792882+00:00",
+  "cbs": "2026-11-20T06:44:15.792882+00:00",
+  "espn": "2026-11-20T06:44:15.792882+00:00",
+  "cbsros": "2026-11-20T06:44:15.792882+00:00",
+  "razzball": "2026-11-20T06:44:15.792882+00:00",
   "draftsharks": "2026-10-16T07:19:25.781124+00:00",
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
  "resyncs": {},
- "holds_changed": true
+ "holds_changed": false
 }
