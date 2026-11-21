@@ -3,11 +3,13 @@
 // tests/test_edge_drift_check.py. Each case pins the exit code: 0 in sync, 1 drift,
 // 2 could not compare. EDGE_DRIFT_SCRIPT points it at another copy of the checker
 // (used once to show which cases the #1003 version got wrong; see the JEG-1256 log).
+// Also unit-tests the pure compareTools() export for field-level drift detection.
 import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { TOOLS } from "../../supabase/functions/mcp/tools.ts";
+import { compareTools } from "../../tools/edge_drift_check.mjs";
 
 const SCRIPT = process.env.EDGE_DRIFT_SCRIPT ||
   fileURLToPath(new URL("../../tools/edge_drift_check.mjs", import.meta.url));
@@ -22,13 +24,25 @@ const row = (over = {}) => ({
 const without = (r, ...keys) => Object.fromEntries(Object.entries(r).filter(([k]) => !keys.includes(k)));
 
 const json = (body, status = 200) => ({ status, type: "application/json", body: JSON.stringify(body) });
-const toolsReply = (names) => json({ jsonrpc: "2.0", id: 1, result: { tools: names.map((name) => ({ name })) } });
+// toolsWithSchema: build a tools/list reply that includes inputSchema for each tool.
+const toolsWithSchemaReply = (tools) =>
+  json({ jsonrpc: "2.0", id: 1, result: { tools } });
+const toolsReply = (names) =>
+  toolsWithSchemaReply(names.map((name) => ({ name })));
 const sse = (payload) => ({ status: 200, type: "text/event-stream", body: `event: message\ndata: ${JSON.stringify(payload)}\n\n` });
 const valuesReply = (players) => json({ players, bench_share: { QB: 0.2, overall: 0.3 } });
-const OK_MCP = toolsReply(mainNames);
+// Build a tools/list reply that mirrors main's full inputSchema (properties + required).
+const mainToolsWithSchema = TOOLS.map((t) => ({
+  name: t.name,
+  inputSchema: { type: "object", properties: t.inputSchema?.properties ?? {}, required: t.inputSchema?.required ?? [] },
+}));
+const OK_MCP = toolsWithSchemaReply(mainToolsWithSchema);
 const OK_VALUES = valuesReply([row(), row({ player_key: 2, name: "B" })]);
 
-function fake({ mcp, values }) {
+// initReply for the fake initialize handler.
+const initReply = json({ jsonrpc: "2.0", id: 2, result: { protocolVersion: "2025-06-18", serverInfo: { name: "data-driven-football", version: "1.2.0", build: "a".repeat(40) }, capabilities: { tools: {} } } });
+
+function fake({ mcp, values, init = initReply }) {
   return new Promise((resolve) => {
     const srv = http.createServer((req, res) => {
       let body = "";
@@ -36,8 +50,13 @@ function fake({ mcp, values }) {
       req.on("end", () => {
         let reply;
         if (req.url.startsWith("/mcp")) {
-          assert.equal(JSON.parse(body).method, "tools/list");
-          reply = mcp;
+          const parsed = JSON.parse(body);
+          if (parsed.method === "initialize") {
+            reply = init;
+          } else {
+            assert.equal(parsed.method, "tools/list");
+            reply = mcp;
+          }
         } else {
           assert.match(req.url, /include=charts/);
           reply = values;
@@ -74,11 +93,11 @@ async function scenario({ mcp = OK_MCP, values = OK_VALUES, deadMcp = false, dea
 
 const CASES = [
   // In sync.
-  { name: "positive", code: 0, out: /^OK:/ },
-  { name: "positive, mcp answers SSE", mcp: sse({ jsonrpc: "2.0", id: 1, result: { tools: mainNames.map((name) => ({ name })) } }), code: 0, out: /^OK:/ },
-  { name: "legitimate zero is numeric, not unavailable", values: valuesReply([row({ value: 0, ddf_value_charts: 0, ddf_value_projections: 0, chart_values: { fantasycalc: 0 } })]), code: 0, out: /^OK:/ },
-  { name: "null ddf_value_* on some players is allowed (main types it number | null)", values: valuesReply([row({ ddf_value_charts: null, ddf_value_projections: null }), row({ player_key: 2 })]), code: 0, out: /^OK:/ },
-  { name: "no bench_share is not checked (policy held, JEG-1256)", values: json({ players: [row()] }), code: 0, out: /^OK:/ },
+  { name: "positive", code: 0, out: /\bOK:/ },
+  { name: "positive, mcp answers SSE", mcp: sse({ jsonrpc: "2.0", id: 1, result: { tools: mainToolsWithSchema } }), code: 0, out: /\bOK:/ },
+  { name: "legitimate zero is numeric, not unavailable", values: valuesReply([row({ value: 0, ddf_value_charts: 0, ddf_value_projections: 0, chart_values: { fantasycalc: 0 } })]), code: 0, out: /\bOK:/ },
+  { name: "null ddf_value_* on some players is allowed (main types it number | null)", values: valuesReply([row({ ddf_value_charts: null, ddf_value_projections: null }), row({ player_key: 2 })]), code: 0, out: /\bOK:/ },
+  { name: "no bench_share is not checked (policy held, JEG-1256)", values: json({ players: [row()] }), code: 0, out: /\bOK:/ },
 
   // Drift.
   { name: "missing and extra tools", mcp: toolsReply([...mainNames.slice(1), "ghost_tool"]), code: 1,
@@ -89,6 +108,27 @@ const CASES = [
     code: 1, out: /no player has ddf_value_projections/ },
   { name: "drift on mcp still wins when get-values is unavailable", mcp: toolsReply(mainNames.slice(1)), values: valuesReply([]),
     code: 1, out: /not deployed[\s\S]*Also could not compare:[\s\S]*players list is empty/ },
+  // Field-level drift: deployed tool is missing a field that main has.
+  { name: "deployed tool missing a field",
+    mcp: toolsWithSchemaReply(mainToolsWithSchema.map((t) =>
+      t.name === "make_state"
+        ? { ...t, inputSchema: { ...t.inputSchema, properties: without(t.inputSchema.properties, "mine") } }
+        : t)),
+    code: 1, out: /make_state:[\s\S]*deployed lacks fields mine/ },
+  // Field-level drift: deployed tool has an extra field not on main.
+  { name: "deployed tool has extra field",
+    mcp: toolsWithSchemaReply(mainToolsWithSchema.map((t) =>
+      t.name === "get_values"
+        ? { ...t, inputSchema: { ...t.inputSchema, properties: { ...t.inputSchema.properties, ghost_param: { type: "string" } } } }
+        : t)),
+    code: 1, out: /get_values:[\s\S]*deployed has fields not on main: ghost_param/ },
+  // Field-level drift: deployed tool's required list differs.
+  { name: "deployed tool required list differs",
+    mcp: toolsWithSchemaReply(mainToolsWithSchema.map((t) =>
+      t.name === "compare_trade"
+        ? { ...t, inputSchema: { ...t.inputSchema, required: ["side_a"] } }
+        : t)),
+    code: 1, out: /compare_trade:[\s\S]*deployed required misses: side_b/ },
 
   // Could not compare (exit 2).
   { name: "empty players", values: valuesReply([]), code: 2, out: /could not compare[\s\S]*players list is empty/ },
@@ -126,4 +166,65 @@ for (const c of CASES) {
   if (!ok) failures.push(`${c.name}: exit ${r.code} (want ${c.code})\n${r.out}`);
 }
 assert.equal(failures.length, 0, `\n${failures.join("\n\n")}`);
+
+// ---------- unit tests for the pure compareTools() export ----------
+{
+  const tool = (name, props, required = []) => ({
+    name,
+    properties: new Set(props),
+    required: new Set(required),
+  });
+
+  // Identical lists: no drift.
+  let lines = compareTools(
+    [tool("get_values", ["scoring", "teams"]), tool("explain", ["topic"], ["topic"])],
+    [tool("get_values", ["scoring", "teams"]), tool("explain", ["topic"], ["topic"])],
+  );
+  assert.deepEqual(lines, [], "identical lists produce no drift");
+
+  // Missing tool on deployed side.
+  lines = compareTools(
+    [tool("get_values", []), tool("make_state", [])],
+    [tool("get_values", [])],
+  );
+  assert.ok(lines.some((l) => l.includes("not deployed") && l.includes("make_state")), "missing tool reported: " + lines);
+
+  // Extra tool on deployed side.
+  lines = compareTools(
+    [tool("get_values", [])],
+    [tool("get_values", []), tool("ghost_tool", [])],
+  );
+  assert.ok(lines.some((l) => l.includes("not on main") && l.includes("ghost_tool")), "extra tool reported: " + lines);
+
+  // Missing field in deployed tool.
+  lines = compareTools(
+    [tool("make_state", ["scoring", "teams", "league_teams"])],
+    [tool("make_state", ["scoring", "teams"])],
+  );
+  assert.ok(lines.some((l) => /make_state/.test(l) && /deployed lacks fields.*league_teams/.test(l)), "missing field reported: " + lines);
+
+  // Extra field in deployed tool.
+  lines = compareTools(
+    [tool("get_values", ["scoring"])],
+    [tool("get_values", ["scoring", "ghost_param"])],
+  );
+  assert.ok(lines.some((l) => /get_values/.test(l) && /deployed has fields not on main.*ghost_param/.test(l)), "extra field reported: " + lines);
+
+  // Required list differs.
+  lines = compareTools(
+    [tool("compare_trade", ["side_a", "side_b"], ["side_a", "side_b"])],
+    [tool("compare_trade", ["side_a", "side_b"], ["side_a"])],
+  );
+  assert.ok(lines.some((l) => /compare_trade/.test(l) && /deployed required misses.*side_b/.test(l)), "required miss reported: " + lines);
+
+  // Required adds on deployed side.
+  lines = compareTools(
+    [tool("compare_trade", ["side_a", "side_b"], ["side_a"])],
+    [tool("compare_trade", ["side_a", "side_b"], ["side_a", "side_b"])],
+  );
+  assert.ok(lines.some((l) => /compare_trade/.test(l) && /deployed required adds.*side_b/.test(l)), "required add reported: " + lines);
+
+  console.log("pass [compareTools unit tests]");
+}
+
 console.log("ok");
