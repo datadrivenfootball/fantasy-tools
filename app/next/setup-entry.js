@@ -72,6 +72,10 @@
       ws.name = rec.name || "My league";
       if (rec.enteredAt) ws.enteredAt = rec.enteredAt;
       if (rec.leagueId) ws.leagueId = String(rec.leagueId); else delete ws.leagueId;
+      /* JEG-1685: the league-state/1 object (Sleeper import) or null with the reason (paste, manual), and the ES-12 weeks it filled */
+      ws.leagueState = rec.leagueState || null;
+      ws.leagueStateReason = rec.leagueState ? null : (rec.leagueStateReason || "No season state was captured for this league.");
+      ws.weeksFilled = rec.leagueState ? rec.weeksFilled || null : null;
       localStorage.setItem(WS_KEY, JSON.stringify({v: 1, workspaces: [ws], activeId: ws.id}));
       DDF.state.set("bridgedWs", ws.id);
       return "written";

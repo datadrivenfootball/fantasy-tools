@@ -103,8 +103,16 @@
     var st = C.getState();
     return {scoring: st.scoring, teams: st.teams, roster: C.getRosterShape()};
   }
+  // JEG-1685: the ES-12 weeks a league import filled ({regularEnd, playoffLo, playoffHi}), saved with the settings so it travels
+  // with the weeks into every tab. null = no import filled them. See DDF.leagueState.weekFill for how an import uses it.
+  var weeksMarker = null;
+  function cleanMarker(m) {
+    return m && ["regularEnd", "playoffLo", "playoffHi"].every(function (k) { return Number.isInteger(m[k]); })
+      ? {regularEnd: m.regularEnd, playoffLo: m.playoffLo, playoffHi: m.playoffHi} : null;
+  }
   function applySaved(saved) {
     if (!saved || saved.v !== 1) return;
+    weeksMarker = cleanMarker(saved.weeksFilled);
     var attempt = function (fn) { try { fn(); } catch (e) { /* a part the engine no longer accepts is skipped, like v2.js */ } };
     attempt(function () { if (saved.scoring && saved.scoring !== C.getState().scoring) C.setScoring(saved.scoring, false); });
     attempt(function () { if (Number.isInteger(saved.teams) && saved.teams !== C.getState().teams) C.setTeams(saved.teams, false); });
@@ -159,6 +167,7 @@
         POSITIONS.forEach(function (p) { snap.shares[p] = Number(Number(shares[p]).toFixed(4)); });
       }
     } catch (e) { /* the parts the engine reports are kept */ }
+    if (weeksMarker) snap.weeksFilled = weeksMarker;
     return snap;
   }
   // JEG-1646: the site's standard roster (the engine's own defaults, read once before any saved or linked settings apply)
@@ -166,6 +175,17 @@
   function defaultRoster() { return defaults ? JSON.parse(defaults).roster : null; }
   // JEG-1689: the site's standard team count, read the same way (settings.html names what a paste left standard).
   function defaultTeams() { return defaults ? JSON.parse(defaults).teams : null; }
+  // JEG-1685: the league weeks now in use and the site's standard ones, as {regularEnd, playoffLo, playoffHi} (null when unknown).
+  function weeks() {
+    if (!C.getLeagueWeeks) return null;
+    var w = C.getLeagueWeeks();
+    return {regularEnd: w.regularSeasonEnd, playoffLo: w.playoffWeeks[0], playoffHi: w.playoffWeeks[1]};
+  }
+  function weeksFilled() { return weeksMarker ? Object.assign({}, weeksMarker) : null; }
+  function defaultWeeks() {
+    var w = defaults ? JSON.parse(defaults).weeks : null;
+    return w ? {regularEnd: w.regularEnd, playoffLo: w.playoffLo, playoffHi: w.playoffHi} : null;
+  }
   function isStandardRoster() {
     var base = defaultRoster(), cur = settings().roster;
     return !!base && Object.keys(base).every(function (k) { return cur[k] === base[k]; });
@@ -197,6 +217,10 @@
     var sf = superflexOf(partial);
     if (sf !== null) C.setRosterSpot("SUPERFLEX", sf, false);
     if (partial.roster) Object.keys(partial.roster).forEach(function (k) { C.setRosterSpot(k, partial.roster[k], false); });
+    // JEG-1685: ES-12 league weeks {regularEnd, playoffLo, playoffHi}, set together (the engine checks them as a set)
+    var w = partial.weeks;
+    if (w && C.setLeagueWeeks) C.setLeagueWeeks({regularSeasonEnd: w.regularEnd, playoffWeeks: [w.playoffLo, w.playoffHi]});
+    if ("weeksFilled" in partial) weeksMarker = cleanMarker(partial.weeksFilled);   // null clears it
     saveSettings();
     changed();
     return settings();
@@ -502,7 +526,7 @@
     controls: function () { return C; },
     players: function () { return build().list; },
     player: function (key) { return build().byKey.get(String(key)) || null; },
-    settings: settings, defaultRoster: defaultRoster, defaultTeams: defaultTeams, rosterText: rosterText, isStandardRoster: isStandardRoster, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
+    settings: settings, defaultRoster: defaultRoster, defaultTeams: defaultTeams, weeks: weeks, defaultWeeks: defaultWeeks, weeksFilled: weeksFilled, rosterText: rosterText, isStandardRoster: isStandardRoster, apply: apply, applyVisit: applyVisit, meta: meta, league: league,
     on: function (fn) { listeners.push(fn); return function () { listeners = listeners.filter(function (f) { return f !== fn; }); }; },
     overrides: overrides,
     basis: function () { return JSON.parse(JSON.stringify(state.basis)); },

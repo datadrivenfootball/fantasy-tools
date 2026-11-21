@@ -104,7 +104,35 @@
     if (record && record.pasteSettings && prior && prior.confirmed && DDF.leaguePaste.sameLeague(prior, record)) record.confirmed = prior.confirmed;
     return record;
   }
+  /* JEG-1685: the league's last regular-season week and playoff start (league-state/1) fill the ES-12 weeks, unless the reader
+     set them. What an import filled is saved with the weeks (DDF.engine.weeksFilled, in ddf.v2.league-settings), so every tab
+     tells import-filled weeks from the reader's own; weeks that differ from that marker, standard ones included, are the
+     reader's. Returns the weeks now in use that came from this league's state, or null. */
+  function sameWeeks(a, b) { return !!a && !!b && a.regularEnd === b.regularEnd && a.playoffLo === b.playoffLo && a.playoffHi === b.playoffHi; }
+  /* a league with no weeks of its own (paste, manual, a state without them) must not inherit the last import's weeks: back to
+     the standard, but only while they are still exactly what that import filled */
+  function releaseWeeks() {
+    var E = DDF.engine;
+    if (!E || !E.weeks || !E.weeksFilled || !E.defaultWeeks) return;
+    var mark = E.weeksFilled(), def = E.defaultWeeks();
+    if (mark && def && sameWeeks(E.weeks(), mark)) { try { E.apply({weeks: def, weeksFilled: null}); } catch (e) { /* settings.html asks */ } }
+  }
+  function fillWeeks(ls) {
+    var LS = DDF.leagueState, E = DDF.engine;
+    if (!E || !E.weeks || !E.apply || !E.weeksFilled) return null;
+    if (!ls || !LS) { releaseWeeks(); return null; }
+    var cur = E.weeks(), prior = E.weeksFilled();
+    var fill = LS.weekFill(ls, cur, E.defaultWeeks ? E.defaultWeeks() : null, prior);
+    if (fill.patch) {
+      try { E.apply({weeks: fill.patch, weeksFilled: fill.patch}); } catch (e) { return null; /* settings.html asks */ }
+      return fill.patch;
+    }
+    if (sameWeeks(cur, prior)) { releaseWeeks(); return null; }   // the last import's weeks, and this league cannot set its own
+    // weekFill always sets why when it refuses (patch null); never record reader-owned weeks as import-filled (P2, ceb9ebc)
+    return !fill.why && fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
+  }
   function save(record) {
+    if (record && !record.leagueState) releaseWeeks();   /* JEG-1685: a paste or manual league has no weeks of its own */
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
@@ -280,7 +308,8 @@
     }
     var rec = {v: 1, source: "manual", site: "unknown", me: mine,
       enteredAt: prior && prior.source === "manual" && prior.enteredAt ? prior.enteredAt : (DDF.leagueMeta ? DDF.leagueMeta.today() : null),
-      teams: manual.teams.map(function (t) { return {name: t.name, players: t.players.slice(), unmatched: []}; })};
+      teams: manual.teams.map(function (t) { return {name: t.name, players: t.players.slice(), unmatched: []}; }),
+      leagueState: null, leagueStateReason: "A league entered by hand has no season state (records, schedule, playoff rules).", weeksFilled: null};   /* JEG-1685 */
     if (prior && prior.source === "manual" && prior.name) rec.name = prior.name;
     return rec;
   }
@@ -396,7 +425,7 @@
     sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
     linkMsg("Loading your league from Sleeper...", "loading");
     return whenRows().then(function (rows) {
-      return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
+      return DDF.sleeper.load(id, {rows: rows, table: table(), leagueState: true}).then(function (out) {
         if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
         sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
@@ -405,7 +434,10 @@
         if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
         hideEditNames();
         showResult(res, "sleeper");
-        save(DDF.leaguePaste.record(res, "sleeper"));
+        res.leagueState = out.leagueState || null;
+        var rec = DDF.leaguePaste.record(res, "sleeper");
+        rec.weeksFilled = fillWeeks(out.leagueState);
+        save(rec);
         askBookmark(res);
         var lg = res.league || {};
         linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then press Next to confirm your team.", "ok");

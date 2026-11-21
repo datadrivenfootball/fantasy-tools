@@ -7943,6 +7943,8 @@
       engine: C,
       view: () => VIEW_NAME[currentView()] || "",
       leagueQuery: () => leagueLinkParts().join("&"),
+      // JEG-1685: the reader's own saved league only; a shared link's league (settings applied for this visit) has no state here
+      leagueState: () => (leagueInputs.source === "link" ? null : window.TradeValueWorkspace?.store?.get()?.leagueState || null),
       applyLinkLeague,
       leagueText: () => `${$("v2LeagueName").textContent}, ${$("v2RosterLine").textContent}`,
       sources: () => C.getActiveSources(),
