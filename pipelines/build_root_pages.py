@@ -43,7 +43,7 @@ ROOT_PAGES = ("values.html", "learn.html", "build.html",
 ENGINE_PAGES = frozenset({"values.html", "learn.html", "build.html", "connect.html"})
 # Files the root pages load from beside them (copied from app/next/). v2/*.js are already published by build_v2_page.
 ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
-              "values-chart.js", "values-buysell.js", "values-overrides.js",
+              "values-chart.js", "values-buysell.js", "values-overrides.js", "values-search.js",
               # Learn (JEG-1536): the posts, the markdown renderer and the numbers tabs.
               "learn/render.js", "learn/posts.json", "learn/posts",
               "learn/numbers/learn-engine.js", "learn/numbers/numbers.js",
