@@ -116,7 +116,9 @@
       var want = saved.roster && saved.roster[k];
       if (Number.isInteger(want) && want !== shape[k]) league.roster[k] = want;
     });
-    if (C.setLeague) attempt(function () { C.setLeague(league, false); });
+    var changed = league.scoring || league.teams || Object.keys(league.roster).length;
+    if (!changed) { /* saved league already matches: no call, as before */ }
+    else if (C.setLeague) attempt(function () { C.setLeague(league, false); });
     else {
       attempt(function () { if (league.scoring) C.setScoring(league.scoring, false); });
       attempt(function () { if (league.teams) C.setTeams(league.teams, false); });
