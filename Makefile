@@ -123,6 +123,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_baseline_reds
 	python3 -m unittest tests.test_chromium_resolver
 	python3 -m unittest tests.test_run_suite
+	# Page speed: a saved league costs one engine rebuild on load (call counts, not timings).
+	python3 -m unittest tests.test_engine_saved_league_pipeline_runs
 	# JEG-1275: selected-package composition preview view model (node, no browser).
 	python3 -m unittest tests.test_package_composition_preview_contract
 	# Render-sweep coverage guard (JEG-976): a warning, not a deploy gate (Jeremy, 2026-10-26).
