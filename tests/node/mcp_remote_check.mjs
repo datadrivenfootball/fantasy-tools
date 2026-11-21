@@ -641,11 +641,12 @@ const sizeCall = (name, args, fetch = sizeCharts) => handleRpc(
 const nbytes = (res) => Buffer.byteLength(JSON.stringify(res.result), "utf8");
 // JEG-1329 (pick B, 2026-10-29): the trade budgets measure the reply without its site link, which
 // opens the full list and grows with every team a league link carries.
+// Measured as tools.ts budgetBytes: without the site link and (connector walkthrough 2026-11-21) the saved state.
 const linkFree = (result) => {
   const url = result.structuredContent?.site_url;
-  if (!url) return Buffer.byteLength(JSON.stringify(result), "utf8");
-  return Buffer.byteLength(JSON.stringify({ ...result, content: result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })),
-    structuredContent: { ...result.structuredContent, site_url: "" } }), "utf8");
+  const content = url ? result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })) : result.content;
+  const sc = result.structuredContent;
+  return Buffer.byteLength(JSON.stringify({ ...result, content, ...(sc ? { structuredContent: { ...sc, site_url: "", state: null } } : {}) }), "utf8");
 };
 const tbytes = (res) => linkFree(res.result);
 const mineList = sizeMine.map((p) => p.name).join(", ");

@@ -204,6 +204,9 @@ seeded and two real league rosters (PR for JEG-1639).
 - The claude.ai connector caches the tool list it saw when it was connected. The walkthrough's `site_next_steps`,
   `settings`, `slots`, `league_teams`, `my_team` came from the 2026-11-05 handoff build (v24, `09-mcp-server` in the
   handoff folder), not from this repo; after a deploy, reconnect the connector to refresh its list.
+- The finders' lineup shape is this call's slots, else the saved league's roster. The trade reply budget leaves out
+  the saved state as it leaves out the site link (both grow with every team); otherwise a 12-team saved league hit
+  the size error.
 - Tests: `tests/node/mcp_entry_check.mjs` (run by `tests.test_mcp_remote`).
 
 ## Connector answers (2026-11-21, connector walkthrough)
