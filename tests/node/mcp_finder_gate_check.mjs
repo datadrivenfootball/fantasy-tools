@@ -13,8 +13,8 @@ const finder = createRequire(import.meta.url)("../../app/v2/finder.js");
 assert.equal(finder.MIN_CHARTS, 3);
 assert.equal(minChartsFor(finder), 3, "all four charts priced: 3 of 4");
 assert.equal(minChartsFor(finder, 4), 3);
-assert.equal(minChartsFor(finder, 3), 2, "a chart on hold: 2 of 3");
-assert.equal(minChartsFor(finder, 2), 1);
+assert.equal(minChartsFor(finder, 3), 3, "a chart missing: all 3 left (the site counts a held chart as not agreeing)");
+assert.equal(minChartsFor(finder, 2), 2);
 assert.equal(minChartsFor(finder, 0), 1);
 
 // The finder gets the gate: a package only one chart calls fair for the rival is not a candidate.

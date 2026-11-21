@@ -55,14 +55,13 @@ export interface FindTradesOpts {
  * Connector walkthrough 2026-11-21: how many trade charts must price a package with the rival even or ahead.
  * The tool promises 3 of 4 (the finder's MIN_CHARTS, the Trade chart average's bar). The site's search default
  * (SEARCH_MIN_CHARTS = 1 since JEG-1403) let one chart in, so the 50 kept per opponent filled with lopsided
- * trades the fairness check then failed: 0 viable of 179 in the walkthrough league. With a chart on hold
- * (3 priced) the bar is 2 of 3, as the site judges fit (#1490).
+ * trades the fairness check then failed: 0 viable of 179 in the walkthrough league. With fewer charts priced the
+ * bar is all of them, at most MIN_CHARTS (the site's Find counts a held chart as not agreeing, JEG-1647).
  */
 export function minChartsFor(finder: Finder, pricedCharts?: number): number {
   const all = finder.CHART_KEYS.length;
   const priced = Math.max(1, Math.min(all, pricedCharts ?? all));
-  const bar = Number(finder.MIN_CHARTS) || 3;
-  return priced >= all ? Math.min(bar, priced) : Math.max(1, Math.min(bar, priced - 1));
+  return Math.min(Number(finder.MIN_CHARTS) || 3, priced);
 }
 
 // ---------------------------------------------------------------------------
