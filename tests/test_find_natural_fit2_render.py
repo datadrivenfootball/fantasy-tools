@@ -92,7 +92,8 @@ STARTERS_DROP = r"""() => {
 
 
 # Bench depth as your only reason (tests.test_v2_finder_fit check 24): since 2026-11-21 it needs the players added to be
-# worth 1% of your starters, and the real leagues may hold none, so it is built by hand too.
+# a bench-weighted gain of 1% of your starters (bench weight 0.5 here), and the real leagues may hold none, so it is
+# built by hand too.
 BENCH_CASE = r"""() => {
   const R = (key, pos, d, c) => ({player_key: key, name: key, pos, team: 'X',
     values: {ddf_value: d, ddf_value_charts: d, ddf_value_projections: d, cbs: c, usatoday: c, fantasypros: c, fantasycalc: c}});
@@ -101,7 +102,7 @@ BENCH_CASE = r"""() => {
   const mine = team('m', [20, 12], [30, 25, 10, 8, 5], [30, 28, 15, 9, 7], [10, 5]).concat(give);
   const theirs = team('t', [22, 11], [35, 28, 14, 12, 9], [26, 20, 9, 8, 7], [11, 6]).concat(recv);
   const ctx = Object.assign({}, DDF.find.context(), {shape: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7},
-    expected: {QB: {lo: 1, hi: 2}, RB: {lo: 4, hi: 5}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}}, weights: {overall: 0.15},
+    expected: {QB: {lo: 1, hi: 2}, RB: {lo: 4, hi: 5}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}}, weights: {overall: 0.5},
     analyst: ['cbs', 'usatoday', 'fantasypros'], gate: ['cbs', 'usatoday', 'fantasypros', 'fantasycalc']});
   const e = DDFWhy.explain({mine, theirs, give, receive: recv}, ctx);
   return {cls: e.verdict.cls, tags: e.verdict.tags, you: e.why.you, label: e.fit.label, reason: e.fit.natural.us.reason};

@@ -281,8 +281,9 @@ def check(finder_js: Path) -> list[str]:
     f = fit(finder_js, mine12 + g12, theirs12 + r12, g12, r12)
     if not (f["us"]["net"] > 0.05 and f["us"]["net"] < f["us"]["tau"]):
         say(f"test 12 setup: your rise should sit between 0.05 and your noise floor: net={f['us']['net']} tau={f['us']['tau']}")
-    # Natural fit 2: their side is level here, so the trade is not Natural; your side still passes (bench depth).
-    if not f["natural"]["us"]["ok"] or f["natural"]["us"]["reason"] != "bench":
+    # Natural fit 2: their side is level here, so the trade is not Natural; your value test still passes (the +0.45 is
+    # under the 1% bench minimum of 2026-11-21, so it is no longer a reason on its own).
+    if not f["natural"]["us"]["value"] or f["natural"]["us"]["reason"] is not None:
         say(f"a rise inside your noise floor should still pass your side: {f['natural']['us']} us net={f['us']['net']:.2f} tau={f['us']['tau']:.2f}")
 
     # 13. But the rise must be a rise: +0.03 (at or under the 0.05 display floor) is not natural.
@@ -402,8 +403,9 @@ def check(finder_js: Path) -> list[str]:
         if agree == 2 and not call(finder_js, "fitText", f).startswith("Natural fit (2/4 public charts"):
             say(f"check 23: the Natural text should carry the count: {call(finder_js, 'fitText', f)!r}")
     # 24. Bench depth: your starters do not change, your weighted bench gains, their starters improve: Natural, tagged.
+    # (bench weight 0.5 here so the weighted gain clears the 1% bench minimum of 2026-11-21: +3.0 against 1.58)
     g, r = [pc("x24", "WR", 3, 25, [25] * 4)], [pc("y24", "RB", 9, 4, [4] * 4)]
-    f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
+    f = fit(finder_js, mine_n + g, theirs_n + r, g, r, weights={"QB": 0.5, "RB": 0.5, "WR": 0.5, "TE": 0.5, "overall": 0.5})
     if f["label"] != "natural" or f["natural"]["us"]["reason"] != "bench" or abs(f["us"]["starterDelta"]) > 1e-9:
         say(f"check 24 bench depth should be natural with reason bench: {f['label']} {f['natural']['us']}")
     elif call(finder_js, "naturalTags", f) != ["Bench depth"] or "bench depth only" not in call(finder_js, "fitText", f):
@@ -411,7 +413,7 @@ def check(finder_js: Path) -> list[str]:
     # 25. Their total rises only through their bench (Jeremy, 2026-11-21): bench depth is a reason for them too, so it is
     # Natural, tagged "Bench depth for them", with their starters flat.
     g, r = [pc("x25", "WR", 3, 6, [6] * 4)], [pc("y25", "RB", 9, 2, [2] * 4)]
-    f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
+    f = fit(finder_js, mine_n + g, theirs_n + r, g, r, weights={"QB": 0.5, "RB": 0.5, "WR": 0.5, "TE": 0.5, "overall": 0.5})
     if f["label"] != "natural" or f["natural"]["them"]["reason"] != "bench" or abs(f["them"]["starterDelta"]) > 0.05:
         say(f"check 25 their bench-only gain should be natural with reason bench: {f['label']} {f['natural']['them']}")
     elif "Bench depth for them" not in call(finder_js, "naturalTags", f) or "bench depth only: their starters do not change" not in call(finder_js, "fitText", f):
@@ -441,13 +443,13 @@ def check(finder_js: Path) -> list[str]:
     if f["label"] == "natural" or f["natural"]["us"]["startersOk"] is not False or f["us"]["starterDelta"] >= -0.05:
         say(f"check 29 a starter lost to a worse promoted player should fail your side: {f['label']} {f['natural']['us']}")
 
-    # 31. Jeremy, 2026-11-21: a bench-depth-only reason needs the players it adds to be worth at least 1% of that side's
-    # starters. You get a bench RB worth 4.2 for a bench WR worth 3 (+1.2 raw, under 1% of your 158 starters; +0.18
-    # weighted, past 0.05): no reason on your side, not Natural.
-    g, r = [pc("x31", "WR", 3, 25, [25] * 4)], [pc("y31", "RB", 4.2, 4, [4] * 4)]
+    # 31. Jeremy, 2026-11-21: a bench-depth-only reason needs a bench-weighted gain of at least 1% of that side's starters
+    # (measured after bench weighting, not on raw value). You get a bench RB worth 5 for a bench WR worth 3: +2.0 raw,
+    # over 1% of your 158 starters, but +0.30 weighted, under it: no reason on your side, not Natural.
+    g, r = [pc("x31", "WR", 3, 25, [25] * 4)], [pc("y31", "RB", 5, 4, [4] * 4)]
     f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
-    if not (f["us"]["benchDelta"] > 0.05 and 0 < f["us"]["benchRawDelta"] < 0.01 * f["us"]["starterBefore"]):
-        say(f"check 31 setup: weighted {f['us']['benchDelta']:.2f} raw {f['us']['benchRawDelta']:.2f} starters {f['us']['starterBefore']:.1f}")
+    if not (0.05 < f["us"]["benchDelta"] < 0.01 * f["us"]["starterBefore"] <= f["us"]["benchRawDelta"]):
+        say(f"check 31 setup: weighted {f['us']['benchDelta']:.2f} starters {f['us']['starterBefore']:.1f}")
     elif f["label"] == "natural" or f["natural"]["us"]["reason"] is not None:
         say(f"check 31 a bench gain under 1% of your starters should not be a reason: {f['label']} {f['natural']['us']}")
     # 32. Jeremy, 2026-11-21: their projection-based value falling more than 5% of their starters on projections blocks
@@ -482,14 +484,15 @@ MUTANTS = {
     "their loss allowed": ("const theirUp = Boolean(them) && them.net > NET_FLOOR;", "const theirUp = Boolean(them) && them.net >= -them.tau;"),
     # Natural fit 2 (Jeremy, 2026-11-19).
     "charts ignored": ("const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;", "const chartsOk = true;"),
-    "bench never a reason": ("const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR && finite(t.benchRawDelta)", "const bench = false && finite(t.benchRawDelta)"),
+    "bench never a reason": ("const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR && finite(t.starterBefore)", "const bench = false && finite(t.starterBefore)"),
     # "their reason not needed" is gone: with bench depth a reason for them (2026-11-21), a total that rises past 0.05
     # almost always carries a starters or bench reason, so that mutant is not separable on a hand-made roster.
     "their projections veto": ("themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && !projBlock;", "themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && themProj !== false;"),
     "their starters may fall": ("const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;", "const theirStartersOk = Boolean(them);"),
     "their bench never a reason": ("const ur = sideReason(us, true), tr = sideReason(them, true);", "const ur = sideReason(us, true), tr = sideReason(them, false);"),
     "checks drop the charts row": ('{key: "charts", ok: n.charts.ok,', '{key: "charts", ok: true,'),
-    "bench share ignored": ("&& t.benchRawDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& true;"),
+    "bench share ignored": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& true;"),
+    "bench share on raw value": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& t.benchRawDelta >= BENCH_MIN_SHARE * t.starterBefore;"),
     "large projection fall allowed": ("themSide.lineup && pctOk && !projBlock;", "themSide.lineup && pctOk;"),
     "thin never flagged": ("const thin = theirUp && share !== null && share < THIN_SHARE;", "const thin = false;"),
     "empty slot allowed": ("const lineup = t => Boolean(t) && t.emptyAfter === 0;", "const lineup = t => Boolean(t);"),

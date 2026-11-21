@@ -290,7 +290,7 @@
     if (n.us.need.length) out.push("Fills a position you are short at: " + list(n.us.need.map(function (p) { return depthLine(us, p, "you"); })) + ".");
     else if (n.us.slot) out.push("Fills a starting slot you could not fill before.");
     if (n.us.startersOk === false) out.push("Your best lineup gets weaker: your starters fall " + Math.abs(table.delta).toFixed(1) + " " + units.you + ".");
-    if (n.us.reason === "bench") out.push("Bench depth, not a starter upgrade: your bench gains " + shown(us.benchDelta) + " " + units.you + " once bench players are weighted (players worth " + shown(us.benchRawDelta) + ", at least 1% of your starters).");
+    if (n.us.reason === "bench") out.push("Bench depth, not a starter upgrade: your bench gains " + shown(us.benchDelta) + " " + units.you + " once bench players are weighted, at least 1% of your starters.");
     var value = "Value: " + shown(us.net) + " " + units.you + " once bench players are weighted";
     out.push(value + (finite(trade.edge) && Math.abs(trade.edge - us.net) >= FLOOR ? " (trade value " + shown(trade.edge) + " adds up raw player values)." : "."));
     POS.forEach(function (p) {
@@ -310,7 +310,7 @@
     else out = out.concat(lines);
     out.push("Their starters: " + one(table.before) + " to " + one(table.after) + " (" + shown(table.delta) + " " + units.them + ").");
     if (n.them.need.length) out.push("They are short at " + list(n.them.need.map(function (p) { return depthLine(them, p, "them"); })) + " and get " + names(trade.give.filter(function (r) { return n.them.need.indexOf(r.pos) >= 0; })) + ".");
-    if (n.them.reason === "bench") out.push("Bench depth for them, not a starter upgrade: their bench gains " + shown(them.benchDelta) + " " + units.them + " once bench players are weighted (players worth " + shown(them.benchRawDelta) + ", at least 1% of their starters).");
+    if (n.them.reason === "bench") out.push("Bench depth for them, not a starter upgrade: their bench gains " + shown(them.benchDelta) + " " + units.them + " once bench players are weighted, at least 1% of their starters.");
     if (n.them.startersOk === false) out.push("Their best lineup gets weaker: their starters fall " + Math.abs(table.delta).toFixed(1) + " " + units.them + ", so they are unlikely to see it as good.");
     out.push("Their total: " + shown(them.net) + " " + units.them + " once bench players are weighted.");
     out.push(n.charts.agree + " of " + n.charts.total + " public trade charts call it even or better for them.");
