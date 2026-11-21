@@ -473,6 +473,20 @@ def check(finder_js: Path) -> list[str]:
     elif rule.get("your-starters") is not False or "your lineup is left with an empty starting slot" not in call(finder_js, "fitText", f):
         say(f"check 27b a newly empty slot should fail the best-lineup rule: {rule} {call(finder_js, 'fitText', f)!r}")
 
+    # 33. Review of #1494: your total must rise. You give a starting WR (28) and a bench RB (14, projection-based value
+    # 0) for a WR worth 28.3: your starters +0.3 (a "real gain"), your projections up, but your bench-weighted total
+    # falls 1.8. Not Natural; the text, the checklist and the connector's reason say your total does not rise.
+    z33, y33 = p("mnRB33", "RB", 14, market=14, proj=0), p("tnWR33", "WR", 28.3, market=10, proj=28.3)
+    f = fit(finder_js, mine_n + [z33], theirs_n + [y33], pick(mine_n, "mnWR1") + [z33], [y33])
+    rule = {r["key"]: r["ok"] for r in f["natural"]["rules"]}
+    rows = {r["key"]: r["ok"] for r in call(finder_js, "naturalChecks", f)}
+    if not (f["us"]["net"] < -1 and f["us"]["starterDelta"] > 0.05):
+        say(f"check 33 setup: net {f['us']['net']:.2f} starters {f['us']['starterDelta']:.2f}")
+    elif f["label"] == "natural" or rule != {**{k: True for k in rule}, "your-total": False} or rows.get("your-total") is not False:
+        say(f"check 33 a falling total should fail only the your-total rule: {f['label']} {rule} {rows}")
+    elif "your total does not rise" not in call(finder_js, "fitText", f):
+        say(f"check 33 text: {call(finder_js, 'fitText', f)!r}")
+
     # 27. An empty starting slot on either side is never Natural (the check 6 trade).
     f = fit(finder_js, mine6, theirs6, pick(mine6, "c6RB0"), pick(theirs6, "t6WR2"))
     if f["label"] == "natural" or f["natural"]["us"]["lineup"] is not False:
@@ -506,6 +520,7 @@ MUTANTS = {
     "checks drop the charts row": ('const rows = NATURAL_RULES.map((r, i) => ({key: r.key, ok: n.rules[i].ok,', 'const rows = NATURAL_RULES.map((r, i) => ({key: r.key, ok: r.key === "charts" || n.rules[i].ok,'),
     # "your side needs no rise" / "needs the noise floor" are gone: "your total rises" was dropped as never deciding
     # (2026-11-21 simplification); check 13 now pins "a real gain" instead.
+    "your total may fall": ('{key: "your-total", pass: n => n.us.value,', '{key: "your-total", pass: n => true,'),
     "bench share ignored": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& true;"),
     "bench share on raw value": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& t.benchRawDelta >= BENCH_MIN_SHARE * t.starterBefore;"),
     "large projection fall allowed": ('{key: "their-projections", pass: n => !n.them.projBlock,', '{key: "their-projections", pass: n => true,'),

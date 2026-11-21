@@ -109,6 +109,23 @@ BENCH_CASE = r"""() => {
 }"""
 
 
+# Review of #1494: your total must rise (tests.test_v2_finder_fit check 33), explained by the page's own DDFWhy.
+TOTAL_FALLS = r"""() => {
+  const R = (key, pos, d, c, proj) => ({player_key: key, name: key, pos, team: 'X',
+    values: {ddf_value: d, ddf_value_charts: d, ddf_value_projections: proj === undefined ? d : proj, cbs: c, usatoday: c, fantasypros: c, fantasycalc: c}});
+  const team = (p, qb, rb, wr, te) => [['QB', qb], ['RB', rb], ['WR', wr], ['TE', te]].flatMap(([pos, vs]) => vs.map((v, i) => R(p + pos + i, pos, v, v)));
+  const mine = team('m', [20, 12], [30, 25, 10, 8, 5], [30, 28, 15, 9, 7], [10, 5]).concat([R('Ray Bench', 'RB', 14, 14, 0)]);
+  const theirs = team('t', [22, 11], [35, 28, 14, 12, 9], [26, 20, 9, 8, 7], [11, 6]).concat([R('Wade Swap', 'WR', 28.3, 10)]);
+  const give = [mine.find(r => r.player_key === 'mWR1'), mine.find(r => r.name === 'Ray Bench')], recv = [theirs.find(r => r.name === 'Wade Swap')];
+  const ctx = Object.assign({}, DDF.find.context(), {shape: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7},
+    expected: {QB: {lo: 1, hi: 2}, RB: {lo: 4, hi: 5}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}}, weights: {overall: 0.15},
+    analyst: ['cbs', 'usatoday', 'fantasypros'], gate: ['cbs', 'usatoday', 'fantasypros', 'fantasycalc']});
+  const e = DDFWhy.explain({mine, theirs, give, receive: recv}, ctx);
+  const checks = window.TradeValueFinder.naturalChecks(e.fit).filter(r => r.ok === false).map(r => r.key);
+  return {label: e.fit.label, cls: e.verdict.cls, verdict: DDFWhy.text({mine, theirs, give, receive: recv}, ctx).split('\n').pop(), checks, usNet: e.fit.us.net};
+}"""
+
+
 class FindNaturalFit2RenderTest(unittest.TestCase):
     def setUp(self):
         try:
@@ -212,6 +229,11 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
                         judged = self.check_cards(w, page.evaluate(READ))
                         self.assertFalse(page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{w}: page overflow")
                         self.check_whys(w, page, judged)
+                        falls = page.evaluate(TOTAL_FALLS)
+                        self.assertLess(falls["usNet"], -1, falls)
+                        self.assertNotEqual(falls["cls"], "natural", falls)
+                        self.assertIn("your total does not rise", falls["verdict"])
+                        self.assertEqual(falls["checks"], ["your-total"], falls)
                         drop = page.evaluate(STARTERS_DROP)
                         self.assertTrue(drop["usOk"] and drop["themNet"] > 0.05 and drop["themStarters"] < -0.05, f"{w}: setup {drop}")
                         self.assertNotEqual(drop["label"], "natural")

@@ -875,6 +875,8 @@
   // public charts, and not beaten by a free pickup. The rules, in NATURAL_RULES below (the one list the label, the Why,
   // the checklists, the tooltips and the connector's reason all read):
   //   1 your best lineup does not get weaker (starter total not down past 0.05, no newly empty starting slot)
+  //   1b your total (starters plus bench at bench weight) rises past 0.05 on your valuation (restored on review of
+  //     #1494: a small starter gain must not hide a larger bench loss)
   //   2 a real gain for you: starters up past 0.05, a position you are short at filled, or bench depth whose
   //     bench-weighted gain is at least 1% of your starters (tagged Bench depth)
   //   3 your projection-based value does not fall
@@ -885,8 +887,8 @@
   //     caution line)
   //   8 at least 2 of the public trade charts call it even or better for them
   //   (9 a free pickup does not get most of the gain: find-engine.js waiverAlternative, on the Find page)
-  // Dropped as never deciding on the 3,068 USO offers: "your total rises" and their -3% roster test (both implied by the
-  // rules above); the separate empty-slot rule is folded into 1 and 5. A gain under 1% of their starters is tagged thin.
+  // Dropped as never deciding on the 3,068 USO offers: their -3% roster test (implied by 4); the separate empty-slot rule is
+  // folded into 1 and 5. ("Your total rises" was dropped too and is back as 1b: it is not implied by 1 and 2.) A gain under 1% of their starters is tagged thin.
   // parts: {us, them (teamFit sides), usProjNet, themProjNet, themProjStarters (null when not judged), theirPct, charts}.
   const NATURAL_MIN_CHARTS = 2;
   const THIN_SHARE = 0.01;
@@ -910,6 +912,8 @@
   const NATURAL_RULES = [
     {key: "your-starters", pass: n => n.us.startersOk, text: "Your best lineup does not get weaker",
       miss: (n, f, v) => f.us.emptyAfter > f.us.emptyBefore ? "your lineup is left with an empty starting slot" : `your starters drop ${Math.abs(f.us.starterDelta).toFixed(1)} on ${v(f.us)}`},
+    {key: "your-total", pass: n => n.us.value, text: "Your total rises on your valuation",
+      miss: (n, f, v) => `your total does not rise (${fitFmt(f.us.net)} on ${v(f.us)}, bench weighted)`},
     {key: "your-reason", pass: n => Boolean(n.us.reason), text: `A real gain for you (starters, a short position, or bench depth worth ${pctText(BENCH_MIN_SHARE)} of your starters)`,
       miss: () => `nothing improves your starters, fills a position you are short at or adds bench depth worth ${pctText(BENCH_MIN_SHARE)} of your starters`},
     {key: "your-projections", pass: n => n.us.projections === true, text: "Your projection-based value does not fall",
@@ -1030,6 +1034,7 @@
       ? (side.need.length ? `fills ${listJoin(side.need)}` : "fills an empty starting slot") : side.reason === "bench" ? "bench depth" : "none";
     const detail = {
       "your-starters": `starters ${us.starterBefore.toFixed(1)} to ${us.starterAfter.toFixed(1)} (${fitFmt(us.starterDelta)}) on ${view(us)}`,
+      "your-total": `${fitFmt(us.net)} on ${view(us)}, bench weighted`,
       "your-reason": `${reasonText(n.us)}; bench ${fitFmt(us.benchDelta)} once weighted`,
       "your-projections": n.us.projections === null ? "not checked (a player has none)" : fitFmt(n.us.projNet),
       "their-total": `${fitFmt(them.net)} on ${view(them)}, bench weighted`,
