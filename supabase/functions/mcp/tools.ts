@@ -520,7 +520,10 @@ function settings(args: Record<string, unknown>) {
     league = { ...(league ?? {}), roster: { ...((league?.roster as Record<string, unknown>) ?? {}), ...slots } };
   }
   const savedRoster = roster ? { ...slots, SUPERFLEX: superflex } : null;
-  return { scoring, teams, superflex, league, roster: savedRoster, notes };
+  // The finders' lineup shape: this call's slots, else the saved league's roster (a state's league.roster).
+  const savedShape = (league?.roster ?? null) as Record<string, number> | null;
+  const lineup = savedRoster ?? (savedShape ? { ...savedShape, SUPERFLEX: superflex } : null);
+  return { scoring, teams, superflex, league, roster: savedRoster, lineup, notes };
 }
 
 function position(args: Record<string, unknown>): string {
@@ -688,11 +691,15 @@ const bytes = (result: ToolResult) => new TextEncoder().encode(JSON.stringify(re
 // JEG-1329 (pick B, 2026-10-29): the site link does not count against the reply budget. It opens the
 // full list on the site, and a league link grows with every team it carries, so counting it would cost
 // trade rows. Measured as the reply with the link left out of the text and site_url.
+// Connector walkthrough 2026-11-21: the saved state is left out the same way. It carries every league roster (by key)
+// so a later call needs only the state, and it grows with each team as the link does.
 const budgetBytes = (result: ToolResult) => {
   const url = result.structuredContent?.site_url;
-  if (typeof url !== "string" || !url) return bytes(result);
-  return bytes({ ...result, content: result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })),
-    structuredContent: { ...result.structuredContent, site_url: "" } });
+  const sc = result.structuredContent;
+  const content = typeof url === "string" && url
+    ? result.content.map((c) => ({ ...c, text: c.text.split(url).join("") }))
+    : result.content;
+  return bytes({ ...result, content, ...(sc ? { structuredContent: { ...sc, site_url: "", state: null } } : {}) });
 };
 const tradeBudget = (name: string, limit: number) => name === "find_trades"
   ? (limit <= 10 ? 6700 : 17000) : (limit <= 10 ? 8000 : 11500);
@@ -1373,7 +1380,7 @@ async function findTradesHandler(
   });
 
   // --- Viability scoring ---
-  const shape = rosterShape(a, s.superflex, s.roster);
+  const shape = rosterShape(a, s.superflex, s.lineup);
   const vConfig = viabilityConfig(a);
   const viableOnly = parseBool(a.viable_only, "viable_only", false);
 
@@ -1523,7 +1530,7 @@ async function findTradesLeagueHandler(
   const mineRows = mineRes.matched.map(toFinderRow);
   const mineKeys = new Set(mineRes.matched.map((p) => p.player_key));
 
-  const shape = rosterShape(a, s.superflex, s.roster);
+  const shape = rosterShape(a, s.superflex, s.lineup);
   const vConfig = viabilityConfig(a);
   const viableOnly = parseBool(a.viable_only, "viable_only", false);
   const maxPerSide = parseBounded(a.max_per_side, "max_per_side", 2, 1, 4);
