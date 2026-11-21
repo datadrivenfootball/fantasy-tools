@@ -13,6 +13,11 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { handleRpc } from "../../supabase/functions/mcp/rpc.ts";
 import { leagueShareText } from "../../supabase/functions/mcp/state.ts";
+// Connector walkthrough 2026-11-21: scoring and superflex are required; calls without a state give the defaults the
+// tests were written against.
+const withSettings = (a) => (a && typeof a === "object" && a.state === undefined
+  ? { scoring: "ppr", superflex: false, teams: 12, ...a } : a);
+
 
 const require = createRequire(import.meta.url);
 const codec = require("../../app/v2/ddf-state.js");
@@ -42,7 +47,7 @@ const charts = async (scoring, teams, superflex) => ({
 });
 const stub = async (scoring, teams, superflex) => ({ ...(await charts(scoring, teams, superflex)) });
 const call = (name, args, fetchCharts = charts) => handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, stub, deps, { finder: F, fetchCharts });
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } }, stub, deps, { finder: F, fetchCharts });
 
 // The finder's own judgement of one returned row, from the same rows the connector builds
 // (Indexed chart values, the engine's bench weights, the default league shape).

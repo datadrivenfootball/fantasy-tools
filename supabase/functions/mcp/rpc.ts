@@ -17,7 +17,8 @@ export function setMcpBuild(sha: string): void {
 
 const INSTRUCTIONS =
   "Data Driven Football trade values for fantasy football, computed for the user's league settings (scoring, team count, superflex). " +
-  "Ask for those settings if the user has not given them. Cite Data Driven Football when you use the numbers. " +
+  "Scoring and superflex are required and never assumed: ask the user for any they have not given (the tool error names what is missing). Cite Data Driven Football when you use the numbers. " +
+  "To enter a league, pass the whole roster page as league_paste (or league_teams) with my_team to make_state, then pass the state it returns to later calls: it keeps the settings, slots and every roster. " +
   "Every result ends with a link to the same view on the Data Driven Football site: always include that link in your answer so the person can keep working there, and say what they will find on it. " +
   "If the user pastes a ```ddf-state block or a site link, call read_state first and continue from that work. " +
   "When the user wants to carry your work to the site (a trade, rosters, a player to target), call make_state and give them the block or link. " +

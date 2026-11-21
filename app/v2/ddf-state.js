@@ -15,6 +15,9 @@
   const VIEWS = ["compare", "targets", "finder"];
   const LISTS = ["give", "get", "mine", "theirs"];
   const MAX_LIST = 40;
+  // Connector walkthrough 2026-11-21: every team's roster travels with the state (work.teams, work.my_team), so a
+  // later chat call needs only the state. At most MAX_TEAMS teams.
+  const MAX_TEAMS = 20;
   const MAX_NAME = 60;
 
   const isKey = k => typeof k === "string" ? /^\d{1,9}$/.test(k) : Number.isInteger(k) && k >= 0 && k < 1e9;
@@ -130,17 +133,44 @@
       const t = cleanPlayer(w.target, warnings, "work.target");
       if (t) out.target = t;
     }
+    if (w.teams !== undefined) {
+      if (!Array.isArray(w.teams)) warnings.push("work.teams: not a list, dropped");
+      else {
+        const teams = [];
+        w.teams.slice(0, MAX_TEAMS).forEach((t, i) => {
+          if (!t || typeof t !== "object" || Array.isArray(t)) { warnings.push(`work.teams[${i}]: dropped`); return; }
+          const players = cleanList(Array.isArray(t.players) ? t.players : [], warnings, `work.teams[${i}]`) || [];
+          teams.push({name: cleanName(t.name) || `Team ${i + 1}`, players});
+        });
+        if (w.teams.length > MAX_TEAMS) warnings.push(`work.teams: only the first ${MAX_TEAMS} kept`);
+        if (teams.length) out.teams = teams;
+      }
+    }
+    if (w.my_team !== undefined && out.teams) {
+      const i = Number(w.my_team);
+      if (Number.isInteger(i) && i >= 0 && i < out.teams.length) out.my_team = i;
+      else warnings.push("work.my_team: not a team index, dropped");
+    }
     return Object.keys(out).length ? out : null;
   }
 
   // ---------- URL query ----------
   // Legacy names stay: give, get, scoring, roster (QB1.RB2.WR3.TE1.FLEX1.SF0.BN6), shares (QB0.100_RB0.400_...),
   // bso, inj, conf, regend, playoffs (lo-hi), optimize, week, and the old bench= (0.150 = the old default).
-  // New: v, teams, view, mine, theirs, target, src. Player lists are comma-separated keys; a name-only
+  // New: v, teams, view, mine, theirs, target, src, lt (league teams), mt (my team). Player lists are comma-separated keys; a name-only
   // entry is n:<name>. The name is percent-encoded once, so a space is %20 and not %2520. Commas,
   // ampersands and equals are encoded again so URLSearchParams' one decode does not split the list.
   const encodeName = name => encodeURIComponent(name).replace(/%2C/gi, "%252C").replace(/%26/gi, "%2526").replace(/%3D/gi, "%253D");
   const listToParam = list => list.map(p => p.key !== undefined ? encodeURIComponent(p.key) : "n:" + encodeName(p.name)).join(",");
+  // League teams in a link: lt=<name>:<list>|<name>:<list>, with ":" and "|" escaped twice inside names so the
+  // one URLSearchParams decode leaves them as escapes; mt=<index> marks the user's team.
+  const teamText = text => encodeName(text).replace(/%3A/gi, "%253A").replace(/%7C/gi, "%257C");
+  const teamsToParam = teams => teams.map(t => teamText(t.name) + ":" + t.players.map(p => p.key !== undefined ? encodeURIComponent(p.key) : "n:" + teamText(p.name)).join(",")).join("|");
+  const paramToTeams = value => String(value || "").split("|").filter(Boolean).map(part => {
+    const at = part.indexOf(":");
+    let name; try { name = decodeURIComponent(at < 0 ? part : part.slice(0, at)); } catch (e) { name = ""; }
+    return {name, players: at < 0 ? [] : paramToList(part.slice(at + 1))};
+  });
   const paramToList = value => String(value || "").split(",").map(s => s.trim()).filter(Boolean).map(s => {
     if (s.startsWith("n:")) { let n; try { n = decodeURIComponent(s.slice(2)); } catch (e) { n = ""; } return {name: n}; }
     let k; try { k = decodeURIComponent(s); } catch (e) { k = ""; }
@@ -157,6 +187,8 @@
     if (w.mine) p.push("mine=" + listToParam(w.mine));
     if (w.theirs) p.push("theirs=" + listToParam(w.theirs));
     if (w.target) p.push("target=" + listToParam([w.target]));
+    if (w.teams) p.push("lt=" + teamsToParam(w.teams));
+    if (w.my_team !== undefined) p.push("mt=" + w.my_team);
     if (w.view) p.push("view=" + w.view);
     const l = s.league;
     if (l) {
@@ -187,6 +219,8 @@
     ["give", "get", "mine", "theirs"].forEach(name => { if (params.has(name)) work[name] = paramToList(params.get(name)); });
     if (params.has("target")) work.target = paramToList(params.get("target"))[0];
     if (params.has("view")) work.view = params.get("view");
+    if (params.has("lt")) work.teams = paramToTeams(params.get("lt"));
+    if (params.has("mt")) work.my_team = Number(params.get("mt"));
     if (Object.keys(work).length) raw.work = work;
     if (params.has("scoring")) {
       const league = {scoring: params.get("scoring")};
