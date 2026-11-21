@@ -73,6 +73,17 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertIn("All batch trade tests passed", out.stdout)
 
     @unittest.skipIf(shutil.which("node") is None, "node not installed")
+    def test_finder_gate_and_dedupe(self):
+        """The search asks 3 of 4 charts fair to the rival; dedupe keeps a viable package over a higher-edge one."""
+        out = subprocess.run(
+            ["node", "--experimental-strip-types", "--no-warnings",
+             str(ROOT / "tests/node/mcp_finder_gate_check.mjs")],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertTrue(out.stdout.strip().endswith("ok"))
+
+    @unittest.skipIf(shutil.which("node") is None, "node not installed")
     def test_connector_both_sides_and_league_link(self):
         # JEG-1329: every trade row carries both teams' side of the finder's tradeFit, and the
         # league scan's site link opens the league finder with every team (workspace.js decodeShare).

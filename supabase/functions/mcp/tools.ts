@@ -1222,10 +1222,12 @@ async function findTradesHandler(
   // Pull a pool bigger than `limit` so deduping packages that receive the same players can still fill it.
   const pool = Math.min(500, Math.max(limit * 8, limit + 80));
 
+  const pricedCharts = finderDeps.finder.CHART_KEYS.filter((k) => data.sources_included.includes(k)).length;
   const result = findTradesForPair(finderDeps.finder, mineRows, theirRows, {
     maxSize: maxPerSide,
     minRivalEdge,
     limit: pool,
+    pricedCharts,
   });
 
   // --- Viability scoring ---
@@ -1420,6 +1422,7 @@ async function findTradesLeagueHandler(
     const pairResult = findTradesForPair(finderDeps.finder, mineRows, theirRows, {
       maxSize: maxPerSide,
       minRivalEdge,
+      pricedCharts: finderDeps.finder.CHART_KEYS.filter((k) => data.sources_included.includes(k)).length,
       // Never search a smaller pool than the previous per-opponent cap (50). A
       // higher limit asks for more so the shown list can still fill after dedupe.
       limit: Math.min(200, Math.max(50, limit)),
