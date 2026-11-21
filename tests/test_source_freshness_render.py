@@ -12,11 +12,21 @@ SOURCES = ("cbs", "usatoday", "fantasypros", "fantasycalc", "espn", "cbsros", "r
 STATUS_GLOB = "**/modules/comparison-chain-status.json"
 
 
+LEAGUE_SEED = ("(() => { sessionStorage.setItem('ddf:pasted', JSON.stringify({v: 1, source: 'paste', site: 'yahoo', me: 1, name: 'USO Season XVIII',"
+               " teams: [{name: 'Fourth Down Club', players: [{name: 'Josh Allen', key: '869', pos: 'QB', team: 'BUF', id: null}], unmatched: []},"
+               " {name: 'Hail Marys', players: [{name: 'Jahmyr Gibbs', key: '2227', pos: 'RB', team: 'DET', id: 0}], unmatched: []}]})); })()")
+
+
 def setUpModule():
     _render_env.ensure_built()
 
 
-def status(served, held=(), stale_after="2026-11-19T12:00:00-06:00", expected=11):
+# Fixed far from any real date so the page's live clock never moves a fixture across the Thursday-noon line.
+NOT_YET_STALE = "2099-01-01T12:00:00-06:00"
+ALREADY_STALE = "2000-01-01T12:00:00-06:00"
+
+
+def status(served, held=(), stale_after=NOT_YET_STALE, expected=11):
     weeks = {}
     for key in SOURCES:
         week = served.get(key, expected)
@@ -51,10 +61,12 @@ class SourceFreshnessTest(unittest.TestCase):
         cls._pwcm.__exit__(None, None, None)
         cls._serve.__exit__(None, None, None)
 
-    def open(self, name, body, width=375, code=200):
+    def open(self, name, body, width=375, code=200, seed=None):
         context = self.browser.new_context(viewport={"width": width, "height": 812})
         self.addCleanup(context.close)
         page = context.new_page()
+        if seed:
+            page.add_init_script(seed)
         page.route(lambda u: not u.startswith("http://127.0.0.1"), lambda r: r.abort())
         page.route(STATUS_GLOB, lambda r: r.fulfill(status=code, content_type="application/json", body=json.dumps(body)))
         page.goto(f"{self.base}/{name}.html", wait_until="networkidle", timeout=60000)
@@ -105,6 +117,28 @@ class SourceFreshnessTest(unittest.TestCase):
         page.click(".morewrap > button")
         self.assertTrue(page.locator(".morewrap.open .menu").count())
 
+    def test_header_fits_with_league_chip_and_bookmark(self):
+        """Values with a seeded league (chip) and the Bookmark button showing, plus the dot and Menu, at phone widths."""
+        body = status({"usatoday": 10})
+        for width in (320, 360, 375, 390):
+            with self.subTest(width=width):
+                page = self.open("values", body, width=width, seed=LEAGUE_SEED)
+                page.wait_for_selector("header .ddf-fresh-hdr a")
+                shown = page.evaluate("""() => ['header .ddf-bm-wrap', 'header .ddf-chip, header [class*=chip]']
+                    .map(q => { const e = document.querySelector(q); return !!(e && e.getClientRects().length); })""")
+                page.wait_for_timeout(600)
+                self.assertTrue(shown[0], "Bookmark button must be showing for this case")
+                self.assertTrue(shown[1], "league chip must be showing for this case")
+                box = page.locator("header .ddf-fresh-hdr a").bounding_box()
+                self.assertGreaterEqual(box["height"], 44)
+                self.assertGreaterEqual(box["width"], 44)
+                self.assertIn("Source freshness", page.locator("header .ddf-fresh-hdr a").get_attribute("aria-label"))
+                over = page.evaluate("""(w) => [...document.querySelectorAll('header *')].filter(e => e.getClientRects().length
+                    && e.getBoundingClientRect().right > w + 0.5).map(e => e.tagName + '.' + e.className)""", width)
+                self.assertEqual(over, [])
+                if width >= 360:  # at 320 the Values rank controls (not the header) are wider than the screen on main too
+                    self.assertLessEqual(page.evaluate("document.documentElement.scrollWidth"), width)
+
     def test_no_header_dot_when_status_unreadable(self):
         page = self.open("values", {}, code=404)
         self.assertEqual(page.locator("header .ddf-fresh-hdr").count(), 0)
@@ -141,7 +175,7 @@ class SourceFreshnessTest(unittest.TestCase):
     def test_behind_wording_before_and_after_thursday_noon(self):
         before = self.open("freshness", status({"razzball": 10}))
         self.assertIn("Not yet published for Week 11.", before.locator('.fresh-item[data-source="razzball"]').inner_text())
-        after = self.open("freshness", status({"razzball": 10}, stale_after="2026-11-10T12:00:00-06:00"))
+        after = self.open("freshness", status({"razzball": 10}, stale_after=ALREADY_STALE))
         item = after.locator('.fresh-item[data-source="razzball"]')
         self.assertIn("Stale", item.inner_text())
         self.assertIn("Still on Week 10 after Thursday 12:00 CT.", item.inner_text())

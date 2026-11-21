@@ -1755,9 +1755,12 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       box.innerHTML = '<a href="freshness.html"><span class="ddf-fresh-dot" aria-hidden="true"></span><span class="ddf-fresh-lbl" aria-hidden="true">Sources</span></a>';
       nav.insertBefore(box, wrap || null);
     }
+    if(wrap && box.nextSibling !== wrap) nav.insertBefore(box, wrap);
     var a = box.firstChild, d = a.firstChild;
     a.setAttribute('aria-label', 'Source freshness: ' + dotLabel(sum) + '. Open details'); a.title = dotLabel(sum);
     d.setAttribute('data-state', sum.state);
+    /* the dot takes header room after the league chip was sized: let the chip fit again */
+    try{ if(window.DDF.leagueMeta) window.DDF.leagueMeta.refresh(); }catch(e){}
   }
   function paint(sum){
     paintHeader(sum);
@@ -1770,8 +1773,16 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   window.DDF.freshness = {summarize:summarize, load:load, paint:paint, dotLabel:dotLabel, url:STATUS_URL};
   function run(){ load().then(paint); }
+  /* Bookmark shows or hides after the league chip was sized: let the chip fit the header again (hidden changes only, so no loop) */
+  function watchHeader(){
+    var h = document.querySelector('header .header-inner'), t;
+    if(!h || h._ddfFreshWatch || !window.MutationObserver) return;
+    h._ddfFreshWatch = true;
+    new MutationObserver(function(){ clearTimeout(t); t = setTimeout(function(){ try{ window.DDF.leagueMeta.refresh(); }catch(e){} }, 60); })
+      .observe(h, {attributes:true, attributeFilter:['hidden'], subtree:true});
+  }
   run();
-  document.addEventListener('DOMContentLoaded', run);
+  document.addEventListener('DOMContentLoaded', function(){ watchHeader(); run(); });
   window.addEventListener('load', run);
   document.addEventListener('ddf:link', run);
 })();
