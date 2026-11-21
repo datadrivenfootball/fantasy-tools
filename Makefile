@@ -840,6 +840,8 @@ test-core:
 	python3 -m unittest tests.test_legacy_routes
 	python3 -m unittest tests.test_legacy_links_state
 	python3 -m unittest tests.test_values_zero_override
+	# Values: find a player and see comparably valued players (values-search.js).
+	python3 -m unittest tests.test_values_player_search_render
 	python3 -m unittest tests.test_build_root_pages
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
@@ -1041,6 +1043,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_legacy_routes
 	python3 -m unittest tests.test_legacy_links_state
 	python3 -m unittest tests.test_values_zero_override
+	# Values: find a player and see comparably valued players (values-search.js).
+	python3 -m unittest tests.test_values_player_search_render
 	python3 -m unittest tests.test_build_root_pages
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity

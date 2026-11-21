@@ -672,8 +672,15 @@ export function scoreAndRankOffers(
   });
 }
 
-/** Deduplicate offers that receive the same players. Keep the best by DDF edge. */
-function deduplicateOffers(offers: ScoredOffer[]): ScoredOffer[] {
+/**
+ * Deduplicate offers that receive the same players. Keep the most acceptable: viable first, then fewest failed
+ * checks, then DDF edge. (Connector walkthrough 2026-11-21: keeping the highest edge alone dropped the viable
+ * version of a package for a lopsided one, so 8 viable offers in a pool became 0.)
+ */
+export function deduplicateOffers(offers: ScoredOffer[]): ScoredOffer[] {
+  const failed = (o: ScoredOffer) => o.checks.filter((c) => !c.passed).length;
+  const better = (a: ScoredOffer, b: ScoredOffer) =>
+    a.viable !== b.viable ? a.viable : failed(a) !== failed(b) ? failed(a) < failed(b) : a.ddfEdge > b.ddfEdge;
   const seen = new Map<string, ScoredOffer>();
   for (const offer of offers) {
     const key = offer.userGets
@@ -681,7 +688,7 @@ function deduplicateOffers(offers: ScoredOffer[]): ScoredOffer[] {
       .sort((a, b) => a - b)
       .join(",");
     const existing = seen.get(key);
-    if (!existing || offer.ddfEdge > existing.ddfEdge) {
+    if (!existing || better(offer, existing)) {
       seen.set(key, offer);
     }
   }
