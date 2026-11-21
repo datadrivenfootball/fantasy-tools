@@ -577,7 +577,8 @@ def main() -> int:
     # JEG-1543: the answers version (/answers/, noindex, linked from no public page): DDF outputs only, from the
     # pre-built grid of answer tables, checked by the privacy check. It never stops the full site: on any failure
     # (a privacy finding, or node that cannot run the edge function's .ts modules) dist/answers is removed, so nothing
-    # unchecked is published, and tests/test_answers_site.py fails in CI where the tree is required.
+    # unchecked is published; a GitHub ::warning:: annotation says so, and tests/test_answers_site.py (nightly full suite)
+    # fails where the tree is required.
     from build_answers_pages import AnswersBuildError, build as build_answers_pages, node_ready
     reason = node_ready()
     if reason is None:
