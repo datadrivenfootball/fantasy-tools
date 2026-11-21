@@ -89,8 +89,12 @@ assert.equal(r.result.isError, true);
 r = await call("compare_trade", { side_a: "Josh Allen", side_b: "Bijan Robinson" });
 const c = r.result.structuredContent;
 assert.equal(c.difference, -31.8);
-assert.match(c.verdict, /team B gives up more value|team A comes out ahead/);
-assert.match(c.verdict, /team A comes out ahead by 31\.8/);
+// Connector walkthrough 2026-11-21: the verdict speaks for the user (side_a is what you give).
+assert.match(c.verdict, /^you win by 31\.8$/);
+assert.equal(c.net_for_you, 31.8);
+assert.equal(c.summary, "You win 31.8 by DDF Value (give 40.0, get 71.8).");
+assert.equal(Object.keys(c)[0], "summary", "the one-line answer is the first key");
+assert.ok(r.result.content[0].text.startsWith(`${c.summary}\n`), "the text opens with the answer");
 // JEG-1124 (Jeremy 2026-10-30, "Letter A."): a missing name stops the compare (no verdict, no
 // totals) and asks which player was meant. It used to total without it ("roughly even" here).
 r = await call("compare_trade", { side_a: "Josh Allen", side_b: "Josh Jacobs, Ghost" });
@@ -311,7 +315,7 @@ const callF = (name, args) => handleRpc(
   stub, deps, finderDeps);
 
 // find_trades: basic search between two rosters.
-r = await callF("find_trades", { mine: "Josh Allen, Josh Jacobs", theirs: "Bijan Robinson, Ja'Marr Chase" });
+r = await callF("find_trades", { viable_only: false, mine: "Josh Allen, Josh Jacobs", theirs: "Bijan Robinson, Ja'Marr Chase" });
 assert.notEqual(r.result.isError, true, "find_trades should not error: " + JSON.stringify(r.result));
 const ft = r.result.structuredContent;
 assert.ok(ft.total >= 0, "total trades is a number");
@@ -340,7 +344,7 @@ if (ft.trades.length > 0) {
 // JEG-1115: every returned trade carries the finder's fit label and reason, in the text too.
 // Chart Gem is cheap on the charts and dear on DDF Value, so trades exist.
 {
-  r = await callF("find_trades", { mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" });
+  r = await callF("find_trades", { viable_only: false, mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" });
   assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
   const trades = r.result.structuredContent.trades;
   assert.ok(trades.length > 0, "the fit fixture finds trades");
@@ -350,7 +354,7 @@ if (ft.trades.length > 0) {
     assert.ok(t.fitReason.startsWith(t.fit === "Market supported" ? "Market supported" : `${t.fit} fit`), "the reason names the label: " + t.fitReason);
   }
   assert.match(r.result.content[0].text, /\n   (Natural fit|Market supported|Force fit): /, "the text shows the fit and its reason");
-  r = await callF("find_trades_league", { mine: "Josh Allen, Josh Jacobs", opponents: [{ name: "Gem Team", roster: "Chart Gem, Bijan Robinson" }] });
+  r = await callF("find_trades_league", { viable_only: false, mine: "Josh Allen, Josh Jacobs", opponents: [{ name: "Gem Team", roster: "Chart Gem, Bijan Robinson" }] });
   assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
   const lt = r.result.structuredContent.trades;
   assert.ok(lt.length > 0 && lt.every((t) => ["Natural", "Market supported", "Force"].includes(t.fit)), "league trades carry the fit: " + JSON.stringify(lt));
@@ -358,7 +362,7 @@ if (ft.trades.length > 0) {
   // An older get-values with no bench_share readout: the fit is left out, never approximated.
   const noReadout = async (scoring, teams, superflex) => { const { bench_share, ...rest } = await chartStub(scoring, teams, superflex); return rest; };
   r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades",
-    arguments: withSettings({ mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" }) } }, stub, deps, { finder, fetchCharts: noReadout });
+    arguments: withSettings({ viable_only: false, mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" }) } }, stub, deps, { finder, fetchCharts: noReadout });
   assert.notEqual(r.result.isError, true);
   assert.ok(r.result.structuredContent.trades.length > 0 && r.result.structuredContent.trades.every((t) => t.fit === undefined), "no readout, no fit");
 }
@@ -377,7 +381,7 @@ if (ft.trades.length > 0) {
   const arbCharts = async (scoring, teams, superflex) => ({ ...(await chartStub(scoring, teams, superflex)), players: arb });
   const callA = (args) => handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades", arguments: withSettings(args) } },
     stub, deps, { finder, fetchCharts: arbCharts });
-  r = await callA({ mine: "Market Darling", theirs: "Market Laggard", max_per_side: 1 });
+  r = await callA({ viable_only: false, mine: "Market Darling", theirs: "Market Laggard", max_per_side: 1 });
   assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
   const t = r.result.structuredContent.trades.find((x) => x.userGives[0].name === "Market Darling");
   assert.ok(t, "the arbitrage trade is found: " + JSON.stringify(r.result.structuredContent.trades));
@@ -400,21 +404,21 @@ if (ft.trades.length > 0) {
 }
 
 // Unmatched names are reported.
-r = await callF("find_trades", { mine: "Josh Allen, Ghost", theirs: "Bijan Robinson" });
+r = await callF("find_trades", { viable_only: false, mine: "Josh Allen, Ghost", theirs: "Bijan Robinson" });
 assert.notEqual(r.result.isError, true);
 assert.deepEqual(r.result.structuredContent.mine.unmatched, ["Ghost"]);
 assert.equal(r.result.structuredContent.mine.ambiguous, undefined, "no ambiguous field when every name is clear");
 
 // JEG-1124: a roster name that fits several players is left out, counted and listed with its candidates.
-r = await callF("find_trades", { mine: "Bijan Robinson, Josh", theirs: "Ja'Marr Chase" });
+r = await callF("find_trades", { viable_only: false, mine: "Bijan Robinson, Josh", theirs: "Ja'Marr Chase" });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 assert.deepEqual(r.result.structuredContent.mine.ambiguous, [{ input: "Josh", suggestions: ["Josh Allen", "Josh Jacobs"] }]);
 assert.match(r.result.content[0].text, /Your roster: 1 matched, 0 not found, 1 fits more than one player \(left out; ask which\)/);
-assert.match(r.result.content[0].text, /Josh: AMBIGUOUS/);
-r = await callF("find_trades_league", { mine: "Bijan Robinson", opponents: [{ name: "Opp", roster: "Ja'Marr Chase, Josh" }] });
+assert.match(r.result.content[0].text, /^Could be more than one player: Josh could be Josh Allen or Josh Jacobs\.$/m);
+r = await callF("find_trades_league", { viable_only: false, mine: "Bijan Robinson", opponents: [{ name: "Opp", roster: "Ja'Marr Chase, Josh" }] });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 assert.deepEqual(r.result.structuredContent.perOpponent[0].ambiguous, [{ input: "Josh", suggestions: ["Josh Allen", "Josh Jacobs"] }]);
-assert.match(r.result.content[0].text, /Opp: Josh: AMBIGUOUS/);
+assert.match(r.result.content[0].text, /^Could be more than one player: Josh \(Opp\) could be Josh Allen or Josh Jacobs\.$/m);
 
 // JEG-1070: a pasted custom league reaches the chart fetch for both finder tools, so the
 // finder prices the same league as get_values; a default league sends none.
@@ -429,18 +433,18 @@ const callR = (name, args) => handleRpc(
   stub, deps, recDeps);
 const finderLeague = { roster: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 6 }, shares: { QB: 0.2, RB: 0.35, WR: 0.35, TE: 0.1 } };
 const finderState = codec.encodeBlock({ league: { scoring: "ppr", teams: 12, ...finderLeague } });
-r = await callR("find_trades", { state: finderState, mine: "Josh Allen, Josh Jacobs", theirs: "Bijan Robinson, Ja'Marr Chase" });
+r = await callR("find_trades", { viable_only: false, state: finderState, mine: "Josh Allen, Josh Jacobs", theirs: "Bijan Robinson, Ja'Marr Chase" });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 assert.deepEqual(chartLeagues.at(-1), finderLeague, "find_trades passes the pasted league to fetchCharts");
-r = await callR("find_trades_league", { state: finderState, mine: "Josh Allen, Josh Jacobs",
+r = await callR("find_trades_league", { viable_only: false, state: finderState, mine: "Josh Allen, Josh Jacobs",
   opponents: [{ name: "Opp", roster: "Bijan Robinson, Ja'Marr Chase" }] });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 assert.deepEqual(chartLeagues.at(-1), finderLeague, "find_trades_league passes the pasted league to fetchCharts");
-r = await callR("find_trades", { scoring: "ppr", teams: 12, mine: "Josh Allen", theirs: "Bijan Robinson" });
+r = await callR("find_trades", { viable_only: false, scoring: "ppr", teams: 12, mine: "Josh Allen", theirs: "Bijan Robinson" });
 assert.equal(chartLeagues.at(-1), undefined, "no pasted league sends none");
 
 // Empty roster is an error.
-r = await callF("find_trades", { mine: "", theirs: "Bijan Robinson" });
+r = await callF("find_trades", { viable_only: false, mine: "", theirs: "Bijan Robinson" });
 assert.equal(r.result.isError, true);
 
 // Missing finder dependency surfaces as a tool error.
@@ -452,7 +456,7 @@ assert.equal(r.result.isError, true);
 assert.match(r.result.content[0].text, /unavailable/);
 
 // The site link points to find-trade.
-r = await callF("find_trades", { mine: "Josh Allen", theirs: "Bijan Robinson" });
+r = await callF("find_trades", { viable_only: false, mine: "Josh Allen", theirs: "Bijan Robinson" });
 assert.ok(r.result.structuredContent.site_url.includes("#find-trade"), "link points to find-trade view");
 
 // The edge function evals the published finder.js with no DOM. The file publishes TradeValueFinder and then runs
@@ -541,10 +545,10 @@ for (const [tool, args, needle] of [
     ["trade_targets", { player_name: "J" }, tooShort],
     ["compare_trade", { side_a: "J", side_b: "Bijan Robinson" }, /side_a: name too short/],
     ["compare_trade", { side_a: "Bijan Robinson", side_b: "J" }, /side_b: name too short/],
-    ["compare_trade", { side_a: "", side_b: "Bijan Robinson" }, /side_a and side_b each need at least one name/],
-    ["compare_trade", { side_a: "   ", side_b: "Bijan Robinson" }, /side_a and side_b each need at least one name/],
-    ["compare_trade", { side_a: "Bijan Robinson", side_b: "" }, /side_a and side_b each need at least one name/],
-    ["compare_trade", { side_a: "Bijan Robinson", side_b: "   " }, /side_a and side_b each need at least one name/],
+    ["compare_trade", { side_a: "", side_b: "Bijan Robinson" }, /give and get each need at least one name/],
+    ["compare_trade", { side_a: "   ", side_b: "Bijan Robinson" }, /give and get each need at least one name/],
+    ["compare_trade", { side_a: "Bijan Robinson", side_b: "" }, /give and get each need at least one name/],
+    ["compare_trade", { side_a: "Bijan Robinson", side_b: "   " }, /give and get each need at least one name/],
     ["find_trades", { mine: "Josh Allen, J", theirs: "Bijan Robinson" }, /mine: name too short/],
     ["find_trades", { mine: "Josh Allen", theirs: "J" }, /theirs: name too short/],
     ["find_trades_league", { mine: "J", opponents: [{ name: "Opp", roster: "Bijan Robinson" }] }, /mine: name too short/],
@@ -581,10 +585,10 @@ assert.equal(r.result.structuredContent.side_a.total, 40);
 assert.match(r.result.content[0].text, /counted once/);
 r = await call("compare_trade", { side_a: "DJ Moore", side_b: "DJ Moore" });
 assert.equal(r.result.isError, true);
-assert.match(r.result.content[0].text, /team A only/);
+assert.match(r.result.content[0].text, /give side only/);
 
 // Identical rosters do not propose a player for himself.
-r = await callF("find_trades", { mine: "Josh Allen, Josh Jacobs", theirs: "Josh Allen, Josh Jacobs" });
+r = await callF("find_trades", { viable_only: false, mine: "Josh Allen, Josh Jacobs", theirs: "Josh Allen, Josh Jacobs" });
 assert.equal(r.result.isError, true, JSON.stringify(r.result));
 assert.match(r.result.content[0].text, /also on yours/);
 
@@ -647,7 +651,7 @@ const tbytes = (res) => linkFree(res.result);
 const mineList = sizeMine.map((p) => p.name).join(", ");
 const theirList = sizeTheirs.map((p) => p.name).join(", ");
 const sizes = {};
-r = await sizeCall("find_trades", { mine: mineList, theirs: theirList });
+r = await sizeCall("find_trades", { viable_only: false, mine: mineList, theirs: theirList });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result).slice(0, 400));
 // Jeremy's limits are upper bounds; fit reasons may require a shorter prefix.
 assert.ok(r.result.structuredContent.shown >= 1 && r.result.structuredContent.shown <= 10);
@@ -681,7 +685,7 @@ for (const [name, limit, budget] of [["find_trades", 10, 6700], ["find_trades", 
   decorated.structuredContent.week_note += "x";
   assert.throws(() => checkTradeReplySize(name, decorated), ToolInputError);
 }
-r = await sizeCall("find_trades", { mine: mineList, theirs: theirList, limit: 50 });
+r = await sizeCall("find_trades", { viable_only: false, mine: mineList, theirs: theirList, limit: 50 });
 // Jeremy, 2026-10-26: the rewritten finder may yield fewer distinct trades than the limit; accept 1..limit.
 const shown50 = r.result.structuredContent.shown;
 assert.ok(shown50 >= 1 && shown50 <= 50, `showing ${shown50} of limit 50`);
@@ -694,7 +698,7 @@ assert.match(defaultFind.content[0].text, /Fewer candidates shown to keep this r
 sizes.find50 = tbytes(r);
 assert.ok(sizes.find50 < 17000, `find_trades limit 50 ${sizes.find50} bytes`);
 const sizeOpps = Array.from({ length: 11 }, (_, i) => ({ name: `Opp ${i + 1}`, roster: theirList }));
-r = await sizeCall("find_trades_league", { mine: mineList, opponents: sizeOpps });
+r = await sizeCall("find_trades_league", { viable_only: false, mine: mineList, opponents: sizeOpps });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result).slice(0, 400));
 assert.equal(r.result.structuredContent.limit, 10);
 assertFitReply(r.result);
@@ -712,7 +716,7 @@ assert.equal(defaultLeague.structuredContent.trades.length, defaultLeague.struct
 assert.ok(nbytes(r) >= 8000 - 512, `counted in, the link would cost rows: ${nbytes(r)} bytes with it`);
 assert.doesNotThrow(() => checkTradeReplySize("find_trades_league", defaultLeague));
 // The larger league budget still preserves the same entire package and a ranked candidate prefix.
-r = await sizeCall("find_trades_league", { mine: mineList, opponents: sizeOpps, limit: 100 });
+r = await sizeCall("find_trades_league", { viable_only: false, mine: mineList, opponents: sizeOpps, limit: 100 });
 assertFitReply(r.result);
 sizes.league100 = tbytes(r);
 assert.ok(sizes.league100 < 11500, `league limit 100 ${sizes.league100} bytes`);
@@ -723,10 +727,10 @@ assert.deepEqual(defaultLeague.structuredContent.trades,
 // UTF-8 bytes (not JS code units), and an irreducible state/package must give a small error.
 const unicodeMine = sizeMine.map(p => ({ ...p, name: `${p.name} 足🏈` }));
 const unicodeCharts = async () => ({ ...await sizeCharts(), players: unicodeMine.concat(sizeTheirs) });
-r = await sizeCall("find_trades", { mine: unicodeMine.map(p => p.name).join(", "), theirs: theirList }, unicodeCharts);
+r = await sizeCall("find_trades", { viable_only: false, mine: unicodeMine.map(p => p.name).join(", "), theirs: theirList }, unicodeCharts);
 assertFitReply(r.result);
 assert.ok(tbytes(r) < 6700);
-r = await sizeCall("find_trades_league", { mine: mineList,
+r = await sizeCall("find_trades_league", { viable_only: false, mine: mineList,
   opponents: [{ name: "足🏈".repeat(1800), roster: theirList }], limit: 1 });
 assert.equal(r.result.isError, true);
 assert.match(r.result.content[0].text, /reply is too large/);
@@ -736,7 +740,7 @@ assert.ok(nbytes(r) < 300, "size errors never echo the oversized input");
 // identity must not collapse distinct opponents. Original index travels with every row.
 const extraPlayer = { ...sizeTheirs[0], player_key: 9001, name: "Third Roster QB" };
 const duplicateCharts = async () => ({ ...await sizeCharts(), players: [...sizeAll, extraPlayer] });
-const scan = async (opponents) => (await sizeCall("find_trades_league", { mine: mineList, opponents, limit: 100 }, duplicateCharts)).result;
+const scan = async (opponents) => (await sizeCall("find_trades_league", { viable_only: false, mine: mineList, opponents, limit: 100 }, duplicateCharts)).result;
 const original = await scan([{ name: "Same", roster: theirList }]);
 const duplicate = await scan([{ name: "Same", roster: theirList }, { name: "Same", roster: extraPlayer.name }]);
 const renamed = await scan([{ name: "First", roster: theirList }, { name: "Second", roster: extraPlayer.name }]);

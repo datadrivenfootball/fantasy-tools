@@ -205,3 +205,16 @@ seeded and two real league rosters (PR for JEG-1639).
   `settings`, `slots`, `league_teams`, `my_team` came from the 2026-11-05 handoff build (v24, `09-mcp-server` in the
   handoff folder), not from this repo; after a deploy, reconnect the connector to refresh its list.
 - Tests: `tests/node/mcp_entry_check.mjs` (run by `tests.test_mcp_remote`).
+
+## Connector answers (2026-11-21, connector walkthrough)
+- Jeremy, 2026-11-21: "Do all recommendations" (part B, clear short answers); decision 4A "Viable trades only, with a
+  closest fallback when none". Every reply opens with one plain line, also `structuredContent.summary` (its first key):
+  `finish({summary})` in `state.ts`; `week.ts withWeek` keeps the week line after `Settings:`, never above the answer.
+- Finders default `viable_only` to true; with none viable the closest 1-2 (fewest failed checks) come back as `closest`
+  with `why` (plain words + the check's detail), and the budget trims those rows. Check names stay in `failed`; the text
+  uses `CHECK_WORDS`. Name notices fold through `nameLines` (one line per kind; K/DEF counted, named when 3 or fewer).
+- compare_trade takes give/get (side_a/side_b still work); the lineup line uses `viability.ts pickStarters` with the
+  league's saved slots (`shapeOf`; the finders still use `s.roster` only, so a state's WR 3 is not their shape).
+- Reasons for a drop to 0 or a 2.5+ move come only from the trade charts and projections (get-values has no injury
+  field). Known: with #1503's gate a 12-team state reply passes the size budget only if the state is not counted.
+- Tests: `tests/node/mcp_answer_format_check.mjs` (run by `tests.test_mcp_remote`).

@@ -82,7 +82,13 @@ export function withWeek<R extends Result>(result: R, data: WeekFields | null, a
   };
   let text = result.content[0]?.text ?? "";
   const line = weekLine(data);
-  if (line) text = /^Settings: .*$/m.test(text) ? text.replace(/^Settings: .*$/m, (s) => `${s}\n${line}`) : `${line}\n${text}`;
+  if (line) {
+    // The one-line answer (structuredContent.summary) stays first.
+    const summary = typeof result.structuredContent?.summary === "string" ? result.structuredContent.summary : "";
+    if (/^Settings: .*$/m.test(text)) text = text.replace(/^Settings: .*$/m, (s) => `${s}\n${line}`);
+    else if (summary && text.startsWith(`${summary}\n`)) text = `${summary}\n${line}\n${text.slice(summary.length + 1)}`;
+    else text = `${line}\n${text}`;
+  }
   const structured: Record<string, Any> = { ...(result.structuredContent ?? {}), ...fields };
   const url = structured.site_url;
   if (asked !== null && typeof url === "string" && url && !/[?&]wk=/.test(url)) {

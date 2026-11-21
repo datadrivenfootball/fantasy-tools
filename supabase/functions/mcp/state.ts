@@ -113,6 +113,11 @@ export interface Finish {
   block?: boolean;  // append the pasteable block (make_state)
   /** JEG-1329: a league scan's teams (yours first). The link opens the league finder with all of them. */
   teams?: LeagueTeam[];
+  /**
+   * Connector walkthrough 2026-11-21 (part B, "clear, short answers"): one plain line that answers the question. It
+   * opens the text and is the first key of structuredContent (hosts show the JSON).
+   */
+  summary?: string;
 }
 
 export interface LeagueTeam {
@@ -174,12 +179,13 @@ export function finish<R extends { content: Array<{ type: "text"; text: string }
   }
 
   const block = f.block && deps?.codec && outState ? deps.codec.encodeBlock(outState, { url }) : "";
-  const text = result.content[0].text +
+  const summary = f.summary?.trim() || "";
+  const text = (summary ? `${summary}\n` : "") + result.content[0].text +
     (notes.length ? `\n\n${notes.join("\n")}` : "") +
     (block ? `\n\n${block}` : deps ? `\n\nOpen this on the site: ${url}` : "");
   return {
     ...result,
     content: [{ type: "text", text }],
-    structuredContent: { ...(result.structuredContent ?? {}), site_url: deps ? url : null, state: outState, notes },
+    structuredContent: { ...(summary ? { summary } : {}), ...(result.structuredContent ?? {}), site_url: deps ? url : null, state: outState, notes },
   };
 }
