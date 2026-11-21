@@ -30,6 +30,17 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertTrue(out.stdout.strip().endswith("ok"))
 
     @unittest.skipIf(shutil.which("node") is None, "node not installed")
+    def test_kickers_and_defenses_are_never_another_player(self):
+        """A K or DEF name is left out as not valued; a skill tag or a typo never crosses positions (Jason Sanders)."""
+        out = subprocess.run(
+            ["node", "--experimental-strip-types", "--no-warnings",
+             str(ROOT / "tests/node/mcp_kdef_names_check.mjs")],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertTrue(out.stdout.strip().endswith("ok"))
+
+    @unittest.skipIf(shutil.which("node") is None, "node not installed")
     def test_explicit_superflex_link(self):
         out = subprocess.run(
             ["node", "--experimental-strip-types", "--no-warnings",
