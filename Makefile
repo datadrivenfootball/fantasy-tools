@@ -788,6 +788,8 @@ test-core:
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
 	node tests/test_sleeper_league_state.js
+	# JEG-1685: league-state in the workspace, ddf-state and the ES-12 week fill (pure rules, round trips).
+	node tests/test_league_state_wiring.js
 	node tests/test_v2_name_format.js
 	python3 -m unittest tests.test_v2_headlines
 	python3 -m unittest tests.test_v2_movers
@@ -876,6 +878,8 @@ test-core:
 	python3 -m unittest tests.test_jeg1632_kdef_slots
 	# JEG-1689: a paste sets team count and lineup; League settings marks each "From your paste" until confirmed.
 	python3 -m unittest tests.test_jeg1689_paste_settings_render
+	# JEG-1685: a Sleeper import stores league-state, fills the ES-12 weeks (reader-set weeks win); League settings names the source.
+	python3 -m unittest tests.test_jeg1685_league_state_render
 	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_asset_load_retry
 	python3 -m unittest tests.test_espn_listed_rows
@@ -975,6 +979,8 @@ test-core-shard-2:
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
 	node tests/test_sleeper_league_state.js
+	# JEG-1685: league-state in the workspace, ddf-state and the ES-12 week fill (pure rules, round trips).
+	node tests/test_league_state_wiring.js
 	python3 -m unittest tests.test_v2_trade_story
 	python3 -m unittest tests.test_v2_phone_customize_targets_render
 	python3 -m unittest tests.test_v2_phone_fallback_font_render
@@ -1128,6 +1134,8 @@ test-core-shard-5:
 	python3 -m unittest tests.test_jeg1632_kdef_slots
 	# JEG-1689: a paste sets team count and lineup; League settings marks each "From your paste" until confirmed.
 	python3 -m unittest tests.test_jeg1689_paste_settings_render
+	# JEG-1685: a Sleeper import stores league-state, fills the ES-12 weeks (reader-set weeks win); League settings names the source.
+	python3 -m unittest tests.test_jeg1685_league_state_render
 	python3 -m unittest tests.test_missing_section_render
 	python3 -m unittest tests.test_lineup_content_week_advance
 	python3 -m unittest tests.test_search_players_universe

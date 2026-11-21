@@ -19,7 +19,7 @@
  *
  * API: window.DDF.league
  *   ready            Promise<current()>, after DDF.engine.ready and DDF.link.ready (link decode); a link's settings applied
- *   current()        {name, source:'link'|'pasted'|'saved', settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench], kdef?:[k,def]},
+ *   current()        {name, source:'link'|'pasted'|'saved', leagueState (pasted/saved: league-state/1 or null), leagueStateReason, weeksFilled (JEG-1685), settings:{scoring, teams, superflex, superflexSlots?, slots:[qb,rb,wr,te,flex,bench], kdef?:[k,def]},
  *                     me:index|null, teams:[{index, name, players:[record | {name, key:null, pos, unpriced:true}],
  *                     unmatched:[{line|name, reason}], count}], waivers:[record], waiversFromLink:boolean} or null
  *                     (record = DDF.engine record; waivers = state.waivers when the link has them, else every priced
@@ -119,7 +119,8 @@
         players: dedupe(list.map(function (e) { return resolve({name: e && e.name, key: e && e.key, pos: e && e.pos}, ix); })),
         unmatched: Array.isArray(t && t.unmatched) ? t.unmatched : [], count: Array.isArray(t && t.players) ? list.length : (Number(t && t.players) || 0)};
     });
-    return {name: String(p.name || "Your league"), source: "pasted", settings: null, me: Number.isInteger(p.me) && teams[p.me] ? p.me : null, teams: teams, linkWaivers: null};
+    return {name: String(p.name || "Your league"), source: "pasted", settings: null, me: Number.isInteger(p.me) && teams[p.me] ? p.me : null, teams: teams, linkWaivers: null,
+      leagueState: p.leagueState || null, leagueStateReason: p.leagueState ? null : (p.leagueStateReason || null), weeksFilled: p.leagueState ? p.weeksFilled || null : null};
   }
   function fromSaved(ix) {
     var data = readJSON(localStorage, WS_KEY);
@@ -132,7 +133,8 @@
       var list = Array.isArray(t.entries) ? t.entries : [];
       return {index: i, name: String(t.name || ("Team " + (i + 1))), players: dedupe(list.map(function (e) { return resolve({name: e && e.name, key: e && e.key, pos: e && e.pos}, ix); })), unmatched: [], count: list.length};
     });
-    return {name: String(ws.name || "Your league"), source: "saved", settings: null, me: me, teams: teams, linkWaivers: null};
+    return {name: String(ws.name || "Your league"), source: "saved", settings: null, me: me, teams: teams, linkWaivers: null,
+      leagueState: ws.leagueState || null, leagueStateReason: ws.leagueState ? null : (ws.leagueStateReason || "No season state was captured for this league."), weeksFilled: ws.leagueState ? ws.weeksFilled || null : null};
   }
   // The league's settings in the link format; a pasted or saved league has none of its own, so they are the engine's.
   function engineSettings() {
@@ -190,6 +192,7 @@
       .sort(function (a, b) { return b.ddf - a.ddf || a.key.localeCompare(b.key); });
     var value = {name: lg.name, source: lg.source, settings: lg.source === "link" && lg.settings ? lg.settings : engineSettings(),
       me: lg.me, teams: lg.teams, waivers: waivers, waiversFromLink: !!lg.linkWaivers};
+    if (lg.source !== "link") { value.leagueState = lg.leagueState; value.leagueStateReason = lg.leagueStateReason; value.weeksFilled = lg.weeksFilled; }   // JEG-1685
     cache = {value: value};
     return value;
   }

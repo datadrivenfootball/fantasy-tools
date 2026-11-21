@@ -299,7 +299,12 @@
     return {v: 1, source: source || "paste", site: result.site || "unknown", me: null, enteredAt: today(),
       suggestedName: lg.leagueName || null, leagueId: lg.leagueId || null, platform: lg.platform || null,
       teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; }),
-      pasteSettings: result.pasteSettings || null};
+      pasteSettings: result.pasteSettings || null,
+      /* JEG-1685: the league-state/1 object (docs/contract/league-state-v1.md) when the import path supplies one (Sleeper);
+         a paste or manual league has none: null with the reason, never zeros. weeksFilled = the ES-12 weeks it filled. */
+      leagueState: result.leagueState || null,
+      leagueStateReason: result.leagueState ? null : (source === "sleeper" ? "Sleeper did not return the season state for this league." : "A pasted league has no season state (records, schedule, playoff rules): the paste drops them."),
+      weeksFilled: null};
   }
 
   /* teams given as their own blocks of lines ({name, text}), read by the live matcher one team at a time: the same

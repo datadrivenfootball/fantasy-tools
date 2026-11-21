@@ -71,6 +71,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <section id="settings">
 <h1>League settings</h1>
 <div class="paste-notice" id="paste-notice" role="status" hidden></div>
+<p class="muted" id="weeks-note" role="status" hidden></p>
 <p class="muted" id="roster-optional">Roster sizes are optional. Unless you change them, we use a standard roster: <span id="std-roster-text">1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench</span>. You can change any of it below, or just continue. Leagues you import or paste fill in their own sizes.</p>
 <form id="editor">
 <section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
@@ -176,6 +177,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
 <script src="ddf-engine.js" defer></script>
 <script src="ddf-league.js" defer></script>
 <script src="league-paste.js" defer></script>
+<script src="league-state.js" defer></script>
 <script type="module">
 /* League settings on the live engine (JEG-1539): the form shows the league's settings (a link's own settings, else the
    engine's saved settings, ddf.v2.league-settings) and confirming writes them through DDF.league.setSettings, which calls
@@ -261,6 +263,17 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     DDF.state.set('pasted', rec);
     showPaste();
   }
+  /* JEG-1685: the ES-12 weeks a league's season state filled (Sleeper import), with where they came from and as of when.
+     Shown only while the weeks in use are still those values: a week the reader changed elsewhere is theirs, not the league's. */
+  function showWeeks(c) {
+    const box = $('weeks-note'), w = c && c.weeksFilled, cur = DDF.engine.weeks && DDF.engine.weeks();
+    box.hidden = true;
+    if (!w || !cur || !DDF.leagueState || !c.leagueState || cur.regularEnd !== w.regularEnd || cur.playoffLo !== w.playoffLo || cur.playoffHi !== w.playoffHi) return;
+    const plan = DDF.leagueState.weekPlan(c.leagueState);
+    if (plan.why) return;
+    box.textContent = 'Last regular-season week ' + w.regularEnd + ', playoffs start week ' + w.playoffLo + '. ' + DDF.leagueState.WEEKS_FROM(plan) + '.';
+    box.hidden = false;
+  }
   let filling = false;   // fill() sets the form from the settings: not the reader's own change
   const touched = new Set();
   Object.keys(FIELD_INPUT).forEach(f => $(FIELD_INPUT[f]).addEventListener('change', () => { if (pasteOn && !filling) { touched.add(f); showPaste(); } }));
@@ -269,6 +282,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     filling = true; try { fill(s); } finally { filling = false; }
     pasteOn = !!(c && c.source === 'pasted');
     showPaste();
+    showWeeks(c);
     const std = DDF.engine.defaultRoster && DDF.engine.defaultRoster();
     if (std) $('std-roster-text').textContent = DDF.engine.rosterText(std);
     if (!c) $('settings-status').innerHTML = 'No league added yet: these are the settings every page uses. <a href="connect.html">Add your league</a>';

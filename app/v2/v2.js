@@ -3043,16 +3043,25 @@
     let text = "";
     try { text = JSON.stringify(leagueSnapshot()); } catch (error) { return; }
     const isDefault = text === leagueDefaultSnapshot;
+    // JEG-1685: carry the import-filled weeks marker so releaseWeeks works after any v2 settings save.
+    // Read from the stored record: ddf-engine.js writes weeksFilled there (connect.html), and v2 does not load it.
+    let filled = null;
+    try { const pr = JSON.parse(localStorage.getItem(LEAGUE_SAVE_KEY) || "null"); if (pr && typeof (pr.weeksFilled || {}).regularEnd === "number") filled = pr.weeksFilled; } catch (e) { /* ignore */ }
     leagueInputs.notes = [];
     try {
-      if (isDefault) localStorage.removeItem(LEAGUE_SAVE_KEY);
-      else localStorage.setItem(LEAGUE_SAVE_KEY, JSON.stringify({...JSON.parse(text), savedAt: Date.now()}));
+      if (isDefault && !filled) {
+        localStorage.removeItem(LEAGUE_SAVE_KEY);
+      } else {
+        const snap = {...JSON.parse(text), savedAt: Date.now()};
+        if (filled) snap.weeksFilled = filled;
+        localStorage.setItem(LEAGUE_SAVE_KEY, JSON.stringify(snap));
+      }
       leagueInputs.storage = "ok";
     } catch (error) {
       leagueInputs.storage = error && (error.name === "QuotaExceededError" || error.code === 22 || error.code === 1014) ? "full" : "unavailable";
     }
-    leagueInputs.source = isDefault ? "default" : "saved";
-    leagueInputs.savedAt = isDefault ? null : Date.now();
+    leagueInputs.source = isDefault && !filled ? "default" : "saved";
+    leagueInputs.savedAt = isDefault && !filled ? null : Date.now();
     announceInputs();
   }
   // Called once, before the first view renders and after the defaults were read. Each part is applied on its own, so one
@@ -7943,6 +7952,8 @@
       engine: C,
       view: () => VIEW_NAME[currentView()] || "",
       leagueQuery: () => leagueLinkParts().join("&"),
+      // JEG-1685: the reader's own saved league only; a shared link's league (settings applied for this visit) has no state here
+      leagueState: () => (leagueInputs.source === "link" ? null : window.TradeValueWorkspace?.store?.get()?.leagueState || null),
       applyLinkLeague,
       leagueText: () => `${$("v2LeagueName").textContent}, ${$("v2RosterLine").textContent}`,
       sources: () => C.getActiveSources(),

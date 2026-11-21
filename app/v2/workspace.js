@@ -19,6 +19,7 @@
   const MAX_NAME = 40;
   const MAX_TEAMS = 20;
   const SAVE_DELAY_MS = 1000;
+  const NO_LEAGUE_STATE = "No season state was captured for this league.";
   const SHARE_LIMIT = 1800;
   const FINDER_POSITIONS = ["QB", "RB", "WR", "TE"];
   const FINDER_LIMITS = ["minDdfEdge", "minUserLineupGain", "minTheirLineupGain"];
@@ -91,6 +92,8 @@
     const o = opts || {};
     const now = o.now || Date.now();
     return {id: o.id || newId("league"), name: cleanName(o.name, "My league"), settings: null, teams: [], myTeamId: null, createdAt: now, updatedAt: now,
+      // JEG-1685: league-state/1 and the ES-12 weeks it filled (see normalizeWorkspace); a new league has none yet.
+      leagueState: null, leagueStateReason: NO_LEAGUE_STATE, weeksFilled: null,
       // leagueRosters (JEG-1249): use the league's own rosters for the bench once they qualify; false = the reader switched it off.
       ui: {sort: {summary: null, opps: null}, rankBasis: "fund", hideForce: false, leagueRosters: true, filters: {fit: "all", opponent: "all", minCapture: 0, minCharts: 0}, maxSize: 2,
         finderSettings: normalizeFinderSettings(null)}};
@@ -113,7 +116,15 @@
         provenance: provenanceOf(isObject(t.provenance) ? t.provenance : {unresolved: t.unresolved, rosterAt: t.rosterAt})});
     });
     const ui = isObject(raw.ui) ? raw.ui : {};
+    // JEG-1685: league-state/1 (docs/contract/league-state-v1.md), kept as stored; null with a reason when the league has none
+    // (a paste, manual entry, or a league saved before this field). weeksFilled = the ES-12 weeks it filled, so a later
+    // import tells them from weeks the reader set.
+    const hasState = isObject(raw.leagueState) && raw.leagueState.version === "league-state/1";
+    const wf = isObject(raw.weeksFilled) && ["regularEnd", "playoffLo", "playoffHi"].every(k => Number.isInteger(raw.weeksFilled[k])) ? {regularEnd: raw.weeksFilled.regularEnd, playoffLo: raw.weeksFilled.playoffLo, playoffHi: raw.weeksFilled.playoffHi} : null;
     return {...base, id: String(raw.id || base.id), settings: isObject(raw.settings) ? raw.settings : null, teams,
+      leagueState: hasState ? raw.leagueState : null,
+      leagueStateReason: hasState ? null : (typeof raw.leagueStateReason === "string" && raw.leagueStateReason.trim() ? raw.leagueStateReason : NO_LEAGUE_STATE),
+      weeksFilled: hasState ? wf : null,
       myTeamId: ids.has(String(raw.myTeamId)) ? String(raw.myTeamId) : null, updatedAt: Number(raw.updatedAt) || base.updatedAt,
       ui: {...base.ui, ...ui, finderSettings: normalizeFinderSettings(ui.finderSettings), filters: {...base.ui.filters, ...(isObject(ui.filters) ? ui.filters : {})}, sort: {...base.ui.sort, ...(isObject(ui.sort) ? ui.sort : {})}}};
   }

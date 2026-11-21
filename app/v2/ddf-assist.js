@@ -72,6 +72,9 @@
     const raw = {v: codec().VERSION, work, sources: H.sources()};
     const league = (codec().decodeQuery(H.leagueQuery()).state || {}).league;
     if (league) raw.league = league;
+    // JEG-1685: the loaded league's season state (workspace leagueState), when the page can supply it; absent otherwise
+    const ls = typeof H.leagueState === "function" ? H.leagueState() : null;
+    if (ls) raw.leagueState = ls;
     const capped = ["give", "get", "mine", "theirs"].filter(name => work[name] && work[name].length > 40);
     const normalized = codec().normalize(raw);
     return {state: normalized.state, skipped: skipped.count, capped};

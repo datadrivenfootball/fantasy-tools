@@ -4,9 +4,22 @@ JEG-1655 (part of JEG-1653). Spec: `06-audit/standings-aware-value-spec-2026-11-
 Validator: `app/next/league-state.js` (`DDF.leagueState.validate`). Fixtures: `tests/fixtures/league-state/`
 (`sleeper.json`, `manual.json`, `partial.json`). Test: `node tests/test_league_state.js`.
 
-Status: contract only. Nothing reads or writes it yet; no value math. Planned homes: the league workspace state and
-`ddf-state` (MCP `read_state` / `make_state`), next to the ES-12 week settings (`last_regular_week` and
-`start_week` fill those when known). Wiring is a later ticket.
+Status: wired (JEG-1685). No value math reads it yet. Tests: `node tests/test_league_state_wiring.js`,
+`python3 -m unittest tests.test_jeg1685_league_state_render`.
+
+- Workspace: `ddf.v2.workspaces` workspace fields `leagueState` (the object, or null), `leagueStateReason` (why null) and
+  `weeksFilled` (`{regularEnd, playoffLo, playoffHi}` the import filled). `app/v2/workspace.js` normalizeWorkspace keeps them; a
+  workspace saved before the field reads as null with a reason. `ddf:pasted` carries the same three fields until the reader confirms a
+  team (setup-entry.js bridge copies them). A Sleeper import (`load(id, {leagueState: true})`, connect-entry.js) supplies the object;
+  a paste or manual league has none: null with a reason, never zeros.
+- `ddf-state` (`app/v2/ddf-state.js`): optional top-level `leagueState`, in the block and JSON only (never the URL query; too long).
+  The codec checks the envelope and a 60000-character cap and drops a bad one with a warning; states without it are unchanged.
+  `DDFAssist.buildState` adds it from the workspace. The MCP edge function rebuilds its state from league and work, so it does not pass
+  `leagueState` through yet (supabase change, separate ticket).
+- ES-12 weeks: `DDF.leagueState.weekFill` turns `start_week` / `last_regular_week` into the engine's regular-season end and playoff
+  start (`last = start - 1`). The last playoff week is never invented: the engine's current one stays, and a start after it fills nothing.
+  Weeks the reader changed (different from the site standard and from what the last import filled) are never replaced. `DDF.engine.apply`
+  takes `weeks`; League settings shows "Source ... as of ..." while the weeks in use are still the filled ones.
 
 ## Rules
 
