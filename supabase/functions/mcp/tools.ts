@@ -1266,7 +1266,7 @@ async function runPricedTool(
       `You get (total ${sumB.toFixed(1)}):`,
       fmt(b.matched),
       "",
-      "Verdict: DDF Value sum, not lineup-aware (a gap under 2 points counts as roughly even, a rule of thumb). The site's Compare a trade shows the per-chart breakdown; open the link below.",
+      `Verdict: DDF Value sum${lineup ? "; the lineup line above is your starting lineup's change" : ", not lineup-aware (give your roster for the lineup change)"} (a gap under 2 points counts as roughly even, a rule of thumb). The site's Compare a trade shows the per-chart breakdown; open the link below.`,
     ].join("\n");
     // Every name matched (stopOnUnresolved), so not_found stays empty; kept for the reply's shape.
     const pack = (rows: PlayerValue[]) => ({
