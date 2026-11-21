@@ -559,6 +559,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_v2_phone_layout_collapse_render
 	python3 -m unittest tests.test_v2_phone_safe_area_render
 	python3 -m unittest tests.test_v2_phone_target_size_render
+	# Page speed: an engine page's first load runs the value pipeline once (call counts, not timings).
+	python3 -m unittest tests.test_engine_boot_pipeline_runs
 	# Dashboard render harnesses (JEG-308/310/312/318) that no target ran
 	# until 2026-10-08. They need tests/rendered_gate's playwright-core
 	# (npm ci --prefix tests/rendered_gate) and a Chromium (CHROMIUM_PATH).

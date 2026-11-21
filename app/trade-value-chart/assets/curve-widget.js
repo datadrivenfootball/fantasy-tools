@@ -4156,8 +4156,14 @@
   // run; a chart series shows Indexed, VORP vs waivers or Adjusted values by
   // tab. Entering a non-indexed view activates that view's series; returning
   // to Indexed restores the user's prior source selection.
-  function setViewMode(mode, publish = true) {
+  // keepBuiltDomain: init has just built the domain for this view; skip the
+  // rebuild when entering the view leaves the curves exactly as they were
+  // (same mode, same active and deselected sources), so the first load runs
+  // the value pipeline once, not twice. The result is the same domain.
+  function setViewMode(mode, publish = true, keepBuiltDomain = false) {
     if (!VIEW_MODE_DEFS[mode]) mode = "indexed";
+    const sourcesKey = () => `${[...activeSources].join(",")}|${[...userDeselectedSources].join(",")}`;
+    const unchanged = keepBuiltDomain && mode === viewMode && pipeline ? sourcesKey() : null;
     viewMode = mode;
     const tabs = document.querySelectorAll("#viewModeTabs [data-view-mode]");
     tabs.forEach(tab => {
@@ -4190,7 +4196,7 @@
       userDeselectedSources = new Set();
     }
     // Rebuild source maps with the new view's values, then redraw.
-    rebuildDomain();
+    if (unchanged === null || unchanged !== sourcesKey()) rebuildDomain();
     makeSourceToggles();
     // JEG332-VORP-VIEWS: re-run the guards (and refresh the diagnostics) for
     // the view just entered, as every other control does. Skipped during
@@ -4208,7 +4214,7 @@
     tabs.forEach(tab => {
       tab.addEventListener("click", () => setViewMode(tab.dataset.viewMode));
     });
-    setViewMode(viewMode, false);
+    setViewMode(viewMode, false, true);
   }
 
   async function init() {
