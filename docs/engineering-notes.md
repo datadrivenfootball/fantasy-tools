@@ -159,6 +159,16 @@ seeded and two real league rosters (PR for JEG-1639).
 - On current data the worst case is 0.648 (half_ppr/8 razzball TE, +1.0), across 286 held-slot cases. Full diagnosis and the probe are on JEG-1511.
 - `_cases` skips a waiver-line seat whose player has no projection record for that source and prints it. ESPN lists players it projects at zero with no `espn_ppg` record (`natives()` carries them at 0.0), so there is nothing to perturb (standard/14 ESPN RB, Adam Randall, was the one that crashed the tests).
 
+## Connector trade search: 3 of 4 charts, viable-first dedupe (2026-11-21, connector walkthrough)
+- Bug: find_trades_league gave 0 viable of 179 in a real 12-team league. `find-trades.ts` called the site finder
+  without `minCharts`, so it used `SEARCH_MIN_CHARTS = 1` (JEG-1403) while the tool promises 3 of 4; the 50 kept per
+  opponent (sorted by DDF edge) filled with lopsided trades that `perceived_fairness` then failed. And
+  `viability.ts deduplicateOffers` kept the highest-edge offer per received set, viable or not.
+- Fix (no value math): `minChartsFor` passes the finder's `MIN_CHARTS` (3 of 4; 2 of 3 with a chart on hold), and
+  dedupe prefers viable, then fewest failed checks, then edge. Live, same league: 0 -> 23 viable (34 with the
+  league's WR 3 shape). One-team results can still be 0 viable when their lineup never improves (Team 12): real.
+- Tests: `tests/node/mcp_finder_gate_check.mjs` (run by `tests.test_mcp_remote`).
+
 ## Pasted kickers and defenses are never another player (2026-11-19)
 - Bug (Jeremy): "Jason Sanders" (K) was read as Ja'Tavion Sanders (TE). Cause: `app/v2/roster-paste.js` fell back to
   an initial form for any two-word name ("jason sanders" -> "j sanders") and took the only player with that form.

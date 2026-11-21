@@ -47,6 +47,22 @@ export interface FindTradesOpts {
   maxSize?: number;       // max players per side (default 2)
   minRivalEdge?: number;  // min market-value edge the rival needs (default 0)
   limit?: number;         // max candidates to return (default 10)
+  /** Trade charts that get-values priced this week (default: all of the finder's CHART_KEYS). */
+  pricedCharts?: number;
+}
+
+/**
+ * Connector walkthrough 2026-11-21: how many trade charts must price a package with the rival even or ahead.
+ * The tool promises 3 of 4 (the finder's MIN_CHARTS, the Trade chart average's bar). The site's search default
+ * (SEARCH_MIN_CHARTS = 1 since JEG-1403) let one chart in, so the 50 kept per opponent filled with lopsided
+ * trades the fairness check then failed: 0 viable of 179 in the walkthrough league. With a chart on hold
+ * (3 priced) the bar is 2 of 3, as the site judges fit (#1490).
+ */
+export function minChartsFor(finder: Finder, pricedCharts?: number): number {
+  const all = finder.CHART_KEYS.length;
+  const priced = Math.max(1, Math.min(all, pricedCharts ?? all));
+  const bar = Number(finder.MIN_CHARTS) || 3;
+  return priced >= all ? Math.min(bar, priced) : Math.max(1, Math.min(bar, priced - 1));
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +132,7 @@ export function findTradesForPair(
     ourKey: finder.OUR_KEY,
     chartKeys: finder.CHART_KEYS,
     maxSize,
+    minCharts: minChartsFor(finder, opts?.pricedCharts),
     limit: Math.min(500, limit + (minRivalEdge > 0 ? 20 : 0)),
   });
 
