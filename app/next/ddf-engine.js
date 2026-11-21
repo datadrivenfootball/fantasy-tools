@@ -106,15 +106,22 @@
   function applySaved(saved) {
     if (!saved || saved.v !== 1) return;
     var attempt = function (fn) { try { fn(); } catch (e) { /* a part the engine no longer accepts is skipped, like v2.js */ } };
-    attempt(function () { if (saved.scoring && saved.scoring !== C.getState().scoring) C.setScoring(saved.scoring, false); });
-    attempt(function () { if (Number.isInteger(saved.teams) && saved.teams !== C.getState().teams) C.setTeams(saved.teams, false); });
-    attempt(function () {
-      var shape = C.getRosterShape();
-      Object.keys(shape).forEach(function (k) {
-        var want = saved.roster && saved.roster[k];
-        if (Number.isInteger(want) && want !== C.getRosterShape()[k]) C.setRosterSpot(k, want, false);
-      });
+    // Scoring, teams and roster in one engine rebuild (C.setLeague) rather than one per change: a saved league
+    // used to run the value pipeline up to once per changed setting on every page load. Same end state.
+    var league = {roster: {}};
+    var shape = C.getRosterShape();
+    if (saved.scoring && saved.scoring !== C.getState().scoring) league.scoring = saved.scoring;
+    if (Number.isInteger(saved.teams) && saved.teams !== C.getState().teams) league.teams = saved.teams;
+    Object.keys(shape).forEach(function (k) {
+      var want = saved.roster && saved.roster[k];
+      if (Number.isInteger(want) && want !== shape[k]) league.roster[k] = want;
     });
+    if (C.setLeague) attempt(function () { C.setLeague(league, false); });
+    else {
+      attempt(function () { if (league.scoring) C.setScoring(league.scoring, false); });
+      attempt(function () { if (league.teams) C.setTeams(league.teams, false); });
+      attempt(function () { Object.keys(league.roster).forEach(function (k) { C.setRosterSpot(k, league.roster[k], false); }); });
+    }
     attempt(function () {
       var w = saved.weeks, build = C.getBuildContentWeek ? C.getBuildContentWeek() : null;
       if (!w || !Number.isInteger(build) || !C.setLeagueWeeks) return;
@@ -190,13 +197,28 @@
     if (typeof partial.superflex === "boolean") return partial.superflex ? 1 : 0;
     return null;
   }
+  // A partial's scoring, teams, superflex and roster, in the order apply() always set them (the roster's own
+  // SUPERFLEX wins over the superflex flag), through one engine rebuild when the engine has C.setLeague.
+  // run(fn) calls each step: directly for apply(), guarded for applyVisit().
+  function setLeague(partial, run) {
+    var sf = superflexOf(partial);
+    var roster = {};
+    if (sf !== null) roster.SUPERFLEX = sf;
+    if (partial.roster) Object.keys(partial.roster).forEach(function (k) { roster[k] = partial.roster[k]; });
+    if (C.setLeague) {
+      var league = {roster: roster};
+      if (partial.scoring) league.scoring = partial.scoring;
+      if (partial.teams) league.teams = Number(partial.teams);
+      run(function () { C.setLeague(league, false); });
+      return;
+    }
+    if (partial.scoring) run(function () { C.setScoring(partial.scoring, false); });
+    if (partial.teams) run(function () { C.setTeams(Number(partial.teams), false); });
+    Object.keys(roster).forEach(function (k) { run(function () { C.setRosterSpot(k, roster[k], false); }); });
+  }
   function apply(partial) {
     partial = partial || {};
-    if (partial.scoring) C.setScoring(partial.scoring, false);
-    if (partial.teams) C.setTeams(Number(partial.teams), false);
-    var sf = superflexOf(partial);
-    if (sf !== null) C.setRosterSpot("SUPERFLEX", sf, false);
-    if (partial.roster) Object.keys(partial.roster).forEach(function (k) { C.setRosterSpot(k, partial.roster[k], false); });
+    setLeague(partial, function (fn) { fn(); });
     saveSettings();
     changed();
     return settings();
@@ -215,11 +237,7 @@
       if (w.optimize !== C.getOptimizeFor()) C.setOptimizeFor(w.optimize);
       if (w.content !== C.getContentWeek()) C.setContentWeek(w.content === w.build ? null : w.content);
     });
-    if (partial.scoring) attempt(function () { C.setScoring(partial.scoring, false); });
-    if (partial.teams) attempt(function () { C.setTeams(Number(partial.teams), false); });
-    var sf = superflexOf(partial);
-    if (sf !== null) attempt(function () { C.setRosterSpot("SUPERFLEX", sf, false); });
-    if (partial.roster) Object.keys(partial.roster).forEach(function (k) { attempt(function () { C.setRosterSpot(k, partial.roster[k], false); }); });
+    setLeague(partial, attempt);
     if (Number.isInteger(partial.week) && C.setWeek) attempt(function () { C.setWeek(partial.week, false); });
     if (partial.adv && C.setLineupSettings) attempt(function () {
       var cur = C.getLineupSettings(), diff = {};

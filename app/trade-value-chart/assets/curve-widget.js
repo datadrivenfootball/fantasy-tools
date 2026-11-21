@@ -2597,6 +2597,74 @@
     if (publish) publishShared();
   }
 
+  // Scoring, team count and roster spots with one rebuild instead of one per
+  // change (the redesign's engine adapter restores a saved league this way).
+  // The end state is the one setScoring, setTeams and then setRosterSpot per
+  // key (in the order given) reach: the same validation, clamping and resets,
+  // and the value pipeline runs on the final league only. Only the lock-order
+  // revert could depend on an in-between league, so a non-default lock order
+  // takes the one-at-a-time path. Returns true when anything changed.
+  function setLeague(next = {}, publish = true) {
+    if (lockOrder !== defaultValueLock()) {
+      const before = JSON.stringify([scoring, teams, rosterShape]);
+      if (next.scoring !== undefined) setScoring(next.scoring, publish);
+      if (next.teams !== undefined) setTeams(next.teams, publish);
+      Object.entries(next.roster || {}).forEach(([key, raw]) => setRosterSpot(key, raw, publish));
+      return JSON.stringify([scoring, teams, rosterShape]) !== before;
+    }
+    let leagueChanged = false;
+    let rosterChanged = false;
+    if (next.scoring !== undefined) {
+      const normalized = next.scoring === "half" ? "half_ppr" : next.scoring === "full" ? "ppr" : next.scoring;
+      if (SCORINGS.some(([key]) => key === normalized) && normalized !== scoring) {
+        scoring = normalized;
+        leagueChanged = true;
+      }
+    }
+    if (next.teams !== undefined) {
+      const normalized = Number(next.teams);
+      if ([8, 10, 12, 14].includes(normalized) && normalized !== teams) {
+        teams = normalized;
+        leagueChanged = true;
+      }
+    }
+    Object.entries(next.roster || {}).forEach(([key, raw]) => {
+      if (!Object.prototype.hasOwnProperty.call(rosterShape, key)) return;
+      const [min, max] = rosterBounds(key);
+      const value = Math.max(min, Math.min(max, Math.round(Number(raw))));
+      if (!Number.isFinite(value) || value === rosterShape[key]) return;
+      rosterShape[key] = value;
+      rosterChanged = true;
+    });
+    if (!leagueChanged && !rosterChanged) {
+      makeRosterControls();
+      return false;
+    }
+    crossRank = null;
+    // League change: custom position weights reset to the new combo's baked defaults.
+    if (leagueChanged) positionWeights = null;
+    rebuildDomain();
+    if (leagueChanged) {
+      makeLeagueControls();
+      makeRosterControls();
+      makePositionWeightControls();
+      syncWeightsReadout();
+      makeValueBandControl();
+      makeSourceToggles();
+    } else {
+      makeRosterControls();
+    }
+    makeLockControl();
+    renderAdjustmentWeights();
+    resetZoom();
+    runRegressionGuards();
+    draw();
+    syncCurveStatus();
+    if (leagueChanged) syncContext();
+    if (publish) publishShared();
+    return true;
+  }
+
   function setLockOrder(value, publish = true) {
     if (!isLockKey(value) || value === lockOrder) return;
     lockOrder = value;
@@ -3219,6 +3287,7 @@
     setPosition,
     setScoring,
     setTeams,
+    setLeague,
     // JEG-1177: week transition (JEG-1178 builds the selector on these).
     setWeek,
     getWeekState: () => publicWeekView(),
