@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-21T16:55:47.306091+00:00",
+  "run_at": "2026-11-21T21:18:32.917128+00:00",
   "nfl_week": 11,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -12,27 +12,11 @@
   },
   "failed": [],
   "success": true,
-  "outcome": "published_with_holds",
-  "held": [
-    "cbsros"
-  ],
-  "hold_severity": "amber",
+  "outcome": "green",
+  "held": [],
+  "hold_severity": "none",
   "list_changes": {},
-  "held_detail": {
-    "cbsros": {
-      "reason": "fidelity: publisher_vs_stored",
-      "held_series": [
-        "cbsros",
-        "cbsros_vorp"
-      ],
-      "sections": [
-        "cbsros"
-      ],
-      "detail": "1101/1101 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']; TE: 1 players listed with another position in the cell (kept as TE): ['Connor Heyward (FB",
-      "hold_severity": "amber",
-      "week": 11
-    }
-  },
+  "held_detail": {},
   "runner": "github-actions",
   "detail": {
     "usatoday": {
@@ -83,7 +67,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-21 -> 12 DDF legs -> section; review passed (4404 values)",
+      "detail": "snapshot 2026-11-21 -> 12 DDF legs -> section; review passed (4416 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -225,8 +209,5 @@
   },
   "stale_sources": [],
   "lagging_sources": [],
-  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
-  "fidelity_holds": {
-    "cbsros": "fidelity: publisher_vs_stored"
-  }
+  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure"
 }

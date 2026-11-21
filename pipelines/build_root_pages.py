@@ -38,12 +38,14 @@ ROOT_PAGES = ("values.html", "learn.html", "build.html",
               "index.html", "team.html", "explore.html", "partners.html", "find.html", "waivers.html",
               "settings.html", "ai.html", "compare.html",
               # JEG-1538: the entry pages; connect.html reads pasted rosters against the engine's player rows.
-              "connect.html", "setup.html")
+              "connect.html", "setup.html",
+              # Source freshness: reads modules/comparison-chain-status.json, no engine.
+              "freshness.html")
 # A page gets the engine when its source carries the <!-- ddf-engine --> marker; ENGINE_PAGES must carry it.
 ENGINE_PAGES = frozenset({"values.html", "learn.html", "build.html", "connect.html"})
 # Files the root pages load from beside them (copied from app/next/). v2/*.js are already published by build_v2_page.
 ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
-              "values-chart.js", "values-buysell.js", "values-overrides.js",
+              "values-chart.js", "values-buysell.js", "values-overrides.js", "values-search.js",
               # Learn (JEG-1536): the posts, the markdown renderer and the numbers tabs.
               "learn/render.js", "learn/posts.json", "learn/posts",
               "learn/numbers/learn-engine.js", "learn/numbers/numbers.js",
@@ -67,7 +69,9 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
               "sleeper-import.js",
               # JEG-1548: the visit counter wrapper site.js loads (sends nothing until its site code is set).
-              "analytics.js")
+              "analytics.js",
+              # Source freshness page script.
+              "freshness-page.js")
 # JEG-1570: Sleeper player id -> [name, pos, team], from the pipeline's Sleeper identity table, written beside the pages.
 SLEEPER_IDENTITY = ROOT / "data" / "inputs" / "sleeper_identity_base.json"
 SLEEPER_PLAYERS = "sleeper-players.json"
@@ -144,12 +148,48 @@ def engine_block(engine_html: str) -> str:
             + engine_html[scripts_at:end_at] + "</div>\n")
 
 
+# Page speed (Jeremy, 2026-11-21): the engine's scripts fetch its data only after they have run, and then one file
+# after another (bundle, history index, the prior history week, lineup parameters, lineup signal). An engine page's
+# head preloads them so they arrive in parallel while the page parses. Each href is the exact URL the engine fetches,
+# so the fetch reuses the preload and nothing else about loading changes. The engine's fetches go through
+# FETCH_SHARE_SHIM as absolute URLs, which the data-version shim leaves unversioned, so the hrefs carry no ?v= either
+# (tests/test_engine_data_preload.py checks every preload is used and nothing is fetched twice).
+ENGINE_DATA = ("assets/comparison-sources-data.json", "assets/reference-freshness.json", "assets/history/index.json",
+               "assets/lineup-parameters.json", "assets/lineup-signal.json")
+
+
+def engine_data_files(dist: Path) -> tuple[str, ...]:
+    """ENGINE_DATA present in dist, plus the history week files the engine reads before its first build: for each
+    week a source serves, the week before it (curve-widget.js preloadCompositeHistory)."""
+    import json
+    files = [f for f in ENGINE_DATA if (dist / f).exists()]
+    try:
+        index = json.loads((dist / "assets/history/index.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return tuple(files)
+    weeks = sorted({rec.get("week") for rec in (index.get("served") or {}).values()
+                    if isinstance(rec, dict) and isinstance(rec.get("week"), int)})
+    for week in weeks:
+        rec = (index.get("weeks") or {}).get(str(week - 1)) or {}
+        file = rec.get("file") if isinstance(rec, dict) else None
+        if isinstance(file, str) and (dist / file).exists() and file not in files:
+            files.append(file)
+    return tuple(files)
+
+
+def preload_links(files) -> str:
+    return "".join(f'<link rel="preload" href="{html_lib.escape(f)}" as="fetch" crossorigin>' for f in files)
+
+
 def build_tag_of(engine_html: str) -> str | None:
     m = re.search(r'<meta name="trade-chart-build" content="([^"]*)">', engine_html)
     return m.group(1) if m else None
 
 
-def root_page_html(html: str, name: str, engine_html: str | None, tag: str | None, root_pages=ROOT_PAGES) -> str:
+def root_page_html(html: str, name: str, engine_html: str | None, tag: str | None, root_pages=ROOT_PAGES,
+                   preload: tuple[str, ...] = ()) -> str:
+    engine = name in ENGINE_PAGES or ENGINE_MARKER in html
+    links = preload_links(preload) if engine and preload else ""
     html = rewrite_links(html, root_pages)
     html = html.replace(ICON_BLANK, ICON_SITE)
     if tag:
@@ -158,14 +198,18 @@ def root_page_html(html: str, name: str, engine_html: str | None, tag: str | Non
         head = re.search(r"<meta charset=\"[^\"]*\">", html, re.I) or re.search(r"<head(?:\s[^>]*)?>", html, re.I)
         if not head:
             raise ValueError(f"{name}: no <head> to carry the build tag")
-        html = html[:head.end()] + BUILD_META.format(tag=html_lib.escape(tag)) + data_version_script(tag) + html[head.end():]
+        html = html[:head.end()] + BUILD_META.format(tag=html_lib.escape(tag)) + data_version_script(tag) + links + html[head.end():]
+    elif links:
+        head = re.search(r"<meta charset=\"[^\"]*\">", html, re.I) or re.search(r"<head(?:\s[^>]*)?>", html, re.I)
+        if head:
+            html = html[:head.end()] + links + html[head.end():]
     if name in DATA_ISLAND_PAGES and engine_html is not None:
         island = PLAYERS_ISLAND.search(engine_html)
         if not island:
             raise ValueError(f"{name}: the engine page has no players-data island to carry (get-values reads it here)")
         at = html.rindex("</body>")
         html = html[:at] + island.group(0) + "\n" + html[at:]
-    if name in ENGINE_PAGES or ENGINE_MARKER in html:
+    if engine:
         if engine_html is None:
             raise ValueError(f"{name}: needs the engine page, which is not built")
         if html.count(ENGINE_MARKER) != 1:
@@ -209,9 +253,11 @@ def build(dist: Path = DIST, tag: str | None = None, source: Path = SOURCE, engi
         out = dist / SLEEPER_PLAYERS
         out.write_text(json.dumps(sleeper_players(), separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
         written.append(out)
+    preload = engine_data_files(dist)
     for name in root_pages:
         out = dist / name
-        out.write_text(root_page_html((source / name).read_text(encoding="utf-8"), name, engine_html, tag, root_pages),
+        out.write_text(root_page_html((source / name).read_text(encoding="utf-8"), name, engine_html, tag, root_pages,
+                                      preload),
                        encoding="utf-8")
         written.append(out)
         preview = dist / "next" / name

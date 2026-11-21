@@ -2,19 +2,27 @@
 // Compares the deployed `mcp` tools/list with the TOOLS declared on main
 // (supabase/functions/mcp/tools.ts) and checks that deployed `get-values`
 // answers include=charts with the shape the find_trades finder reads.
+// Also compares top-level inputSchema.properties keys and required lists for
+// each tool, and reads the deployed server's initialize build SHA.
 // Read-only, no secrets, never deploys.
 //
 // Exit codes (JEG-1256):
 //   0  in sync: both sides were read and match main.
-//   1  drift: a side was read and differs from main (tool names, or every player
-//      lacks a chart field main returns). Proven drift wins over an unavailable side.
-//   2  could not compare: an endpoint was unreachable, answered non-2xx or something
-//      unreadable, or its evidence was empty, inconsistent or non-numeric. Never
-//      reported as healthy, never reported as drift.
+//   1  drift: a side was read and differs from main (tool names, input fields,
+//      or every player lacks a chart field main returns). Proven drift wins
+//      over an unavailable side.
+//   2  could not compare: an endpoint was unreachable, answered non-2xx or
+//      something unreadable, or its evidence was empty, inconsistent or
+//      non-numeric. Never reported as healthy, never reported as drift.
 //
 // Run: node --experimental-strip-types --no-warnings tools/edge_drift_check.mjs
 // Env: EDGE_MCP_URL, EDGE_GET_VALUES_URL override the production endpoints.
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 const BASE = "https://iskiybsimubiujwuchsl.supabase.co/functions/v1";
 const MCP_URL = process.env.EDGE_MCP_URL || `${BASE}/mcp`;
@@ -64,7 +72,38 @@ function parseReply(label, text) {
   }
 }
 
-async function deployedTools() {
+// Send an initialize request and return { version, build } from serverInfo.
+// A failure to read build is noted but not an error.
+async function deployedServerInfo() {
+  const label = "mcp initialize";
+  let text;
+  try {
+    text = await request(label, MCP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2025-06-18" } }),
+    });
+  } catch (e) {
+    // Not fatal: initialize failure is a note, not exit 2.
+    return { note: e.message };
+  }
+  let reply;
+  try {
+    reply = parseReply(label, text);
+  } catch (e) {
+    return { note: e.message };
+  }
+  const info = reply?.result?.serverInfo;
+  if (!isPlainObject(info)) return { note: "initialize: no serverInfo in reply" };
+  return {
+    version: typeof info.version === "string" ? info.version : undefined,
+    build: typeof info.build === "string" ? info.build : undefined,
+  };
+}
+
+// Return { tools: [{name, properties: Set, required: Set}] } from the deployed server.
+// Throws Unavailable when the reply can't serve as evidence.
+async function deployedToolsData() {
   const text = await request("mcp tools/list", MCP_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
@@ -83,7 +122,45 @@ async function deployedTools() {
   if (unnamed.length) {
     throw new Unavailable(`mcp tools/list: ${unnamed.length} of ${tools.length} tools have no name`);
   }
-  return tools.map((t) => t.name);
+  // A tool without an inputSchema object is an unreadable reply, not field drift (MCP requires the schema).
+  const schemaless = tools.filter((t) => !isPlainObject(t.inputSchema)).map((t) => t.name);
+  if (schemaless.length) throw new Unavailable(`mcp tools/list: no inputSchema on ${schemaless.join(", ")}`);
+  return tools.map((t) => ({
+    name: t.name,
+    properties: new Set(isPlainObject(t.inputSchema.properties) ? Object.keys(t.inputSchema.properties) : []),
+    required: new Set(Array.isArray(t.inputSchema.required) ? t.inputSchema.required : []),
+  }));
+}
+
+// Pure function: compare main tools vs deployed tools, returning drift message lines.
+// mainTools and deployedTools each have { name, properties: Set, required: Set }.
+// Exported so tests can call it without network.
+export function compareTools(mainTools, deployedTools) {
+  const drift = [];
+  const mainByName = new Map(mainTools.map((t) => [t.name, t]));
+  const deployedByName = new Map(deployedTools.map((t) => [t.name, t]));
+
+  const missingTools = mainTools.filter((t) => !deployedByName.has(t.name)).map((t) => t.name);
+  const extraTools = deployedTools.filter((t) => !mainByName.has(t.name)).map((t) => t.name);
+  if (missingTools.length) drift.push(`mcp tools on main but not deployed: ${missingTools.join(", ")}`);
+  if (extraTools.length) drift.push(`mcp tools deployed but not on main: ${extraTools.join(", ")}`);
+
+  // For tools present on both sides, compare inputSchema.properties and required.
+  for (const [name, mainTool] of mainByName) {
+    const dep = deployedByName.get(name);
+    if (!dep) continue; // already reported above
+    const missingFields = [...mainTool.properties].filter((f) => !dep.properties.has(f));
+    const extraFields = [...dep.properties].filter((f) => !mainTool.properties.has(f));
+    const missingRequired = [...mainTool.required].filter((r) => !dep.required.has(r));
+    const extraRequired = [...dep.required].filter((r) => !mainTool.required.has(r));
+    const parts = [];
+    if (missingFields.length) parts.push(`deployed lacks fields ${missingFields.join(", ")}`);
+    if (extraFields.length) parts.push(`deployed has fields not on main: ${extraFields.join(", ")}`);
+    if (missingRequired.length) parts.push(`deployed required misses: ${missingRequired.join(", ")}`);
+    if (extraRequired.length) parts.push(`deployed required adds: ${extraRequired.join(", ")}`);
+    if (parts.length) drift.push(`${name}: ${parts.join("; ")}`);
+  }
+  return drift;
 }
 
 // Returns drift messages; throws Unavailable when the reply can't serve as evidence.
@@ -145,35 +222,73 @@ async function valuesDrift() {
   return drift;
 }
 
-async function mainTools() {
+async function mainToolsData() {
   try {
     const { TOOLS } = await import(fileURLToPath(new URL("../supabase/functions/mcp/tools.ts", import.meta.url)));
-    return TOOLS.map((t) => t.name);
+    return TOOLS.map((t) => ({
+      name: t.name,
+      properties: new Set(isPlainObject(t.inputSchema?.properties) ? Object.keys(t.inputSchema.properties) : []),
+      required: new Set(Array.isArray(t.inputSchema?.required) ? t.inputSchema.required : []),
+    }));
   } catch (e) {
     throw new Unavailable(`main: cannot read TOOLS from supabase/functions/mcp/tools.ts (${e.message})`);
+  }
+}
+
+// Whether the deployed build contains the last commit that touched supabase/functions/mcp. A note only: a shallow
+// clone, no git or an unknown SHA prints "build not compared" and never changes the exit code.
+async function ancestryNote(buildSha) {
+  if (!/^[0-9a-f]{7,40}$/i.test(String(buildSha || ""))) return "build not compared (no valid SHA)";
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  try {
+    const { stdout } = await execFileAsync("git", ["log", "--format=%H", "-1", "--", "supabase/functions/mcp/"], { cwd: root });
+    const mcpHead = stdout.trim();
+    if (!mcpHead) return "build not compared (no commits found for supabase/functions/mcp/)";
+    try {
+      await execFileAsync("git", ["merge-base", "--is-ancestor", mcpHead, buildSha], { cwd: root });
+      return `ancestry: build ${buildSha.slice(0, 9)} contains last mcp commit ${mcpHead.slice(0, 9)} (up to date)`;
+    } catch (e) {
+      if (e?.code === 1) return `ancestry: build ${buildSha.slice(0, 9)} does NOT contain last mcp commit ${mcpHead.slice(0, 9)}; redeploy may be needed`;
+      return "build not compared (deployed SHA not in this clone's history)";
+    }
+  } catch (e) {
+    return `build not compared (${e?.code === "ENOENT" ? "git not available" : e?.message || e})`;
   }
 }
 
 // Any failure while reading a side, expected or not, means that side could not be compared.
 const reason = (e) => (e instanceof Unavailable ? e.message : `unexpected error: ${e?.message || e}`);
 
-async function main() {
-  const onMain = await mainTools();
-  const [tools, values] = await Promise.allSettled([deployedTools(), valuesDrift()]);
+export async function main() {
+  const onMain = await mainToolsData();
+  const [deployedResult, values, serverInfoResult] = await Promise.allSettled([
+    deployedToolsData(),
+    valuesDrift(),
+    deployedServerInfo(),
+  ]);
   const drift = [];
   const unavailable = [];
   let deployed = null;
-  if (tools.status === "fulfilled") {
-    deployed = tools.value;
-    const missing = onMain.filter((n) => !deployed.includes(n));
-    const extra = deployed.filter((n) => !onMain.includes(n));
-    if (missing.length) drift.push(`mcp tools on main but not deployed: ${missing.join(", ")}`);
-    if (extra.length) drift.push(`mcp tools deployed but not on main: ${extra.join(", ")}`);
+
+  if (deployedResult.status === "fulfilled") {
+    deployed = deployedResult.value;
+    drift.push(...compareTools(onMain, deployed));
   } else {
-    unavailable.push(reason(tools.reason));
+    unavailable.push(reason(deployedResult.reason));
   }
+
   if (values.status === "fulfilled") drift.push(...values.value);
   else unavailable.push(reason(values.reason));
+
+  // Print server info (version + build); note ancestry if build SHA is present.
+  const serverInfo = serverInfoResult.status === "fulfilled" ? serverInfoResult.value : {};
+  if (serverInfo.version || serverInfo.build) {
+    console.log(`deployed mcp: version=${serverInfo.version ?? "unknown"} build=${serverInfo.build ?? "unknown"}`);
+  }
+  if (serverInfo.note) {
+    console.log(`note: ${serverInfo.note}`);
+  }
+  if (serverInfo.build) console.log(await ancestryNote(serverInfo.build));
 
   if (drift.length) {
     console.error(`EDGE DRIFT: deployed functions are out of step with main (deploys are manual):\n- ${drift.join("\n- ")}`);
@@ -185,10 +300,20 @@ async function main() {
     console.error(`EDGE CHECK ERROR (could not compare): this is not a healthy result and not a drift verdict.\n- ${unavailable.join("\n- ")}`);
     process.exit(2);
   }
-  console.log(`OK: deployed mcp lists the same ${onMain.length} tools as main; get-values include=charts has the chart fields.`);
+  console.log(`OK: deployed mcp lists the same ${onMain.length} tools as main with matching input fields; get-values include=charts has the chart fields.`);
 }
 
-main().catch((e) => {
-  console.error(`EDGE CHECK ERROR (could not compare): ${reason(e)}`);
-  process.exit(2);
-});
+// Guard so importing (e.g. from tests) does not run main(). Real paths, so a symlinked invocation still runs.
+const invoked = (() => {
+  try {
+    return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+if (invoked) {
+  main().catch((e) => {
+    console.error(`EDGE CHECK ERROR (could not compare): ${reason(e)}`);
+    process.exit(2);
+  });
+}
