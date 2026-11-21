@@ -131,6 +131,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_render_sweep_coverage
 	python3 -m unittest tests.test_render_sweep_shards
 	python3 -m unittest tests.test_validate_runner
+	# Page speed: engine pages preload the engine data, and every preload is used (request counts).
+	python3 -m unittest tests.test_engine_data_preload
 	python3 -m unittest tests.test_doc_staleness
 	python3 -m unittest tests.test_managed_agents_retired
 	python3 -m unittest tests.test_mcp_remote
