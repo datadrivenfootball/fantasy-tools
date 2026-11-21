@@ -876,9 +876,13 @@
   //           your starters improve past 0.05, a position you are short at is filled, or it adds bench depth (the
   //           bench-weighted change past 0.05; reason "bench", shown as Bench depth, never as a starter upgrade); AND your
   //           DDF Value (projections) holds (unchanged from 1a; a side not judged is not Natural).
-  //   theirs  their valuation's total up past 0.05 (not merely inside the charts' disagreement allowance) AND their starters
-  //           improve past 0.05 or a position they are short at is filled. Their DDF Value (projections) falling is a
+  //   theirs  their valuation's total up past 0.05 (not merely inside the charts' disagreement allowance) AND a reason: their
+  //           starters improve past 0.05, a position they are short at is filled, or bench depth (Jeremy, 2026-11-21: bench
+  //           depth is a reason for them too, tagged), AND their starters no worse. Their DDF Value (projections) falling is a
   //           caution for the Why, not a veto. A gain under THIN_SHARE (1%) of their starters total is flagged thin.
+  //   starters (Jeremy, 2026-11-21) neither side's best-lineup starter total (lineupValue: who ends up starting under the
+  //           league's slots, before vs after) may fall past 0.05: yours on your valuation, theirs on theirs. This replaces
+  //           the "bench player promoted" and "starter lost with none back" checks: a worse replacement lowers the total.
   //   charts  at least NATURAL_MIN_CHARTS (2) of the public trade charts call it even or better for them (the card's n/4).
   //   lineups neither side is left with an empty starting slot.
   // JEG-1639's test stays on their side: their roster not clearly worse (-3% or more, rosterChangePct, the Why's number).
@@ -896,7 +900,7 @@
   function naturalFit(parts) {
     const us = parts.us || null, them = parts.them || null;
     const lineup = t => Boolean(t) && t.emptyAfter === 0;
-    const ur = sideReason(us, true), tr = sideReason(them, false);
+    const ur = sideReason(us, true), tr = sideReason(them, true);
     const usProj = projectionsHold(parts.usProjNet), themProj = projectionsHold(parts.themProjNet);
     const pct = parts.theirPct || null;
     const pctOk = !(pct && pct.band === "clearly_worse");
@@ -907,14 +911,16 @@
     const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;
     const usSide = {value: Boolean(parts.yourValueOk), reason: ur.kind, starters: ur.starters, need: ur.need, slot: ur.slot, bench: ur.bench,
       construction: lineup(us), lineup: lineup(us), projections: usProj, projNet: finite(parts.usProjNet) ? parts.usProjNet : null};
-    usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj === true;
-    const themSide = {value: theirUp, reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot,
+    usSide.startersOk = Boolean(us) && us.starterDelta >= -NET_FLOOR;
+    usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;
+    const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;
+    const themSide = {value: theirUp, startersOk: theirStartersOk, reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot, bench: tr.bench,
       construction: lineup(them), lineup: lineup(them), projections: themProj, projNet: finite(parts.themProjNet) ? parts.themProjNet : null,
       caution: themProj === false, thin, share, pct: pct ? pct.shown : null, pctBand: pct ? pct.band : null, pctOk};
-    themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk;
+    themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk;
     const ok = usSide.ok && themSide.ok && chartsOk;
     return {ok, us: usSide, them: themSide, charts: {agree: charts ? charts.agree : null, total: charts ? charts.total : null, min: NATURAL_MIN_CHARTS, ok: chartsOk},
-      benchDepth: ok && ur.kind === "bench", thin: ok && thin};
+      benchDepth: ok && ur.kind === "bench", benchDepthThem: ok && tr.kind === "bench", thin: ok && thin};
   }
   function tradeFit(sides, ctx) {
     if (!ctx || !ctx.marketKey) return null;
@@ -985,7 +991,8 @@
     if (n.us.projections === false) out.push(`your projection-based value falls ${Math.abs(n.us.projNet).toFixed(1)}`);
     if (n.us.projections === null) out.push("a player in the trade has no projection-based value, so your side is not checked");
     if (!n.them.value) out.push(them.net < -NET_FLOOR ? `they lose ${Math.abs(them.net).toFixed(1)} on ${view(them)}` : `their total does not rise on ${view(them)} (${fitFmt(them.net)})`);
-    else if (!n.them.reason) out.push("nothing improves their starters or fills a position they are short at");
+    if (n.them.value && !n.them.startersOk) out.push(`their starters drop ${Math.abs(them.starterDelta).toFixed(1)} on ${view(them)}`);
+    else if (n.them.value && !n.them.reason) out.push("nothing improves their starters, fills a position they are short at or adds bench depth");
     if (n.them.pctOk === false) out.push(`their roster gets about ${Math.abs(n.them.pct).toFixed(1)}% worse`);
     if (!n.charts.ok) out.push(`only ${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts call it even or better for them (${n.charts.min} needed)`);
     if (!n.us.lineup) out.push("your lineup is left with an empty starting slot");
@@ -997,7 +1004,7 @@
   function naturalTags(fit) {
     const n = fit && fit.natural;
     if (!n || !n.ok) return [];
-    return [n.benchDepth ? "Bench depth" : null, n.thin ? "Thin for them" : null].filter(Boolean);
+    return [n.benchDepth ? "Bench depth" : null, n.benchDepthThem ? "Bench depth for them" : null, n.thin ? "Thin for them" : null].filter(Boolean);
   }
   // The one-line reading of a fit, built from the numbers above. Both teams' depth and net appear in it.
   function fitText(fit) {
@@ -1012,7 +1019,8 @@
         : n.us.reason === "need" ? `you fill ${n.us.need.length ? listJoin(n.us.need) + ", where you are short" : "an empty starting slot"}`
           : `bench depth only: your starters do not change and your bench gains ${fitFmt(us.benchDelta)} once weighted`;
       const theirs = `they gain ${fitFmt(them.net)} on ${VIEW_NAME[them.key] || them.key}` + (n.them.reason === "starters" ? ` with their starters ${fitFmt(them.starterDelta)}`
-        : ` and fill ${n.them.need.length ? listJoin(n.them.need) + ", where they are short" : "an empty starting slot"}`);
+        : n.them.reason === "bench" ? `, bench depth only: their starters do not change and their bench gains ${fitFmt(them.benchDelta)} once weighted`
+          : ` and fill ${n.them.need.length ? listJoin(n.them.need) + ", where they are short" : "an empty starting slot"}`);
       const thin = n.thin ? ` Thin for them: the gain is under ${Math.round(THIN_SHARE * 100)}% of their starters.` : "";
       return `Natural fit (${n.charts.agree}/${n.charts.total} public charts even or better for them): ${yours}; ${theirs}.${thin}${caution}${depth}`;
     }
@@ -1078,7 +1086,7 @@
   }
   // JEG-1081 PR 7: what each fit label means, for the label's tooltip (spec 4c). Plain words, no abbreviations.
   const FIT_TIPS = {
-    natural: "Natural fit: both rosters have a real reason. Yours: your DDF Value total rises with your starters no worse, and your starters improve, a position you are short at is filled, or it adds bench depth (shown as Bench depth); your DDF Value (projections) does not fall. Theirs: their total rises past 0.05 on their valuation (the Trade chart average by default), and their starters improve or a position they are short at is filled (a gain under 1% of their starters is shown as thin; their DDF Value (projections) falling is a caution, not a veto). At least 2 of the public trade charts call it even or better for them, and neither lineup is left with an empty starting slot. Fit totals weight bench value by the league's bench share.",
+    natural: "Natural fit: both rosters have a real reason. Yours: your DDF Value total rises with your starters no worse, and your starters improve, a position you are short at is filled, or it adds bench depth (shown as Bench depth); your DDF Value (projections) does not fall. Theirs: their total rises past 0.05 on their valuation (the Trade chart average by default), and their starters improve, a position they are short at is filled, or it adds bench depth for them (tagged). Neither side's best-lineup starter total may fall. A gain under 1% of their starters is shown as thin; their DDF Value (projections) falling is a caution, not a veto. At least 2 of the public trade charts call it even or better for them, and neither lineup is left with an empty starting slot. Fit totals weight bench value by the league's bench share.",
     market: "Market supported: their Trade chart average fit value rises by more than 0.05 points, using the league's bench share. A trade can earn this label while their starters lose value or either roster has construction issues; check the team-fit details.",
     force: "Force fit: a roster would be broken, a side loses, or the other team does not clear the bar on the Trade chart average."
   };

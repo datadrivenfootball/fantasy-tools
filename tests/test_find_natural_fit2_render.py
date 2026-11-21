@@ -7,6 +7,8 @@ What we guard, on the seeded league (tests.test_team_engine_parity.seeded_league
 - A Natural card's label carries the public-charts count ("Natural fit · 3/4 public charts"), never under 2; no other
   class shows a count in its label.
 - A bench-depth Natural offer is tagged "Bench depth" and its Why says bench depth, not a starter upgrade.
+- Jeremy, 2026-11-21: no Natural card shows either side's starters falling; bench depth for them is tagged "Bench depth
+  for them"; an offer whose partner's best-lineup starter total falls is not Natural and its Why verdict says so.
 - A Natural offer whose gain is under 1% of their starters is tagged "Thin for them" and its Why says so.
 - An offer that passes both sides but has only 1 of 4 public charts even or better for them is not Natural, and its Why
   verdict says why.
@@ -48,7 +50,7 @@ READ = r"""() => {
       cardOverflow: a.scrollWidth > a.clientWidth + 1,
       fit: f ? {edge: shown(t.edge), agree: t.rivalOkCount, total: t.chartCount, usB: f.us.starterBefore.toFixed(1), usA: f.us.starterAfter.toFixed(1),
         thB: f.them.starterBefore.toFixed(1), thA: f.them.starterAfter.toFixed(1), usD: shown(f.us.starterAfter - f.us.starterBefore), thD: shown(f.them.starterAfter - f.them.starterBefore),
-        usIn: f.us.startersIn.map(x => x.name), usOut: f.us.startersOut.map(x => x.name), bench: Boolean(n.benchDepth), thin: Boolean(n.thin),
+        usIn: f.us.startersIn.map(x => x.name), usOut: f.us.startersOut.map(x => x.name), bench: Boolean(n.benchDepth), benchThem: Boolean(n.benchDepthThem), thDrop: n.them.startersOk === false && n.them.value, thin: Boolean(n.thin),
         bothOk: n.us.ok && n.them.ok, chartsOk: n.charts.ok} : null};
   });
 }"""
@@ -64,6 +66,29 @@ WHY = "(c) => { " + FIND_CARD + r"""
     tags: [...b.querySelectorAll('[data-tag]')].map(x => x.textContent.trim()), inside: box.right <= cb.right + 1 && box.left >= cb.left - 1};
 }"""
 HAS_WHY = "(c) => { " + FIND_CARD + " return Boolean(card && card.querySelector('.why-body')); }"
+
+
+# Neither real league lists an offer whose partner's total rises while their best lineup gets weaker, so this one is built
+# by hand (the shape of tests.test_v2_finder_fit check 28) and explained by the page's own DDFWhy: they give their best WR
+# (27 on the charts) for two RBs worth 16 each; one takes FLEX, so their starters fall 11 while their total rises.
+STARTERS_DROP = r"""() => {
+  const R = (key, pos, d, c) => ({player_key: key, name: key, pos, team: 'X',
+    values: {ddf_value: d, ddf_value_charts: d, ddf_value_projections: d, cbs: c, usatoday: c, fantasypros: c, fantasycalc: c}});
+  const team = (p, qb, rb, wr, te) => [['QB', qb], ['RB', rb], ['WR', wr], ['TE', te]].flatMap(([pos, vs]) => vs.map((v, i) => R(p + pos + i, pos, v, v)));
+  const give = [R('Mia Run', 'RB', 2, 16), R('Moe Run', 'RB', 2, 16)], recv = [R('Ty Wide', 'WR', 30, 27)];
+  const mine = team('m', [20, 12], [30, 25, 10, 8, 5], [30, 28, 15, 9, 7], [10, 5]).concat(give);
+  const theirs = team('t', [22, 11], [35, 28, 14], [26, 20, 12, 8, 7], [11, 6]).concat(recv);
+  const ctx = Object.assign({}, DDF.find.context(), {shape: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7},
+    expected: {QB: {lo: 1, hi: 2}, RB: {lo: 3, hi: 4}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}}, weights: {overall: 1},
+    analyst: ['cbs', 'usatoday', 'fantasypros'], gate: ['cbs', 'usatoday', 'fantasypros', 'fantasycalc']});
+  const e = DDFWhy.explain({mine, theirs, give, receive: recv}, ctx);
+  const box = document.createElement('div'); box.style.width = '343px'; box.className = 'why';
+  box.innerHTML = DDFWhy.body({mine, theirs, give, receive: recv}, ctx, {}); document.body.appendChild(box);
+  const out = {label: e.fit.label, themNet: e.fit.them.net, themStarters: e.fit.them.starterDelta, usOk: e.fit.natural.us.ok,
+    verdict: box.querySelector('[data-verdict]').textContent, them: e.why.them, natural: e.natural, overflow: box.scrollWidth > box.clientWidth + 1};
+  box.remove();
+  return out;
+}"""
 
 
 class FindNaturalFit2RenderTest(unittest.TestCase):
@@ -110,6 +135,10 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
                 self.assertEqual((int(m.group(1)), int(m.group(2))), (f["agree"], f["total"]), tag)
                 self.assertGreaterEqual(f["agree"], 2, tag)
                 self.assertEqual("Bench depth" in c["tags"], f["bench"], tag)
+                self.assertEqual("Bench depth for them" in c["tags"], f["benchThem"], tag)
+                # Jeremy, 2026-11-21: neither side's best-lineup starter total falls on a Natural card.
+                self.assertNotEqual(c["you"]["d"][:1], "\u2212", tag)
+                self.assertNotEqual(c["them"]["d"][:1], "\u2212", tag)
                 self.assertEqual("Thin for them" in c["tags"], f["thin"], tag)
             else:
                 self.assertNotIn("public charts", c["label"], tag)
@@ -136,7 +165,7 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
             if name == "bench":
                 self.assertIn("Bench depth", why["tags"])
                 self.assertTrue(any(x.startswith("Bench depth, not a starter upgrade") for x in why["you"]), why["you"])
-                self.assertTrue(why["you"][0].startswith("No change to your starting lineup."), why["you"])
+                self.assertTrue(any(x.startswith("Your starters: ") and "(0.0 " in x for x in why["you"]), why["you"])
             if name == "thin":
                 self.assertIn("Thin for them", why["tags"])
                 self.assertTrue(any(x.startswith("Thin for them: the gain is ") for x in why["them"]), why["them"])
@@ -158,6 +187,13 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
                         judged = self.check_cards(w, page.evaluate(READ))
                         self.assertFalse(page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{w}: page overflow")
                         self.check_whys(w, page, judged)
+                        drop = page.evaluate(STARTERS_DROP)
+                        self.assertTrue(drop["usOk"] and drop["themNet"] > 0.05 and drop["themStarters"] < -0.05, f"{w}: setup {drop}")
+                        self.assertNotEqual(drop["label"], "natural")
+                        self.assertFalse(drop["natural"])
+                        self.assertIn("their starters drop", drop["verdict"])
+                        self.assertTrue(any(x.startswith("Their best lineup gets weaker") for x in drop["them"]), drop["them"])
+                        self.assertFalse(drop["overflow"], f"{w}: the Why body overflows 343px")
                         self.assertFalse(page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"), f"{w}: page overflow with Why open")
                         self.assertEqual(errors, [])
                         page.close()

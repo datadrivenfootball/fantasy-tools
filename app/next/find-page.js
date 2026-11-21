@@ -240,7 +240,7 @@
       + ' public trade charts for this trade">' + ca.agree + "/" + ca.total + " public trade charts</a>";
   }
   // Natural fit 2 (Jeremy, 2026-11-19): the label carries the public-charts count, and a Natural fit its tags (Bench depth:
-  // your gain is bench depth only; Thin for them: their gain is under 1% of their starters). finder.js naturalTags.
+  // your gain is bench depth only; Bench depth for them: theirs is; Thin for them: their gain is under 1% of their starters). finder.js naturalTags.
   function fitLabel(cls, t) {
     var ca = DDF.find.chartAgreement(t);
     var tags = cls === "natural" && t.fit && window.TradeValueFinder.naturalTags ? window.TradeValueFinder.naturalTags(t.fit) : [];

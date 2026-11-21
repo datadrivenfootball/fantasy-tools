@@ -172,16 +172,21 @@
   // natural (finder.js naturalFit / naturalMisses / naturalTags), plus find-engine's waiver demotion. No test of its own.
   function headline(fit, verdict) {
     var n = fit.natural || {us: {}, them: {}};
-    var mine = n.us.reason === "starters" ? "Your starters get better"
+    var mine = !n.us.value && fit.us.net <= FLOOR ? "This does not make your team better"
+      : n.us.startersOk === false ? "Your starting lineup gets weaker"
+      : n.us.reason === "starters" ? "Your starters get better"
       : n.us.reason === "need" ? "You fill a position you are short at"
         : n.us.reason === "bench" ? "Bench depth for you (your starting lineup does not change)"
           : n.us.value ? "Your total rises, but nothing in your lineup or depth improves" : "This does not make your team better";
-    var theirs = n.them.value && n.them.reason === "starters" ? "their starters get better on their valuation"
+    var theirs = n.them.startersOk === false ? "their starting lineup gets weaker on their valuation"
+      : n.them.value && n.them.reason === "starters" ? "their starters get better on their valuation"
       : n.them.value && n.them.reason === "need" ? "they fill a position they are short at"
+      : n.them.value && n.them.reason === "bench" ? "they add bench depth on their valuation (their starting lineup does not change)"
         : n.them.value ? "their total rises, but nothing in their lineup or depth improves"
           : fit.them.net < -FLOOR ? "they lose value on their valuation" : "they gain nothing on their valuation";
     var ok = verdict.cls === "natural";
-    return mine + (ok ? ", and " : n.them.value && n.them.reason ? ", and " : ", but ") + theirs + ".";
+    var theirGood = n.them.value && n.them.reason && n.them.startersOk !== false;
+    return mine + (ok || (theirGood && n.us.startersOk !== false) ? ", and " : ", but ") + theirs + ".";
   }
   function netWords(v) {
     var w = function (n, up, down) { return !finite(n) ? null : n >= FLOOR ? up : n <= -FLOOR ? down : null; };
@@ -284,6 +289,7 @@
     out.push("Your starters: " + one(table.before) + " to " + one(table.after) + " (" + shown(table.delta) + " " + units.you + ").");
     if (n.us.need.length) out.push("Fills a position you are short at: " + list(n.us.need.map(function (p) { return depthLine(us, p, "you"); })) + ".");
     else if (n.us.slot) out.push("Fills a starting slot you could not fill before.");
+    if (n.us.startersOk === false) out.push("Your best lineup gets weaker: your starters fall " + Math.abs(table.delta).toFixed(1) + " " + units.you + ".");
     if (n.us.reason === "bench") out.push("Bench depth, not a starter upgrade: your bench gains " + shown(us.benchDelta) + " " + units.you + " once bench players are weighted.");
     var value = "Value: " + shown(us.net) + " " + units.you + " once bench players are weighted";
     out.push(value + (finite(trade.edge) && Math.abs(trade.edge - us.net) >= FLOOR ? " (trade value " + shown(trade.edge) + " adds up raw player values)." : "."));
@@ -304,6 +310,8 @@
     else out = out.concat(lines);
     out.push("Their starters: " + one(table.before) + " to " + one(table.after) + " (" + shown(table.delta) + " " + units.them + ").");
     if (n.them.need.length) out.push("They are short at " + list(n.them.need.map(function (p) { return depthLine(them, p, "them"); })) + " and get " + names(trade.give.filter(function (r) { return n.them.need.indexOf(r.pos) >= 0; })) + ".");
+    if (n.them.reason === "bench") out.push("Bench depth for them, not a starter upgrade: their bench gains " + shown(them.benchDelta) + " " + units.them + " once bench players are weighted.");
+    if (n.them.startersOk === false) out.push("Their best lineup gets weaker: their starters fall " + Math.abs(table.delta).toFixed(1) + " " + units.them + ", so they are unlikely to see it as good.");
     out.push("Their total: " + shown(them.net) + " " + units.them + " once bench players are weighted.");
     out.push(n.charts.agree + " of " + n.charts.total + " public trade charts call it even or better for them.");
     if (n.thin) out.push("Thin for them: the gain is " + (Math.floor(n.them.share * 1000) / 10).toFixed(1) + "% of their starters, so they may see it as close.");

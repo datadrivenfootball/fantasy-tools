@@ -1075,10 +1075,15 @@ construction parts of 1a:
    on mobile."
 6. The Why panel says why it is good for your roster and why they may see it as good for theirs, and the label and the
    panel read one test.
+Jeremy, 2026-11-21, on PR #1494's open calls: (1) keep the veto on your own projection-based value falling; (2) bench
+depth is a valid reason for them too, tagged "Bench depth for them"; (3) not "empty slot only": Natural is blocked when
+your best-lineup starter total (who ends up starting after the trade, lineupValue, DDF values) falls, or when theirs
+falls on their valuation (market signals); the empty-slot rule stays, and bench-only gains with a flat lineup are fine;
+(4) trade value stays the card headline; (5) connector differences go to a follow-up ticket.
 Built in `naturalFit` / `naturalMisses` / `naturalTags` (`app/v2/finder.js`); the chart count is `judgeSums` over
 `ctx.gateKeys`, the same call that gives the card's n/4. Kept from 1a: your side's DDF Value total up with starters no
-worse, and your DDF Value (projections) not falling. Dropped from Natural: "no bench player promoted" and "no starter lost
-without one back" (still reported in the construction readout). Guarded by `tests/test_v2_finder_fit.py` checks 11 to 27
+worse, and your DDF Value (projections) not falling. "No bench player promoted" and "no starter lost without one back" are
+replaced by the starter-total blockers (a worse replacement lowers the total; `tests/test_v2_finder_fit.py` check 29). Guarded by `tests/test_v2_finder_fit.py` checks 11 to 27
 and `tests/test_find_natural_fit2_render.py`.
 
 ## JEG-1047: projection waiver line is a 7-player band

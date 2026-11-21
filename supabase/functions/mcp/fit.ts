@@ -8,6 +8,11 @@
 // threshold (FIT_Z, the 0.05 floor, the noise floor) is read from the finder, never
 // copied: change finder.js and the connector follows.
 //
+// Natural fit 2 (Jeremy, 2026-11-19 / 2026-11-21) reaches the connector through tradeFit, including both sides'
+// best-lineup starter-total blockers (yours on DDF Value, theirs on the Trade chart average). Still different from
+// find.html: the partner valuation is the four-chart average (FantasyCalc included) rather than the three analyst
+// charts; expected depth is null, so "a position they are short at" never fires; no waiver demotion.
+//
 // Pure functions, no Deno APIs, no network. Runs under node in tests.
 
 // ---------------------------------------------------------------------------

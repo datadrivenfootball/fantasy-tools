@@ -401,13 +401,14 @@ def check(finder_js: Path) -> list[str]:
         say(f"check 24 bench depth should be natural with reason bench: {f['label']} {f['natural']['us']}")
     elif call(finder_js, "naturalTags", f) != ["Bench depth"] or "bench depth only" not in call(finder_js, "fitText", f):
         say(f"check 24 bench depth tag/text: {call(finder_js, 'naturalTags', f)} {call(finder_js, 'fitText', f)!r}")
-    # 25. Their total rises only through their bench: no reason for them, not Natural.
+    # 25. Their total rises only through their bench (Jeremy, 2026-11-21): bench depth is a reason for them too, so it is
+    # Natural, tagged "Bench depth for them", with their starters flat.
     g, r = [pc("x25", "WR", 3, 6, [6] * 4)], [pc("y25", "RB", 9, 2, [2] * 4)]
     f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
-    if f["label"] == "natural" or not f["natural"]["them"]["value"] or f["natural"]["them"]["reason"] is not None:
-        say(f"check 25 their bench-only gain should not be natural: {f['label']} {f['natural']['them']}")
-    elif "nothing improves their starters or fills a position they are short at" not in call(finder_js, "fitText", f):
-        say(f"check 25 text: {call(finder_js, 'fitText', f)!r}")
+    if f["label"] != "natural" or f["natural"]["them"]["reason"] != "bench" or abs(f["them"]["starterDelta"]) > 0.05:
+        say(f"check 25 their bench-only gain should be natural with reason bench: {f['label']} {f['natural']['them']}")
+    elif "Bench depth for them" not in call(finder_js, "naturalTags", f) or "bench depth only: their starters do not change" not in call(finder_js, "fitText", f):
+        say(f"check 25 tag/text: {call(finder_js, 'naturalTags', f)} {call(finder_js, 'fitText', f)!r}")
     # 26. Thin: their gain under 1% of their starters (156) is still Natural, tagged thin; 2.0 (1.3%) is not thin.
     w0 = {"QB": 0, "RB": 0, "WR": 0, "TE": 0, "overall": 0}
     for m, thin in ((14.6, True), (16, False)):
@@ -415,6 +416,24 @@ def check(finder_js: Path) -> list[str]:
         f = fit(finder_js, mine_n + g, theirs_n + r, g, r, weights=w0)
         if f["label"] != "natural" or f["natural"]["thin"] is not thin or ("Thin for them" in call(finder_js, "naturalTags", f)) is not thin:
             say(f"check 26 m={m}: label {f['label']} thin {f['natural']['thin']} want {thin}")
+    # 28. Their best-lineup starter total falls (Jeremy, 2026-11-21) while their total rises and a short position is filled:
+    # not Natural, and the text says their starters drop. They give their best WR (27) for two RBs worth 16 each: one
+    # takes FLEX, so their starters fall 11 while their total (bench weight 1) rises 5.
+    g, r = [pc("x28a", "RB", 2, 16, [16] * 4), pc("x28b", "RB", 2, 16, [16] * 4)], [pc("y28", "WR", 30, 27, [27] * 4)]
+    theirs28 = team("t28", [22, 11], [35, 28, 14], [26, 20, 12, 8, 7], [11, 6])
+    f = fit(finder_js, mine_n + g, theirs28 + r, g, r, weights={"QB": 1, "RB": 1, "WR": 1, "TE": 1, "overall": 1})
+    if not (f["them"]["net"] > 0.05 and f["them"]["starterDelta"] < -0.05):
+        say(f"check 28 setup: their net {f['them']['net']:.2f}, starters {f['them']['starterDelta']:.2f}")
+    elif f["label"] == "natural" or f["natural"]["them"]["startersOk"] is not False:
+        say(f"check 28 their starters falling should block natural: {f['label']} {f['natural']['them']}")
+    elif "their starters drop" not in call(finder_js, "fitText", f):
+        say(f"check 28 text: {call(finder_js, 'fitText', f)!r}")
+    # 29. No regression from dropping the old construction checks: a starter lost with a worse bench player promoted
+    # (the check 5 trade) lowers your best-lineup total, so it is not Natural on your side.
+    f = fit(finder_js, mine5, theirs5, pick(mine5, "c5RB0"), pick(theirs5, "t5WR2"))
+    if f["label"] == "natural" or f["natural"]["us"]["startersOk"] is not False or f["us"]["starterDelta"] >= -0.05:
+        say(f"check 29 a starter lost to a worse promoted player should fail your side: {f['label']} {f['natural']['us']}")
+
     # 27. An empty starting slot on either side is never Natural (the check 6 trade).
     f = fit(finder_js, mine6, theirs6, pick(mine6, "c6RB0"), pick(theirs6, "t6WR2"))
     if f["label"] == "natural" or f["natural"]["us"]["lineup"] is not False:
@@ -430,8 +449,11 @@ MUTANTS = {
     # Natural fit 2 (Jeremy, 2026-11-19).
     "charts ignored": ("const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;", "const chartsOk = true;"),
     "bench never a reason": ("const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR;", "const bench = false;"),
-    "their reason not needed": ("themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk;", "themSide.ok = theirUp && themSide.lineup && pctOk;"),
-    "their projections veto": ("themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk;", "themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk && themProj !== false;"),
+    # "their reason not needed" is gone: with bench depth a reason for them (2026-11-21), a total that rises past 0.05
+    # almost always carries a starters or bench reason, so that mutant is not separable on a hand-made roster.
+    "their projections veto": ("themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk;", "themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && themProj !== false;"),
+    "their starters may fall": ("const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;", "const theirStartersOk = Boolean(them);"),
+    "their bench never a reason": ("const ur = sideReason(us, true), tr = sideReason(them, true);", "const ur = sideReason(us, true), tr = sideReason(them, false);"),
     "thin never flagged": ("const thin = theirUp && share !== null && share < THIN_SHARE;", "const thin = false;"),
     "empty slot allowed": ("const lineup = t => Boolean(t) && t.emptyAfter === 0;", "const lineup = t => Boolean(t);"),
     "noise ignored": ("const tau = Math.max(NET_FLOOR, (finite(ctx.z) ? ctx.z : FIT_Z) * noise);", "const tau = NET_FLOOR;"),
@@ -441,13 +463,13 @@ MUTANTS = {
     "market needs no gain": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > -1000;"),
     "market always": ('const label = isNatural ? "natural" : marketSupported ? "market" : "force";', 'const label = "market";'),
     # JEG-1324: the 1a projections test.
-    "projections ignored": ("usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj === true;",
-                            "usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup;"),
+    "projections ignored": ("usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;",
+                            "usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup;"),
     "your projections never fall": ("usProjNet: projected ? usProj.net : null", "usProjNet: projected ? 0 : null"),
     "no tolerance": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0"),
     "tolerance inclusive": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0 || Math.abs(net) <= PROJ_FLOOR + 1e-9"),
-    "missing projection read as level": ("usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj === true;",
-                                         "usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj !== false;"),
+    "missing projection read as level": ("usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;",
+                                         "usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj !== false;"),
     # JEG-1639's -3% mutants are gone: under Natural fit 2 their total must rise on the same measure, so the percent
     # test cannot bind (tests.test_natural_pct_agree keeps the band arithmetic).
     "tiers reversed": ("a.t - b.t || a.i - b.i", "b.t - a.t || a.i - b.i"),
