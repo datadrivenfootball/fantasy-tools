@@ -68,8 +68,10 @@ function checkSides(t, ref, id) {
   assert.equal(t.theirs.starters, r1(ref.them.starterDelta), `${id}: their starters change`);
   assert.equal(t.yours.constructionOk, ref.myConstruction.ok, `${id}: your roster construction`);
   assert.equal(t.theirs.constructionOk, ref.theirConstruction.ok, `${id}: their roster construction`);
-  // The issue sentences stay in the one fit reason (the finder's fitText), not repeated per side.
-  for (const issue of ref.myConstruction.issues.concat(ref.theirConstruction.issues)) assert.ok(t.fitReason.includes(issue), `${id}: reason names ${issue}`);
+  // Natural fit 2 (Jeremy, 2026-11-19): of the construction issues only an empty starting slot is part of the Natural test,
+  // and the one fit reason (the finder's fitText) names it per side; the other issues stay in the sides' construction.
+  if (ref.label !== "natural" && ref.myConstruction.issues.some((i) => i.startsWith("empty starting slot"))) assert.ok(t.fitReason.includes("your lineup is left with an empty starting slot"), `${id}: reason names your empty slot`);
+  if (ref.label !== "natural" && ref.theirConstruction.issues.some((i) => i.startsWith("empty starting slot"))) assert.ok(t.fitReason.includes("their lineup is left with an empty starting slot"), `${id}: reason names their empty slot`);
 }
 
 // (a) and (b), one team.

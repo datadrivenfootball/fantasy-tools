@@ -17,6 +17,13 @@ players' projections level, so they test the rule they were written for; checks 
 JEG-1639 (Jeremy, 2026-11-14, "A"): Natural also needs their roster change better than -3% of its worth (not "clearly
 worse"), on the Why text's own number (finder.js rosterChangePct, truncated to one decimal); checks 20 to 22.
 
+Natural fit 2 (Jeremy, 2026-11-19) replaces the value and construction parts of the Natural test: both sides need a real
+reason (yours: starters up, a short position filled, or bench depth, tagged Bench depth; theirs: their total up past 0.05
+with their starters up or a short position filled), at least 2 public charts even or better for them, and no empty
+starting slot. A loss inside the charts' disagreement allowance no longer counts for them (checks 11 and 20), their DDF
+Value (projections) falling is a caution, not a veto (checks 17 and 19), and checks 23 to 26 pin the new parts. The
+-3% test of JEG-1639 stays in the code but cannot bind any more (their total must rise on the same measure).
+
 Discrimination: test_checks_fail_on_broken_builds runs the same checks on mutated copies of finder.js.
 """
 from __future__ import annotations
@@ -100,8 +107,8 @@ def check(finder_js: Path) -> list[str]:
     if not f.get("constructionOk"):
         say(f"bench swap construction should be OK: myConstruction={f.get('myConstruction')}, theirConstruction={f.get('theirConstruction')}")
     text = call(finder_js, "fitText", f)
-    if not text.startswith("Natural fit:"):
-        say(f"natural text should start with 'Natural fit:': {text!r}")
+    if not text.startswith("Natural fit (4/4 public charts"):
+        say(f"natural text should start with 'Natural fit (4/4 public charts': {text!r}")
 
     # 2. Market supported: chart avg favors them, but our total does not rise (or construction fails).
     # Give my starter for a lower-value player: their charts say they win.
@@ -253,8 +260,9 @@ def check(finder_js: Path) -> list[str]:
     f = fit(finder_js, mine11 + g11, theirs11 + r11, g11, r11)
     # My DDF: bench swap, give 5 receive 25, net=+3.0 (bench weight 0.15). totalUp=true.
     # Their market: give 22, receive 18 = -4. Noise tau ~8.16. Within noise => theirOk=true.
-    if f["label"] != "natural":
-        say(f"noisy trade within noise floor should be natural: label={f['label']} them={f['them']['net']:.1f} tau={f['them']['tau']:.1f}")
+    # Natural fit 2: a loss inside their noise floor is no longer a reason for them, so it is not Natural.
+    if f["label"] == "natural" or f["natural"]["them"]["value"] is not False or f["them"]["net"] < -f["them"]["tau"]:
+        say(f"noisy trade within noise floor should not be natural: label={f['label']} them={f['them']['net']:.1f} tau={f['them']['tau']:.1f}")
 
     # 12. Your side has no noise floor (Jeremy, 2026-10-26): a small rise that is far inside the noise still counts.
     # Bench WR swap on the deep rosters of test 10; both moving players carry DDF noise 10 (charts vs projections), so
@@ -266,15 +274,16 @@ def check(finder_js: Path) -> list[str]:
     f = fit(finder_js, mine12 + g12, theirs12 + r12, g12, r12)
     if not (f["us"]["net"] > 0.05 and f["us"]["net"] < f["us"]["tau"]):
         say(f"test 12 setup: your rise should sit between 0.05 and your noise floor: net={f['us']['net']} tau={f['us']['tau']}")
-    if f["label"] != "natural":
-        say(f"a rise inside your noise floor should still be natural: label={f['label']} us net={f['us']['net']:.2f} tau={f['us']['tau']:.2f}")
+    # Natural fit 2: their side is level here, so the trade is not Natural; your side still passes (bench depth).
+    if not f["natural"]["us"]["ok"] or f["natural"]["us"]["reason"] != "bench":
+        say(f"a rise inside your noise floor should still pass your side: {f['natural']['us']} us net={f['us']['net']:.2f} tau={f['us']['tau']:.2f}")
 
     # 13. But the rise must be a rise: +0.03 (at or under the 0.05 display floor) is not natural.
     g13 = [p("m13g", "WR", 5, market=7, noise=10)]
     r13 = [p("t13g", "WR", 5.2, market=7, noise=10)]
     f = fit(finder_js, mine12 + g13, theirs12 + r13, g13, r13)
-    if f["label"] == "natural":
-        say(f"a rise of {f['us']['net']:.2f} is not a rise: label={f['label']}")
+    if f["label"] == "natural" or f["natural"]["us"]["value"] is not False:
+        say(f"a rise of {f['us']['net']:.2f} is not a rise: label={f['label']} {f['natural']['us']}")
 
     # 14. Market supported needs any gain the page shows, not the noise floor (JEG-1187). On real charts the three or
     # four trade charts disagree by about 10 points on one player, so the other team's noise floor is several points
@@ -312,7 +321,8 @@ def check(finder_js: Path) -> list[str]:
     # moving players' projections on the bench (3 and 3 + d): their DDF Value (projections) changes by d and yours by -d,
     # so d > 0 tests your side and d < 0 tests theirs. Natural only while neither falls 0.05 or more.
     w1 = {"QB": 1, "RB": 1, "WR": 1, "TE": 1, "overall": 1}
-    for d, want in ((0.049, "natural"), (-0.049, "natural"), (0.05, "market"), (-0.05, "market"), (0.051, "market"), (-0.051, "market")):
+    # Natural fit 2: only your side's fall is a veto; theirs is a caution named in the text.
+    for d, want in ((0.049, "natural"), (-0.049, "natural"), (0.05, "market"), (-0.05, "natural"), (0.051, "market"), (-0.051, "natural")):
         xb = p("myGiveB", "WR", 10, market=25, proj=3 + d)
         yb = p("theirGiveB", "RB", 25, market=10, proj=3)
         f = fit(finder_js, mine_n + [xb], theirs_n + [yb], [xb], [yb], weights=w1)
@@ -324,10 +334,9 @@ def check(finder_js: Path) -> list[str]:
             continue
         if f["label"] != want:
             say(f"projections change {d:+.3f} for them, {-d:+.3f} for you: label {f['label']}, want {want}")
-        if want == "market":
-            loser = "Their" if d < 0 else "Your"
+        if abs(d) >= 0.05:
             text = call(finder_js, "fitText", f)
-            if f"{loser} DDF Value (projections) falls" not in text:
+            if ("Caution: their DDF Value (projections) falls" if d < 0 else "your projection-based value falls") not in text:
                 say(f"check 17 d={d}: the text should name the side whose projections fall: {text!r}")
 
     # 18. A held projection: a moving player has no DDF Value (projections). Not judged, so not Natural, and the text
@@ -341,43 +350,75 @@ def check(finder_js: Path) -> list[str]:
     if (nat.get("us") or {}).get("projections", "x") is not None or (nat.get("them") or {}).get("projections", "x") is not None:
         say(f"a held projection should leave both sides not judged: {nat}")
     text = call(finder_js, "fitText", f)
-    if "DDF Value (projections) not checked" not in text:
+    if "has no projection-based value, so your side is not checked" not in text:
         say(f"held projection text: {text!r}")
 
-    # 19. The 14:24 UTC shape: every other Natural test passes and only their projections fall (2.2): not Natural.
+    # 19. The 14:24 UTC shape: every other Natural test passes and only their projections fall (2.2). Natural fit 2: Natural,
+    # with the fall as a caution.
     xs = p("myGiveS", "WR", 10, market=25, proj=3)
     ys = p("theirGiveS", "RB", 25, market=10, proj=3 + 2.2 / 0.15)
     f = fit(finder_js, mine_n + [xs], theirs_n + [ys], [xs], [ys])
-    if f["label"] == "natural" or not f.get("constructionOk") or not f.get("yourValueOk"):
-        say(f"their projections falling 2.2 should only fail the projections test: label={f['label']}")
+    if f["label"] != "natural" or not f["natural"]["them"]["caution"]:
+        say(f"their projections falling 2.2 should be a caution, not a veto: label={f['label']} {f['natural']['them']}")
     elif abs(f["natural"]["them"]["projNet"] + 2.2) > 1e-6 or f["natural"]["us"]["projections"] is not True:
         say(f"check 19 setup: {f['natural']}")
+    elif "Caution: their DDF Value (projections) falls 2.2." not in call(finder_js, "fitText", f):
+        say(f"check 19 text should carry the caution: {call(finder_js, 'fitText', f)!r}")
 
-    # 20-22. JEG-1639 (Jeremy, 2026-11-14, "A"): Natural also needs their roster better than -3% on rosterChangePct (the
-    # Why text's number, truncated to one decimal). The check 17 bench swap with every bench weight 1, wide chart
-    # disagreement so their loss stays inside the noise floor, and level projections: only the percent decides. Both
-    # moving players stay on the bench. Their worth before = 228 (theirs_n, bench weight 1) + 13 (the RB they give), so
-    # receiving a WR worth M changes it by (M - 13) / 241.
+    # 20. JEG-1639's shapes (their roster -3.2% to -2.9% on rosterChangePct, inside the charts' noise floor). Natural fit 2:
+    # a loss is never a reason for them, so none is Natural, and the text says they lose.
     def pct_case(m):
         xc = p("myGiveP", "WR", 10, market=m, noise=5, proj=3)
         yc = p("theirGiveP", "RB", 25, market=13, noise=13, proj=3)
         return fit(finder_js, mine_n + [xc], theirs_n + [yc], [xc], [yc], weights=w1)
-    for name, m, want_pct, want in (("screenshot shape, -3.2%", 13 - 0.032 * 241, -3.2, "force"), ("-3.0% exactly", 13 - 0.030 * 241, -3.0, "force"),
-                                    ("-2.95% (shows -2.9)", 13 - 0.0295 * 241, -2.9, "natural"), ("-2.9%", 13 - 0.029 * 241, -2.9, "natural")):
+    for name, m in (("-3.2%", 13 - 0.032 * 241), ("-3.0%", 13 - 0.030 * 241), ("-2.9%", 13 - 0.029 * 241)):
         f = pct_case(m)
-        nat = f.get("natural") or {}
-        them = nat.get("them") or {}
-        if them.get("pct") != want_pct or not them.get("value") or not them.get("construction") or them.get("projections") is not True or not (nat.get("us") or {}).get("ok"):
-            say(f"check 20 setup {name}: {nat}")
-            continue
-        if f["label"] != want:
-            say(f"their roster {want_pct}% ({name}): label {f['label']}, want {want}")
-        if want != "natural":
-            if them.get("pctOk") is not False or them.get("pctBand") != "clearly_worse":
-                say(f"check 21 {name}: their side should fail only the percent test: {them}")
-            text = call(finder_js, "fitText", f)
-            if f"Their roster gets about {abs(want_pct):.1f}% worse, clearly worse" not in text:
-                say(f"check 22 {name}: the text should say why it is not Natural: {text!r}")
+        if f["label"] == "natural" or f["natural"]["them"]["value"] is not False:
+            say(f"check 20 {name}: a loss for them should not be natural: {f['label']} {f['natural']['them']}")
+        elif "Not a Natural fit: they lose" not in call(finder_js, "fitText", f):
+            say(f"check 20 {name}: the text should say they lose: {call(finder_js, 'fitText', f)!r}")
+
+    # 23-26. Natural fit 2 (Jeremy, 2026-11-19). Per-chart values set apart from the chart average (pc).
+    def pc(key, pos, ddf, market, charts, proj=None):
+        r = p(key, pos, ddf, market=market, proj=ddf if proj is None else proj)
+        for k, v in zip(CH, charts):
+            r["values"][k] = v
+        return r
+    # 23. Public charts: 1 of 4 even or better for them is not Natural (market supported here); 2 of 4 is.
+    for agree, want in ((1, "market"), (2, "natural")):
+        g, r = [pc("x23", "WR", 10, 25, [25] * agree + [5] * (4 - agree), 18)], [pc("y23", "RB", 25, 10, [10] * 4, 18)]
+        f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
+        if f["label"] != want or f["natural"]["charts"]["agree"] != agree or f["natural"]["charts"]["total"] != 4:
+            say(f"check 23 {agree}/4 charts: label {f['label']} want {want}, charts {f['natural']['charts']}")
+        if agree == 1 and "only 1 of 4 public trade charts call it even or better for them" not in call(finder_js, "fitText", f):
+            say(f"check 23: the text should name the chart count: {call(finder_js, 'fitText', f)!r}")
+        if agree == 2 and not call(finder_js, "fitText", f).startswith("Natural fit (2/4 public charts"):
+            say(f"check 23: the Natural text should carry the count: {call(finder_js, 'fitText', f)!r}")
+    # 24. Bench depth: your starters do not change, your weighted bench gains, their starters improve: Natural, tagged.
+    g, r = [pc("x24", "WR", 3, 25, [25] * 4)], [pc("y24", "RB", 9, 4, [4] * 4)]
+    f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
+    if f["label"] != "natural" or f["natural"]["us"]["reason"] != "bench" or abs(f["us"]["starterDelta"]) > 1e-9:
+        say(f"check 24 bench depth should be natural with reason bench: {f['label']} {f['natural']['us']}")
+    elif call(finder_js, "naturalTags", f) != ["Bench depth"] or "bench depth only" not in call(finder_js, "fitText", f):
+        say(f"check 24 bench depth tag/text: {call(finder_js, 'naturalTags', f)} {call(finder_js, 'fitText', f)!r}")
+    # 25. Their total rises only through their bench: no reason for them, not Natural.
+    g, r = [pc("x25", "WR", 3, 6, [6] * 4)], [pc("y25", "RB", 9, 2, [2] * 4)]
+    f = fit(finder_js, mine_n + g, theirs_n + r, g, r)
+    if f["label"] == "natural" or not f["natural"]["them"]["value"] or f["natural"]["them"]["reason"] is not None:
+        say(f"check 25 their bench-only gain should not be natural: {f['label']} {f['natural']['them']}")
+    elif "nothing improves their starters or fills a position they are short at" not in call(finder_js, "fitText", f):
+        say(f"check 25 text: {call(finder_js, 'fitText', f)!r}")
+    # 26. Thin: their gain under 1% of their starters (156) is still Natural, tagged thin; 2.0 (1.3%) is not thin.
+    w0 = {"QB": 0, "RB": 0, "WR": 0, "TE": 0, "overall": 0}
+    for m, thin in ((14.6, True), (16, False)):
+        g, r = [pc("x26", "WR", 3, m, [m] * 4)], [pc("y26", "RB", 20, 0.5, [0.5] * 4)]
+        f = fit(finder_js, mine_n + g, theirs_n + r, g, r, weights=w0)
+        if f["label"] != "natural" or f["natural"]["thin"] is not thin or ("Thin for them" in call(finder_js, "naturalTags", f)) is not thin:
+            say(f"check 26 m={m}: label {f['label']} thin {f['natural']['thin']} want {thin}")
+    # 27. An empty starting slot on either side is never Natural (the check 6 trade).
+    f = fit(finder_js, mine6, theirs6, pick(mine6, "c6RB0"), pick(theirs6, "t6WR2"))
+    if f["label"] == "natural" or f["natural"]["us"]["lineup"] is not False:
+        say(f"check 27 an empty slot should fail the lineup test: {f['natural']['us']}")
 
     return errors
 
@@ -385,27 +426,30 @@ def check(finder_js: Path) -> list[str]:
 MUTANTS = {
     "construction check bypassed": ("const constructionOk = myConstruction.ok && theirConstruction.ok;", "const constructionOk = true;"),
     "starter drop allowed": ("const yourStartersOk = us.starterDelta >= -NET_FLOOR;", "const yourStartersOk = true;"),
-    "their loss allowed": ("const theirOk = theirNet >= -theirTau;", "const theirOk = true;"),
+    "their loss allowed": ("const theirUp = Boolean(them) && them.net > NET_FLOOR;", "const theirUp = Boolean(them) && them.net >= -them.tau;"),
+    # Natural fit 2 (Jeremy, 2026-11-19).
+    "charts ignored": ("const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;", "const chartsOk = true;"),
+    "bench never a reason": ("const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR;", "const bench = false;"),
+    "their reason not needed": ("themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk;", "themSide.ok = theirUp && themSide.lineup && pctOk;"),
+    "their projections veto": ("themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk;", "themSide.ok = theirUp && Boolean(tr.kind) && themSide.lineup && pctOk && themProj !== false;"),
+    "thin never flagged": ("const thin = theirUp && share !== null && share < THIN_SHARE;", "const thin = false;"),
+    "empty slot allowed": ("const lineup = t => Boolean(t) && t.emptyAfter === 0;", "const lineup = t => Boolean(t);"),
     "noise ignored": ("const tau = Math.max(NET_FLOOR, (finite(ctx.z) ? ctx.z : FIT_Z) * noise);", "const tau = NET_FLOOR;"),
     "your side needs the noise floor": ("const yourTotalUp = us.net > NET_FLOOR;", "const yourTotalUp = us.net > us.tau;"),
     "your side needs no rise": ("const yourTotalUp = us.net > NET_FLOOR;", "const yourTotalUp = us.net > -1000;"),
-    "market needs the noise floor": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > theirTau;"),
+    "market needs the noise floor": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > them.tau;"),
     "market needs no gain": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > -1000;"),
     "market always": ('const label = isNatural ? "natural" : marketSupported ? "market" : "force";', 'const label = "market";'),
     # JEG-1324: the 1a projections test.
-    "projections ignored": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true && pctOk};",
-                            "ok: Boolean(value) && Boolean(construction && construction.ok) && pctOk};"),
-    "their projections never fall": ("themProjNet: projected ? viewNet(sides.theirs, ctx, projKey) : null", "themProjNet: projected ? 0 : null"),
+    "projections ignored": ("usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj === true;",
+                            "usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup;"),
     "your projections never fall": ("usProjNet: projected ? usProj.net : null", "usProjNet: projected ? 0 : null"),
     "no tolerance": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0"),
     "tolerance inclusive": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0 || Math.abs(net) <= PROJ_FLOOR + 1e-9"),
-    "missing projection read as level": ("ok: Boolean(value) && Boolean(construction && construction.ok) && projections === true && pctOk};",
-                                         "ok: Boolean(value) && Boolean(construction && construction.ok) && projections !== false && pctOk};"),
-    # JEG-1639: their roster clearly worse (the Why text's -3% band) is not Natural.
-    "clearly worse allowed": ('const pctOk = !(pct && pct.band === "clearly_worse");', "const pctOk = true;"),
-    "-3.0 counted slightly worse": ("if (p > PCT_BANDS.slightly_worse) return", "if (p >= PCT_BANDS.slightly_worse) return"),
-    "pct on your roster": ("rosterChangePct(sides.theirs.roster, sides.theirs.leaving, sides.theirs.arriving, ctx, ctx.marketKey)",
-                           "rosterChangePct(sides.mine.roster, sides.mine.leaving, sides.mine.arriving, ctx, ctx.marketKey)"),
+    "missing projection read as level": ("usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj === true;",
+                                         "usSide.ok = usSide.value && Boolean(ur.kind) && usSide.lineup && usProj !== false;"),
+    # JEG-1639's -3% mutants are gone: under Natural fit 2 their total must rise on the same measure, so the percent
+    # test cannot bind (tests.test_natural_pct_agree keeps the band arithmetic).
     "tiers reversed": ("a.t - b.t || a.i - b.i", "b.t - a.t || a.i - b.i"),
     "tiers unstable": ("a.t - b.t || a.i - b.i", "a.t - b.t || b.i - a.i"),
 }

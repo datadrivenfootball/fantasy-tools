@@ -62,7 +62,7 @@ RECOMPUTE = r"""(keys) => {
       {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: 'ddf_value', marketKey: 'chart_avg', chartKeys: keys, z: F.FIT_Z});
     const card = [...document.querySelectorAll('#natural-table [data-offer]')].find(c => c.dataset.partner === g.partner
       && c.dataset.give === t.give.map(r => String(r.player_key)).join(',') && c.dataset.receive === t.receive.map(r => String(r.player_key)).join(','));
-    out.push({id: g.id, want: DDF.find.shown(fit.them.starterDelta), page: card ? card.querySelector('.mlab span:nth-child(2)').textContent.trim() : null});
+    out.push({id: g.id, want: DDF.find.shown(fit.them.starterDelta), page: card && card.querySelector('[data-lineup="them"] .lm-d') ? card.querySelector('[data-lineup="them"] .lm-d').textContent.trim() : null});
   });
   return out;
 }"""
@@ -170,7 +170,7 @@ class FindHeldChartTest(unittest.TestCase):
         self.assertEqual(two["unjudged"], 0, two)
         self.assertEqual(two["note"], held_text(two_hold) + " this week, so fit on the analyst charts uses " + names(kept) + ".")
         self.assertTrue(r["two_fit"])
-        self.assertEqual([x for x in r["two_fit"] if not (x["page"] or "").startswith("Them " + x["want"] + " ")], [], r["two_fit"][:3])
+        self.assertEqual([x for x in r["two_fit"] if x["page"] != x["want"]], [], r["two_fit"][:3])
         self.assertEqual(ddf["note"], "", "no note when neither side reads the analyst charts")
         # 1 of 3: fails closed, and the empty text says why.
         self.assertIsNone(one["analyst"])

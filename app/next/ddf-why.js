@@ -6,6 +6,12 @@
  * withChartAverage when a side is valued on the Analyst charts. This file only compares those outputs and words them.
  * Percent framing comes only from window.DDFOpportunity.rosterImprovementPct (JEG-1558); without it the % slot hides.
  *
+ * Natural fit 2 (Jeremy, 2026-11-19): the panel's label is tradeFit's own (finder.js naturalFit, plus find-engine's waiver
+ * demotion), never a second test. explain() also returns verdict {cls, word, charts, tags, misses}, lineups {you, them}
+ * (slot rows before / after with tradeFit's starterBefore / starterAfter) and why {you:[..], them:[..]}: "Why you should
+ * do this" and "Why they may see it as good". ctx.labels {you, them} names the valuations ("DDF", "the analyst charts");
+ * trade.edge (find-engine's trade value) is named beside the bench-weighted value when they differ.
+ *
  * API: window.DDFWhy
  *   explain(trade, ctx) -> {headline, pct:{sender, partner}|null, natural, needs:{you, them, youSurplus, themSurplus}, table:{give, get, net}, reasons:[{kind, text, amount}],
  *                           you:view, them:view, fit} or null when the inputs are missing or the trade is not judged
@@ -162,22 +168,20 @@
     return out.sort(function (a, b) { return b.amount - a.amount; });
   }
 
-  // Led by the card's own number (your starters' change); the bench-weighted net is named when it reads differently.
-  // Their side is read the way the fit judges it (their roster, bench counted): a gain only past the 0.05 floor,
-  // "about even" inside the charts' disagreement (tradeFit's tolerance), never a gain that is not there.
-  function headline(you, them, natural, needs) {
-    var sign = function (n) { return !finite(n) ? null : n >= FLOOR ? 1 : n <= -FLOOR ? -1 : 0; };
-    var ys = sign(you.starterDelta), yn = sign(you.net);
-    if (ys < 1 && !(yn === 1)) return "This does not make your team better.";
-    var mineText = ys === 1 ? "Your starters get better" : ys === 0 ? "Your starters stay about the same" : "Your starters get weaker";
-    if (yn !== null && yn !== ys) mineText += " (counting your bench, your roster " + (yn === 1 ? "gains" : yn === 0 ? "is about even" : "loses") + ")";
-    var tn = them.net !== null ? them.net : them.starterDelta, tau = them.fit ? them.fit.tau : FLOOR;
-    // JEG-1639: a roster the percent line calls clearly worse (-3% or more) is never "about even" here.
-    var even = tn >= -tau && !them.clearlyWorse;
-    var theirs = tn >= FLOOR && !them.clearlyWorse ? "their roster gets better too" : even ? "their roster stays about even, within how much the sources disagree"
-      : "their roster gets worse, so it is a harder sell";
-    var fill = natural ? ": you fill " + list(needs.you) + " and they fill " + list(needs.them) : "";
-    return mineText + (even ? ", and " : ", but ") + theirs + fill + ".";
+  // Natural fit 2 (Jeremy, 2026-11-19): the headline, the label and both "why" paragraphs read one test, tradeFit's
+  // natural (finder.js naturalFit / naturalMisses / naturalTags), plus find-engine's waiver demotion. No test of its own.
+  function headline(fit, verdict) {
+    var n = fit.natural || {us: {}, them: {}};
+    var mine = n.us.reason === "starters" ? "Your starters get better"
+      : n.us.reason === "need" ? "You fill a position you are short at"
+        : n.us.reason === "bench" ? "Bench depth for you (your starting lineup does not change)"
+          : n.us.value ? "Your total rises, but nothing in your lineup or depth improves" : "This does not make your team better";
+    var theirs = n.them.value && n.them.reason === "starters" ? "their starters get better on their valuation"
+      : n.them.value && n.them.reason === "need" ? "they fill a position they are short at"
+        : n.them.value ? "their total rises, but nothing in their lineup or depth improves"
+          : fit.them.net < -FLOOR ? "they lose value on their valuation" : "they gain nothing on their valuation";
+    var ok = verdict.cls === "natural";
+    return mine + (ok ? ", and " : n.them.value && n.them.reason ? ", and " : ", but ") + theirs + ".";
   }
   function netWords(v) {
     var w = function (n, up, down) { return !finite(n) ? null : n >= FLOOR ? up : n <= -FLOOR ? down : null; };
@@ -224,6 +228,100 @@
     return share === 0 && w.ok ? first : first + beyond;
   }
 
+  // ---------- Natural fit 2: lineups before and after, and the two "why" paragraphs (Jeremy, 2026-11-19) ----------
+  var one = function (n) { return finite(n) ? n.toFixed(1) : "—"; };
+  // One team's starting lineup slot by slot, before and after, from tradeFit's own lineupValue calls (teamFit lineupBefore /
+  // lineupAfter, starterBefore / starterAfter). A player in the same slot both times stays on one row; the rest pair up.
+  function lineupTable(t, shape, arrivingKeys) {
+    var key = t.key, rows = [];
+    var startedBefore = new Set(t.lineupBefore.starters.map(keyOf));
+    var cell = function (r, side) {
+      if (!r) return null;
+      var tag = side === "after" ? (arrivingKeys.has(keyOf(r)) ? "arrives" : startedBefore.has(keyOf(r)) ? "moves" : "from bench") : null;
+      return {name: r.name, pos: r.pos, value: r.values ? r.values[key] : null, tag: tag};
+    };
+    SLOTS.forEach(function (s) {
+      if (!(shape && shape[s])) return;
+      var B = (t.lineupBefore.slots[s] || []).slice(), A = (t.lineupAfter.slots[s] || []).slice();
+      var inA = new Set(A.map(keyOf)), inB = new Set(B.map(keyOf));
+      var addA = A.filter(function (r) { return !inB.has(keyOf(r)); });
+      var lines = B.map(function (r) { return inA.has(keyOf(r)) ? {before: r, after: r} : {before: r, after: addA.shift() || null}; });
+      addA.forEach(function (r) { lines.push({before: null, after: r}); });
+      for (var i = lines.length; i < shape[s]; i += 1) lines.push({before: null, after: null});
+      lines.forEach(function (l) {
+        var same = l.before && l.after && keyOf(l.before) === keyOf(l.after);
+        rows.push({slot: s, changed: !same && Boolean(l.before || l.after), before: cell(l.before, "before"), after: same ? cell(l.after, "same") : cell(l.after, "after")});
+      });
+    });
+    return {rows: rows, before: t.starterBefore, after: t.starterAfter, delta: t.starterAfter - t.starterBefore,
+      into: t.startersIn.map(function (x) { return x.name; }), outOf: t.startersOut.map(function (x) { return x.name; })};
+  }
+  // The lineup in one sentence per changed slot: "A replaces B at RB (19.6 for 11.4)".
+  function lineupLines(table, who) {
+    var out = [];
+    table.rows.forEach(function (r) {
+      if (!r.changed) return;
+      if (r.after && !r.before) out.push(r.after.name + " fills " + who.poss + " empty " + r.slot + " slot (" + one(r.after.value) + ").");
+      else if (!r.after) out.push(r.before.name + " leaves " + who.poss + " " + r.slot + " slot and nobody fills it.");
+      else {
+        var verb = r.after.tag === "moves" ? " moves to " + r.slot + " in place of " : r.after.tag === "from bench" ? " moves up from the bench to " + r.slot + " in place of " : " replaces ";
+        out.push(r.after.name + verb + r.before.name + (r.after.tag === "arrives" ? " at " + r.slot : "") + " (" + one(r.after.value) + " for " + one(r.before.value) + ").");
+      }
+    });
+    return out;
+  }
+  var names = function (rows) { return list(rows.map(function (r) { return r.name; })); };
+  function depthLine(t, pos, who) {
+    var d = t.depth && t.depth[pos];
+    return d ? pos + " (" + d.before + " " + (who === "you" ? "now" : "before") + ", " + d.after + " after; " + d.range + " is normal)" : pos;
+  }
+  // "Why you should do this": what the trade does for your roster, in the order of the Natural test's reason.
+  function yourWhy(fit, table, trade, units, waiverText) {
+    var n = fit.natural, us = fit.us, out = [];
+    var lines = lineupLines(table, {poss: "your"});
+    if (!lines.length) out.push("No change to your starting lineup." + (trade.receive.length ? " " + names(trade.receive) + (trade.receive.length === 1 ? " joins" : " join") + " your bench." : ""));
+    else out = out.concat(lines);
+    out.push("Your starters: " + one(table.before) + " to " + one(table.after) + " (" + shown(table.delta) + " " + units.you + ").");
+    if (n.us.need.length) out.push("Fills a position you are short at: " + list(n.us.need.map(function (p) { return depthLine(us, p, "you"); })) + ".");
+    else if (n.us.slot) out.push("Fills a starting slot you could not fill before.");
+    if (n.us.reason === "bench") out.push("Bench depth, not a starter upgrade: your bench gains " + shown(us.benchDelta) + " " + units.you + " once bench players are weighted.");
+    var value = "Value: " + shown(us.net) + " " + units.you + " once bench players are weighted";
+    out.push(value + (finite(trade.edge) && Math.abs(trade.edge - us.net) >= FLOOR ? " (trade value " + shown(trade.edge) + " adds up raw player values)." : "."));
+    POS.forEach(function (p) {
+      var d = us.depth && us.depth[p];
+      if (d && d.statusAfter === "under" && d.distAfter > d.distBefore) out.push("Watch " + p + " depth: " + d.after + " after the trade (" + d.range + " is normal).");
+    });
+    if (n.us.projections === false) out.push("Caution: your projection-based value falls " + Math.abs(n.us.projNet).toFixed(1) + ".");
+    // JEG-1572: an offer a free pickup mostly matches leads with that pickup.
+    if (waiverText) { if (trade.demoted) out.unshift(waiverText); else out.push(waiverText); }
+    return out;
+  }
+  // "Why they may see it as good": the same on their valuation, the need it fills, the public charts and the cautions.
+  function theirWhy(fit, table, trade, units) {
+    var n = fit.natural, them = fit.them, out = [];
+    var lines = lineupLines(table, {poss: "their"});
+    if (!lines.length) out.push("No change to their starting lineup.");
+    else out = out.concat(lines);
+    out.push("Their starters: " + one(table.before) + " to " + one(table.after) + " (" + shown(table.delta) + " " + units.them + ").");
+    if (n.them.need.length) out.push("They are short at " + list(n.them.need.map(function (p) { return depthLine(them, p, "them"); })) + " and get " + names(trade.give.filter(function (r) { return n.them.need.indexOf(r.pos) >= 0; })) + ".");
+    out.push("Their total: " + shown(them.net) + " " + units.them + " once bench players are weighted.");
+    out.push(n.charts.agree + " of " + n.charts.total + " public trade charts call it even or better for them.");
+    if (n.thin) out.push("Thin for them: the gain is " + (Math.floor(n.them.share * 1000) / 10).toFixed(1) + "% of their starters, so they may see it as close.");
+    if (n.them.caution) out.push("Caution: our projections disagree. Their projection-based value falls " + Math.abs(n.them.projNet).toFixed(1) + ".");
+    return out;
+  }
+  var VERDICT = {natural: "Natural fit", neutral: "Partner neutral", force: "Force fit"};
+  // The card's class, read the way find-engine.js classify reads it (DDF.find.classify when the page has it), plus the
+  // waiver demotion: one label for the card and the panel.
+  function verdictOf(fit, demoted, names) {
+    var D = window.DDF && window.DDF.find;
+    var cls = D && D.classify ? D.classify({fit: fit}) : fit.label === "natural" ? "natural" : fit.them.net >= -fit.them.tau ? "neutral" : "force";
+    if (cls === "natural" && demoted) cls = "neutral";
+    var f = F(), n = fit.natural;
+    var misses = cls === "natural" ? [] : f.naturalMisses(fit, names).concat(demoted ? ["a free pickup gets most of this gain"] : []);
+    return {cls: cls, word: VERDICT[cls] || cls, charts: n.charts.agree + "/" + n.charts.total, tags: cls === "natural" ? f.naturalTags(fit) : [], misses: misses};
+  }
+
   function explain(trade, ctx) {
     var f = F();
     if (!f || !trade || !ctx || !ctx.shape || !Array.isArray(trade.mine) || !Array.isArray(trade.theirs)) return null;
@@ -236,7 +334,7 @@
     var give = wide(trade.give || []), recv = wide(trade.receive || []);
     // The fit exactly as find-engine.js computes it (both sides, Natural fit predicate, bench weighted by benchWeight).
     var fit = f.tradeFit({mine: {roster: mine, leaving: give, arriving: recv}, theirs: {roster: theirs, leaving: recv, arriving: give}},
-      {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: k.our, marketKey: k.market, chartKeys: ctx.analyst || undefined, z: f.FIT_Z});
+      {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: k.our, marketKey: k.market, chartKeys: ctx.analyst || undefined, gateKeys: ctx.gate || undefined, z: f.FIT_Z});
     if (!fit) return null;   // the trade is not judged (find-engine leaves it unjudged): no Why
     var you = view(mine, give, recv, ctx.shape, k.our, fit.us);
     var them = view(theirs, recv, give, ctx.shape, k.market, fit.them);
@@ -244,31 +342,42 @@
     them.clearlyWorse = Boolean(fit.natural && fit.natural.them && fit.natural.them.pctOk === false);
     var gp = positionsOf(give), rp = positionsOf(recv);
     var needs = {you: depthNeeds(fit.us, rp), them: depthNeeds(fit.them, gp), youSurplus: depthSurplus(fit.us, gp), themSurplus: depthSurplus(fit.them, rp)};
-    // "Natural fit" only when tradeFit's predicate holds AND, for both teams, the side received is a need and the side
-    // given is a surplus (tradeFit's depth readout).
     // JEG-1572: never "Natural fit" when a free pickup mostly matches the trade (find-engine moved the offer to neutral).
     var waiver = trade.waiver || null, demoted = Boolean(waiver && waiver.demoted);
-    var natural = Boolean(!demoted && fit.label === "natural" && needs.you.length && needs.youSurplus.length && needs.them.length && needs.themSurplus.length);
+    // The page's names for the two valuations (find.html: "DDF", "the analyst charts"); generic without them.
+    var names = {you: (ctx.labels && ctx.labels.you) || "your valuation", them: (ctx.labels && ctx.labels.them) || "their valuation"};
+    var verdict = verdictOf(fit, demoted, names);
+    var natural = verdict.cls === "natural";
     var rs = reasons(you, them, {give: give, receive: recv}, needs);
     var wl = waiverLine(waiver, give);
     // A demoted offer leads with the waiver option; otherwise it follows the biggest reasons (amount: the gain it matches).
     if (wl) rs.push({kind: "waiver", amount: demoted ? Infinity : Math.max(0, (waiver.gain || 0) * (waiver.covered || 0)), text: wl});
     rs.sort(function (a, b) { return (b.kind === "unvalued") - (a.kind === "unvalued") || b.amount - a.amount; });
     var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx, k);
-    return {headline: headline(you, them, natural, needs), pct: p, natural: natural, needs: needs, waiver: waiver ? {line: wl, demoted: demoted} : null,
+    var unit = function (n) { return n === "DDF" ? "DDF" : "on " + n; };
+    var units = {you: unit(names.you), them: unit(names.them)};
+    var lineups = {you: lineupTable(fit.us, ctx.shape, new Set(recv.map(keyOf))), them: lineupTable(fit.them, ctx.shape, new Set(give.map(keyOf)))};
+    var edge = finite(trade.edge) ? trade.edge : null;
+    var why = {you: yourWhy(fit, lineups.you, {give: give, receive: recv, edge: edge, demoted: demoted}, units, wl),
+      them: theirWhy(fit, lineups.them, {give: give, receive: recv}, units)};
+    return {headline: headline(fit, verdict), verdict: verdict, lineups: lineups, why: why, pct: p, natural: natural, needs: needs, waiver: waiver ? {line: wl, demoted: demoted} : null,
       table: {give: you.leaving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: roleBefore(x)}; }),
         get: you.arriving.map(function (x) { return {name: x.row.name, pos: x.row.pos, role: role(x)}; }),
         net: netWords(you)},
       reasons: rs.slice(0, 3), allReasons: rs, you: you, them: them, fit: fit};
   }
 
+  function verdictLine(e) {
+    var v = e.verdict;
+    if (v.cls === "natural") return v.word + " (" + v.charts + " public charts)" + (v.tags.length ? ": " + v.tags.join(", ") : "") + ".";
+    return v.word + ". Not a natural fit: " + v.misses.join("; ") + ".";
+  }
   function text(trade, ctx) {
     var e = explain(trade, ctx);
     if (!e) return "";
-    var side = function (rows) { return rows.map(function (r) { return r.name + " (" + r.pos + ", " + r.role + ")"; }).join(", ") || "nothing"; };
-    return [e.natural ? "Natural fit. " + e.headline : e.headline, e.pct ? e.pct.text : null,
-      "You give up: " + side(e.table.give), "You get: " + side(e.table.get), "Net: " + e.table.net + "."]
-      .concat(e.reasons.map(function (r) { return "- " + r.text; })).filter(Boolean).join("\n");
+    var bullets = function (a) { return a.map(function (x) { return "- " + x; }); };
+    return [e.headline, e.pct ? e.pct.text : null, "Why you should do this:"].concat(bullets(e.why.you), ["Why they may see it as good:"], bullets(e.why.them), [verdictLine(e)])
+      .filter(Boolean).join("\n");
   }
 
   var CSS = ".why{margin-top:8px}.why>summary{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border:1px solid #176c4d;border-radius:99px;color:#176c4d;font-weight:700;font-size:14px;cursor:pointer;list-style:none;background:#fff}"
@@ -282,7 +391,20 @@
     // A host page may restyle tables as phone cards (find.html): the panel's tables stay tables.
     + ".why table{display:table!important}.why tbody{display:table-row-group!important}.why tr{display:table-row!important;padding:0!important;border:0!important}"
     + ".why th,.why td{display:table-cell!important;text-align:left!important}.why td:before{content:none!important;display:none!important}"
-    + ".why .why-raw td{white-space:nowrap;overflow-wrap:normal;padding-right:12px}.why .why-charts a{color:#176c4d;font-weight:700}";
+    + ".why .why-raw td{white-space:nowrap;overflow-wrap:normal;padding-right:12px}.why .why-charts a{color:#176c4d;font-weight:700}"
+    // Natural fit 2: the two lineups before and after (stacked on a phone, side by side from 700px), the two "why" lists.
+    + ".why .why-tag[data-cls=neutral]{background:#fbefd9;color:#7a4800}.why .why-tag[data-cls=force]{background:#f8e4e0;color:#8f2c20}.why .why-tag2{background:#e3f1ea;color:#176c4d}"
+    + ".why .why-lus{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin:8px 0 10px}@media(min-width:700px){.why .why-lus{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}"
+    + ".why .why-lu{min-width:0}.why .why-lu-h{margin:0 0 4px;font-size:14px}.why .why-lu-h small{color:#5c6a76}"
+    + ".why table.why-lt{table-layout:fixed;margin:0}.why .why-lt th{width:auto;padding:5px 4px 5px 0;font-size:11px;text-transform:uppercase;letter-spacing:.04em}"
+    + ".why .why-lt thead th:first-child,.why .why-lt tbody th{width:3.4em}.why .why-lt td{padding:5px 6px 5px 0;vertical-align:top;font-size:13.5px}"
+    + ".why .why-nm{display:block;line-height:1.25;overflow-wrap:anywhere}.why .why-v{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#5c6a76}"
+    + ".why .why-mv{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#176c4d}.why .why-mv[data-tag=moves],.why .why-mv[data-tag='from bench']{color:#7a4800}"
+    + ".why tr.why-chg td:first-of-type .why-nm{color:#5c6a76;text-decoration:line-through}.why tr.why-chg td:last-child{background:#e3f1ea}.why tr.why-chg td:last-child .why-nm{font-weight:700}.why .why-empty{color:#8f2c20}"
+    + ".why .why-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}"
+    + ".why .why-tot{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;margin:4px 0 0;padding-top:6px;border-top:2px solid #18231d;font-size:14px}.why .why-tot>span:first-child{font-weight:700;margin-right:auto}"
+    + ".why .why-n{font-family:'IBM Plex Mono',monospace}.why .why-d{font-family:'IBM Plex Mono',monospace;font-weight:700;padding:1px 8px;border-radius:6px;background:#e9ecef}.why .why-d[data-dir=up]{background:#e3f1ea;color:#176c4d}.why .why-d[data-dir=down]{background:#f8e4e0;color:#8f2c20}"
+    + ".why .why-side{margin:10px 0 2px;font-weight:700;font-size:14px}.why ul{margin:2px 0 6px;padding-left:20px;font-size:14px;line-height:1.45}.why .why-verdict{margin:8px 0 4px;padding-top:8px;border-top:1px solid #eef1ec;font-size:14px;font-weight:600}";
   function injectCss() {
     if (document.getElementById("ddf-why-css")) return;
     var s = document.createElement("style");
@@ -305,22 +427,37 @@
     if (typeof document !== "undefined") injectCss();
     return bodyOf(e, opts || {});
   }
+  function lineupHtml(t, title, sub) {
+    var c = function (x) {
+      if (!x) return '<td class="why-pl why-empty">Empty</td>';
+      return '<td class="why-pl"><span class="why-nm">' + esc(x.name) + '</span><span class="why-v">' + one(x.value) + "</span>"
+        + (x.tag ? '<span class="why-mv" data-tag="' + esc(x.tag) + '">' + esc(x.tag) + "</span>" : "") + "</td>";
+    };
+    var d = t.delta, dir = !finite(d) || Math.abs(d) < FLOOR ? "flat" : d > 0 ? "up" : "down";
+    return '<div class="why-lu"><p class="why-lu-h"><b>' + esc(title) + "</b> <small>" + esc(sub) + "</small></p>"
+      + '<table class="why-lt"><thead><tr><th scope="col"><span class="why-sr">Slot</span></th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>'
+      + t.rows.map(function (r) { return "<tr" + (r.changed ? ' class="why-chg"' : "") + '><th scope="row">' + esc(r.slot) + "</th>" + c(r.before) + c(r.after) + "</tr>"; }).join("")
+      + '</tbody></table><p class="why-tot" data-starters-before="' + one(t.before) + '" data-starters-after="' + one(t.after) + '"><span>Starters</span> <span class="why-n">' + one(t.before)
+      + '</span> to <span class="why-n">' + one(t.after) + '</span> <span class="why-d" data-dir="' + dir + '">' + shown(d) + "</span></p></div>";
+  }
   function bodyOf(e, opts) {
-    var side = function (rows) { return rows.map(function (r) { return esc(r.name) + " <small>" + esc(r.pos) + ", " + esc(r.role) + "</small>"; }).join("<br>") || "—"; };
-    var you = e.you, them = e.them;
+    var you = e.you, them = e.them, v = e.verdict, units = opts.units || {};
     var raw = '<details class="why-raw"><summary>Show the numbers</summary><table><tr><th></th><td>You</td><td>Them</td></tr>'
       + "<tr><th>Starters</th><td>" + shown(you.starterDelta) + "</td><td>" + shown(them.starterDelta) + "</td></tr>"
       + "<tr><th>Bench (weighted)</th><td>" + shown(you.benchDelta) + "</td><td>" + shown(them.benchDelta) + "</td></tr>"
       + "<tr><th>Net</th><td>" + shown(you.net) + "</td><td>" + shown(them.net) + "</td></tr>"
       + POS.map(function (p) { return "<tr><th>" + p + " starters</th><td>" + shown(you.posDelta[p]) + "</td><td>" + shown(them.posDelta[p]) + "</td></tr>"; }).join("")
       + "</table></details>";
-    return '<div class="why-body" data-natural="' + (e.natural ? "1" : "0") + '">'
-      + '<p class="why-head">' + (e.natural ? '<span class="why-tag">Natural fit</span>' : "") + esc(e.headline) + "</p>"
+    var ul = function (a, attr) { return "<ul " + attr + ">" + a.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>"; };
+    return '<div class="why-body" data-natural="' + (e.natural ? "1" : "0") + '" data-cls="' + esc(v.cls) + '">'
+      + '<p class="why-head"><span class="why-tag" data-cls="' + esc(v.cls) + '">' + esc(v.word) + (v.cls === "natural" ? " · " + esc(v.charts) + " public charts" : "") + "</span>"
+      + v.tags.map(function (t) { return '<span class="why-tag why-tag2" data-tag>' + esc(t) + "</span>"; }).join("") + esc(e.headline) + "</p>"
       + (e.pct ? '<p class="why-pct" data-pct data-band="' + esc(e.pct.partner.band) + '">' + esc(e.pct.line) + "." + (e.pct.sentence ? " <span class=\"why-sentence\">" + esc(e.pct.sentence) + "</span>" : "") + "</p>" : "")
-      + '<table class="why-table"><tr><th scope="row">You give up</th><td>' + side(e.table.give) + '</td></tr><tr><th scope="row">You get</th><td>' + side(e.table.get)
-      + '</td></tr><tr><th scope="row">Net</th><td>' + esc(e.table.net) + (e.pct ? '<br><span data-pct-you>Your roster ' + esc(e.pct.you) + "</span>" : "") + "</td></tr></table>"
+      + '<div class="why-lus">' + lineupHtml(e.lineups.you, "Your lineup", units.youSub || "your valuation") + lineupHtml(e.lineups.them, opts.partner ? opts.partner + " lineup" : "Their lineup", units.themSub || "their valuation") + "</div>"
+      + '<p class="why-side">Why you should do this</p>' + ul(e.why.you, "data-why-you")
+      + '<p class="why-side">Why they may see it as good</p>' + ul(e.why.them, "data-why-them")
+      + '<p class="why-verdict" data-verdict="' + esc(v.cls) + '">' + esc(verdictLine(e)) + "</p>"
       + (opts.extra || "")
-      + (e.reasons.length ? '<ol class="why-reasons">' + e.reasons.map(function (r) { return '<li data-kind="' + r.kind + '">' + esc(r.text) + "</li>"; }).join("") + "</ol>" : "")
       + raw + "</div>";
   }
 

@@ -25,9 +25,11 @@ SET = """([id, value]) => { const el = document.getElementById(id); el.value = v
 
 # The page's cards, as printed.
 READ_PAGE = r"""() => {
+  const txt = (a, sel) => { const el = a.querySelector(sel); return el ? el.textContent.trim() : null; };
   const cards = sel => [...document.querySelectorAll(sel + ' [data-offer]')].map(a => ({
     partner: a.dataset.partner, give: a.dataset.give, receive: a.dataset.receive,
-    you: a.querySelector('.gain').textContent.trim(), them: a.querySelector('.mlab span:nth-child(2)').textContent.trim()}));
+    // Natural fit 2 (Jeremy, 2026-11-19): each side's starters change is on the card's lineup block, trade value leads.
+    you: txt(a, '[data-lineup="you"] .lm-d'), them: txt(a, '[data-lineup="them"] .lm-d'), edge: txt(a, '[data-trade-value]')}));
   const picks = [...document.querySelectorAll('#pickup-cards [data-pickup]')].map(a => ({add: a.dataset.add, drop: a.dataset.drop, gain: a.querySelector('.gain').textContent.trim()}));
   return {natural: cards('#natural-table'), neutral: cards('#all-table'), picks, status: document.getElementById('search-status').textContent};
 }"""
@@ -106,7 +108,7 @@ ORACLE = r"""(o) => {
     const mineW = widen(me.rows), theirW = widen(t.rows);
     const wide = new Map(mineW.concat(theirW).map(r => [String(r.player_key), r]));
     const w = list => list.map(r => wide.get(String(r.player_key)) || r);
-    const fitCtx = {shape, expected, weights, ourKey: yourKey, marketKey: theirKey, chartKeys: analyst || undefined, z: F.FIT_Z};
+    const fitCtx = {shape, expected, weights, ourKey: yourKey, marketKey: theirKey, chartKeys: analyst || undefined, gateKeys: gate, z: F.FIT_Z};
     const byCls = {};
     res.trades.forEach(tr => {
       const fit = F.tradeFit({mine: {roster: mineW, leaving: w(tr.give), arriving: w(tr.receive)}, theirs: {roster: theirW, leaving: w(tr.receive), arriving: w(tr.give)}}, fitCtx);
@@ -124,7 +126,7 @@ ORACLE = r"""(o) => {
     if (ks.some(k => (used[k] || 0) >= o.cap)) return;
     ks.forEach(k => { used[k] = (used[k] || 0) + 1; });
     if (++per[g.cls] <= o.pageSize) out[g.cls].push({partner: g.partner, give: g.best.give.map(r => String(r.player_key)).join(','), receive: g.best.receive.map(r => String(r.player_key)).join(','),
-      you: shown(g.best.you), them: 'Them ' + shown(g.best.them) + ' ' + o.theirLabel});
+      you: shown(g.best.you), them: shown(g.best.them), edge: shown(g.best.edge)});
   });
   const picks = wres.results.filter(r => r.starterDelta !== null && g1(r) > 0 && g1(r) >= o.min)
     .sort((a, b) => b.starterDelta - a.starterDelta || (b.totalDelta || 0) - (a.totalDelta || 0) || String(a.name).localeCompare(String(b.name)))
@@ -228,11 +230,12 @@ class FindPageEngineParityTest(unittest.TestCase):
         if not path.exists():
             raise _render_env.unavailable("dist/find-engine.js is not built")
         src = path.read_text(encoding="utf-8")
-        anchor = "you: fit ? fit.us.starterDelta : null"
+        # Natural fit 2: the card leads with trade value (the offer's edge), so the drift moves it.
+        anchor = "var out = {give: t.give, receive: t.receive, edge: t.edge,"
         self.assertIn(anchor, src, "drift anchor not found in find-engine.js")
-        patched = src.replace(anchor, "you: fit ? fit.us.starterDelta + 0.1 : null", 1)
+        patched = src.replace(anchor, "var out = {give: t.give, receive: t.receive, edge: t.edge + 0.1,", 1)
         errors, _ = _run(overrides={"find-engine.js": patched.encode("utf-8")}, settings=SETTINGS[:1], extra=False)
-        self.assertNotEqual(errors, [], "the parity check did not catch a 0.1 drift on your starter change")
+        self.assertNotEqual(errors, [], "the parity check did not catch a 0.1 drift on trade value")
 
 
 if __name__ == "__main__":

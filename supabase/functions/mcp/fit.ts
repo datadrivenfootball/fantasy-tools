@@ -27,6 +27,8 @@ export interface FitFinder {
   tradeFit: (sides: any, ctx: any) => any;
   // deno-lint-ignore no-explicit-any
   fitText: (fit: any) => string;
+  // deno-lint-ignore no-explicit-any
+  naturalTags?: (fit: any) => string[];
 }
 
 /** League starting-lineup shape (same fields as the page's RosterShape). */
@@ -59,6 +61,8 @@ export interface FitContext {
   chartKeys: string[];
   ourKey: string;
   marketKey: string;
+  /** Natural fit 2: the public trade charts the "n of 4 even or better for them" count reads (the same chartKeys). */
+  gateKeys: string[];
   z: number;
 }
 
@@ -69,6 +73,10 @@ export interface FitLabel {
   fit_reason: string | null;
   /** JEG-1329: both teams' side of the same tradeFit call; null with the label. */
   sides?: FitSides | null;
+  /** Natural fit 2 (Jeremy, 2026-11-19): public trade charts even or better for them, part of the Natural test. */
+  charts?: { agree: number; total: number } | null;
+  /** Natural fit 2: a Natural fit's tags, "Bench depth" and / or "Thin for them" (finder.js naturalTags). */
+  tags?: string[];
 }
 
 /** One team's side as tradeFit judged it: the bench-weighted net and starters change on that
@@ -137,6 +145,7 @@ export function buildFitContext(
     expected: opts.expected ?? null,
     weights: opts.weights ?? {},
     chartKeys: charts,
+    gateKeys: charts,
     ourKey: finder.OUR_KEY,
     marketKey: finder.MARKET_KEY,
     z: finite(opts.z) ? opts.z : finder.FIT_Z,
@@ -195,7 +204,7 @@ export function fitForTrade(
     },
     ctx,
   );
-  if (!fit || !fit.label) return { fit: null, fit_reason: null, sides: null };
+  if (!fit || !fit.label) return { fit: null, fit_reason: null, sides: null, charts: null, tags: [] };
   const construction = (c: { ok?: boolean; issues?: string[] } | undefined) =>
     ({ ok: Boolean(c?.ok), issues: Array.isArray(c?.issues) ? c!.issues.slice() : [] });
   const sides: FitSides = {
@@ -203,5 +212,8 @@ export function fitForTrade(
     theirs: { net: fit.them.net, starters: fit.them.starterDelta,
       construction: construction(fit.theirConstruction) },
   };
-  return { fit: FIT_LABELS[fit.label] ?? null, fit_reason: finder.fitText(fit), sides };
+  const nc = fit.natural && fit.natural.charts;
+  const charts = nc && finite(nc.agree) && finite(nc.total) ? { agree: nc.agree, total: nc.total } : null;
+  const tags = typeof finder.naturalTags === "function" ? finder.naturalTags(fit) : [];
+  return { fit: FIT_LABELS[fit.label] ?? null, fit_reason: finder.fitText(fit), sides, charts, tags };
 }

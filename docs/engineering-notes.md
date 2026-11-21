@@ -153,6 +153,20 @@ adds the wording. Do not re-derive the percent elsewhere: call one of the two. N
 seeded and two real league rosters (PR for JEG-1639).
 
 
+## Natural fit 2: one test for the card, the Why panel and the connector (2026-11-19)
+
+- The Why panel used to run its own stricter Natural test (need filled and surplus given on both sides) and passed 0 of
+  44 offers the card called Natural on the USO 10-29 snapshot. `DDFWhy.explain` now reads tradeFit's label (plus
+  find-engine's waiver demotion) and words `naturalMisses`; never add a second test there.
+- The public-charts count lives in tradeFit (`fit.natural.charts`, `judgeSums` over `ctx.gateKeys`, default
+  `CHART_KEYS`). Pass `gateKeys` equal to the charts the page counts (find-engine `ctx.gate`, opportunities `ctx.charts`,
+  the connector its chart keys); on the USO snapshot it equals `rivalOkCount` on all 3,169 offers.
+- `teamFit` carries `starterBefore` / `starterAfter` / `startersIn` / `startersOut` and `lineupBefore` / `lineupAfter`
+  (the lineupValue calls it already made), so cards and the Why read the fit's own lineups.
+- The connector (`supabase/functions/mcp/fit.ts`) follows through `tradeFit` / `fitText`; it still differs from the page in
+  that its partner valuation is the four-chart average (FantasyCalc included), it has no expected depth (so "a position
+  they are short at" never fires there) and it applies no waiver demotion.
+
 ## Fringe-player repricing is designed pricing (2026-11-16, JEG-1511 / JEG-1651)
 - `OnePlayerPerturbationTest` moves the waiver-line player by +/-1 PPG and bars any other player at the position from moving more than 1.0 Adjusted point. Stars can still move noticeably: the 7-player band moves the waiver line w by 1/7 of the change, every starter's surplus `x - w` moves with it, the starter group total G moves by about avail x starters x dw, and the source budget barely moves, so the rate (budget / G) reprices the whole position. It is largest in thin pools (1QB QB, 8-team TE). Band edges are not the cause.
 - Jeremy, 2026-11-16 (option A): this is designed pricing. No value change, the bar stays at 1.0, and the test carries no exemption list (`KNOWN_OVER_BAR_CASES` is gone). A future breach with this signature goes through `docs/exemption-decision-policy.md` (JEG-1518); do not add cases back to the test or widen the bar.
