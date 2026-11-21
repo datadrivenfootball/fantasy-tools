@@ -182,3 +182,14 @@ seeded and two real league rosters (PR for JEG-1639).
   and not sit next to an initial, so the slot label "K Jason Sanders" stays a tag. A city alone ("Washington",
   "Dallas") is a defense only when no player's name holds that word. Otherwise it is ambiguous, listing those players
   and the defense as an option. A paste also reads spaced initials ("J. K. Dobbins" as J.K. Dobbins).
+
+## Edge drift check: input field comparison (JEG-1049 / JEG-1256, 2026-11-21)
+- `tools/edge_drift_check.mjs` now compares top-level `inputSchema.properties` keys and the `required` list for each
+  tool present on both sides. A deployed server that advertises a tool but drops or adds fields (e.g. a claude.ai
+  connector walkthrough on 2026-11-21 showed `site_next_steps` and fields `settings, slots, league_teams, my_team`
+  that the deployed build did not have) now exits 1 (drift) instead of 0.
+- The checker also calls `initialize` to read `serverInfo.version` and `serverInfo.build` and prints both. If git
+  history is available it checks whether the deployed build SHA is an ancestor of the last commit that touched
+  `supabase/functions/mcp/`; a shallow clone or unknown SHA prints "build not compared" and never causes exit 2.
+- **claude.ai connector caches its tool list.** After a deploy, reconnect the connector in the claude.ai interface
+  to force it to re-fetch the latest tool definitions; stale caches will show the old fields until reconnected.
