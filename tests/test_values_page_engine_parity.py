@@ -445,7 +445,7 @@ class ValuesPageEngineParityTest(unittest.TestCase):
         R6-OP-09 (both ways an estimate is made) and R6-CX-02 (the card's one-chart rule)."""
         html = (DIST / 'values.html').read_text(encoding='utf-8')
         js = (DIST / 'values-buysell.js').read_text(encoding='utf-8')
-        self.assertIn('Each list is ranked by the largest gap to any one chart (the Largest gap column); a player is listed in Buy '
+        self.assertIn('Each list is ranked by the gap to the Charts average (the last column); a player is listed in Buy '
                       'when his DDF Value is above the Charts average, and in Sell when it is below.', html)
         for code in ('const byGap=(a,b)=>Math.abs(b.g.g)-Math.abs(a.g.g);', 'p.yours&&p.mkt>p.ddf', '!p.yours&&p.ddf>p.mkt'):
             self.assertIn(code, js, 'Buy / Sell ranking or filter changed; update its note in values.html')

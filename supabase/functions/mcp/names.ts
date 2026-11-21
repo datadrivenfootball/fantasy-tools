@@ -8,6 +8,7 @@ export interface Named {
   name: string;
   value?: number;
   player_key?: number;
+  pos?: string;
 }
 
 export type NameMatchKind = "exact" | "partial" | "fuzzy" | "ambiguous" | "none";
@@ -44,6 +45,89 @@ const NAME_ALIASES: ReadonlyArray<readonly [string, number]> = [
 // END GENERATED name aliases
 
 const SUFFIXES = new Set(["jr", "sr", "ii", "iii", "iv", "v"]);
+
+// Position tags a roster line can carry ("Jason Sanders K", "Sanders (K, MIA)", "Dolphins D/ST", "Kelce TE").
+const SKILL_TAGS = new Set(["qb", "rb", "wr", "te"]);
+const KICKER_TAGS = new Set(["k", "pk"]);
+const DEFENSE_TAGS = new Set(["def", "dst", "defense", "defence"]);
+const TEAM_CODES = new Set(["ari", "atl", "bal", "buf", "car", "chi", "cin", "cle", "dal", "den", "det", "gb", "hou", "ind",
+  "jac", "jax", "kc", "lac", "lar", "lv", "mia", "min", "ne", "no", "nyg", "nyj", "phi", "pit", "sea", "sf", "tb", "ten", "was", "wsh"]);
+// The 32 defenses by team name: the mascot, the city (when only one team has it) and the full name, as roster-paste.js reads them.
+const DEFENSES: ReadonlyArray<readonly [string, string, string]> = [
+  ["arizona", "cardinals", "ARI"], ["atlanta", "falcons", "ATL"], ["baltimore", "ravens", "BAL"], ["buffalo", "bills", "BUF"],
+  ["carolina", "panthers", "CAR"], ["chicago", "bears", "CHI"], ["cincinnati", "bengals", "CIN"], ["cleveland", "browns", "CLE"],
+  ["dallas", "cowboys", "DAL"], ["denver", "broncos", "DEN"], ["detroit", "lions", "DET"], ["green bay", "packers", "GB"],
+  ["houston", "texans", "HOU"], ["indianapolis", "colts", "IND"], ["jacksonville", "jaguars", "JAC"], ["kansas city", "chiefs", "KC"],
+  ["las vegas", "raiders", "LV"], ["los angeles", "chargers", "LAC"], ["los angeles", "rams", "LAR"], ["miami", "dolphins", "MIA"],
+  ["minnesota", "vikings", "MIN"], ["new england", "patriots", "NE"], ["new orleans", "saints", "NO"], ["new york", "giants", "NYG"],
+  ["new york", "jets", "NYJ"], ["philadelphia", "eagles", "PHI"], ["pittsburgh", "steelers", "PIT"], ["san francisco", "49ers", "SF"],
+  ["seattle", "seahawks", "SEA"], ["tampa bay", "buccaneers", "TB"], ["tennessee", "titans", "TEN"], ["washington", "commanders", "WAS"],
+];
+const DEFENSE_NAMES = new Map<string, string>();
+// A city alone ("Miami") names its defense only when no player's name carries that word ("Washington", "Houston").
+const DEFENSE_CITIES = new Map<string, string>();
+for (const [city, mascot, team] of DEFENSES) {
+  DEFENSE_NAMES.set(mascot, team);
+  DEFENSE_NAMES.set(`${city} ${mascot}`, team);
+  if (DEFENSES.filter(([c]) => c === city).length === 1) DEFENSE_CITIES.set(city, team);
+}
+
+/** Some player's name holds these words as whole words ("washington" in Malik Washington). */
+function nameHolds<T extends Named>(players: readonly T[], words: string): boolean {
+  return players.some((p) => ` ${tokens(p.name).join(" ")} `.includes(` ${words} `));
+}
+
+export interface TaggedName {
+  /** The name with position and team tags taken off. */
+  name: string;
+  /** A position the input names (QB, RB, WR, TE, K or DEF), or null. */
+  pos: string | null;
+  /** The defense's team for a team-only defense name ("Miami", "49ers"), or null. */
+  team: string | null;
+  /** The name is a city alone ("Miami", "Washington"): a defense only when no player's name holds it. */
+  cityOnly?: boolean;
+}
+
+/**
+ * Position and team tags on a roster line. "Jason Sanders K", "Sanders (K, MIA)" and "Jason Sanders - K - MIA" are a
+ * kicker; "Dolphins D/ST", "MIA DEF", "Miami" and "49ers" a defense; "Kelce TE" a tight end. A team code is taken off
+ * only next to a position tag, so a name word is never read as a team.
+ */
+export function positionTag(text: string): TaggedName {
+  const words = key(text).split(" ").filter(Boolean);
+  let pos: string | null = null;
+  const kept: string[] = [];
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    if (w === "d" && words[i + 1] === "st") { pos = "DEF"; i++; continue; }
+    // "k" is a tag only after the name and away from initials: "K. Walker", "J. K. Dobbins" and "K Allen" are names.
+    const initialNear = words[i - 1]?.length === 1 || words[i + 1]?.length === 1;
+    if (i > 0 && !initialNear && KICKER_TAGS.has(w)) { pos = pos ?? "K"; continue; }
+    if (DEFENSE_TAGS.has(w)) { pos = "DEF"; continue; }
+    if (words.length > 1 && SKILL_TAGS.has(w)) { pos = pos ?? w.toUpperCase(); continue; }
+    kept.push(w);
+  }
+  const named = pos ? kept.filter((w) => !TEAM_CODES.has(w)) : kept;
+  const rest = (named.length ? named : kept).join(" ");
+  const city = DEFENSE_CITIES.get(rest) ?? null;
+  const team = DEFENSE_NAMES.get(rest) ?? city
+    ?? (pos === "DEF" && kept.length === 1 && TEAM_CODES.has(kept[0]) ? kept[0].toUpperCase() : null);
+  const cityOnly = !pos && !DEFENSE_NAMES.has(rest) && city !== null;
+  if (!pos && team) pos = "DEF";
+  return cityOnly ? { name: rest, pos, team, cityOnly } : { name: rest, pos, team: pos === "DEF" ? team : null };
+}
+
+/** positionTag, with a city alone left untagged when a player's name holds it (the line stays a name to match). */
+function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedName {
+  const tag = positionTag(text);
+  return tag.cityOnly && nameHolds(players, tag.name) ? { name: tag.name, pos: null, team: null, cityOnly: true } : tag;
+}
+
+/** A kicker or defense line: never priced (the values hold neither), so never matched to another player. */
+export function notEvaluated<T extends Named>(text: string, players: readonly T[] = []): { pos: "K" | "DEF"; team: string | null } | null {
+  const tag = tagFor(text, players);
+  return tag.pos === "K" || tag.pos === "DEF" ? { pos: tag.pos, team: tag.team } : null;
+}
 const SUGGESTIONS = 5;
 
 export function key(text: string): string {
@@ -125,6 +209,18 @@ export function fuzzyDistance(name: string, query: string, limit = allowedEdits(
   return best;
 }
 
+/**
+ * A typo of a full name keeps its surname: the last word typed is within an edit or two of one of the name's own words.
+ * "Christian Mccafrey" is McCaffrey; "Tyler Bass" (a kicker) is not Tyler Badie, though the run of letters is close.
+ */
+function surnameFits(name: string, query: string): boolean {
+  const q = tokens(query);
+  if (q.length < 2) return true;
+  const last = q[q.length - 1];
+  const limit = Math.max(last.length >= 3 ? 1 : 0, allowedEdits(last.length));
+  return tokens(name).some((word) => Math.abs(word.length - last.length) <= limit && distance(last, word) <= limit);
+}
+
 function byValue<T extends Named>(rows: T[]): T[] {
   return rows.slice().sort((a, b) => (b.value ?? 0) - (a.value ?? 0) || a.name.localeCompare(b.name));
 }
@@ -161,8 +257,28 @@ function aliasHit<T extends Named>(players: T[], q: string): NameMatch<T> | null
  * ("Jr"), are ambiguous and not guessed.
  */
 export function matchName<T extends Named>(players: T[], query: string): NameMatch<T> {
-  const q = String(query ?? "").trim();
-  if (!q) return { player: null, match: "none", suggestions: [], note: "" };
+  const raw = String(query ?? "").trim();
+  if (!raw) return { player: null, match: "none", suggestions: [], note: "" };
+  // A kicker or defense is never given to another player; a skill position tag limits the pool to that position.
+  const tag = tagFor(raw, players);
+  if (tag.cityOnly && !tag.pos) {
+    // "Washington": Malik Washington, Darnell Washington or the Washington defense. Never guessed, so the model asks.
+    const hit = ambiguous(raw, players.filter((p) => nameHolds([p], tag.name)));
+    const team = DEFENSE_CITIES.get(tag.name);
+    return { ...hit, match: "ambiguous", note: `${raw}: AMBIGUOUS. Could be ${listNames(hit.suggestions)}, or the ${team} defense (not valued). Use a fuller name.` };
+  }
+  if (tag.pos === "K" || tag.pos === "DEF") {
+    return { player: null, match: "none", suggestions: [], note: `${raw}: ${tag.pos === "K" ? "kicker" : "defense"}, not valued` };
+  }
+  if (tag.pos && tag.name && players.some((p) => p.pos)) {
+    // An exact full name is kept at its own position (a slot label is not always the player's position); any other
+    // form is matched among players at the tagged position only.
+    const exact = players.filter((p) => tokens(p.name).join(" ") === tokens(tag.name).join(" "));
+    if (exact.length === 1) return { player: exact[0], match: "exact", suggestions: [], note: "" };
+    const hit = matchName(players.filter((p) => p.pos === tag.pos), tag.name);
+    return { ...hit, note: hit.note.split(tag.name).join(raw) };
+  }
+  const q = raw;
   const qWords = key(q).split(" ").filter(Boolean);
   if (qWords.length === 1 && SUFFIXES.has(qWords[0])) {
     const hits = players.filter((p) => key(p.name).split(" ").includes(qWords[0]));
@@ -190,7 +306,7 @@ export function matchName<T extends Named>(players: T[], query: string): NameMat
   const fuzzy: Array<{ player: T; found: number }> = [];
   for (const player of players) {
     const found = fuzzyDistance(player.name, q);
-    if (found !== null) fuzzy.push({ player, found });
+    if (found !== null && surnameFits(player.name, q)) fuzzy.push({ player, found });
   }
   if (fuzzy.length) {
     const best = Math.min(...fuzzy.map((row) => row.found));

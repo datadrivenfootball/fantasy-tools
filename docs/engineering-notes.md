@@ -158,3 +158,27 @@ seeded and two real league rosters (PR for JEG-1639).
 - Jeremy, 2026-11-16 (option A): this is designed pricing. No value change, the bar stays at 1.0, and the test carries no exemption list (`KNOWN_OVER_BAR_CASES` is gone). A future breach with this signature goes through `docs/exemption-decision-policy.md` (JEG-1518); do not add cases back to the test or widen the bar.
 - On current data the worst case is 0.648 (half_ppr/8 razzball TE, +1.0), across 286 held-slot cases. Full diagnosis and the probe are on JEG-1511.
 - `_cases` skips a waiver-line seat whose player has no projection record for that source and prints it. ESPN lists players it projects at zero with no `espn_ppg` record (`natives()` carries them at 0.0), so there is nothing to perturb (standard/14 ESPN RB, Adam Randall, was the one that crashed the tests).
+
+## Pasted kickers and defenses are never another player (2026-11-19)
+- Bug (Jeremy): "Jason Sanders" (K) was read as Ja'Tavion Sanders (TE). Cause: `app/v2/roster-paste.js` fell back to
+  an initial form for any two-word name ("jason sanders" -> "j sanders") and took the only player with that form.
+  The engine rows carry no K or DEF, so every kicker name falls through to the fallbacks. Same class: Jake Bates ->
+  John Bates (TE), and a slot label read as a first name ("TE Tucker Kraft" -> Tre Tucker, "TE Hunter Henry" ->
+  Travis Hunter).
+- Rules now (paste, `roster-paste.js`; connect.html reads through it via `app/next/league-paste.js`):
+  an initial form only reaches a player whose first name starts with what was typed (`firstNameFits`); a K or DEF
+  hint only reaches K or DEF rows (`matchCandidate`); a nickname or initial never crosses a position the line names
+  (`disambiguate` with the line's `posSet`), while an exact full name keeps its own position (slot labels are not
+  always the player's position); a line that is only a team ("Miami", "49ers", "Miami Dolphins") is that team's
+  defense; with `window.TradeValueKDef` loaded (`v2/kdef-names.js`, also on connect.html), an untagged kicker name
+  is a kicker; ambiguous and off-position lines carry `candidates` ({name, pos, team}), shown on connect.html.
+- Chat connector (`supabase/functions/mcp/names.ts`): `positionTag` reads K/DEF/skill tags and team-only defenses;
+  K and DEF are left out of rosters as "not valued" (`resolveNames`), never a stop; a skill tag limits the pool; a
+  multi-word fuzzy match must keep its surname (`surnameFits`: "Tyler Bass" is not Tyler Badie). The connector has
+  no kicker list, so an untagged kicker name is "matches no player" (the model asks), not a kicker.
+- Tests: `tests/test_kdef_paste_matching.js`, `tests/node/mcp_kdef_names_check.mjs` (run by `tests.test_mcp_remote`).
+- Review follow-up (2026-11-20): "k" is a kicker tag only when it is not an initial. In chat it must not be the first
+  word or next to a one-letter word ("K. Walker", "J. K. Dobbins", "K Allen" are names). In a paste it must have no dot
+  and not sit next to an initial, so the slot label "K Jason Sanders" stays a tag. A city alone ("Washington",
+  "Dallas") is a defense only when no player's name holds that word. Otherwise it is ambiguous, listing those players
+  and the defense as an option. A paste also reads spaced initials ("J. K. Dobbins" as J.K. Dobbins).

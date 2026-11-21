@@ -77,6 +77,27 @@
     return parts[0][0] + " " + parts.slice(1).join(" ");
   }
 
+  // An initial form ("j sanders") reaches a player only when the typed first name is that initial or a short form of
+  // the player's own ("J. Sanders", "Chig Okonkwo"), never a different full first name: the kicker Jason Sanders is not
+  // the tight end Ja'Tavion Sanders, and Jake Bates is not John Bates.
+  function firstNameFits(typedNormed, rowNormed) {
+    var a = String(typedNormed || "").split(" ")[0], b = String(rowNormed || "").split(" ")[0];
+    if (!a || !b) return false;
+    if (a.length === 1) return b.charAt(0) === a;
+    return b.indexOf(a) === 0 || a.indexOf(b) === 0;
+  }
+  function initialHits(index, normed) {
+    var init = initialForm(normed);
+    return ((init && index.byInitial[init]) || []).filter(function (h) { return firstNameFits(normed, normName(h.row.name)); });
+  }
+  // The players a line could be, with position and team, so a reader picks one instead of the reader guessing.
+  function candidatesOf(hits) {
+    return hits.map(function (h) { return {name: h.row.name, pos: h.pos, team: h.team || ""}; });
+  }
+  function ambiguousReason(hits) {
+    return "ambiguous: " + hits.map(function (h) { return h.row.name + " " + h.pos + " " + h.team; }).join(" / ");
+  }
+
   // ---- NFL team abbreviations ----
   var TEAM_ALIASES = {
     ari: "ARI", az: "ARI", arizona: "ARI",
@@ -155,6 +176,51 @@
   };
   var MASCOT_TO_CITY = {};
   (function () { for (var c in CITY_TO_MASCOT) MASCOT_TO_CITY[CITY_TO_MASCOT[c].toLowerCase()] = c; })();
+  var MASCOT_TEAM = {
+    cardinals: "ARI", falcons: "ATL", ravens: "BAL", bills: "BUF", panthers: "CAR", bears: "CHI", bengals: "CIN",
+    browns: "CLE", cowboys: "DAL", broncos: "DEN", lions: "DET", packers: "GB", texans: "HOU", colts: "IND",
+    jaguars: "JAC", chiefs: "KC", raiders: "LV", chargers: "LAC", rams: "LAR", dolphins: "MIA", vikings: "MIN",
+    patriots: "NE", saints: "NO", giants: "NYG", jets: "NYJ", eagles: "PHI", steelers: "PIT", "49ers": "SF",
+    seahawks: "SEA", buccaneers: "TB", titans: "TEN", commanders: "WAS",
+  };
+  // A whole line that is only a team ("Miami", "49ers", "Dolphins", "Miami Dolphins", "San Francisco 49ers") names
+  // that team's defense. "New York" and "Los Angeles" alone fit two teams and name none.
+  var DEFENSE_NAME_TEAM = {};
+  var DEFENSE_CITY = {};   // keys of DEFENSE_NAME_TEAM that are a city alone ("miami", "washington")
+  (function () {
+    for (var c in CITY_TO_MASCOT) {
+      var m = CITY_TO_MASCOT[c].toLowerCase(), code = MASCOT_TEAM[m];
+      DEFENSE_NAME_TEAM[m] = code;
+      DEFENSE_NAME_TEAM[c] = code;   // "miami", or the whole name where the city key carries it ("new york jets")
+      if (c.slice(-m.length - 1) !== " " + m) { DEFENSE_NAME_TEAM[c + " " + m] = code; DEFENSE_CITY[c] = true; }
+    }
+  })();
+  // index (optional): a city alone is a defense only when no player's name holds that word ("Washington": Malik and
+  // Darnell Washington); then it is left to the caller as a name (cityHolders).
+  function defenseLineTeam(text, index) {
+    var k = defenseKey(text);
+    if (index && DEFENSE_CITY[k] && cityHolders(k, index).length) return null;
+    return DEFENSE_NAME_TEAM[k] || null;
+  }
+  function defenseKey(text) {
+    return String(text || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim()
+      .replace(/\s+(d st|dst|def|defense|defence)$/, "").trim();
+  }
+  // The players whose names hold a city's words ("washington" -> Malik Washington, Darnell Washington).
+  function cityHolders(cityKey, index) {
+    var out = [], seenKey = {};
+    Object.keys(index.byName).forEach(function (n) {
+      if ((" " + n + " ").indexOf(" " + cityKey + " ") < 0) return;
+      index.byName[n].forEach(function (h) { var k = String(h.row.player_key); if (!seenKey[k]) { seenKey[k] = 1; out.push(h); } });
+    });
+    return out;
+  }
+  // Kickers on an NFL team now (window.TradeValueKDef, kdef-names.js), by normalised name. Absent: no kicker list.
+  function kickerNames() {
+    var data = root && root.TradeValueKDef, out = {};
+    ((data && data.kickers) || []).forEach(function (k) { if (k && k.name) out[normName(k.name)] = normTeam(k.team) || ""; });
+    return out;
+  }
 
   /** Generate search names for a DEF entry. */
   function dstSearchNames(raw) {
@@ -282,10 +348,18 @@
 
   // ---- matching ----
   function matchCandidate(candidate, index, seen) {
-    function tryLookup(map, key) {
-      var hits = map[key];
-      if (!hits || hits.length === 0) return null;
-      hits = hits.slice(); // copy to allow filtering
+    // A kicker or defense line only reaches a kicker or defense row (the engine prices neither, so it stays not evaluated).
+    // A known skill position limits every form but the exact full name: a nickname or initial never crosses positions.
+    var hint = candidate.posHint;
+    var strictAlways = hint === "K" || hint === "DEF";
+    var tied = null;   // the players a lookup could not choose between, for an "ambiguous: ..." reason
+    function tryLookup(map, key, exact) {
+      return pickOne(map[key], exact);
+    }
+    function pickOne(list, exact) {
+      var hits = (list || []).slice(); // copy to allow filtering
+      if ((strictAlways || (!exact && hint && POSITIONS[hint])) && hits.length) hits = hits.filter(function (h) { return h.pos === hint; });
+      if (hits.length === 0) return null;
 
       if (hits.length > 1 && candidate.teamHint) {
         var byTeam = hits.filter(function (h) { return h.team === candidate.teamHint; });
@@ -295,7 +369,7 @@
         var byPos = hits.filter(function (h) { return h.pos === candidate.posHint; });
         if (byPos.length > 0) hits = byPos;
       }
-      if (hits.length !== 1) return null;
+      if (hits.length !== 1) { if (!tied) tied = hits; return null; }
       return hits[0];
     }
 
@@ -304,7 +378,7 @@
       var dstNames = candidate.dstSearch || [candidate.name];
       for (var d = 0; d < dstNames.length; d++) {
         var normedDST = normName(dstNames[d]);
-        var hit = tryLookup(index.byName, normedDST);
+        var hit = tryLookup(index.byName, normedDST, true);
         if (hit && hit.pos === "DEF") {
           var key = String(hit.row.player_key);
           if (seen[key]) return {match: null, confidence: 0, reason: "duplicate"};
@@ -318,7 +392,7 @@
     var normed = normName(candidate.name);
 
     // 1. Exact normalised name
-    var result = tryLookup(index.byName, normed);
+    var result = tryLookup(index.byName, normed, true);
     if (result) {
       var k1 = String(result.row.player_key);
       if (seen[k1]) return {match: null, confidence: 0, reason: "duplicate"};
@@ -329,7 +403,7 @@
     // 2. Nickname variant
     var nick = nickVariant(normed);
     if (nick) {
-      result = tryLookup(index.byName, nick);
+      result = tryLookup(index.byName, nick, false);
       if (result) {
         var k2 = String(result.row.player_key);
         if (seen[k2]) return {match: null, confidence: 0, reason: "duplicate"};
@@ -338,19 +412,17 @@
       }
     }
 
-    // 3. Initial form: "D. Henry" -> "d henry"
-    var init = initialForm(normed);
-    if (init) {
-      result = tryLookup(index.byInitial, init);
-      if (result) {
-        var k3 = String(result.row.player_key);
-        if (seen[k3]) return {match: null, confidence: 0, reason: "duplicate"};
-        seen[k3] = true;
-        return {match: result.row, confidence: 0.8, reason: null};
-      }
+    // 3. Initial form: "D. Henry" -> "d henry" (only a first name that fits, firstNameFits)
+    result = pickOne(initialHits(index, normed), false);
+    if (result) {
+      var k3 = String(result.row.player_key);
+      if (seen[k3]) return {match: null, confidence: 0, reason: "duplicate"};
+      seen[k3] = true;
+      return {match: result.row, confidence: 0.8, reason: null};
     }
 
-    return {match: null, confidence: 0, reason: "not in the values"};
+    if (tied) return {match: null, confidence: 0, reason: ambiguousReason(tied), candidates: candidatesOf(tied)};
+    return {match: null, confidence: 0, reason: hint === "K" ? "kicker not matched" : "not in the values"};
   }
 
   // ---- site detection ----
@@ -388,7 +460,7 @@
       if (result.match) {
         players.push({id: String(result.match.player_key), name: result.match.name, confidence: result.confidence, sourceLine: sourceLine, slot: ""});
       } else if (result.reason !== "duplicate") {
-        unmatched.push({line: sourceLine, reason: result.reason || "not in the values", pos: pos, team: team});
+        unmatched.push(Object.assign({line: sourceLine, reason: result.reason || "not in the values", pos: pos, team: team}, result.candidates ? {candidates: result.candidates} : {}));
       }
     }
     for (var i = 1; i < lines.length; i++) {
@@ -547,7 +619,7 @@
     if (result.match) {
       team.players.push({id: String(result.match.player_key), name: result.match.name, confidence: result.confidence, sourceLine: nameLine, slot: slot || ""});
     } else if (result.reason !== "duplicate") {
-      team.unmatched.push({line: nameLine, reason: result.reason || "not in the values", pos: candidate.posHint, team: candidate.teamHint});
+      team.unmatched.push(Object.assign({line: nameLine, reason: result.reason || "not in the values", pos: candidate.posHint, team: candidate.teamHint}, result.candidates ? {candidates: result.candidates} : {}));
     }
   }
 
@@ -1076,15 +1148,22 @@
   function lineHints(tokens) {
     var posHint = null;
     var teamHint = null;
+    var posSet = {};
+    // A one-letter word, with or without its dot ("K.", "J"), is an initial.
+    var initial = function (t) { return !!t && /^[A-Za-z]\.?,?$/.test(t); };
     for (var i = 0; i < tokens.length; i++) {
       var raw = tokens[i];
       var upper = raw.toUpperCase().replace(/[^A-Z/]/g, "");
+      // "K" is a kicker tag, never the initial of a name: "K. Walker", "J. K. Dobbins" (a slot label "K Jason Sanders" stays a tag)
+      if (upper === "K" && (/\./.test(raw) || initial(tokens[i - 1]) || initial(tokens[i + 1]))) continue;
       if (!posHint && POSITIONS[upper]) posHint = upper;
       if (upper === "D/ST" || upper === "DST") posHint = "DEF";
+      if (POSITIONS[upper]) posSet[upper] = 1;
+      if (upper === "D/ST" || upper === "DST") posSet.DEF = 1;
       var nt = normTeam(raw);
       if (nt && !teamHint) teamHint = nt;
     }
-    return {posHint: posHint, teamHint: teamHint};
+    return {posHint: posHint, teamHint: teamHint, posSet: posSet};
   }
 
   // Try to match a sequence of tokens as a player name.
@@ -1104,6 +1183,10 @@
     var hits = index.byName[normed];
     if (hits && hits.length > 0) return {hits: hits, normed: normed, form: "exact"};
 
+    // Spaced initials: "J. K. Dobbins" -> "jk dobbins"
+    var joined = normed.replace(/^((?:[a-z] )+)/, function (m) { return m.replace(/ /g, "") + " "; });
+    if (joined !== normed && index.byName[joined] && index.byName[joined].length) return {hits: index.byName[joined], normed: joined, form: "exact"};
+
     // Nickname variant
     var nick = nickVariant(normed);
     if (nick) {
@@ -1111,12 +1194,9 @@
       if (hits && hits.length > 0) return {hits: hits, normed: nick, form: "nick"};
     }
 
-    // Initial form: "D. Henry" -> "d henry"
-    var init = initialForm(normed);
-    if (init) {
-      hits = index.byInitial[init];
-      if (hits && hits.length > 0) return {hits: hits, normed: init, form: "initial"};
-    }
+    // Initial form: "D. Henry" -> "d henry" (only a first name that fits, firstNameFits)
+    hits = initialHits(index, normed);
+    if (hits.length > 0) return {hits: hits, normed: initialForm(normed), form: "initial"};
 
     // Reversed: "Last, First" or "Last First" -> "First Last"
     if (len >= 2) {
@@ -1139,8 +1219,12 @@
   }
 
   // Disambiguate when multiple players share a normalized name.
-  function disambiguate(hits, posHint, teamHint) {
+  // form (optional): how the name matched; any form but "exact" keeps only players at a position the line names (posSet,
+  // or posHint alone), so a nickname or initial never lands on another position. An exact full name is kept as is.
+  function disambiguate(hits, posHint, teamHint, form, posSet) {
     var filtered = hits;
+    var named = posSet && Object.keys(posSet).length ? posSet : (posHint ? (function () { var o = {}; o[posHint] = 1; return o; })() : null);
+    if (form && form !== "exact" && named) filtered = filtered.filter(function (h) { return !!named[h.pos]; });
     if (filtered.length > 1 && teamHint) {
       var byTeam = filtered.filter(function (h) { return h.team === teamHint; });
       if (byTeam.length > 0) filtered = byTeam;
@@ -1175,7 +1259,7 @@
     }
 
     for (var i = 0; i < tokens.length; i++) {
-      var lower = tokens[i].toLowerCase().replace(/[^a-z]/g, "");
+      var lower = tokens[i].toLowerCase().replace(/[^a-z0-9]/g, "");   // digits kept: "49ers"
       // Single-word mascot (e.g. "Cowboys") or single-word city (e.g. "Dallas")
       if (MASCOT_TO_CITY[lower] || CITY_TO_MASCOT[lower]) {
         var r = tryDef(tokens[i]);
@@ -1215,6 +1299,12 @@
 
     var index = buildIndex(playerIndex);
     var firstWords = buildFirstWords(index);
+    var kickers = kickerNames();
+    // One entry per team defense: a name line and its position line ("Jaguars", "Jax - DEF") are the same defense.
+    var addDefense = function (u) {
+      if (u.team && unmatched.some(function (x) { return x.pos === "DEF" && x.team === u.team; })) return;
+      unmatched.push(u);
+    };
     var rawLines = text.split(/\r?\n/);
     var seen = {};
     var players = [];
@@ -1245,7 +1335,7 @@
           seen[String(defEntry.row.player_key)] = true;
           foundOnLine.push({id: String(defEntry.row.player_key), name: defEntry.row.name, confidence: 1, sourceLine: trimmed, slot: ""});
         } else {
-          unmatched.push({line: trimmed, reason: "defence not matched", pos: "DEF", team: hints.teamHint || ""});
+          addDefense({line: trimmed, reason: "defence not matched", pos: "DEF", team: hints.teamHint || defenseLineTeam(cleaned) || ""});
         }
       }
 
@@ -1274,7 +1364,9 @@
       }
 
       // N-gram scan for player names: try windows of 4, 3, 2 words (prefer longer matches).
-      if (foundOnLine.length === 0 && hints.posHint !== "DEF" && hints.posHint !== "K") {
+      var offPosition = null;   // a name that fit only a player at a position the line does not name
+      var skillLine = foundOnLine.length === 0 && hints.posHint !== "DEF" && hints.posHint !== "K";
+      if (skillLine) {
         for (var winLen = 4; winLen >= 2; winLen--) {
           for (var start = 0; start + winLen <= tokens.length; start++) {
             var overlap = false;
@@ -1296,15 +1388,18 @@
             var match = tryNameMatch(tokens, start, winLen, index);
             if (!match) continue;
 
-            var entry = disambiguate(match.hits, hints.posHint, hints.teamHint);
+            var entry = disambiguate(match.hits, hints.posHint, hints.teamHint, match.form, hints.posSet);
             if (!entry) {
-              if (match.hits.length > 1) {
+              var fits = match.form === "exact" ? match.hits : match.hits.filter(function (h) { return !!hints.posSet[h.pos] || !Object.keys(hints.posSet).length; });
+              if (fits.length > 1) {
                 // Only report ambiguous once per line
                 var already = unmatched.some(function (u) { return u.line === trimmed && u.reason.indexOf("ambiguous") === 0; });
                 if (!already) {
-                  unmatched.push({line: trimmed, reason: "ambiguous: " + match.hits.map(function(h) { return h.row.name + " " + h.pos + " " + h.team; }).join(" / "),
-                    pos: hints.posHint || "", team: hints.teamHint || ""});
+                  unmatched.push({line: trimmed, reason: ambiguousReason(fits), pos: hints.posHint || "", team: hints.teamHint || "",
+                    candidates: candidatesOf(fits)});
                 }
+              } else if (!fits.length && !offPosition) {
+                offPosition = match.hits;
               }
               continue;
             }
@@ -1328,8 +1423,46 @@
         }
       }
 
+      // Kickers and defenses with no position on the line: a kicker on an NFL team now by full name (kdef-names.js), or a
+      // line that is only a team's name ("Miami", "49ers"). Kept as not evaluated, never given to another player.
+      var reported = unmatched.some(function (u) { return u.line === trimmed; });
+      if (skillLine && !reported) {
+        for (var kw2 = Math.min(4, tokens.length); kw2 >= 2; kw2--) {
+          for (var ks2 = 0; ks2 + kw2 <= tokens.length; ks2++) {
+            var taken = false;
+            for (var kc = ks2; kc < ks2 + kw2; kc++) if (consumed[kc]) taken = true;
+            if (taken) continue;
+            var kn = normName(tokens.slice(ks2, ks2 + kw2).join(" ").replace(/,/g, " "));
+            if (!Object.prototype.hasOwnProperty.call(kickers, kn) || index.byName[kn]) continue;
+            unmatched.push({line: foundOnLine.length ? tokens.slice(ks2, ks2 + kw2).join(" ").replace(/,$/, "") : trimmed,
+              reason: "kicker not matched", pos: "K", team: hints.teamHint || kickers[kn] || ""});
+            for (var kc2 = ks2; kc2 < ks2 + kw2; kc2++) consumed[kc2] = true;
+            reported = true;
+          }
+        }
+        var defTeam = !reported && !foundOnLine.length ? defenseLineTeam(cleaned, index) : null;
+        if (defTeam) {
+          addDefense({line: trimmed, reason: "defence not matched", pos: "DEF", team: defTeam});
+          reported = true;
+        }
+        // a city that is also a surname ("Washington"): the players it could be, and none chosen
+        var holders = !reported && !foundOnLine.length && DEFENSE_CITY[defenseKey(cleaned)] ? cityHolders(defenseKey(cleaned), index) : [];
+        if (holders.length) {
+          unmatched.push({line: trimmed, reason: ambiguousReason(holders) + " / " + DEFENSE_NAME_TEAM[defenseKey(cleaned)] + " defense",
+            pos: "", team: "", candidates: candidatesOf(holders)});
+          reported = true;
+        }
+        if (!reported && !foundOnLine.length && offPosition) {
+          unmatched.push({line: trimmed, reason: "position does not match: " + ambiguousReason(offPosition).replace(/^ambiguous: /, ""),
+            pos: hints.posHint || "", team: hints.teamHint || "", candidates: candidatesOf(offPosition)});
+          reported = true;
+        }
+      }
+
       if (foundOnLine.length > 0) {
         for (var fi = 0; fi < foundOnLine.length; fi++) players.push(foundOnLine[fi]);
+      } else if (reported) {
+        // already listed as unmatched (a kicker, a defense, or a name at another position)
       } else {
         // Track non-empty non-noise lines that had no match
         var hasAlpha = /[a-zA-Z]{2,}/.test(trimmed);
