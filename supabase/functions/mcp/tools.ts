@@ -1873,7 +1873,8 @@ async function findTradesHandler(
       ...header(data, s),
       ...nameNotes,
       "",
-      foundLine(result.total, trades.length, limit, viableOnly),
+      // One count for the summary, this line and `total`: distinct trades after dedupe (find_trades_league does the same).
+      foundLine(ranked.length, trades.length, limit, viableOnly),
       `Your roster: ${mineRes.matched.length} matched, ${missed(mineRes)}; searched ${result.mine.searched} of ${result.mine.of} priced.`,
       `Their roster: ${theirMatched.length} matched, ${missed(theirRes)}; searched ${result.theirs.searched} of ${result.theirs.of} priced.`,
     ];
@@ -1891,7 +1892,7 @@ async function findTradesHandler(
       as_of: data.as_of,
       setting: data.setting,
       trades,
-      total: result.total,
+      total: ranked.length,
       shown: trades.length,
       limit,
       viableCount: trades.filter((o) => o.viable).length,

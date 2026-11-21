@@ -37,6 +37,8 @@ const mainToolsWithSchema = TOOLS.map((t) => ({
   name: t.name,
   inputSchema: { type: "object", properties: t.inputSchema?.properties ?? {}, required: t.inputSchema?.required ?? [] },
 }));
+assert.deepEqual(mainToolsWithSchema.find((t) => t.name === "get_player_value")?.inputSchema.required, ["names"],
+  "the required-list drift case needs get_player_value to require names on main; point it at a tool that still has required fields");
 const OK_MCP = toolsWithSchemaReply(mainToolsWithSchema);
 const OK_VALUES = valuesReply([row(), row({ player_key: 2, name: "B" })]);
 
@@ -125,13 +127,14 @@ const CASES = [
         ? { ...t, inputSchema: { ...t.inputSchema, properties: { ...t.inputSchema.properties, ghost_param: { type: "string" } } } }
         : t)),
     code: 1, out: /get_values:[\s\S]*deployed has fields not on main: ghost_param/ },
-  // Field-level drift: deployed tool's required list differs.
+  // Field-level drift: deployed tool's required list differs. get_player_value keeps a required list on main
+  // (compare_trade lost its own when it took give/get); the guard below fails loudly if that changes too.
   { name: "deployed tool required list differs",
     mcp: toolsWithSchemaReply(mainToolsWithSchema.map((t) =>
-      t.name === "compare_trade"
-        ? { ...t, inputSchema: { ...t.inputSchema, required: ["side_a"] } }
+      t.name === "get_player_value"
+        ? { ...t, inputSchema: { ...t.inputSchema, required: [] } }
         : t)),
-    code: 1, out: /compare_trade:[\s\S]*deployed required misses: side_b/ },
+    code: 1, out: /get_player_value:[\s\S]*deployed required misses: names/ },
 
   // Could not compare (exit 2).
   { name: "empty players", values: valuesReply([]), code: 2, out: /could not compare[\s\S]*players list is empty/ },

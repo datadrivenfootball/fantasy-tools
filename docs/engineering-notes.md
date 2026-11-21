@@ -233,6 +233,12 @@ seeded and two real league rosters (PR for JEG-1639).
   league's saved slots (`shapeOf`; the finders still use `s.roster` only, so a state's WR 3 is not their shape).
 - Reasons for a drop to 0 or a 2.5+ move come only from the trade charts and projections (get-values has no injury
   field). Known: with #1503's gate a 12-team state reply passes the size budget only if the state is not counted.
+- One trade count everywhere: find_trades' summary, "Found N trades" line and `total` are the distinct trades after
+  dedupe (`ranked.length`), as in find_trades_league; the finder's raw total counts duplicate packages.
+- A bare surname follows the surname rule too ("Boswell" is offered no Josh Allen or Chris Bell). A known kicker's
+  surname alone is a kicker unless a priced player's name holds that word ("Bell" stays Chris Bell).
+- `tests/node/edge_drift_check.mjs` drives its required-list case with get_player_value: compare_trade has no
+  `required` since it took give/get. A guard fails loudly if get_player_value loses its own.
 - Tests: `tests/node/mcp_answer_format_check.mjs` (run by `tests.test_mcp_remote`).
 
 ## Edge drift check: input field comparison (JEG-1049 / JEG-1256, 2026-11-21)

@@ -118,6 +118,10 @@ assert.ok(r.structuredContent.trades.some((t) => t.userGives.some((p) => p.name 
 const all = await call("find_trades", { mine: MINE, theirs: THEM, viable_only: false, limit: 50 });
 assert.ok(all.structuredContent.trades.some((t) => !t.viable), "viable_only=false keeps the full list");
 assert.match(all.structuredContent.summary, /^\d+ trades found, \d+ they would likely accept; first: give /);
+// One count: the summary, the "Found N trades" line and `total` agree (review of #1504: 4 vs 5 before).
+const allCount = Number(all.structuredContent.summary.match(/^(\d+) trades found/)[1]);
+assert.equal(all.structuredContent.total, allCount, "structured total matches the summary count");
+assert.match(text(all), new RegExp(`\\nFound ${allCount} trades \\(showing `), "body count matches the summary count");
 // none acceptable: say so, then the closest 1-2 with the check each fails, in plain words
 r = await call("find_trades", { mine: MINE, theirs: "Trey McBride, Noah Gray" });
 s = opensWithSummary(r, "find_trades none");

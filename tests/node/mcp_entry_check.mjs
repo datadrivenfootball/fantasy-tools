@@ -80,6 +80,13 @@ assert.doesNotMatch(matchName(rows, "Tyler Loop").note, /Goodson/);
 setKnownKickers(kickers);
 assert.match(matchName(rows, "Chris Boswell").note, /kicker, not valued/, "a known kicker's bare name is a kicker");
 assert.equal(matchName(rows, "Chris Bell").player?.player_key, 11, "the WR keeps his own name");
+// A bare kicker surname is a kicker; with no kicker list it is NOT FOUND with no cross-surname guesses.
+assert.match(matchName(rows, "Boswell").note, /^Boswell: kicker, not valued/, "a bare kicker surname is a kicker");
+assert.equal(notEvaluated("Boswell", rows)?.pos, "K");
+assert.equal(matchName(rows, "Bell").player?.player_key, 11, "a priced player's surname is never a kicker");
+setKnownKickers([]);
+assert.equal(matchName(rows, "Boswell").note, "Boswell: NOT FOUND", "a bare surname is offered no other surname");
+setKnownKickers(kickers);
 
 // ---------- league_paste + my_team is enough; the state carries everything ----------
 const leaguePaste = [
