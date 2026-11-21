@@ -79,10 +79,9 @@ export function prepare(args: Record<string, unknown>, deps?: Deps): Prepared {
   if (league) {
     if (merged.scoring === undefined) merged.scoring = league.scoring;
     if (merged.teams === undefined && league.teams) merged.teams = league.teams;
-    // A saved league is the whole league: a roster with no SUPERFLEX slot has none.
-    if (merged.superflex === undefined && merged.slots === undefined) {
-      merged.superflex = Number(league.roster?.SUPERFLEX ?? 0) > 0;
-    }
+    // A saved league is the whole league: a roster with no SUPERFLEX slot has none. Slots given in this call
+    // that name a superflex slot win over it (tools.ts settings reads this after them).
+    merged._state_superflex = Number(league.roster?.SUPERFLEX ?? 0) > 0;
     const extras = leagueExtras(league);
     if (extras) merged.league = extras;
   }
@@ -98,7 +97,11 @@ export function prepare(args: Record<string, unknown>, deps?: Deps): Prepared {
       merged.league_teams = work.teams.map((t: State) => ({ name: t.name, players: names(t.players) ?? "" }));
       if (merged.my_team === undefined && work.my_team !== undefined) merged.my_team = work.my_team;
     }
-    for (const k of ["mine", "theirs"]) if (merged[k] === undefined && work[k]?.length && !pasted) merged[k] = names(work[k]);
+    // With saved teams, my_team and their_team pick the rosters; a saved mine/theirs would override a new choice.
+    const hasTeams = Array.isArray(merged.league_teams) && merged.league_teams.length > 0;
+    for (const k of ["mine", "theirs"]) {
+      if (merged[k] === undefined && work[k]?.length && !pasted && !hasTeams) merged[k] = names(work[k]);
+    }
   }
   return { args: merged, state, warnings };
 }

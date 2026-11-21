@@ -101,7 +101,7 @@ assert.equal(saved.work.my_team, 0);
 assert.deepEqual(saved.work.mine.map((p) => p.key), ["1", "2", "3", "7", "9"]);
 // the link carries the league too, and reads back the same
 const link = r.structuredContent.site_url;
-assert.match(link, /[?&]lt=Team%20A:1,2,3,7,9\|Team%20B:8,5,6,4\|Team%20C:10,11,12&mt=0/);
+assert.match(link, /[?&]lt=Team%2520A:1,2,3,7,9\|Team%2520B:8,5,6,4\|Team%2520C:10,11,12&mt=0/);
 assert.deepEqual(codec.decodeBlock(link).state.work.teams, saved.work.teams.map((t) => ({ name: t.name, players: t.players.map((p) => ({ key: p.key })) })));
 assert.equal(codec.decodeBlock(link).state.work.my_team, 0);
 
@@ -131,5 +131,27 @@ assert.match(text(r), /my_team needs the league/);
 // with the paste reader down, league_paste says so instead of guessing
 r = await call("make_state", { scoring: "ppr", superflex: false, league_paste: leaguePaste, my_team: 0 }, { codec, siteOrigin: ORIGIN, paste: null });
 assert.match(text(r), /league paste reader is unavailable/);
+
+// ---------- review fixes (2026-11-21) ----------
+// a saved partner never overrides their_team; saved teams pick the rosters
+r = await call("find_trades", { state: block, their_team: "Team C" });
+assert.match(text(r), /Trading with Team C\./);
+// "K. Walker III" is the running back, not a kicker
+const walkerRows = [...rows, { ...rows[0], player_key: 13, name: "Kenneth Walker III", pos: "RB", value: 30 }];
+assert.equal(matchName(walkerRows, "K. Walker III").player?.player_key, 13);
+assert.match(matchName(walkerRows, "K Brandon McManus").note, /kicker, not valued/);
+// a superflex state plus slots without a superflex slot keeps the state's superflex
+const sfState = codec.encodeBlock({ league: { scoring: "ppr", teams: 12, roster: { QB: 1, SUPERFLEX: 1 } } });
+r = await call("get_values", { state: sfState, slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BN: 5 }, limit: 1 });
+assert.notEqual(r.isError, true, text(r));
+assert.equal(leagues.at(-1).superflex, 1);
+// names with % : | , survive the link
+const odd = codec.normalize({ league: { scoring: "ppr" }, work: { teams: [{ name: "100% Juice: A|B, C&D=E", players: [{ name: "Odd % Name" }, { key: "7" }] }, { name: "Two", players: [] }], my_team: 0 } }).state;
+const back = codec.decodeQuery(codec.encodeQuery(odd)).state.work;
+assert.deepEqual(back.teams[0], { name: "100% Juice: A|B, C&D=E", players: [{ name: "Odd % Name" }, { key: "7" }] });
+assert.equal(back.my_team, 0);
+assert.equal(codec.decodeQuery("scoring=ppr&lt=A:1|B:2&mt=&v=1").state.work.my_team, undefined, "an empty mt= is not team 0");
+// "#1 Josh Allen" is a ranked line, not a comment; a "# note" line is skipped
+assert.deepEqual(splitNames("# my team\n#1 Josh Allen\n#2 Jared Goff\n#12"), ["Josh Allen", "Jared Goff", "#12"]);
 
 console.log("ok");

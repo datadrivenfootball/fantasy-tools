@@ -496,7 +496,9 @@ function settings(args: Record<string, unknown>) {
   }
   const missing: string[] = [];
   if (args.scoring === undefined || args.scoring === null || args.scoring === "") missing.push("scoring (ppr, half_ppr or standard)");
-  const sfSlot = roster?.SUPERFLEX !== undefined ? roster.SUPERFLEX > 0 : undefined;
+  const sfSlot = roster?.SUPERFLEX !== undefined
+    ? roster.SUPERFLEX > 0
+    : typeof args._state_superflex === "boolean" ? args._state_superflex : undefined;
   if ((args.superflex === undefined || args.superflex === null || args.superflex === "") && sfSlot === undefined) {
     missing.push("superflex (yes or no)");
   }
@@ -611,8 +613,10 @@ function myTeamOf(league: LeagueRead): number {
 }
 
 /** A state entry for a roster name: the player's key when the name (or a saved #key) is one player. */
-function workEntry(players: PlayerValue[], input: string, key?: string | null): { key?: string; name: string } {
+function workEntry(players: PlayerValue[], input: string, key?: string | null): { key?: string; name?: string } {
   if (key) return { key, name: input };
+  const saved = savedKey(input);
+  if (saved && !players.some((p) => String(p.player_key) === saved)) return { key: saved };
   const p = findPlayer(players, input);
   return p ? { key: String(p.player_key), name: p.name } : { name: input };
 }
