@@ -775,6 +775,8 @@ test-core:
 	# JEG-1341: lineup presentation properties (#1133, JEG-1270); ran in no target.
 	python3 -m unittest tests.test_lineup_presentation_properties
 	node tests/test_v2_roster_paste.js
+	# Kickers and defenses in a paste are never read as another player (the Jason Sanders case, 2026-11-19).
+	node tests/test_kdef_paste_matching.js
 	# JEG-1341: mutation proof for roster-paste.js (#1134, JEG-1272); ran in no target.
 	python3 -m unittest tests.test_roster_paste_mutation_proof
 	node tests/test_v2_league_paste.js
@@ -941,6 +943,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_v2_copy_names
 	node tests/test_v2_roster_paste.js
+	# Kickers and defenses in a paste are never read as another player (the Jason Sanders case, 2026-11-19).
+	node tests/test_kdef_paste_matching.js
 	python3 -m unittest tests.test_roster_paste_mutation_proof
 	python3 -m unittest tests.test_v2_movers
 	python3 -m unittest tests.test_v2_phone_layout_render

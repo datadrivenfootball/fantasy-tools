@@ -13,10 +13,22 @@ from urllib.parse import parse_qs, urlsplit
 
 from tests import _render_env
 from tests._league_render import browser_on_build, fixture, open_page, seed, wait_opps
+from tests._served_weeks import route_pinned_weeks
 from tests.test_v2_league_parsed_render import espn_league_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def open_pinned_page(browser, base):
+    """open_page with every source on the newest served week (tests/_served_weeks.py). A source still on last week
+    (2026-11-17: USA Today) is left out of the newer week, so the finder's per-team columns and the fit explanations
+    show an em dash instead of the numbers these two tests measure."""
+    context = browser.new_context(viewport={"width": 1366, "height": 768}, accept_downloads=True)
+    route_pinned_weeks(context, ROOT / "dist")
+    return open_page(browser, base, context=context)
+
+
 CLIPBOARD = """Object.defineProperty(navigator, 'clipboard', {configurable: true,
   value: {writeText: async text => { window.__jeg1213Copied = text; }}});"""
 TEAM_SNAPSHOT = """() => { const w = window.TradeValueWorkspace.store.get();
@@ -306,7 +318,7 @@ class Jeg1213AcceptanceRenderTest(unittest.TestCase):
 
     def test_opportunity_order_projection_position_and_fit_explanations(self):
         with browser_on_build() as (browser, base):
-            page = open_page(browser, base)
+            page = open_pinned_page(browser, base)
             seed(page, "4team")
             wait_opps(page)
             fold = page.locator("#v2LgOppsTable .v2-lg-fold-btn").first
@@ -350,7 +362,7 @@ class Jeg1213AcceptanceRenderTest(unittest.TestCase):
         required = {"rank", "team", "rosterF", "starterF", "benchF", "rosterM", "starterM", "benchM", "altRank", "projRank", "disagree", "under", "over",
                     "rosterP", "starterP", "benchP", "strengths", "weaknesses", "allocationQB", "allocationRB", "allocationWR", "allocationTE"}
         with browser_on_build() as (browser, base):
-            page = open_page(browser, base)
+            page = open_pinned_page(browser, base)
             seed(page, "4team")
             wait_opps(page)
             totals = page.evaluate(TOTALS)

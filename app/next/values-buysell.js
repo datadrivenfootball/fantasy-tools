@@ -62,8 +62,8 @@ function build(){
  DB=makeDB();byKey=new Map(DB.map(p=>[p.key,p]));
  syncYours();
 }
-function gapOf(p){/* largest gap vs any listed chart, signed DDF minus chart */
- let best=null;p.charts.forEach(([c,v])=>{const g=p.ddf-v;if(!best||Math.abs(g)>Math.abs(best.g))best={g,c}});return best;
+function gapOf(p){/* gap vs the Charts average shown in the row, signed DDF minus Charts */
+ return {g:p.ddf-p.mkt,c:'vs charts'};
 }
 const byGap=(a,b)=>Math.abs(b.g.g)-Math.abs(a.g.g);
 function sellList(db){return (db||DB).filter(p=>p.yours&&p.mkt>p.ddf).map(p=>({p,g:gapOf(p)})).sort(byGap)}
@@ -114,8 +114,7 @@ function srcCount(p){const n=p.srcs,names=p.charts.map(c=>c[0]).join(', ');retur
 function buyFit(p){if(!league)return false;return DB.some(q=>q.yours&&pairStats(q,p).natural===true)}
 function rowHTML(o,side){
  const p=o.p,g=o.g,cls=g.g<0?'mh':'dg',nat=side==='buy'&&buyFit(p);
- const chartLow=g.c.charAt(0)==='L'?'l'+g.c.slice(1):g.c;
- const label=`${p.n}, ${p.pos}${p.owner&&side==='buy'?', '+p.owner:''}. ${p.ov?'Your value '+f2(p.ddf)+' (override; DDF '+f2(p.base)+')':'DDF '+f2(p.ddf)}, charts ${f2(p.mkt)} (${p.srcs} of 4 charts), largest gap ${sg(g.g)}, DDF minus ${chartLow}.${nat?' Natural fit.':''} Select to see a swap.`;
+  const label=`${p.n}, ${p.pos}${p.owner&&side==='buy'?', '+p.owner:''}. ${p.ov?'Your value '+f2(p.ddf)+' (override; DDF '+f2(p.base)+')':'DDF '+f2(p.ddf)}, charts ${f2(p.mkt)} (${p.srcs} of 4 charts), gap ${sg(g.g)}, DDF minus the charts average.${nat?' Natural fit.':''} Select to see a swap.`;
  const sub=`<small>${esc(p.pos)}${side==='buy'&&p.owner?' · '+esc(p.owner):''}</small>`;
  return `<li><button type="button" class="bs-row" data-side="${side}" data-k="${esc(p.key)}" data-n="${esc(p.n)}" aria-pressed="false" aria-label="${esc(label)}"><span class="bs-name"><strong>${p.yours?'<span aria-hidden="true">★</span> ':''}${esc(p.n)}</strong>${p.yours?'<span class="bs-yours">Yours</span>':''}${p.ov?'<span class="bs-ovr">Your value</span>':''}${sub}${nat?'<span class="bs-tag nf">Natural fit</span>':''}</span><span class="bs-n bs-ddf" data-label="${p.ov?'Your value':'DDF'}">${f2(p.ddf)}</span><span class="bs-n bs-mkt" data-label="Charts">${f2(p.mkt)} ${srcCount(p)}</span><span class="bs-gap"><span class="bs-tag ${cls}">${sg(g.g)} ${esc(g.c)}</span></span></button><div class="vp-bs"><button type="button" class="vp-act" data-act="own" data-n="${esc(p.n)}" aria-label="Set your own value for ${esc(p.n)}">Set your own value</button></div></li>`;
 }
@@ -186,7 +185,7 @@ function renderDetail(pop){
  $('bs-open').href=E().buildHref({give:give?[give.rec]:[],get:get?[get.rec]:[]});
  if(pop){d.classList.remove('pop');void d.offsetWidth;d.classList.add('pop')}
 }
-function select(side,key,fromRow){
+function select(side,key,fromRow,noScroll){
  const p=byKey.get(key);if(!p)return;
  if(fromRow){
   sel.side=side;sel.chip=p.n;
@@ -197,12 +196,12 @@ function select(side,key,fromRow){
   sel.chip=p.n;if(sel.side==='sell')sel.get=key;else sel.give=key;
  }
  syncPressed();renderDetail(true);
- const d=$('bs-detail');if(fromRow&&!d.hidden){const r=d.getBoundingClientRect();if(r.top>innerHeight*.85||r.bottom<0)d.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
+ const d=$('bs-detail');if(fromRow&&!noScroll&&!d.hidden){const r=d.getBoundingClientRect();if(r.top>innerHeight*.85||r.bottom<0)d.scrollIntoView({block:'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
 }
 function defaultSel(){
  sel={give:null,get:null,chip:'',side:'sell'};
  const s=league?sellList():[],b=buyList();
- if(s.length)select('sell',s[0].p.key,true);else if(b.length)select('buy',b[0].p.key,true);
+ if(s.length)select('sell',s[0].p.key,true,true);else if(b.length)select('buy',b[0].p.key,true,true);
  else{renderPick();renderDetail(false)}
 }
 function init(){build();renderLists();defaultSel()}

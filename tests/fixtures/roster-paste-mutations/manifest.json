@@ -81,7 +81,7 @@
           "count": 1
         },
         {
-          "find": "        if (seen[k3]) return {match: null, confidence: 0, reason: \"duplicate\"};\n",
+          "find": "      if (seen[k3]) return {match: null, confidence: 0, reason: \"duplicate\"};\n",
           "replace": "",
           "count": 1
         },
@@ -103,7 +103,7 @@
       ],
       "edits": [
         {
-          "find": "      if (hits.length !== 1) return null;\n      return hits[0];",
+          "find": "      if (hits.length !== 1) { if (!tied) tied = hits; return null; }\n      return hits[0];",
           "replace": "      if (hits.length === 0) return null;\n      return hits[0];",
           "count": 1
         },

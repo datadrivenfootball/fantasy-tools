@@ -97,19 +97,24 @@ def live_rows():
     return [{"player_key": k, "name": k, "values": v} for k, v in res["views"]["indexed"].items()]
 
 
-def run(trade_js: Path, pools: dict) -> dict:
+def live_charts(rows) -> list[str]:
+    """The charts of CHARTS that price at least one player in the live rows."""
+    return [c for c in CHARTS if any((r["values"] or {}).get(c) is not None for r in rows)]
+
+
+def run(trade_js: Path, pools: dict, charts=CHARTS) -> dict:
     if not shutil.which("node"):
         raise unittest.SkipTest("node is not installed")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
-        json.dump({"pools": pools, "charts": CHARTS}, f)
+        json.dump({"pools": pools, "charts": list(charts)}, f)
     out = subprocess.run(["node", "-e", HARNESS, str(trade_js), f.name], check=True, capture_output=True, text=True)
     return json.loads(out.stdout)
 
 
-def check(trade_js: Path, pools: dict) -> list[str]:
+def check(trade_js: Path, pools: dict, charts=CHARTS) -> list[str]:
     errors = []
     try:
-        got = run(trade_js, pools)
+        got = run(trade_js, pools, charts)
     except subprocess.CalledProcessError as exc:
         return [f"harness failed: {exc.stderr[:300]}"]
     for name, res in got.items():
@@ -148,7 +153,11 @@ class MarketMissExamplesTest(unittest.TestCase):
         rows = live_rows()
         if rows is None:
             self.skipTest("the Python reference could not run on this checkout")
-        self.assertEqual(check(TRADE_JS, {"live ppr/12": rows}), [])
+        # The compared charts are the ones this week's reference prices, as on the page (v2.js passes the included
+        # charts): after a rollover a chart still on last week is left out (2026-11-17: USA Today on Week 10).
+        charts = live_charts(rows)
+        self.assertGreaterEqual(len(charts), 3, f"fewer than 3 charts priced this week: {charts}")
+        self.assertEqual(check(TRADE_JS, {"live ppr/12": rows}, charts), [])
 
     def test_checks_fail_on_broken_builds(self):
         source = TRADE_JS.read_text(encoding="utf-8")

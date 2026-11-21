@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-11-17T01:13:58.188607+00:00",
-  "nfl_week": 10,
+  "run_at": "2026-11-21T06:45:43.623372+00:00",
+  "nfl_week": 11,
   "sources": {
     "usatoday": "promoted 3/3",
     "fantasycalc": "promoted 3/3",
@@ -14,22 +14,22 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
-    "usatoday"
+    "fantasycalc"
   ],
-  "hold_severity": "amber",
+  "hold_severity": "red",
   "list_changes": {},
   "held_detail": {
-    "usatoday": {
+    "fantasycalc": {
       "reason": "fidelity: publisher_vs_stored",
       "held_series": [
-        "usatoday"
+        "fantasycalc"
       ],
       "sections": [
-        "usatoday"
+        "fantasycalc"
       ],
-      "detail": "924/924 values match exactly across 6 columns; 1 publisher names do not resolve to a canonical player",
-      "hold_severity": "amber",
-      "week": 10
+      "detail": "3/1149 values match exactly across 6 columns; 1146 values differ, 18 outside the movement band; 1 live players not stored, 0 stored players not live (above the list's churn line); 3 players entered or left the bottom of the list since the save (churn)",
+      "hold_severity": "red",
+      "week": 11
     }
   },
   "runner": "github-actions",
@@ -65,7 +65,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7404 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7416 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -82,7 +82,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-16 -> 12 DDF legs -> section; review passed (4416 values)",
+      "detail": "snapshot 2026-11-21 -> 12 DDF legs -> section; review passed (4404 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -90,7 +90,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-16 -> 12 DDF legs -> section; review passed (6552 values)",
+      "detail": "snapshot 2026-11-20 -> 12 DDF legs -> section; review passed (6456 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -101,121 +101,121 @@
   },
   "source_vintages": {
     "usatoday": {
-      "content_vintage": "2026-11-10",
-      "content_week": 10,
+      "content_vintage": "2026-11-17",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "fantasycalc": {
-      "content_vintage": "Week 10",
-      "content_week": 10,
+      "content_vintage": "Week 11",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "fantasypros": {
-      "content_vintage": "2026-11-10",
-      "content_week": 10,
+      "content_vintage": "2026-11-17",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "espn": {
-      "content_vintage": "2026-11-16",
-      "content_week": 10,
+      "content_vintage": "2026-11-20",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "cbs": {
-      "content_vintage": "Week 10",
-      "content_week": 10,
+      "content_vintage": "Week 11",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "cbsros": {
-      "content_vintage": "2026-11-16",
-      "content_week": 10,
+      "content_vintage": "2026-11-21",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     },
     "razzball": {
-      "content_vintage": "2026-11-16",
-      "content_week": 10,
+      "content_vintage": "2026-11-20",
+      "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
     }
   },
   "source_weeks": {
     "cbs": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-12T15:35:36+00:00",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-21T00:35:46+00:00",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "cbsros": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-16",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-21",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "espn": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-16",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-20",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "fantasycalc": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-17T00:05:28+00:00",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-21T02:05:36+00:00",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "fantasypros": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-10",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-17",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "razzball": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-16",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-20",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
       "stale_after": null
     },
     "usatoday": {
-      "served_week": 10,
-      "label_week": 10,
-      "published_at": "2026-11-10",
+      "served_week": 11,
+      "label_week": 11,
+      "published_at": "2026-11-17",
       "basis": "section_label",
-      "expected_week": 10,
+      "expected_week": 11,
       "weeks_behind": 0,
       "state": "current",
       "stale": false,
@@ -226,6 +226,6 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "usatoday": "fidelity: publisher_vs_stored"
+    "fantasycalc": "fidelity: publisher_vs_stored"
   }
 }
