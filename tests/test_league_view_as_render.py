@@ -150,6 +150,30 @@ class ViewAsRenderTest(unittest.TestCase):
         self.assertIsNone(page.query_selector("#ddf-viewas"))
         self.assertEqual(page.errors, [])
 
+    def test_header_fits_on_small_phones_with_every_control(self):
+        """Bookmark, the source freshness dot, Menu and the league chip all show inside the header at 320/360/375."""
+        js = """() => { const W = document.documentElement.clientWidth, h = document.querySelector('header .header-inner');
+          const vis = s => { const e = document.querySelector(s); if (!e) return 'missing'; const r = e.getBoundingClientRect();
+            return r.width > 0 && r.left >= -1 && r.right <= W + 1 ? 'ok' : 'off'; };
+          return {header: h.scrollWidth - h.clientWidth, bookmark: vis('.ddf-bm'), dot: vis('.ddf-fresh-hdr a'),
+                  menu: vis('.morewrap > button'), chip: vis('.ddf-chip')}; }"""
+        want = {"header": 0, "bookmark": "ok", "dot": "ok", "menu": "ok", "chip": "ok"}
+        for width in (320, 360, 375):
+            with self.subTest(width=width):
+                page = self.page(seed_script(1), width=width)
+                self.open(page, "team.html")
+                page.wait_for_selector(".ddf-fresh-hdr a", timeout=20000)
+                page.wait_for_timeout(300)
+                self.assertEqual(page.evaluate(js), want)
+                # viewing as another team keeps the same fit (banner in the page, not the header)
+                page.evaluate("DDF.viewAs.set(2)")
+                self.open(page, "team.html")
+                page.wait_for_selector("#ddf-viewas")
+                page.wait_for_timeout(300)
+                self.assertEqual(page.evaluate(js), want)
+                self.assertEqual(self.overflow(page), 0)
+                self.assertEqual(page.errors, [])
+
     def test_switch_from_the_header_menu_on_a_saved_league(self):
         page = self.page(SAVED_SEED)
         self.open(page, "team.html")
