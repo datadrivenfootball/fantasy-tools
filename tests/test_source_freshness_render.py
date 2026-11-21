@@ -124,6 +124,8 @@ class SourceFreshnessTest(unittest.TestCase):
             with self.subTest(width=width):
                 page = self.open("values", body, width=width, seed=LEAGUE_SEED)
                 page.wait_for_selector("header .ddf-fresh-hdr a")
+                # the Bookmark button appears once the league is read (slower on CI), then the chip refits
+                page.wait_for_function("() => { const e = document.querySelector('header .ddf-bm-wrap'); return !!(e && e.getClientRects().length); }", timeout=30000)
                 shown = page.evaluate("""() => ['header .ddf-bm-wrap', 'header .ddf-chip, header [class*=chip]']
                     .map(q => { const e = document.querySelector(q); return !!(e && e.getClientRects().length); })""")
                 page.wait_for_timeout(600)
