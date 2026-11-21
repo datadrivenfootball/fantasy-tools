@@ -109,7 +109,7 @@
     // Why an offer has no fit label: "charts" (fewer than two analyst charts for an analyst-chart valuation) or "depth".
     var unjudged = judged ? null : (your.avg || their.avg) && !canAvg ? "charts" : "depth";
     var fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: your.key, marketKey: their.key,
-      chartKeys: ctx.analyst || undefined, z: f.FIT_Z} : null;
+      chartKeys: ctx.analyst || undefined, gateKeys: ctx.gate, z: f.FIT_Z} : null;
     var mineW = widen(mine), theirW = widen(theirs);
     // A list typed on waivers.html is only checked against your roster: a player on either roster here is not available.
     var onRoster = new Set(mine.concat(theirs).map(keyOf));
@@ -176,7 +176,9 @@
     return {players: picks.map(function (r) { return {key: keyOf(r), name: r.name, pos: r.pos}; }), gain: gain, gainAfter: after, netAfter: fit2.us.net,
       covered: covered, ok: ok, demoted: (covered !== null && covered >= WAIVER_SHARE) || !ok};
   }
-  // Natural fit is tradeFit's label (both sides, JEG-1324). Partner neutral: not natural, and the other team's side of the
+  // Natural fit is tradeFit's label (Natural fit 2, Jeremy 2026-11-19: a real reason on both sides, at least 2 public charts
+  // even or better for them, no empty starting slot; the count is judged on ctx.gate, the charts the card counts).
+  // Partner neutral: not natural, and the other team's side of the
   // fit is not worse than its noise floor (the live "neutral" / "favorable" reading of their side). The rest are force fits.
   // JEG-1639: a trade whose only failing test is their roster being clearly worse (-3% or more, the Why text's band) is
   // not natural and, its side being within the noise floor, lands here as Partner neutral.

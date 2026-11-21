@@ -12,6 +12,7 @@ Fixtures: THIN (short at RB) gives nRB0 for DEEP's dRB1+dRB2 at controlled DDF/p
 from __future__ import annotations
 
 import tempfile
+import re
 import unittest
 from pathlib import Path
 
@@ -67,8 +68,9 @@ def check(finder_js: Path) -> list[str]:
     errors = []
     say = errors.append
 
-    # 1. Agreeing views (ddf=16, proj=16): natural (all conditions pass).
-    f = scenario(finder_js, 16, 16)
+    # 1. Agreeing views (ddf=16, proj=16): natural (all conditions pass). Natural fit 2 (Jeremy, 2026-11-19) also needs 2 of
+    # the public charts even or better for them, so the two RBs are priced 14.5 on the charts (29 for 30: even for them).
+    f = scenario(finder_js, 16, 16, market=14.5)
     if f["label"] != "natural":
         say(f"agreeing views should be natural: {f['label']}")
     if f["variant"] != f["label"]:
@@ -135,12 +137,10 @@ def check(finder_js: Path) -> list[str]:
     if f["label"] == "natural":
         say(f"their market loss should prevent natural: {f['label']} them net {f['them']['net']}")
 
-    # 7. Text: natural starts with "Natural fit:", no qualifier parenthetical.
-    text = call(finder_js, "fitText", scenario(finder_js, 16, 16))
-    if not text.startswith("Natural fit:"):
+    # 7. Text: natural starts with "Natural fit", and its only parenthetical is the public-charts count (Natural fit 2).
+    text = call(finder_js, "fitText", scenario(finder_js, 16, 16, market=14.5))
+    if not re.match(r"Natural fit \(\d/\d public charts even or better for them\): ", text):
         say(f"natural text: {text!r}")
-    if "(" in text.split(":")[0]:
-        say(f"natural text should not have qualifier: {text!r}")
 
     return errors
 

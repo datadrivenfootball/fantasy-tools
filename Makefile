@@ -826,6 +826,8 @@ test-core:
 	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
+	# Natural fit 2 (Jeremy, 2026-11-19): the offer card's lineup blocks, label count and tags, and the Why panel at 375px and desktop.
+	python3 -m unittest tests.test_find_natural_fit2_render
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
@@ -1027,6 +1029,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
+	# Natural fit 2 (Jeremy, 2026-11-19): the offer card's lineup blocks, label count and tags, and the Why panel at 375px and desktop.
+	python3 -m unittest tests.test_find_natural_fit2_render
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).

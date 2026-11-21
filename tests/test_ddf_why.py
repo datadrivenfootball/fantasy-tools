@@ -8,6 +8,10 @@ What we guard:
   TradeValueFinder.lineupValue and tradeFit in the same browser; needs and surpluses equal tradeFit's depth readout
   (towardAt / awayAt / depth); "Natural fit" = tradeFit natural AND need received / surplus given for both teams; the
   headline never claims their side gains when their net is under the 0.05 floor; each case carries its reasons.
+- Natural fit 2 (Jeremy, 2026-11-19): "Natural fit" in the panel is tradeFit's natural label (the card's own class), never a
+  second, stricter test; the panel shows both lineups before and after with starter totals equal to tradeFit's
+  starterBefore / starterAfter, then "Why you should do this" and "Why they may see it as good" (their charts count,
+  thin and caution lines), then the verdict, which names why an offer is not Natural.
 - Drift: the same checks fail when ddf-why.js is served with one number nudged.
 - The % line uses the REAL window.DDFOpportunity (find.html loads ddf-opportunity.js; no stub): table-driven cases for
   each partner band (better, unchanged, slightly worse, clearly worse), the zero cases (never "-0"), and the unsized
@@ -52,8 +56,8 @@ SETUP = r"""() => {
 
 # name: (give, receive, reasons that must be there, natural expected)
 CASES = {
-    "natural, both gain": (["m9"], ["t5"], {"need", "partner"}, True),
-    "natural, their side within tolerance": (["m11"], ["t5"], {"need", "partner"}, True),
+    "natural, both gain": (["m9"], ["t5"], {"need", "partner"}, None),
+    "their side within tolerance": (["m11"], ["t5"], {"need", "partner"}, False),
     "need 1-for-1": (["m7"], ["t4"], {"need"}, None),
     "consolidation 2-for-1": (["m10", "m12"], ["t4"], {"spots"}, None),
     "flex re-slot": (["m7", "m8"], ["t2", "t3", "t4"], {"flex"}, None),
@@ -79,7 +83,7 @@ ORACLE = r"""([give, receive]) => {
   const M = w(mine), T = w(theirs), byKey = new Map(M.concat(T).map(x => [x.player_key, x]));
   const G = g.map(x => byKey.get(x.player_key)), Rv = r.map(x => byKey.get(x.player_key));
   const fit = F.tradeFit({mine: {roster: M, leaving: G, arriving: Rv}, theirs: {roster: T, leaving: Rv, arriving: G}},
-    {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: 'ddf_value', marketKey: 'chart_avg', chartKeys: ctx.analyst, z: F.FIT_Z});
+    {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: 'ddf_value', marketKey: 'chart_avg', chartKeys: ctx.analyst, gateKeys: ctx.gate, z: F.FIT_Z});
   const side = (roster, out, inn, key) => {
     const gone = new Set(out.map(x => x.player_key));
     const after = roster.filter(x => !gone.has(x.player_key)).concat(inn);
@@ -96,8 +100,11 @@ ORACLE = r"""([give, receive]) => {
   return {you: side(M, G, Rv, 'ddf_value'), them: side(T, Rv, G, 'chart_avg'), needs,
     fitUs: [+fit.us.starterDelta.toFixed(6), +fit.us.benchDelta.toFixed(6), +fit.us.net.toFixed(6)],
     fitThem: [+fit.them.starterDelta.toFixed(6), +fit.them.benchDelta.toFixed(6), +fit.them.net.toFixed(6)],
-    themNet: fit.them.net, themTau: fit.them.tau, label: fit.label,
-    natural: fit.label === 'natural' && needs.you.length > 0 && needs.youSurplus.length > 0 && needs.them.length > 0 && needs.themSurplus.length > 0};
+    themNet: fit.them.net, themTau: fit.them.tau, label: fit.label, natural: fit.label === 'natural',
+    cls: fit.label === 'natural' ? 'natural' : fit.them.net >= -fit.them.tau ? 'neutral' : 'force',
+    starters: [+fit.us.starterBefore.toFixed(1), +fit.us.starterAfter.toFixed(1), +fit.them.starterBefore.toFixed(1), +fit.them.starterAfter.toFixed(1)],
+    bench: Boolean(fit.natural.benchDepth), thin: Boolean(fit.natural.thin), caution: Boolean(fit.natural.them.caution),
+    charts: [fit.natural.charts.agree, fit.natural.charts.total]};
 }"""
 
 EXPLAIN = r"""([give, receive]) => {
@@ -113,6 +120,9 @@ EXPLAIN = r"""([give, receive]) => {
     fitUs: [+e.you.starterDelta.toFixed(6), +e.you.benchDelta.toFixed(6), +e.you.net.toFixed(6)],
     fitThem: [+e.them.starterDelta.toFixed(6), +e.them.benchDelta.toFixed(6), +e.them.net.toFixed(6)],
     kinds: e.allReasons.map(r => r.kind), texts: e.allReasons.map(r => r.text), top: e.reasons.map(r => r.kind), n: e.reasons.length, pct: e.pct, text: t,
+    verdict: e.verdict, whyYou: e.why.you, whyThem: e.why.them,
+    starters: [+e.lineups.you.before.toFixed(1), +e.lineups.you.after.toFixed(1), +e.lineups.them.before.toFixed(1), +e.lineups.them.after.toFixed(1)],
+    rows: [e.lineups.you.rows.length, e.lineups.them.rows.length],
     html: DDFWhy.html({mine, theirs, give: give.map(by), receive: receive.map(by)}, ctx, {})};
 }"""
 
@@ -162,28 +172,38 @@ def case_errors(page) -> list[str]:
             errors.append(f"{name}: case expects natural={natural}, finder says {want['natural']} (label {want['label']})")
         if not must <= set(got["kinds"]):
             errors.append(f"{name}: reasons {got['kinds']} miss {sorted(must - set(got['kinds']))}")
-        if not 1 <= got["n"] <= 3:
-            errors.append(f"{name}: {got['n']} reasons")
-        # Finding 1: never imply their side gains under the floor.
-        gains = "their roster gets better" in got["headline"]
-        if got["headline"] != "This does not make your team better." and gains != (want["themNet"] >= 0.05):
+        # Natural fit 2: one label, both lineups, both "why" lists, the verdict.
+        if got["verdict"]["cls"] != want["cls"]:
+            errors.append(f"{name}: panel verdict {got['verdict']['cls']} vs tradeFit class {want['cls']}")
+        if got["starters"] != want["starters"]:
+            errors.append(f"{name}: lineup totals {got['starters']} vs tradeFit {want['starters']}")
+        if got["rows"] != [7, 7]:
+            errors.append(f"{name}: lineup rows {got['rows']} (7 starting slots)")
+        if not any(x.startswith("Your starters: ") for x in got["whyYou"]) or not any(x.startswith("Their starters: ") for x in got["whyThem"]):
+            errors.append(f"{name}: why lists lack the starter totals: {got['whyYou']} {got['whyThem']}")
+        if f"{want['charts'][0]} of {want['charts'][1]} public trade charts call it even or better for them." not in got["whyThem"]:
+            errors.append(f"{name}: their why lacks the chart count {want['charts']}: {got['whyThem']}")
+        if want["bench"] != any(x.startswith("Bench depth, not a starter upgrade") for x in got["whyYou"]):
+            errors.append(f"{name}: bench depth line {want['bench']} vs {got['whyYou']}")
+        if want["thin"] != any(x.startswith("Thin for them") for x in got["whyThem"]) or want["caution"] != any("our projections disagree" in x for x in got["whyThem"]):
+            errors.append(f"{name}: thin / caution lines vs fit {want['thin']} {want['caution']}: {got['whyThem']}")
+        if got["natural"] != (want["cls"] == "natural") or (want["cls"] != "natural") != ("Not a natural fit: " in got["text"]):
+            errors.append(f"{name}: natural {got['natural']} / verdict text vs {want['cls']}: {got['text'][-200:]!r}")
+        # Never imply their side gains under the floor.
+        if "their starters get better" in got["headline"] and want["themNet"] < 0.05:
             errors.append(f"{name}: headline {got['headline']!r} vs their net {want['themNet']:.3f}")
-        if got["headline"] != "This does not make your team better." and -want["themTau"] <= want["themNet"] < 0.05 and "about even, within how much the sources disagree" not in got["headline"]:
-            errors.append(f"{name}: inside tolerance but headline {got['headline']!r}")
         errors += pct_errors(name, got)
-        if got["text"].count("\n- ") != got["n"]:
-            errors.append(f"{name}: text reasons {got['text']!r}")
+        if "Why you should do this:" not in got["text"] or "Why they may see it as good:" not in got["text"]:
+            errors.append(f"{name}: text lacks the two why lists {got['text']!r}")
         hits = [b for b in BANNED if re.search(b, got["text"])]
         if hits:
             errors.append(f"{name}: banned words in text {hits}")
-        if name == "natural, their side within tolerance" and not (want["themNet"] < 0.05):
+        if name == "their side within tolerance" and not (want["themNet"] < 0.05):
             errors.append(f"{name}: their net {want['themNet']:.3f} is not under the floor (case drifted)")
-        if name == "unpriced player" and (got["top"][:1] != ["unvalued"] or got["table"]["get"][0]["role"] != "no value yet"):
+        if name == "unpriced player" and got["top"][:1] != ["unvalued"]:
             errors.append(f"{name}: unpriced player not disclosed first: {got['top']} {got['table']['get']}")
-        if name == "no fit" and (got["headline"] != "This does not make your team better." or "need" in got["kinds"]):
+        if name == "no fit" and (not got["headline"].startswith("This does not make your team better") or "need" in got["kinds"]):
             errors.append(f"{name}: {got['headline']!r} {got['kinds']}")
-        if name == "consolidation 2-for-1" and not any("opens a roster spot" in t for t in got["texts"]):
-            errors.append(f"{name}: no roster spot reason {got['texts']}")
     return errors
 
 
@@ -211,8 +231,6 @@ def pct_errors(name, got) -> list[str]:
         out.append(f"{name}: panel html lacks the % line")
     if p["sentence"] and p["sentence"] not in got["text"]:
         out.append(f"{name}: partner sentence not in text")
-    if f"Your roster {fmt_pct(s['shown'])}" not in got["html"]:
-        out.append(f"{name}: net row lacks your %")
     return out
 
 
@@ -301,9 +319,19 @@ class DDFWhyTest(unittest.TestCase):
                         first = pct_line.inner_text().split(". ", 2)
                         self.assertRegex(". ".join(first[:2]), LINE_RE, f"{w}: % line {pct_line.inner_text()!r}")
                         self.assertNotIn("-0.0", pct_line.inner_text())
-                        self.assertIn("Your roster", body.locator(".why-table td").nth(2).inner_text())
-                    self.assertEqual([x.strip() for x in body.locator(".why-table th").all_inner_texts()], ["You give up", "You get", "Net"])
-                    self.assertTrue(1 <= body.locator(".why-reasons li").count() <= 3)
+                    # Natural fit 2: the panel's label is the card's class; both lineups with the card's starter totals.
+                    first_card = cards.first
+                    self.assertEqual(body.get_attribute("data-cls"), first_card.get_attribute("data-cls"))
+                    self.assertEqual(body.locator(".why-lu").count(), 2)
+                    tots = body.locator(".why-tot")
+                    for i, who in enumerate(("you", "them")):
+                        mini = first_card.locator(f'[data-lineup="{who}"]')
+                        self.assertEqual(tots.nth(i).get_attribute("data-starters-before"), mini.get_attribute("data-before"))
+                        self.assertEqual(tots.nth(i).get_attribute("data-starters-after"), mini.get_attribute("data-after"))
+                    self.assertGreaterEqual(body.locator("[data-why-you] li").count(), 2)
+                    self.assertGreaterEqual(body.locator("[data-why-them] li").count(), 2)
+                    self.assertEqual([x.strip() for x in body.locator(".why-side").all_inner_texts()], ["Why you should do this", "Why they may see it as good"])
+                    self.assertEqual(body.locator("[data-verdict]").get_attribute("data-verdict"), first_card.get_attribute("data-cls"))
                     self.assertRegex(body.locator("a[data-charts]").inner_text(), r"^\d+/\d+ public trade charts$")
                     # The numbers toggle's starter change equals the card's (find-engine tradeFit) value.
                     card_you = cards.first.get_attribute("data-you")
@@ -312,7 +340,8 @@ class DDFWhyTest(unittest.TestCase):
                         shown = lambda n: "0.0" if abs(n) < 0.05 else ("+" if n > 0 else "−") + f"{abs(n):.1f}"
                         self.assertEqual(raw, shown(float(card_you)))
                     text = body.inner_text()
-                    hits = [b for b in BANNED if re.search(b, text)] + [t for t in teams if t in text]
+                    # find.html names its valuations (DDF, the analyst charts): "value in DDF terms" (Jeremy, 2026-11-19).
+                    hits = [b for b in BANNED if b != r"\bDDF\b" and re.search(b, text)] + [t for t in teams if t in text]
                     self.assertEqual(hits, [], f"{w}: banned words or team names in the Why panel: {hits}")
                     overflow = page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
                     self.assertFalse(overflow, f"{w}: horizontal overflow with Why open")

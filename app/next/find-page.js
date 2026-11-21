@@ -26,8 +26,8 @@
   var onBasis = function (b) { return /projections$/.test(b) ? b : b === "Analyst charts" ? "the analyst charts" : b === "Live market (FantasyCalc)" ? "live market (FantasyCalc) value" : b + " value"; };
   function updateBasisText() {
     var B = basis();
-    $("natural-def").textContent = "Both sides improve: your team on " + onBasis(B.you) + ", their team on " + onBasis(B.them) + ", and their roster is not clearly worse (a loss of 3% or more). An offer a free pickup mostly matches is listed under Partner neutral.";
-    $("neutral-def").textContent = "Your team improves on " + onBasis(B.you) + "; their team does not get worse on " + onBasis(B.them) + " beyond the sources' disagreement. An offer that leaves their roster clearly worse (a loss of 3% or more) is listed here too, as a harder sell.";
+    $("natural-def").textContent = "Both sides have a real reason. Yours on " + onBasis(B.you) + ": your starters improve, you fill a position you are short at, or you add bench depth (tagged Bench depth). Theirs on " + onBasis(B.them) + ": their total rises and their starters improve or a position they are short at is filled. At least 2 public trade charts call it even or better for them, and no starting slot is left empty. An offer a free pickup mostly matches is listed under Partner neutral.";
+    $("neutral-def").textContent = "Your team improves on " + onBasis(B.you) + "; their team does not get worse on " + onBasis(B.them) + " beyond the sources' disagreement, but they lack a clear reason or fewer than 2 public charts agree. The Why says which.";
     $("force-def").textContent = "Your team improves on " + onBasis(B.you) + ", but their team loses on " + onBasis(B.them) + ". Shown so you can see them; they are a harder sell.";
     $("fit-note").textContent = "Natural fit: both teams improve (you on " + B.you + ", them on " + (B.them === "Analyst charts" ? "the analyst charts" : B.them) + "), and their roster is not clearly worse (a loss of 3% or more). Partner neutral: you improve and their side does not get worse beyond the sources' disagreement; an offer that leaves their roster clearly worse (3% or more), or where the best available players at the positions you get already close half the gap or more is listed here too. Force fits: they lose; listed only when you pick them.";
     $("sort-ddf").textContent = "Biggest " + B.you + " gain";
@@ -239,9 +239,30 @@
     return '<a class="charts-link" data-charts href="' + esc(chartsHref(t, partner)) + '" title="' + esc(CHARTS_TITLE) + '" aria-label="See the ' + ca.agree + " of " + ca.total
       + ' public trade charts for this trade">' + ca.agree + "/" + ca.total + " public trade charts</a>";
   }
+  // Natural fit 2 (Jeremy, 2026-11-19): the label carries the public-charts count, and a Natural fit its tags (Bench depth:
+  // your gain is bench depth only; Thin for them: their gain is under 1% of their starters). finder.js naturalTags.
+  function fitLabel(cls, t) {
+    var ca = DDF.find.chartAgreement(t);
+    var tags = cls === "natural" && t.fit && window.TradeValueFinder.naturalTags ? window.TradeValueFinder.naturalTags(t.fit) : [];
+    return esc(FIT_WORD[cls] + (cls === "natural" ? " · " + ca.agree + "/" + ca.total + " public charts" : ""))
+      + tags.map(function (x) { return ' <span class="fit-tag" data-fit-tag>' + esc(x) + "</span>"; }).join("");
+  }
+  // One side's starting lineup before and after on that side's valuation (tradeFit's starterBefore / starterAfter and the
+  // players entering or leaving a starting slot), so the card shows how the starting lineup's total changes.
+  function lineupMini(side, who, title, label) {
+    if (!side || !DDF.find.finite(side.starterBefore)) return "";
+    var d = side.starterAfter - side.starterBefore, dir = Math.abs(d) < 0.05 ? "flat" : d > 0 ? "up" : "down";
+    var nm = function (x) { return x.name + (x.slot ? " (" + x.slot + ")" : ""); };
+    var moves = side.startersIn.length || side.startersOut.length
+      ? (side.startersIn.length ? "In: " + side.startersIn.map(nm).join(", ") + "." : "") + (side.startersOut.length ? (side.startersIn.length ? " " : "") + "Out: " + side.startersOut.map(nm).join(", ") + "." : "")
+      : "No lineup change.";
+    return '<div class="lm" data-lineup="' + who + '" data-before="' + side.starterBefore.toFixed(1) + '" data-after="' + side.starterAfter.toFixed(1) + '">'
+      + '<div class="lm-top"><span class="lm-h">' + esc(title) + " <i>" + esc(label) + '</i></span><span class="lm-d" data-dir="' + dir + '">' + shown(d) + "</span></div>"
+      + '<div class="lm-n">' + side.starterBefore.toFixed(1) + ' <span aria-hidden="true">&rarr;</span><span class="lm-sr"> to </span> ' + side.starterAfter.toFixed(1) + "</div>"
+      + '<p class="lm-mv">' + esc(moves) + "</p></div>";
+  }
   function card(g, k, mx) {
     var B = basis(), t = selected(g);
-    var pct = function (v) { return v === null ? "0" : Math.max(0, Math.min(100, v / mx * 100)).toFixed(1); };
     var giveCell = g.trades.length > 1
       ? '<select aria-label="You give, for ' + esc(names(g.heavy)) + '" data-group="' + esc(g.id) + '">' + g.trades.map(function (x, i) {
         var extra = x.receive.length !== g.heavy.length ? " for " + names(x.receive) : "";
@@ -257,7 +278,7 @@
       + '" data-you="' + (you === null ? "" : you) + '" data-them="' + (them === null ? "" : them) + '" data-edge="' + t.edge + '"' + (t.waiver ? ' data-waiver-covered="' + (t.waiver.covered === null ? "" : t.waiver.covered.toFixed(3)) + '" data-waiver-demoted="' + (t.waiver.demoted ? "1" : "0") + '"' : "") + '>'
       + '<div class="pk-main"><div class="pk-ex"><div class="pk-side"><small>You give</small>' + giveCell + '</div><span class="pk-arrow" aria-hidden="true">&rarr;</span>'
       + '<div class="pk-side"><small>You get</small><b>' + gets + "</b></div></div>"
-      + '<div class="pk-meta"><span class="ptag" data-partner-tag title="' + esc("Trading partner: " + g.partner) + '">Trade with <b>' + esc(g.partner) + '</b></span><span class="fit">' + FIT_WORD[g.cls] + "</span>"
+      + '<div class="pk-meta"><span class="ptag" data-partner-tag title="' + esc("Trading partner: " + g.partner) + '">Trade with <b>' + esc(g.partner) + '</b></span><span class="fit" data-fit-label>' + fitLabel(g.cls, t) + "</span>"
       + '<span class="fit">' + chartsLink(t, g.partner) + " even or better for them</span></div>"
       + (t.waiver && t.waiver.demoted && window.DDFWhy && DDFWhy.waiverLine ? '<p class="muted pk-note" data-waiver-note>' + esc(DDFWhy.waiverLine(t.waiver, t.give)) + "</p>" : "")
       + (added.length ? '<p class="muted pk-note">Players even out: ' + esc(added.join(", ")) + ".</p>" : "")
@@ -265,10 +286,8 @@
       + (t.unbalanced ? '<p class="muted pk-note">Uneven player counts: the team getting more players has no bench player left to add.</p>' : "")
       + (window.DDFWhy && t.fit ? '<details class="why" data-why data-group="' + esc(g.id) + '"><summary aria-label="Why this offer: ' + esc(names(t.give)) + " for " + esc(names(t.receive)) + '">Why</summary><div class="why-slot"></div></details>' : "")
       + "</div>"
-      + '<div class="pk-gain"><small>Your starters (' + esc(B.you) + ')</small><b class="gain" data-shown="' + (you === null ? "" : shown(you)) + '">' + (you === null ? "—" : shown(you)) + "</b>"
-      + '<div class="meter" role="img" aria-label="Your starters ' + (you === null ? "no value" : shown(you)) + " on " + esc(B.you) + "; their starters " + (them === null ? "no value" : shown(them)) + " on " + esc(B.them) + '"><span class="ml"><i data-grow style="width:' + pct(you) + '%"></i></span><span class="mr"><i data-grow style="width:' + pct(them) + '%"></i></span></div>'
-      + '<div class="mlab"><span>You ' + (you === null ? "—" : shown(you)) + " " + esc(B.you) + "</span><span>Them " + (them === null ? "—" : shown(them)) + " " + esc(B.them) + "</span></div>"
-      + '<small class="pk-total">Trade value ' + shown(t.edge) + " " + esc(B.you) + "</small></div>"
+      + '<div class="pk-gain"><small>Trade value (' + esc(B.you) + ')</small><b class="gain" data-trade-value="' + shown(t.edge) + '">' + shown(t.edge) + "</b>"
+      + lineupMini(t.fit && t.fit.us, "you", "Your starters", B.you) + lineupMini(t.fit && t.fit.them, "them", "Their starters", B.them) + "</div>"
       + '<div class="pk-act"><a class="button" data-build href="' + esc(hrefFor(t, g.partner)) + '">Build a Trade <span class="arr" aria-hidden="true">&rarr;</span></a></div></article>';
   }
   // JEG-1561: the Why panel, filled on first open from DDFWhy (ddf-why.js) on the same rows and valuations as the card.
@@ -276,9 +295,10 @@
     var g = S.groups.filter(function (x) { return x.id === det.dataset.group; })[0];
     var slot = det.querySelector(".why-slot");
     if (!g || !slot || slot.dataset.filled === "1") return;
-    var t = selected(g), B = basis(), ctx = Object.assign({}, DDF.find.context(), {ourKey: DDF.find.valuation(B.yv).key, marketKey: DDF.find.valuation(B.tv).key});
-    slot.innerHTML = window.DDFWhy.body({mine: g.mineRows, theirs: g.theirRows, give: t.give, receive: t.receive, waiver: t.waiver || null}, ctx,
-      {extra: '<p class="why-charts">' + chartsLink(t, g.partner) + " even or better for them</p>"}) || '<p class="muted">No explanation for this offer yet.</p>';
+    var t = selected(g), B = basis(), name = function (l) { return l === "DDF" ? "DDF" : onBasis(l); };
+    var ctx = Object.assign({}, DDF.find.context(), {ourKey: DDF.find.valuation(B.yv).key, marketKey: DDF.find.valuation(B.tv).key, labels: {you: name(B.you), them: name(B.them)}});
+    slot.innerHTML = window.DDFWhy.body({mine: g.mineRows, theirs: g.theirRows, give: t.give, receive: t.receive, waiver: t.waiver || null, edge: t.edge}, ctx,
+      {units: {youSub: B.you, themSub: B.them}, extra: '<p class="why-charts">' + chartsLink(t, g.partner) + " even or better for them</p>"}) || '<p class="muted">No explanation for this offer yet.</p>';
     slot.dataset.filled = "1";
   }
   function section(id, list, tableId, empty) {

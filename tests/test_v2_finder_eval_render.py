@@ -110,7 +110,7 @@ def num(text):
 
 
 def check(page, tag, width, height, scenario) -> list[str]:
-    swap, expect_natural = SCENARIOS[scenario]
+    swap, expect_natural, size = SCENARIOS[scenario]
     errors = []
     say = lambda what: errors.append(f"{tag}{scenario}: {what}")
     page.wait_for_function("() => window.TradeValueV2 && window.TradeValueV2.view() && document.getElementById('v2Find') && window.DDFRosterPaste", timeout=60000)
@@ -174,7 +174,7 @@ def check(page, tag, width, height, scenario) -> list[str]:
             say(f"the biggest-imbalance line lacks {need!r}")
     if state["headAfterControls"] is False or state["headBeforeAssess"] is False:
         say("the headline is not between the Find controls and the table")
-    page.select_option("#v2FindSize", "3")
+    page.select_option("#v2FindSize", size)
     page.click("#v2FindGo")
     page.wait_for_timeout(1200)
     groups = page.evaluate(GROUPS)
@@ -216,7 +216,9 @@ def check(page, tag, width, height, scenario) -> list[str]:
 
 
 # (ESPN and Yahoo swapped, natural groups expected): Yahoo vs ESPN has none of 7 groups natural, ESPN vs Yahoo has 8 of 11.
-SCENARIOS = {"Yahoo mine, ESPN theirs": (False, False), "ESPN mine, Yahoo theirs": (True, True)}
+# Natural fit 2 (Jeremy, 2026-11-19) finds Natural groups in the Yahoo-mine direction at three players a side, so that
+# scenario searches one-for-one, where it still has none.
+SCENARIOS = {"Yahoo mine, ESPN theirs": (False, False, "1"), "ESPN mine, Yahoo theirs": (True, True, "3")}
 VIEWPORTS = ((1366, 768), (1440, 900), (390, 844), (320, 640))
 
 

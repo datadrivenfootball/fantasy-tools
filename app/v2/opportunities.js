@@ -100,7 +100,7 @@
     const mineAvg = avg(mineRows);
     const theirAvg = avg(theirRows);
     const byKey = new Map((mineAvg || []).concat(theirAvg || []).map(r => [String(r.player_key), r]));
-    const fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: OUR_KEY, marketKey: MARKET_KEY, chartKeys: market, z: F.FIT_Z} : null;
+    const fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: OUR_KEY, marketKey: MARKET_KEY, chartKeys: market, gateKeys: ctx.charts, z: F.FIT_Z} : null;
     const wide = rows => rows.map(r => byKey.get(String(r.player_key)) || r);
     const myStart = ctx.shape ? F.lineupValue(mineRows, ctx.shape, OUR_KEY).starterValue : 0;
     const slots = ctx.shape ? ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX"].reduce((n, s) => n + (ctx.shape[s] || 0), 0) : 0;
