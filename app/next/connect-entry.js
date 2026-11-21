@@ -128,7 +128,8 @@
       return fill.patch;
     }
     if (sameWeeks(cur, prior)) { releaseWeeks(); return null; }   // the last import's weeks, and this league cannot set its own
-    return fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
+    // weekFill always sets why when it refuses (patch null); never record reader-owned weeks as import-filled (P2, ceb9ebc)
+    return !fill.why && fill.plan && cur && cur.regularEnd === fill.plan.regularEnd && cur.playoffLo === fill.plan.playoffLo ? {regularEnd: cur.regularEnd, playoffLo: cur.playoffLo, playoffHi: cur.playoffHi} : null;
   }
   function save(record) {
     if (record && !record.leagueState) releaseWeeks();   /* JEG-1685: a paste or manual league has no weeks of its own */

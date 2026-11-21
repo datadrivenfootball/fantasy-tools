@@ -242,6 +242,30 @@ class LeagueStateRender(unittest.TestCase):
         self.assertTrue(page.locator("#weeks-note").is_hidden())
         self.assertEqual(page.errors, [])
 
+    def test_refused_fill_records_null_weeksFilled_when_plan_matches_reader_weeks(self):
+        # P2 regression (ceb9ebc): when weekFill refuses to patch but fill.plan happens to agree with
+        # the reader's regularEnd and playoffLo, the last return in fillWeeks still returned the tuple
+        # as weeksFilled. That marker caused a later paste to trigger releaseWeeks() and overwrite
+        # the reader-owned weeks with the site defaults.
+        # fixture with start=15 -> plan = {regularEnd:14, playoffLo:15}; reader sets playoffHi:16 so
+        # sameWeeks(cur, def) fails (def.playoffHi=17 != 16) -> weekFill refuses; plan still matches
+        # cur on regularEnd and playoffLo, triggering the bug if unfixed.
+        fx15 = sleeper_fixture(15, "900000000000000015")
+        page = self.page(fx=fx15)
+        self.go(page, "connect.html")
+        page.evaluate("() => DDF.engine.apply({weeks: {regularEnd: 14, playoffLo: 15, playoffHi: 16}})")
+        self.sleeper_import(page)
+        rec = page.evaluate("() => DDF.state.get('pasted')")
+        self.assertEqual(self.weeks(page), {"regularEnd": 14, "playoffLo": 15, "playoffHi": 16}, "reader weeks stay")
+        self.assertIsNone(rec["weeksFilled"], "refused fill must not save a weeksFilled marker")
+        self.assertEqual(rec["leagueState"]["version"], "league-state/1", "state still stored")
+        # second import (paste league) must NOT release the reader-owned weeks
+        page.evaluate("""() => {
+          DDF.state.set('pasted', DDF.leaguePaste.record({teams: [{name: 'A', players: [], unmatched: []}, {name: 'B', players: [], unmatched: []}], league: {}}, 'paste'));
+        }""")
+        self.assertEqual(self.weeks(page), {"regularEnd": 14, "playoffLo": 15, "playoffHi": 16}, "paste must not reset reader weeks")
+        self.assertEqual(page.errors, [])
+
     def test_a_pasted_league_has_no_state_and_fills_nothing(self):
         page = self.page()
         self.go(page, "connect.html")
