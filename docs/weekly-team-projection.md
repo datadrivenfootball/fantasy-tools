@@ -30,15 +30,29 @@ starter slots, from that week's Sleeper projections, with ESPN's figure for the 
 | Case | Rule |
 | --- | --- |
 | Bye | nflverse schedule (REG games): the player's team has no game. Team codes normalised to nflverse (`LAR` to `LA`, `JAC` to `JAX`, `WSH` to `WAS`). The team comes from that week's row, else the player's newest row in any source and week (Sleeper has no row in a bye week), else `players`. A week with no schedule rows is `bye_unknown`. The bye check runs before the out rule, so ESPN's 0 in a bye week is a bye, not an out week. |
+| Week before the injury report's week | The report does not apply; the player is projected as healthy (Codex P2, 2026-11-21). Jeremy's rules below cover the report week and later. A report with no week applies to every week. |
 | Listed out now (Out, IR, PUP, NFI, suspended) | Counts only in the weeks where ESPN's projection for him is above 0, flagged `uncertain_return`; a week ESPN projects at 0 (or has no row for him) is out. ESPN zero-pads bye, out and no-role weeks, so its first week above 0 is his expected return. |
 | Out, no ESPN row at all | The Sleeper weeks are used, flagged |
 | Out, week past ESPN's coverage | The Sleeper weeks are used for that week, flagged |
 | IR-type, no ESPN week above 0 | The Sleeper weeks are used, flagged |
 | Weekly Out, every ESPN week at 0 | Out every week |
 | Questionable, Doubtful | Counted, no flag |
-| No row for the player that week | Excluded with `points: null` and a reason; the next player fills in |
+| No row for the player that week (or a row with no points) | Excluded with `points: null` and a reason; the next player fills in |
+| Missing players leave a starter slot that no real player can fill | The team week is `null` with a reason naming the slots and the missing players (never 0). See "Missing data" below. |
+| Roster with no players | The team week is `null` with a reason |
 | Source has no rows for the week | The team week is `null` with a reason (never 0) |
 | Week 18 | `flags.rest_starters_risk` |
+
+## Missing data (Codex P1, 2026-11-21)
+
+"Real" players are those with a usable projected value, a provider 0 included. "Missing" players are those with no
+row for the week or a row with no points, after the bye and out checks (a bye or out player is unavailable, not
+missing). The lineup is built from real players only, so the next player fills in for a missing one. The team week
+is `null` only when no legal lineup can be scored from real data: the exact assignment with the missing players
+added fills more starter slots than the real players alone (slot counts, so a flex shuffle counts too). A missing
+player with no known position counts as able to fill any empty slot. A slot left empty by byes and outs alone is a
+real 0 and is listed in `flags.empty_slots`. The same rule runs for the ESPN cross-check, so an ESPN week with no
+usable points for the team is `null`, and its `diff` is `null`.
 
 ESPN rows whose points are null (for example under a rescoring function with no ESPN stat line) are no evidence,
 so they count as "no ESPN row". The ESPN rule reads `opts.returnSource` (default `espn`) through the same points

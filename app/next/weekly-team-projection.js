@@ -139,6 +139,9 @@
      no-role weeks); with no usable ESPN week, the primary source's weeks are used. Both are flagged uncertain. */
   function injuryRule(inj, id, week, ctx) {
     if (!inj) return {};
+    /* a report covers its report week and later; a window that starts before it (results lag the report) is not
+       re-read under it (Codex P2 on PR #1474) */
+    if (inj.week !== null && week < inj.week) return {};
     var src = ctx.returnSource, e = src ? ctx.proj.bySource[src] : null;
     var mine = [];   /* this player's ESPN weeks: [{week, points}] */
     if (e) Object.keys(e.byWeek).forEach(function (w) {
@@ -274,7 +277,7 @@
     if (!s || !s.weeks[week]) return {points: null, reason: "no " + label(src) + " projections for week " + week, lineup: [], unavailable: [], empty_slots: [], uncertain: []};
     var wkRows = s.byWeek[week] || {};
     var playing = ctx.sched && ctx.sched[week] ? ctx.sched[week] : null;
-    var avail = [], unavailable = [], uncertain = {};
+    var avail = [], unavailable = [], uncertain = {}, missing = [];
     ids.forEach(function (id) {
       var row = wkRows[id] || null;
       var info = ctx.players[id] || null;
@@ -284,19 +287,36 @@
       if (playing && team && !playing[team]) { unavailable.push({player_id: id, reason: "bye (" + team + " has no game in week " + week + ")"}); return; }
       var inj = injuryRule(ctx.inj[id], id, week, ctx);
       if (inj.out) { unavailable.push({player_id: id, reason: inj.out}); return; }
-      if (!row) { unavailable.push({player_id: id, points: null, reason: "no " + label(src) + " projection for week " + week}); return; }
+      if (!row) { missing.push({id: id, pos: pos}); unavailable.push({player_id: id, points: null, reason: "no " + label(src) + " projection for week " + week}); return; }
       var pts = num(ctx.points(row, {scoring: ctx.scoring, source: src, week: week}));
-      if (pts === null) { unavailable.push({player_id: id, points: null, reason: label(src) + " row has no " + ctx.scoring + " points for week " + week}); return; }
+      if (pts === null) { missing.push({id: id, pos: pos}); unavailable.push({player_id: id, points: null, reason: label(src) + " row has no " + ctx.scoring + " points for week " + week}); return; }
       if (POSITIONS.indexOf(pos) < 0) { unavailable.push({player_id: id, reason: "position " + pos + " is not projected"}); return; }
       if (inj.uncertain) uncertain[id] = inj.uncertain;
       avail.push({id: id, pos: pos, points: pts});
     });
     var best = bestLineup(ctx.slots, avail);
+    var short = missingShortfall(ctx.slots, avail, missing, best);
     return {
-      points: best.points, reason: null, lineup: best.lineup, unavailable: unavailable, empty_slots: best.empty_slots,
+      points: short ? null : best.points,
+      reason: short ? "no usable " + label(src) + " projection fills " + best.empty_slots.join(", ") + " in week " + week + " (" +
+        short.map(function (p) { return p.id; }).join(", ") + " missing)" : null, lineup: best.lineup, unavailable: unavailable, empty_slots: best.empty_slots,
       uncertain: best.lineup.filter(function (l) { return l.player_id && uncertain[l.player_id]; })
         .map(function (l) { return {player_id: l.player_id, reason: uncertain[l.player_id]}; })
     };
+  }
+
+  /* Missing is never zero (Codex P1 on PR #1474). The next player fills in for a missing one; the team week is null
+     only when missing players would have filled a starter slot that no real player can: the lineup of real players
+     plus the missing ones fills more slots than the real players alone (slot counts by exact assignment, so a flex
+     shuffle counts). Slots left empty by a bye or an out are a real 0. Returns the missing players or null. */
+  function missingShortfall(slots, avail, missing, best) {
+    if (!best.empty_slots.length || !missing.length) return null;
+    if (missing.some(function (p) { return p.pos === null; })) return missing;   /* position unknown: it may fill the slot */
+    function filled(players) {
+      return bestLineup(slots, players.map(function (p) { return {id: p.id, pos: p.pos, points: 1}; })).lineup
+        .filter(function (l) { return l.player_id; }).length;
+    }
+    return filled(avail.concat(missing)) > filled(avail) ? missing : null;
   }
 
   function project(state, inputs, opts) {
@@ -335,6 +355,7 @@
       var ids = Array.isArray(rosters[t.id]) ? rosters[t.id].map(String) : null;
       var weeks = win.weeks.map(function (w) {
         if (!ids) return {week: w, points: null, reason: "no roster for this team", lineup: [], unavailable: [], flags: {}, cross_check: null};
+        if (!ids.length) return {week: w, points: null, reason: "the roster has no players", lineup: [], unavailable: [], flags: {}, cross_check: null};
         var a = teamWeek(ids, w, primary, ctx);
         var flags = {
           rest_starters_risk: w === LAST_NFL_WEEK,

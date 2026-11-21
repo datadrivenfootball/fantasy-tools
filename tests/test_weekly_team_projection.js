@@ -109,6 +109,47 @@ test("a bye is not read as an out week: ESPN's bye 0 is a bye, and the player is
   assert.ok(/ESPN projects 0 for week 12 \(first week above 0: 13\)/.test(reasonOf(wk(noBye, "1", 12), "fk-ra3")));
 });
 
+test("a team with source rows for the week but no usable projection for any player is null with a reason, not 0", () => {
+  // Codex P1 on PR #1474: team 1's Sleeper rows removed, team 2's kept; the week still has rows, so it was a silent 0
+  const r = run(d => { d.projections = d.projections.filter(p => !(p.source === "sleeper" && d.rosters["1"].includes(p.sleeper_id))); });
+  [12, 13, 14].forEach(w => {
+    const t1 = wk(r, "1", w);
+    assert.strictEqual(t1.points, null, "team 1 week " + w);
+    assert.ok(/no usable Sleeper projection fills/.test(t1.reason), t1.reason);
+    assert.ok(wk(r, "2", w).points > 0, "team 2 week " + w + " is still scored");
+  });
+  // a partly missing roster: the next player fills in, and only a slot that a missing player could have filled
+  // (with no one real left for it) makes the week null; team 1 week 13 loses its only TE rows (ta1, ta2)
+  const te = run(d => { d.projections = d.projections.filter(p => !(p.source === "sleeper" && p.target_week === 13 && ["fk-ta1", "fk-ta2"].includes(p.sleeper_id))); });
+  const w13 = wk(te, "1", 13);
+  assert.strictEqual(w13.points, null);
+  assert.ok(/TE/.test(w13.reason), w13.reason);
+  // an empty slot from real unavailability (bye, out) stays a real 0 with the slot listed: team 2 week 12 QB
+  assert.strictEqual(wk(te, "2", 12).points, 59);
+  assert.deepStrictEqual(wk(te, "2", 12).flags.empty_slots, ["QB"]);
+  // a roster with nobody on it has nothing to score: null, not 0
+  const empty = run(d => { d.rosters["1"] = []; });
+  assert.strictEqual(wk(empty, "1", 12).points, null);
+  assert.ok(/no players/.test(wk(empty, "1", 12).reason));
+});
+
+test("an Out report applies from its report week on, never to earlier weeks in the window", () => {
+  // Codex P2 on PR #1474: a week-13 report must not exclude the player from week 12
+  const r = run(d => {
+    d.injuries.find(j => j.sleeper_id === "fk-wr4").week = 13;   // ESPN 0 every week: out every week from 13
+    d.injuries.find(j => j.sleeper_id === "fk-ta2").week = 13;   // ESPN 0 in week 12 only
+  });
+  const t2w12 = wk(r, "2", 12), t1w12 = wk(r, "1", 12);
+  assert.ok(!t2w12.unavailable.some(u => u.player_id === "fk-wr4"), "wr4 counts in week 12, before his report");
+  assert.ok(!t2w12.flags.uncertain_return.some(u => u.player_id === "fk-wr4"));
+  assert.ok(/ESPN projects 0 in every week/.test(reasonOf(wk(r, "2", 13), "fk-wr4")));
+  assert.ok(/ESPN projects 0 in every week/.test(reasonOf(wk(r, "2", 14), "fk-wr4")));
+  assert.ok(!t1w12.unavailable.some(u => u.player_id === "fk-ta2"), "ta2 counts in week 12, before his report");
+  assert.ok(starters(t1w12).includes("TE:fk-ta2"));
+  // the report week itself and after: Jeremy's 2026-11-16 ESPN rule unchanged
+  assert.deepStrictEqual(wk(r, "1", 13).flags.uncertain_return.map(u => u.player_id), ["fk-ta2"]);
+});
+
 test("ESPN cross-check: its own lineup beside Sleeper, never blended", () => {
   const r = run();
   const w12 = wk(r, "1", 12), w14 = wk(r, "1", 14);
@@ -144,7 +185,9 @@ test("scoring format picks the stored column; the points function is one swappab
   const r = run(null, {points: (row, ctx) => { calls.push(ctx); return row.stats ? row.stats.rec_yd / 10 : null; }});
   assert.strictEqual(wk(r, "1", 13).points, 99.5);   // ESPN rows give no points here, so out players fall back to Sleeper weeks
   assert.ok(calls.every(c => c.scoring === "half_ppr" && typeof c.week === "number" && typeof c.source === "string"));
-  assert.strictEqual(wk(r, "1", 13).cross_check.points, 0);   // ESPN rows have no stats here: every row null, every slot empty
+  // ESPN rows have no stats here: every row null, so the ESPN figure is missing (null), never 0 (Codex P1 on PR #1474)
+  assert.strictEqual(wk(r, "1", 13).cross_check.points, null);
+  assert.ok(/no usable ESPN projection fills/.test(wk(r, "1", 13).cross_check.reason));
   assert.ok(/ESPN row has no half_ppr points/.test(reasonOf(wk(r, "1", 13).cross_check, "fk-qa1")));
   assert.strictEqual(r.basis.points, "opts.points");
 });
