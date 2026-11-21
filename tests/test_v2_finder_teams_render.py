@@ -187,18 +187,29 @@ def check(page, tag, width) -> list[str]:
     if page.evaluate("() => document.documentElement.scrollWidth - innerWidth") > 0:
         errors.append(tag + "the page scrolls sideways with the team summary shown")
 
-    # Changing the league scoring rebuilds the card from the new rows.
-    page.evaluate("""() => { window.TradeValueCurveControls.setScoring('standard');
-      document.dispatchEvent(new CustomEvent('ddf:league-settings-changed', {detail: {reason: 'settings', notes: []}})); }""")
-    page.wait_for_timeout(700)
+    # Changing the league scoring rebuilds the card from the new rows. The change must move the totals by well over the
+    # rounding tolerance, or a card that was never rebuilt still reads "close": after the 54674fbe0 bake, PPR -> standard
+    # moved Your team by 0.24 and the "card not rebuilt" mutation went uncaught. So try each scoring until both teams move.
+    start = {side: page.evaluate(INDEP, side)["total"] for side in ("Mine", "Theirs")}
+    moved = False
+    for scoring in ("standard", "ppr", "half_ppr"):
+        page.evaluate("""(s) => { window.TradeValueCurveControls.setScoring(s);
+          document.dispatchEvent(new CustomEvent('ddf:league-settings-changed', {detail: {reason: 'settings', notes: []}})); }""", scoring)
+        page.wait_for_timeout(700)
+        now = {side: page.evaluate(INDEP, side) for side in ("Mine", "Theirs")}
+        if all(abs(now[side]["total"] - start[side]) >= 1.0 for side in now):
+            moved = True
+            break
+    if not moved:
+        errors.append(tag + "no league scoring change moved both teams' DDF totals by 1.0, so a stale card could not be told apart")
     after = page.evaluate(CARD)
     if not after:
         errors.append(tag + "the team summary disappeared after a league scoring change")
     else:
-        mine2 = page.evaluate(INDEP, "Mine")
-        got = number(after["ddf"]["mine"]["total"])
-        if mine2["count"] and (got is None or not close(got, mine2["total"])):
-            errors.append(tag + f"after a league change the DDF total is {after['ddf']['mine']['total']!r}, the new rows sum to {mine2['total']:.1f}")
+        for side, who in (("Mine", "mine"), ("Theirs", "theirs")):
+            got = number(after["ddf"][who]["total"])
+            if now[side]["count"] and (got is None or not close(got, now[side]["total"])):
+                errors.append(tag + f"after a league change {who} DDF total is {after['ddf'][who]['total']!r}, the new rows sum to {now[side]['total']:.1f}")
     return errors
 
 
