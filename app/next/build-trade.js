@@ -260,7 +260,7 @@
       if (!shape || !expected) return null;
       // Analyst charts = the mean of the analyst charts that run (finder.js withChartAverage), when at least two of the three do.
       const rows = new Map(Fd.withChartAverage([...ROWS.values()], analyst.length >= MIN_ANALYST ? analyst : []).map(r => [String(r.player_key), r]));
-      FX = {Fd, shape, expected, weights, analyst, market: market.length >= Fd.MIN_CHARTS ? market : null, rows};
+      FX = {Fd, shape, expected, weights, analyst, market: market.length >= Fd.MIN_CHARTS ? market : null, gate: market, rows};
     } catch (err) { console.warn('Build a Trade: no fit context', err); FX = false; }
     return FX || null;
   }
@@ -273,7 +273,7 @@
     const give = rowsOf(picked('give')), get = rowsOf(picked('get'));
     try {
       const fit = X.Fd.tradeFit({mine: {roster: rowsOf(myRosterKeys()), leaving: give, arriving: get}, theirs: {roster: rowsOf(L.teams[S.partner].keys), leaving: get, arriving: give}},
-        {shape: X.shape, expected: X.expected, weights: X.weights, ourKey, marketKey: theirKey, chartKeys: X.analyst.length ? X.analyst : X.market || undefined, z: X.Fd.FIT_Z});
+        {shape: X.shape, expected: X.expected, weights: X.weights, ourKey, marketKey: theirKey, chartKeys: X.analyst.length ? X.analyst : X.market || undefined, gateKeys: X.gate, z: X.Fd.FIT_Z});
       return fit ? {fit, ourKey, theirKey} : null;
     } catch (err) { console.warn('Build a Trade: trade checks not run', err); return null; }
   }
@@ -282,18 +282,13 @@
     const t = tradeFit();
     if (!t) return {pass: false, html: '<p>The trade checks need your roster, the partner\'s roster and this week\'s values.</p>'};
     if (t.missing) return {pass: false, html: `<p>${esc(t.missing)}</p>`};
+    // Natural fit 2 (Jeremy, 2026-11-19 / 2026-11-21): the rows are the shared Natural test (finder.js naturalChecks), so
+    // "Trade checks pass" holds exactly when every blocking row is ✓; their projection-based value is a caution (!).
     const {fit} = t, yl = valuationLabel($('your-valuation').value), tl = valuationLabel($('their-valuation').value);
-    const mark = ok => ok ? '✓' : '✕';
-    const moved = (d, who, label) => `${who} starters ${Math.abs(d) < 0.005 ? 'do not change' : d > 0 ? 'improve by ' + signed2(d) : 'decline by ' + signed2(d)} on ${esc(label)}`;
-    const issues = c => c.issues && c.issues.length ? ': ' + esc(c.issues.join('; ')) : '';
+    const mark = ok => ok === true ? '✓' : ok === false ? '✕' : '!';
     const coverage = ANALYST.filter(k => picked('give').concat(picked('get')).every(key => finite(chartListed(rec(key), k)))).length;
-    const lines = [
-      `<p>${mark(fit.us.starterDelta >= -0.05)} ${moved(fit.us.starterDelta, 'Your', yl)}</p>`,
-      `<p>${mark(fit.them.starterDelta >= -0.05)} ${moved(fit.them.starterDelta, 'Their', tl)}</p>`,
-      `<p>${mark(fit.myConstruction.ok)} Your roster construction ${fit.myConstruction.ok ? 'passes' : 'does not pass' + issues(fit.myConstruction)}</p>`,
-      `<p>${mark(fit.theirConstruction.ok)} Their roster construction ${fit.theirConstruction.ok ? 'passes' : 'does not pass' + issues(fit.theirConstruction)}</p>`,
-      `<p>${mark(coverage === 3)} Their analyst-charts coverage: ${coverage} of 3 charts</p>`
-    ];
+    const lines = F().naturalChecks(fit, {you: yl, them: tl}).map(r => `<p data-check="${r.key}">${mark(r.ok)} ${esc(r.text)}</p>`)
+      .concat([`<p data-check="coverage">• Their analyst-charts coverage: ${coverage} of 3 charts</p>`]);
     return {pass: Boolean(fit.natural && fit.natural.ok), html: lines.join(''), fit};
   }
   const chartListed = (p, k) => k === 'cbs' ? p.cbs : k === 'usatoday' ? p.usat : k === 'fantasypros' ? p.fp : k === 'fantasycalc' ? p.fc : null;

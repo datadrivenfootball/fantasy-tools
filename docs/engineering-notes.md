@@ -161,6 +161,9 @@ seeded and two real league rosters (PR for JEG-1639).
 - The public-charts count lives in tradeFit (`fit.natural.charts`, `judgeSums` over `ctx.gateKeys`, default
   `CHART_KEYS`). Pass `gateKeys` equal to the charts the page counts (find-engine `ctx.gate`, opportunities `ctx.charts`,
   the connector its chart keys); on the USO snapshot it equals `rivalOkCount` on all 3,169 offers.
+- Checklists (Build a Trade `checksHTML`, Buy / Sell `fitHTML`) render `naturalChecks(fit, names)`: one row per conjunct
+  of `naturalFit`, so "checks pass" / the Natural tag is `natural.ok` exactly (`tests/test_v2_finder_fit.py` check 30; 0
+  contradictions on the USO snapshot). Their projection-based value is a caution row (ok null), never a ✕.
 - `teamFit` carries `starterBefore` / `starterAfter` / `startersIn` / `startersOut` and `lineupBefore` / `lineupAfter`
   (the lineupValue calls it already made), so cards and the Why read the fit's own lineups.
 - The connector (`supabase/functions/mcp/fit.ts`) follows through `tradeFit` / `fitText`; it still differs from the page in

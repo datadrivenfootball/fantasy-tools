@@ -801,7 +801,7 @@
     const shortFilled = DEPTH_POS.filter(pos => depth[pos] && depth[pos].statusBefore === "under" && depth[pos].distAfter < depth[pos].distBefore);
     return {key, net, totalDelta, starterDelta, benchDelta: net - starterDelta, tau, up, down, flat: !up && !down, toward, away, awayAt, towardAt, depth, ready,
       needBefore, needAfter, emptyBefore, emptyAfter, ok: (up && !away) || (!up && !down && toward),
-      starterBefore: before.starterValue, starterAfter: next.starterValue, startersIn, startersOut, shortFilled, lineupBefore: before, lineupAfter: next};
+      starterBefore: before.starterValue, starterAfter: next.starterValue, benchRawDelta: next.benchValue - before.benchValue, startersIn, startersOut, shortFilled, lineupBefore: before, lineupAfter: next};
   }
   // JEG-1108: rewritten fit labels. Three labels: natural, market, force (value retired).
   // Natural: roster construction OK for both teams AND your DDF Value total rises (starters not worse) AND their Trade
@@ -889,12 +889,19 @@
   // parts: {yourValueOk, us, them (teamFit sides), usProjNet, themProjNet (null when not judged), theirPct, charts:{agree, total}}.
   const NATURAL_MIN_CHARTS = 2;
   const THIN_SHARE = 0.01;
+  // Jeremy, 2026-11-21: a bench-depth-only reason needs a real gain: the players it adds to that side's bench are worth
+  // (raw value, as the trade value counts them) at least BENCH_MIN_SHARE of that side's starters total, as well as the
+  // bench-weighted gain past 0.05. And their projection-based value falling by more than PROJ_BLOCK_SHARE of their
+  // starters' projection-based total blocks Natural; a smaller fall stays a caution.
+  const BENCH_MIN_SHARE = 0.01;
+  const PROJ_BLOCK_SHARE = 0.05;
   function sideReason(t, allowBench) {
     if (!t) return {kind: null, starters: false, need: [], slot: false, bench: false};
     const starters = t.starterDelta > NET_FLOOR;
     const need = (t.shortFilled || []).slice();
     const slot = t.emptyAfter < t.emptyBefore;
-    const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR;
+    const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR && finite(t.benchRawDelta) && finite(t.starterBefore)
+      && t.benchRawDelta >= BENCH_MIN_SHARE * t.starterBefore;
     return {kind: starters ? "starters" : need.length || slot ? "need" : bench ? "bench" : null, starters, need, slot, bench};
   }
   function naturalFit(parts) {
@@ -914,10 +921,12 @@
     usSide.startersOk = Boolean(us) && us.starterDelta >= -NET_FLOOR;
     usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;
     const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;
-    const themSide = {value: theirUp, startersOk: theirStartersOk, reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot, bench: tr.bench,
+    const projBase = finite(parts.themProjStarters) && parts.themProjStarters > 0 ? parts.themProjStarters : null;
+    const projBlock = themProj === false && projBase !== null && -parts.themProjNet > PROJ_BLOCK_SHARE * projBase;
+    const themSide = {value: theirUp, startersOk: theirStartersOk, projBlock, projShare: projBase !== null && finite(parts.themProjNet) ? parts.themProjNet / projBase : null, reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot, bench: tr.bench,
       construction: lineup(them), lineup: lineup(them), projections: themProj, projNet: finite(parts.themProjNet) ? parts.themProjNet : null,
-      caution: themProj === false, thin, share, pct: pct ? pct.shown : null, pctBand: pct ? pct.band : null, pctOk};
-    themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk;
+      caution: themProj === false && !projBlock, thin, share, pct: pct ? pct.shown : null, pctBand: pct ? pct.band : null, pctOk};
+    themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && !projBlock;
     const ok = usSide.ok && themSide.ok && chartsOk;
     return {ok, us: usSide, them: themSide, charts: {agree: charts ? charts.agree : null, total: charts ? charts.total : null, min: NATURAL_MIN_CHARTS, ok: chartsOk},
       benchDepth: ok && ur.kind === "bench", benchDepthThem: ok && tr.kind === "bench", thin: ok && thin};
@@ -956,7 +965,8 @@
     // JEG-1639: their roster's percent change in their valuation, the Why text's number (rosterChangePct).
     const theirPct = rosterChangePct(sides.theirs.roster, sides.theirs.leaving, sides.theirs.arriving, ctx, ctx.marketKey);
     const natural = naturalFit({yourValueOk, us, them, charts,
-      usProjNet: projected ? usProj.net : null, themProjNet: projected ? viewNet(sides.theirs, ctx, projKey) : null, theirPct});
+      usProjNet: projected ? usProj.net : null, themProjNet: projected ? viewNet(sides.theirs, ctx, projKey) : null, theirPct,
+      themProjStarters: projected ? lineupValue(sides.theirs.roster, ctx.shape, projKey).starterValue : null});
     const isNatural = natural.ok;
     const label = isNatural ? "natural" : marketSupported ? "market" : "force";
     // Keep variant for backward compat; no projections variant now (simplified).
@@ -987,17 +997,46 @@
     const view = t => (names && names[t === us ? "you" : "them"]) || VIEW_NAME[t.key] || t.key;
     const out = [];
     if (!n.us.value) out.push(us.net <= NET_FLOOR ? `your total does not rise (${fitFmt(us.net)} on ${view(us)})` : `your starters drop ${Math.abs(us.starterDelta).toFixed(1)} on ${view(us)}`);
-    else if (!n.us.reason) out.push("nothing improves your starters, fills a position you are short at or adds bench depth");
+    else if (!n.us.reason) out.push(`nothing improves your starters, fills a position you are short at or adds bench depth worth ${Math.round(BENCH_MIN_SHARE * 100)}% of your starters`);
     if (n.us.projections === false) out.push(`your projection-based value falls ${Math.abs(n.us.projNet).toFixed(1)}`);
     if (n.us.projections === null) out.push("a player in the trade has no projection-based value, so your side is not checked");
     if (!n.them.value) out.push(them.net < -NET_FLOOR ? `they lose ${Math.abs(them.net).toFixed(1)} on ${view(them)}` : `their total does not rise on ${view(them)} (${fitFmt(them.net)})`);
     if (n.them.value && !n.them.startersOk) out.push(`their starters drop ${Math.abs(them.starterDelta).toFixed(1)} on ${view(them)}`);
-    else if (n.them.value && !n.them.reason) out.push("nothing improves their starters, fills a position they are short at or adds bench depth");
+    else if (n.them.value && !n.them.reason) out.push(`nothing improves their starters, fills a position they are short at or adds bench depth worth ${Math.round(BENCH_MIN_SHARE * 100)}% of their starters`);
+    if (n.them.projBlock) out.push(`their projection-based value falls ${Math.abs(n.them.projNet).toFixed(1)}, more than ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections`);
     if (n.them.pctOk === false) out.push(`their roster gets about ${Math.abs(n.them.pct).toFixed(1)}% worse`);
     if (!n.charts.ok) out.push(`only ${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts call it even or better for them (${n.charts.min} needed)`);
     if (!n.us.lineup) out.push("your lineup is left with an empty starting slot");
     if (!n.them.lineup) out.push("their lineup is left with an empty starting slot");
     return out;
+  }
+  // The Natural test as a checklist, one row per part of naturalFit (Build a Trade and Buy / Sell), so a page's
+  // "checks pass" is natural.ok and every ✕ row is a reason in naturalMisses. ok: true / false, or null for a caution that
+  // does not block (their projection-based value falling). names: optional {you, them}, the page's valuation names.
+  function naturalChecks(fit, names) {
+    const n = fit && fit.natural;
+    if (!n) return [];
+    const {us, them} = fit;
+    const view = t => (names && names[t === us ? "you" : "them"]) || VIEW_NAME[t.key] || t.key;
+    const reasonText = (side, t, who) => side.reason === "starters" ? `${who} starters improve`
+      : side.reason === "need" ? (side.need.length ? `fills ${listJoin(side.need)}, where ${who === "Your" ? "you are" : "they are"} short` : "fills an empty starting slot")
+        : side.reason === "bench" ? `bench depth (${fitFmt(t.benchDelta)} once weighted; players worth ${fitFmt(t.benchRawDelta)}, at least ${Math.round(BENCH_MIN_SHARE * 100)}% of the starters)` : "none: no starter gain, short position filled or bench depth of at least 1% of the starters";
+    const lineup = (t, who) => `${who} best lineup: starters ${t.starterBefore.toFixed(1)} to ${t.starterAfter.toFixed(1)} (${fitFmt(t.starterDelta)}) on ${view(t)}`;
+    const rows = [
+      {key: "your-starters", ok: n.us.startersOk, text: lineup(us, "Your")},
+      {key: "your-total", ok: us.net > NET_FLOOR, text: `Your total ${fitFmt(us.net)} on ${view(us)}, bench weighted`},
+      {key: "your-reason", ok: Boolean(n.us.reason), text: `Your reason: ${reasonText(n.us, us, "Your")}`},
+      {key: "your-projections", ok: n.us.projections === true, text: n.us.projections === null ? "Your projection-based value: not checked (a player has none)" : `Your projection-based value ${fitFmt(n.us.projNet)}`},
+      {key: "their-starters", ok: n.them.startersOk, text: lineup(them, "Their")},
+      {key: "their-total", ok: n.them.value, text: `Their total ${fitFmt(them.net)} on ${view(them)}, bench weighted`},
+      {key: "their-reason", ok: Boolean(n.them.reason), text: `Their reason: ${reasonText(n.them, them, "their")}`},
+      {key: "charts", ok: n.charts.ok, text: `${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts even or better for them (${n.charts.min} needed)`},
+      {key: "slots", ok: n.us.lineup && n.them.lineup, text: n.us.lineup && n.them.lineup ? "No empty starting slot on either side" : `Empty starting slot: ${[n.us.lineup ? null : "yours", n.them.lineup ? null : "theirs"].filter(Boolean).join(" and ")}`}
+    ];
+    if (n.them.pctOk === false) rows.push({key: "their-pct", ok: false, text: `Their roster gets about ${Math.abs(n.them.pct).toFixed(1)}% worse`});
+    if (n.them.projBlock) rows.push({key: "their-projections", ok: false, text: `Their projection-based value ${fitFmt(n.them.projNet)}, more than ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections`});
+    else if (n.them.caution) rows.push({key: "their-projections", ok: null, text: `Caution: their projection-based value ${fitFmt(n.them.projNet)} (under ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections, not a blocker)`});
+    return rows;
   }
   // The short tags a Natural fit carries: "Bench depth" (your reason is bench depth only) and "Thin for them" (their gain
   // is under 1% of their starters). [] when not Natural.
@@ -1013,7 +1052,7 @@
     const depth = us.ready || them.ready
       ? ` ${us.ready ? `You are ${stateText(us)}` : ""}${us.ready && them.ready ? "; " : ""}${them.ready ? `${us.ready ? "they" : "They"} are ${stateText(them)}` : ""}.`
       : "";
-    const caution = n && n.them.caution ? ` Caution: their DDF Value (projections) falls ${Math.abs(n.them.projNet).toFixed(1)}.` : "";
+    const caution = n && n.them.caution ? ` Caution: their DDF Value (projections) falls ${Math.abs(n.them.projNet).toFixed(1)} (under ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections).` : "";
     if (fit.label === "natural") {
       const yours = n.us.reason === "starters" ? `your starters gain ${fitFmt(us.starterDelta)} on ${VIEW_NAME[us.key] || us.key}`
         : n.us.reason === "need" ? `you fill ${n.us.need.length ? listJoin(n.us.need) + ", where you are short" : "an empty starting slot"}`
@@ -1196,7 +1235,7 @@
     return {mineId: has(link.mineId) ? link.mineId : null, theirId: has(link.theirId) ? link.theirId : null};
   }
 
-  const api = {encodeFinderHash, decodeFinderHash, linkTeamsFor, benchBackups, startersAtGivenPositions, givenPositionsLine, viableGroups, viewTip, VIEW_TIPS, fitTip, FIT_TIPS, hasProjections, chipTooltip, deltaLine, fitHeadline, biggestImbalance, teamFit, tradeFit, naturalFit, rosterChangePct, rosterWorth, shownPct, pctBand, PCT_MIN_BASE, PCT_BANDS, projectionsHold, PROJ_FLOOR, FIT_VARIANTS, fitText, valueNoise, PROJECTION_KEYS, PROJECTIONS_KEY, tierGroups, tierOrder, benchWeight, naturalMisses, naturalTags, NATURAL_MIN_CHARTS, THIN_SHARE, FIT_Z, FIT_TIER, expectedDepth, rosterBalance, evalSentence, DEPTH_POS, USABLE_MIN, looksLikePage, isNotEvaluated, NOT_EVALUATED_POS, findTrades, evaluateCombo, collapseThrowIns, groupTrades, coreOf, pickStarters, lineupValue, rosterImpact, rosterConstructionOk, balanceCounts, viabilityLabel, withChartAverage, needLine, teamSummary, SUMMARY_ROWS, MARKET_KEY, lineupIssues, issueText, rosterGaps, matchNames, normName, parsePasted, subsets, subsetCount, OUR_KEY, CHART_KEYS, MIN_CHARTS, SEARCH_MIN_CHARTS, MAX_SIZE_CHOICES, MAX_SUBSETS, EXTRA_PLAYER_WEIGHT, LIMIT};
+  const api = {encodeFinderHash, decodeFinderHash, linkTeamsFor, benchBackups, startersAtGivenPositions, givenPositionsLine, viableGroups, viewTip, VIEW_TIPS, fitTip, FIT_TIPS, hasProjections, chipTooltip, deltaLine, fitHeadline, biggestImbalance, teamFit, tradeFit, naturalFit, rosterChangePct, rosterWorth, shownPct, pctBand, PCT_MIN_BASE, PCT_BANDS, projectionsHold, PROJ_FLOOR, FIT_VARIANTS, fitText, valueNoise, PROJECTION_KEYS, PROJECTIONS_KEY, tierGroups, tierOrder, benchWeight, naturalMisses, naturalTags, naturalChecks, NATURAL_MIN_CHARTS, THIN_SHARE, BENCH_MIN_SHARE, PROJ_BLOCK_SHARE, FIT_Z, FIT_TIER, expectedDepth, rosterBalance, evalSentence, DEPTH_POS, USABLE_MIN, looksLikePage, isNotEvaluated, NOT_EVALUATED_POS, findTrades, evaluateCombo, collapseThrowIns, groupTrades, coreOf, pickStarters, lineupValue, rosterImpact, rosterConstructionOk, balanceCounts, viabilityLabel, withChartAverage, needLine, teamSummary, SUMMARY_ROWS, MARKET_KEY, lineupIssues, issueText, rosterGaps, matchNames, normName, parsePasted, subsets, subsetCount, OUR_KEY, CHART_KEYS, MIN_CHARTS, SEARCH_MIN_CHARTS, MAX_SIZE_CHOICES, MAX_SUBSETS, EXTRA_PLAYER_WEIGHT, LIMIT};
   // Stable identity comes from League, never the name (duplicate names are valid).
   function savedTeamChoices(workspace) {
     return workspace.teams.map((team, i) => ({id: team.id,

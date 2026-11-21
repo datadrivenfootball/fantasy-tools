@@ -91,6 +91,23 @@ STARTERS_DROP = r"""() => {
 }"""
 
 
+# Bench depth as your only reason (tests.test_v2_finder_fit check 24): since 2026-11-21 it needs the players added to be
+# worth 1% of your starters, and the real leagues may hold none, so it is built by hand too.
+BENCH_CASE = r"""() => {
+  const R = (key, pos, d, c) => ({player_key: key, name: key, pos, team: 'X',
+    values: {ddf_value: d, ddf_value_charts: d, ddf_value_projections: d, cbs: c, usatoday: c, fantasypros: c, fantasycalc: c}});
+  const team = (p, qb, rb, wr, te) => [['QB', qb], ['RB', rb], ['WR', wr], ['TE', te]].flatMap(([pos, vs]) => vs.map((v, i) => R(p + pos + i, pos, v, v)));
+  const give = [R('Wes Spare', 'WR', 3, 25)], recv = [R('Rex Spare', 'RB', 9, 4)];
+  const mine = team('m', [20, 12], [30, 25, 10, 8, 5], [30, 28, 15, 9, 7], [10, 5]).concat(give);
+  const theirs = team('t', [22, 11], [35, 28, 14, 12, 9], [26, 20, 9, 8, 7], [11, 6]).concat(recv);
+  const ctx = Object.assign({}, DDF.find.context(), {shape: {QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, SUPERFLEX: 0, BENCH: 7},
+    expected: {QB: {lo: 1, hi: 2}, RB: {lo: 4, hi: 5}, WR: {lo: 4, hi: 5}, TE: {lo: 1, hi: 2}}, weights: {overall: 0.15},
+    analyst: ['cbs', 'usatoday', 'fantasypros'], gate: ['cbs', 'usatoday', 'fantasypros', 'fantasycalc']});
+  const e = DDFWhy.explain({mine, theirs, give, receive: recv}, ctx);
+  return {cls: e.verdict.cls, tags: e.verdict.tags, you: e.why.you, label: e.fit.label, reason: e.fit.natural.us.reason};
+}"""
+
+
 class FindNaturalFit2RenderTest(unittest.TestCase):
     def setUp(self):
         try:
@@ -150,8 +167,15 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
         thin = [c for c in judged if c["cls"] == "natural" and c["fit"]["thin"]]
         one_of_4 = [c for c in judged if c["fit"]["bothOk"] and not c["fit"]["chartsOk"] and c["fit"]["agree"] == 1]
         plain = [c for c in judged if c["cls"] == "natural" and not c["tags"]]
-        self.assertTrue(bench and thin and one_of_4 and plain, f"{w}: fixture lacks a case: bench {len(bench)} thin {len(thin)} 1/4 {len(one_of_4)} plain {len(plain)}")
-        for name, c in {"bench": bench[0], "thin": thin[0], "one_of_4": one_of_4[0], "plain": plain[0]}.items():
+        self.assertTrue(thin and one_of_4 and plain, f"{w}: fixture lacks a case: thin {len(thin)} 1/4 {len(one_of_4)} plain {len(plain)}")
+        cases = {"thin": thin[0], "one_of_4": one_of_4[0], "plain": plain[0]}
+        if bench:   # the seeded league may hold none since the 1% bench minimum (2026-11-21); BENCH_CASE covers it by hand
+            cases["bench"] = bench[0]
+        b = page.evaluate(BENCH_CASE)
+        self.assertEqual((b["label"], b["cls"], b["reason"]), ("natural", "natural", "bench"), f"{w}: bench case {b}")
+        self.assertIn("Bench depth", b["tags"])
+        self.assertTrue(any(x.startswith("Bench depth, not a starter upgrade") and "at least 1% of your starters" in x for x in b["you"]), b["you"])
+        for name, c in cases.items():
             why = self._why(page, c)
             self.assertIsNotNone(why, f"{w} {name}: no Why body")
             self.assertEqual(why["cls"], c["cls"], f"{w} {name}: panel class vs card")
