@@ -926,7 +926,11 @@ test-core:
 # JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
 # 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
 # and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
+# 2026-11-22: mean tests-only minutes over preview runs 44937904678, 44937945880, 44947279886 were 16.2 / 18.6 / 21.5 / 16.4 / 20.5
+# for shards 1-5 (job = tests + about 5.5 min setup). Moved three modules (about 4.9 min) to land at 17.9 / 18.6 / 18.4 / 19.6 / 18.7.
 test-core-shard-1:
+	# 2026-11-22 rebalance: moved from shard 3 (21.5 min of tests, the longest).
+	python3 -m unittest tests.test_main_table_engine_parity
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
 	python3 -m unittest tests.test_post_validate_workflow_wiring
@@ -1019,9 +1023,6 @@ test-core-shard-3:
 	node tests/node/league_status_check.cjs
 	python3 -m unittest tests.test_v2_phone_source_links_render
 	python3 -m unittest tests.test_v2_phone_zoom_render
-	python3 -m unittest tests.test_main_table_engine_parity
-	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
-	python3 -m unittest tests.test_values_page_engine_parity
 	# JEG-1539: team.html and find.html engine parity (same pattern as values page).
 	python3 -m unittest tests.test_team_engine_parity
 	# JEG-1560: partners.html ranking, reasons and copy rules on the engine.
@@ -1060,6 +1061,11 @@ test-core-shard-3:
 	python3 -m unittest tests.test_build_offer_render
 
 test-core-shard-4:
+	# 2026-11-22 rebalance: moved from shards 3 and 5 (shard 5 hit the 30-min job limit on several PRs).
+	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
+	python3 -m unittest tests.test_values_page_engine_parity
+	# JEG-1557: mobile defects, connect rework, caveats note, touch behavior (390 and 360, 1440 for the note).
+	python3 -m unittest tests.test_jeg1557_mobile_connect
 	python3 -m unittest tests.test_static_export
 	python3 -m unittest tests.test_rank_guard
 	python3 -m unittest tests.test_kdst_removed
@@ -1118,8 +1124,6 @@ test-core-shard-5:
 	python3 -m unittest tests.test_learn_engine_parity
 	# JEG-1538: entry pages at the root (paste -> recognition, setup -> live league store, link codec vectors, routes).
 	python3 -m unittest tests.test_entry_pages
-	# JEG-1557: mobile defects, connect rework, caveats note, touch behavior (390 and 360, 1440 for the note).
-	python3 -m unittest tests.test_jeg1557_mobile_connect
 	# JEG-1564: bookmark prompts, titles, league names, roster date freshness bands, header chip fit.
 	python3 -m unittest tests.test_bookmark_freshness
 	# JEG-1568: Edit league opens the start of the entry flow; Start fresh clears every listed key.
