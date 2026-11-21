@@ -807,6 +807,7 @@ test-core:
 	python3 -m unittest tests.test_v2_phone_layout_render
 	python3 -m unittest tests.test_v2_phone_context_row_render
 	python3 -m unittest tests.test_v2_hamburger_nav_render
+	python3 -m unittest tests.test_source_freshness_render
 	python3 -m unittest tests.test_v2_desktop_menu_render
 	python3 -m unittest tests.test_v2_phone_rank_overflow_render
 	python3 -m unittest tests.test_v2_phone_source_links_render
@@ -1076,6 +1077,7 @@ test-core-shard-4:
 	python3 -m unittest tests.test_compare_evidence_view_contract
 	python3 -m unittest tests.test_v2_phone_landscape_render
 	python3 -m unittest tests.test_v2_hamburger_nav_render
+	python3 -m unittest tests.test_source_freshness_render
 	python3 -m unittest tests.test_v2_phone_trade_actions_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_bench_share_readout_matches_reference
