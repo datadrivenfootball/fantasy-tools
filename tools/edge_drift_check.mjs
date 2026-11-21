@@ -18,6 +18,7 @@
 // Run: node --experimental-strip-types --no-warnings tools/edge_drift_check.mjs
 // Env: EDGE_MCP_URL, EDGE_GET_VALUES_URL override the production endpoints.
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -121,10 +122,13 @@ async function deployedToolsData() {
   if (unnamed.length) {
     throw new Unavailable(`mcp tools/list: ${unnamed.length} of ${tools.length} tools have no name`);
   }
+  // A tool without an inputSchema object is an unreadable reply, not field drift (MCP requires the schema).
+  const schemaless = tools.filter((t) => !isPlainObject(t.inputSchema)).map((t) => t.name);
+  if (schemaless.length) throw new Unavailable(`mcp tools/list: no inputSchema on ${schemaless.join(", ")}`);
   return tools.map((t) => ({
     name: t.name,
-    properties: new Set(isPlainObject(t.inputSchema?.properties) ? Object.keys(t.inputSchema.properties) : []),
-    required: new Set(Array.isArray(t.inputSchema?.required) ? t.inputSchema.required : []),
+    properties: new Set(isPlainObject(t.inputSchema.properties) ? Object.keys(t.inputSchema.properties) : []),
+    required: new Set(Array.isArray(t.inputSchema.required) ? t.inputSchema.required : []),
   }));
 }
 
@@ -231,31 +235,24 @@ async function mainToolsData() {
   }
 }
 
-// Try to determine whether the deployed build SHA is an ancestor of HEAD
-// (meaning the deployed code is at or behind the checked-out main).
-// Returns a string note; never throws.
+// Whether the deployed build contains the last commit that touched supabase/functions/mcp. A note only: a shallow
+// clone, no git or an unknown SHA prints "build not compared" and never changes the exit code.
 async function ancestryNote(buildSha) {
-  if (!buildSha || !/^[0-9a-f]{40}$/i.test(buildSha)) return "build not compared (no valid SHA)";
+  if (!/^[0-9a-f]{7,40}$/i.test(String(buildSha || ""))) return "build not compared (no valid SHA)";
+  const root = fileURLToPath(new URL("..", import.meta.url));
   try {
-    // Check whether the last commit touching supabase/functions/mcp/ is an ancestor of the build SHA.
-    const { stdout: logOut } = await execFileAsync(
-      "git", ["log", "--oneline", "-1", "--", "supabase/functions/mcp/"],
-      { cwd: fileURLToPath(new URL("..", import.meta.url)) }
-    );
-    const mcpHead = logOut.trim().split(" ")[0];
+    const { stdout } = await execFileAsync("git", ["log", "--format=%H", "-1", "--", "supabase/functions/mcp/"], { cwd: root });
+    const mcpHead = stdout.trim();
     if (!mcpHead) return "build not compared (no commits found for supabase/functions/mcp/)";
-    const { code } = await new Promise((resolve) => {
-      const { spawn } = require("node:child_process");
-      const p = spawn("git", ["merge-base", "--is-ancestor", mcpHead, buildSha], {
-        cwd: fileURLToPath(new URL("..", import.meta.url)),
-      });
-      p.on("close", (code) => resolve({ code }));
-    });
-    if (code === 0) return `build ${buildSha.slice(0, 9)} contains last mcp commit ${mcpHead}`;
-    if (code === 1) return `build ${buildSha.slice(0, 9)} does NOT contain last mcp commit ${mcpHead} — redeploy needed`;
-    return "build not compared (git merge-base returned unexpected code)";
+    try {
+      await execFileAsync("git", ["merge-base", "--is-ancestor", mcpHead, buildSha], { cwd: root });
+      return `ancestry: build ${buildSha.slice(0, 9)} contains last mcp commit ${mcpHead.slice(0, 9)} (up to date)`;
+    } catch (e) {
+      if (e?.code === 1) return `ancestry: build ${buildSha.slice(0, 9)} does NOT contain last mcp commit ${mcpHead.slice(0, 9)}; redeploy may be needed`;
+      return "build not compared (deployed SHA not in this clone's history)";
+    }
   } catch (e) {
-    return `build not compared (${e.message})`;
+    return `build not compared (${e?.code === "ENOENT" ? "git not available" : e?.message || e})`;
   }
 }
 
@@ -291,37 +288,7 @@ export async function main() {
   if (serverInfo.note) {
     console.log(`note: ${serverInfo.note}`);
   }
-  if (serverInfo.build) {
-    // Use dynamic import of child_process for the ancestry check (gracefully skip if unavailable).
-    try {
-      const { execFile: ef } = await import("node:child_process");
-      const { promisify: p } = await import("node:util");
-      const efa = p(ef);
-      const root = fileURLToPath(new URL("..", import.meta.url));
-      const { stdout: logOut } = await efa("git", ["log", "--oneline", "-1", "--", "supabase/functions/mcp/"], { cwd: root });
-      const mcpHead = logOut.trim().split(" ")[0];
-      if (mcpHead) {
-        // git merge-base --is-ancestor exits 0 if ancestor, 1 if not, 128 if unknown
-        const code = await new Promise((resolve) => {
-          import("node:child_process").then(({ spawn }) => {
-            const cp = spawn("git", ["merge-base", "--is-ancestor", mcpHead, serverInfo.build], { cwd: root });
-            cp.on("close", resolve);
-          }).catch(() => resolve(128));
-        });
-        if (code === 0) {
-          console.log(`ancestry: build ${serverInfo.build.slice(0, 9)} contains last mcp commit ${mcpHead} (up to date)`);
-        } else if (code === 1) {
-          console.log(`ancestry: build ${serverInfo.build.slice(0, 9)} does NOT contain last mcp commit ${mcpHead} — redeploy may be needed`);
-        } else {
-          console.log("build not compared (git merge-base returned unexpected code or SHA unknown)");
-        }
-      } else {
-        console.log("build not compared (no commits found for supabase/functions/mcp/)");
-      }
-    } catch {
-      console.log("build not compared (git not available)");
-    }
-  }
+  if (serverInfo.build) console.log(await ancestryNote(serverInfo.build));
 
   if (drift.length) {
     console.error(`EDGE DRIFT: deployed functions are out of step with main (deploys are manual):\n- ${drift.join("\n- ")}`);
@@ -336,8 +303,15 @@ export async function main() {
   console.log(`OK: deployed mcp lists the same ${onMain.length} tools as main with matching input fields; get-values include=charts has the chart fields.`);
 }
 
-// Guard so importing (e.g. from tests) does not run main().
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Guard so importing (e.g. from tests) does not run main(). Real paths, so a symlinked invocation still runs.
+const invoked = (() => {
+  try {
+    return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+if (invoked) {
   main().catch((e) => {
     console.error(`EDGE CHECK ERROR (could not compare): ${reason(e)}`);
     process.exit(2);

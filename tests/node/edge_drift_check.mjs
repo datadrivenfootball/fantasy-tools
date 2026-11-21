@@ -27,8 +27,9 @@ const json = (body, status = 200) => ({ status, type: "application/json", body: 
 // toolsWithSchema: build a tools/list reply that includes inputSchema for each tool.
 const toolsWithSchemaReply = (tools) =>
   json({ jsonrpc: "2.0", id: 1, result: { tools } });
+// Names only drift here: each tool carries main's schema (or an empty one for a tool main lacks).
 const toolsReply = (names) =>
-  toolsWithSchemaReply(names.map((name) => ({ name })));
+  toolsWithSchemaReply(names.map((name) => mainToolsWithSchema.find((t) => t.name === name) ?? { name, inputSchema: { type: "object" } }));
 const sse = (payload) => ({ status: 200, type: "text/event-stream", body: `event: message\ndata: ${JSON.stringify(payload)}\n\n` });
 const valuesReply = (players) => json({ players, bench_share: { QB: 0.2, overall: 0.3 } });
 // Build a tools/list reply that mirrors main's full inputSchema (properties + required).
@@ -100,6 +101,8 @@ const CASES = [
   { name: "no bench_share is not checked (policy held, JEG-1256)", values: json({ players: [row()] }), code: 0, out: /\bOK:/ },
 
   // Drift.
+  { name: "a tool with no inputSchema is unreadable, not drift", mcp: toolsWithSchemaReply(mainToolsWithSchema.map((t, i) => (i ? t : { name: t.name }))),
+    code: 2, out: /no inputSchema on / },
   { name: "missing and extra tools", mcp: toolsReply([...mainNames.slice(1), "ghost_tool"]), code: 1,
     out: new RegExp(`not deployed: ${mainNames[0]}\\b[\\s\\S]*not on main: ghost_tool`) },
   { name: "every player lacks the chart fields (older get-values)", values: valuesReply([without(row(), ...["chart_values", "chart_indexed", "ddf_value_charts", "ddf_value_projections"])]),
