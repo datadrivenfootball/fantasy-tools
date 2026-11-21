@@ -139,6 +139,7 @@ assert.match(text(r), /Trading with Team C\./);
 // "K. Walker III" is the running back, not a kicker
 const walkerRows = [...rows, { ...rows[0], player_key: 13, name: "Kenneth Walker III", pos: "RB", value: 30 }];
 assert.equal(matchName(walkerRows, "K. Walker III").player?.player_key, 13);
+assert.doesNotMatch(matchName(walkerRows, "K Walker III").note, /kicker/, "K Walker III is not a kicker");
 assert.match(matchName(walkerRows, "K Brandon McManus").note, /kicker, not valued/);
 // a superflex state plus slots without a superflex slot keeps the state's superflex
 const sfState = codec.encodeBlock({ league: { scoring: "ppr", teams: 12, roster: { QB: 1, SUPERFLEX: 1 } } });

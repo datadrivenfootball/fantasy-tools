@@ -142,7 +142,7 @@ function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedNam
   const tag = positionTag(text);
   if (tag.cityOnly && nameHolds(players, tag.name)) return { name: tag.name, pos: null, team: null, cityOnly: true };
   // "K Walker III" is Kenneth Walker III, not a kicker: a leading K stays a kicker only for a name no priced player holds.
-  if (tag.leadingK && !KICKERS.has(tag.name) && nameHolds(players, tag.name)) {
+  if (tag.leadingK && !KICKERS.has(tag.name) && players.some((p) => ` ${key(p.name)} `.includes(` ${tag.name} `))) {
     return { name: key(text), pos: null, team: null };
   }
   // An untagged kicker's name is a kicker unless a priced player has exactly that name.
