@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Which of the seven sources behind DDF Value are up to date this week, what week each one is on, and why any are behind.">
+<title>DDF · Source freshness</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600;6..72,700&display=swap');
+.fresh-sum{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #dbe0dc;border-radius:12px;padding:16px 18px;margin:18px 0 8px}
+.fresh-sum .ddf-fresh-dot{width:18px;height:18px;flex:none;margin:0}
+.fresh-sum .ddf-fresh-dot:not([data-state]){background:#9aa5a0}
+.fresh-sum strong{display:block;font-size:17px}
+.fresh-sum span.sub{color:#5c6a76;font-size:14px}
+.fresh-rule{max-width:70ch;color:#39413b}
+.fresh-list{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:12px}
+.fresh-item{background:#fff;border:1px solid #dbe0dc;border-radius:12px;padding:16px 18px}
+.fresh-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.fresh-item h2{font-size:20px;margin:0}
+.fresh-chip{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;padding:4px 10px;border-radius:99px;background:#eef1ec}
+.fresh-chip .ddf-fresh-dot{margin:0}
+.fresh-chip[data-fresh=yes]{background:#e8f5ee;color:#176c4d}
+.fresh-chip[data-fresh=no]{background:#fff0e1;color:#8a4a00}
+.fresh-chip[data-fresh=stale]{background:#fde8e6;color:#a02a20}
+.fresh-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 0}
+.fresh-facts dt{font:600 11px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:#5c6a76}
+.fresh-facts dd{margin:2px 0 0;font-weight:600}
+.fresh-reason{margin:12px 0 0;padding:10px 12px;border-left:3px solid #e8820c;background:#fff7ec;font-size:14px}
+.fresh-reason[data-stale=yes]{border-left-color:#d03a2f;background:#fdf0ee}
+.fresh-checked{font-size:13px;color:#5c6a76;margin-top:14px}
+.fresh-err{padding:14px 16px;border:1px solid #dbe0dc;border-radius:12px;background:#fff}
+@media(max-width:760px){.fresh-facts{grid-template-columns:1fr 1fr}.fresh-facts div:first-child{grid-column:1/-1}.fresh-item{padding:14px}}
+</style>
+<script src="site.js" defer></script>
+</head>
+<body class="freshpage">
+<header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="values.html">Values</a><div class="morewrap"><button type="button" aria-expanded="false" aria-controls="fresh-more">More ▾</button><div class="menu" id="fresh-more"><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a></div></div></nav></div></header>
+<main>
+<div class="eyebrow">Data</div>
+<h1>Source freshness</h1>
+<p class="lede">DDF Value averages seven sources. This page shows which ones have posted this week's data.</p>
+<div class="fresh-sum" id="fresh-sum" aria-live="polite"><span class="ddf-fresh-dot" id="fresh-sum-dot" aria-hidden="true"></span><div><strong id="fresh-sum-t">Checking the sources</strong><span class="sub" id="fresh-sum-s"></span></div></div>
+<p class="fresh-rule">A source is fresh when its data is on the newest expected week, and behind when it is still on an earlier one.</p>
+<ul class="fresh-list" id="fresh-list"></ul>
+<p class="fresh-checked" id="fresh-checked"></p>
+</main>
+<footer class="sitemap"><div class="in"><div><h2>TRADE</h2><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a></div><div><h2>VALUES</h2><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a></div><div><h2>YOUR LEAGUE</h2><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a></div><div><h2>LEARN</h2><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="freshness.html">Source freshness</a></div></div><div class="footer">Data Driven Football</div></footer>
+<script src="freshness-page.js" defer></script>
+</body>
+</html>

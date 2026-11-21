@@ -97,8 +97,8 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   var PRE_HOME = [['values.html','Values'],['learn.html','Learn']];
   /* Pick players and Pick trading partners are settings along the way: they live in the step row, not the top nav (Jeremy, 2026-11-06). */
   var POST = [['team.html','Team'],['find.html','Trade &amp; Waiver Recommendations'],['build.html','Build a Trade'],['values.html','Values']];
-  var MENU_PRE = [['index.html','Home'],['build.html?mode=any','Quick trade check'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['connect.html','Get started']];
-  var MENU_POST = [['index.html','Home'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['waivers.html','Waivers'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['connect.html','Paste my league'],['setup.html','Your team'],['settings.html','League settings']];
+  var MENU_PRE = [['index.html','Home'],['build.html?mode=any','Quick trade check'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['freshness.html','Source freshness'],['connect.html','Get started']];
+  var MENU_POST = [['index.html','Home'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['waivers.html','Waivers'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['freshness.html','Source freshness'],['connect.html','Paste my league'],['setup.html','Your team'],['settings.html','League settings']];
   var PAGE_ALIAS = {'waivers.html':'find.html','check.html':'build.html','trade.html':'build.html','compare.html':'build.html'};
   function file(){ var f = location.pathname.split('/').pop() || 'index.html'; return PAGE_ALIAS[f] || f; }
   /* Values opens a small menu so Buy / Sell and Overrides have a visible way in (Jeremy, 2026-11-06). */
@@ -222,7 +222,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       ['Trade', ['build.html?mode=any','build.html','find.html','waivers.html']],
       ['Your league', ['team.html','explore.html','partners.html']],
       ['Player values', ['values.html','values.html#buy-sell','values.html#overrides']],
-      ['Learn', ['learn.html','learn.html#numbers/pie','ai.html']],
+      ['Learn', ['learn.html','learn.html#numbers/pie','ai.html','freshness.html']],
       ['Settings', ['connect.html','setup.html','settings.html']]
     ];
     var links = {};
@@ -1694,4 +1694,95 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
   DDF.bookmark = {refresh:render, check:check};
+})();
+
+/* ===== Source freshness: status dot beside "Source freshness" in the menu, and the summary the freshness page reuses =====
+   One small shared file (modules/comparison-chain-status.json, about 6 KB) is read once per page. If it cannot be read,
+   no dot is drawn. Fresh = the source's data is on the newest expected week. */
+(function(){
+  window.DDF = window.DDF || {};
+  var base = (document.currentScript && document.currentScript.src) || location.href;
+  var STATUS_URL = new URL('modules/comparison-chain-status.json', base).href;
+  var ORDER = ['cbs','usatoday','fantasypros','fantasycalc','espn','cbsros','razzball'];
+  var LABELS = {cbs:'CBS Sports', usatoday:'USA Today', fantasypros:'FantasyPros', fantasycalc:'FantasyCalc', espn:'ESPN', cbsros:'CBS rest-of-season', razzball:'Razzball'};
+  var DOT_TEXT = {all:'All sources fresh', some:'Some sources fresh', none:'No sources fresh'};
+  function isWeek(n){ return typeof n === 'number' && isFinite(n); }
+  /* status: the parsed status file. now: a Date. Returns null when the file has no per-source weeks. */
+  function summarize(status, now){
+    var sw = status && status.source_weeks;
+    if(!sw || typeof sw !== 'object') return null;
+    var keys = Object.keys(sw).sort(function(a, b){
+      var ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || (a < b ? -1 : 1);
+    });
+    if(!keys.length) return null;
+    var held = status.held || [], detail = status.held_detail || {};
+    var rows = keys.map(function(k){
+      var e = sw[k] || {};
+      var served = isWeek(e.served_week) ? e.served_week : null;
+      var expected = isWeek(e.expected_week) ? e.expected_week : (isWeek(status.nfl_week) ? status.nfl_week : null);
+      var fresh = served !== null && expected !== null && served >= expected;
+      var cutoff = e.stale_after ? Date.parse(e.stale_after) : NaN;
+      var stale = !fresh && served !== null && isFinite(cutoff) && now.getTime() >= cutoff;
+      var isHeld = held.indexOf(k) >= 0 && !fresh;
+      var reason = '';
+      if(fresh) reason = '';
+      else if(served === null) reason = 'No week reported for this source.';
+      else if(isHeld) reason = 'Week ' + expected + ' arrived but is held back until it passes our checks. Still on Week ' + served + (stale ? ' after Thursday 12:00 CT' : '') + '.';
+      else if(stale) reason = 'Still on Week ' + served + ' after Thursday 12:00 CT.';
+      else reason = 'Not yet published for Week ' + expected + '.';
+      return {key:k, label:LABELS[k] || k, served:served, expected:expected, fresh:fresh, stale:stale, held:isHeld, reason:reason, updated:e.published_at || null};
+    });
+    var fresh = rows.filter(function(r){ return r.fresh; }).length;
+    var expectedWeek = rows.reduce(function(m, r){ return isWeek(r.expected) && r.expected > m ? r.expected : m; }, 0) || null;
+    return {state: fresh === rows.length ? 'all' : (fresh ? 'some' : 'none'), fresh:fresh, total:rows.length, expected:expectedWeek, rows:rows, runAt:status.run_at || null};
+  }
+  function dotLabel(sum){ return DOT_TEXT[sum.state] + (sum.state === 'some' ? ' (' + sum.fresh + ' of ' + sum.total + ')' : ''); }
+  var pending = null;
+  function load(){
+    if(!pending) pending = fetch(STATUS_URL, {credentials:'omit'}).then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(j){ return summarize(j, new Date()); }).catch(function(){ return null; });
+    return pending;
+  }
+  /* The dot beside the Menu button is its own link (a link cannot sit inside the button) to freshness.html. */
+  function paintHeader(sum){
+    var nav = document.querySelector('header nav[aria-label="Main navigation"]');
+    if(!nav) return;
+    var wrap = nav.querySelector('.morewrap'), box = nav.querySelector('.ddf-fresh-hdr');
+    if(!sum){ if(box) box.remove(); return; }
+    if(!box){
+      box = document.createElement('span'); box.className = 'ddf-fresh-hdr';
+      box.innerHTML = '<a href="freshness.html"><span class="ddf-fresh-dot" aria-hidden="true"></span><span class="ddf-fresh-lbl" aria-hidden="true">Sources</span></a>';
+      nav.insertBefore(box, wrap || null);
+    }
+    if(wrap && box.nextSibling !== wrap) nav.insertBefore(box, wrap);
+    var a = box.firstChild, d = a.firstChild;
+    a.setAttribute('aria-label', 'Source freshness: ' + dotLabel(sum) + '. Open details'); a.title = dotLabel(sum);
+    d.setAttribute('data-state', sum.state);
+    /* the dot takes header room after the league chip was sized: let the chip fit again */
+    try{ if(window.DDF.leagueMeta) window.DDF.leagueMeta.refresh(); }catch(e){}
+  }
+  function paint(sum){
+    paintHeader(sum);
+    Array.prototype.forEach.call(document.querySelectorAll('.morewrap .menu a[href="freshness.html"]'), function(a){
+      var d = a.querySelector('.ddf-fresh-dot');
+      if(!sum){ if(d) d.remove(); return; }
+      if(!d){ d = document.createElement('span'); d.className = 'ddf-fresh-dot'; d.setAttribute('role', 'img'); a.appendChild(d); }
+      d.setAttribute('data-state', sum.state); d.setAttribute('aria-label', dotLabel(sum)); d.title = dotLabel(sum);
+    });
+  }
+  window.DDF.freshness = {summarize:summarize, load:load, paint:paint, dotLabel:dotLabel, url:STATUS_URL};
+  function run(){ load().then(paint); }
+  /* Bookmark shows or hides after the league chip was sized: let the chip fit the header again (hidden changes only, so no loop) */
+  function watchHeader(){
+    var h = document.querySelector('header .header-inner'), t;
+    if(!h || h._ddfFreshWatch || !window.MutationObserver) return;
+    h._ddfFreshWatch = true;
+    new MutationObserver(function(){ clearTimeout(t); t = setTimeout(function(){ try{ window.DDF.leagueMeta.refresh(); }catch(e){} }, 60); })
+      .observe(h, {attributes:true, attributeFilter:['hidden'], subtree:true});
+  }
+  run();
+  document.addEventListener('DOMContentLoaded', function(){ watchHeader(); run(); });
+  window.addEventListener('load', run);
+  document.addEventListener('ddf:link', run);
 })();

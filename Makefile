@@ -123,12 +123,16 @@ test-unit-modules:
 	python3 -m unittest tests.test_baseline_reds
 	python3 -m unittest tests.test_chromium_resolver
 	python3 -m unittest tests.test_run_suite
+	# Page speed: a saved league costs one engine rebuild on load (call counts, not timings).
+	python3 -m unittest tests.test_engine_saved_league_pipeline_runs
 	# JEG-1275: selected-package composition preview view model (node, no browser).
 	python3 -m unittest tests.test_package_composition_preview_contract
 	# Render-sweep coverage guard (JEG-976): a warning, not a deploy gate (Jeremy, 2026-10-26).
 	python3 -m unittest tests.test_render_sweep_coverage
 	python3 -m unittest tests.test_render_sweep_shards
 	python3 -m unittest tests.test_validate_runner
+	# Page speed: engine pages preload the engine data, and every preload is used (request counts).
+	python3 -m unittest tests.test_engine_data_preload
 	python3 -m unittest tests.test_doc_staleness
 	python3 -m unittest tests.test_managed_agents_retired
 	python3 -m unittest tests.test_mcp_remote
@@ -559,6 +563,8 @@ test-unit-modules:
 	python3 -m unittest tests.test_v2_phone_layout_collapse_render
 	python3 -m unittest tests.test_v2_phone_safe_area_render
 	python3 -m unittest tests.test_v2_phone_target_size_render
+	# Page speed: an engine page's first load runs the value pipeline once (call counts, not timings).
+	python3 -m unittest tests.test_engine_boot_pipeline_runs
 	# Dashboard render harnesses (JEG-308/310/312/318) that no target ran
 	# until 2026-10-08. They need tests/rendered_gate's playwright-core
 	# (npm ci --prefix tests/rendered_gate) and a Chromium (CHROMIUM_PATH).
@@ -807,6 +813,7 @@ test-core:
 	python3 -m unittest tests.test_v2_phone_layout_render
 	python3 -m unittest tests.test_v2_phone_context_row_render
 	python3 -m unittest tests.test_v2_hamburger_nav_render
+	python3 -m unittest tests.test_source_freshness_render
 	python3 -m unittest tests.test_v2_desktop_menu_render
 	python3 -m unittest tests.test_v2_phone_rank_overflow_render
 	python3 -m unittest tests.test_v2_phone_source_links_render
@@ -844,6 +851,8 @@ test-core:
 	python3 -m unittest tests.test_legacy_routes
 	python3 -m unittest tests.test_legacy_links_state
 	python3 -m unittest tests.test_values_zero_override
+	# Values: find a player and see comparably valued players (values-search.js).
+	python3 -m unittest tests.test_values_player_search_render
 	python3 -m unittest tests.test_build_root_pages
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
@@ -1049,6 +1058,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_legacy_routes
 	python3 -m unittest tests.test_legacy_links_state
 	python3 -m unittest tests.test_values_zero_override
+	# Values: find a player and see comparably valued players (values-search.js).
+	python3 -m unittest tests.test_values_player_search_render
 	python3 -m unittest tests.test_build_root_pages
 	# JEG-1537: build.html engine parity and the Compare a trade redirects.
 	python3 -m unittest tests.test_build_page_engine_parity
@@ -1084,6 +1095,7 @@ test-core-shard-4:
 	python3 -m unittest tests.test_compare_evidence_view_contract
 	python3 -m unittest tests.test_v2_phone_landscape_render
 	python3 -m unittest tests.test_v2_hamburger_nav_render
+	python3 -m unittest tests.test_source_freshness_render
 	python3 -m unittest tests.test_v2_phone_trade_actions_render
 	python3 -m unittest tests.test_disagreement_units_render
 	python3 -m unittest tests.test_bench_share_readout_matches_reference
