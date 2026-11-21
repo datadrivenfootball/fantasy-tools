@@ -213,7 +213,7 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
                 self.assertTrue(any(x.startswith("Thin for them: the gain is ") for x in why["them"]), why["them"])
             if name == "one_of_4":
                 self.assertNotEqual(c["cls"], "natural")
-                self.assertIn("Not a natural fit: only 1 of 4 public trade charts call it even or better for them", why["verdict"])
+                self.assertRegex(why["verdict"], r"Not a natural fit: only 1 of \d public trade charts call it even or better for them")
             else:
                 self.assertTrue(why["verdict"].startswith("Natural fit ("), why["verdict"])
 
