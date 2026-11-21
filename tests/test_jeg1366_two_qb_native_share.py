@@ -111,7 +111,7 @@ class ReferenceWeights(unittest.TestCase):
         for scoring in ref.SCORINGS:
             for teams in ref.TEAM_COUNTS:
                 with self.subTest(scoring=scoring, teams=teams):
-                    res = ref.Setting(self.inp, scoring, teams, qb=2).result()
+                    res = ref.Setting(self.inp, scoring, teams, qb=2, hist=ref.History(ref.HISTORY)).result()
                     self.assertAlmostEqual(qb_weight(res), projection_qb_weight(res), places=9)
                     self.assertAlmostEqual(sum(res["ddf_weights"].values()), 1.0, places=9)
 
@@ -133,7 +133,7 @@ class ReferenceWeights(unittest.TestCase):
             return w
 
         with mock.patch.object(ref, "two_qb_native_weights", side_effect=check_allocation):
-            res = ref.Setting(self.inp, "ppr", 12, qb=2).result()
+            res = ref.Setting(self.inp, "ppr", 12, qb=2, hist=ref.History(ref.HISTORY)).result()
         mix = res["allocation_mix"]
         self.assertGreater(len(mix), 1)
         self.assertEqual(len(per_allocation), len(mix))
@@ -144,7 +144,7 @@ class ReferenceWeights(unittest.TestCase):
     def test_two_qb_prices_qbs_above_superflex(self):
         """On the current 12-team PPR fixture the native QB share and the
         top QB value exceed the corresponding superflex setting."""
-        two = ref.Setting(self.inp, "ppr", 12, qb=2)
+        two = ref.Setting(self.inp, "ppr", 12, qb=2, hist=ref.History(ref.HISTORY))
         sf = ref.Setting(self.inp, "ppr", 12, superflex=1)
         self.assertGreater(qb_weight(two.result()), qb_weight(sf.result()) + 0.02)
         pos = {k: p["pos"] for k, p in self.inp.players.items()}
@@ -180,7 +180,7 @@ class ReferenceBenchShare(unittest.TestCase):
                 and res["sources"][k]["weights"] is not None]
 
     def test_fixed_bench_share_rescales_starters_and_bench_separately(self):
-        res = ref.Setting(self.inp, "ppr", 12, qb=2, bench_share_override=0.1).result()
+        res = ref.Setting(self.inp, "ppr", 12, qb=2, bench_share_override=0.1, hist=ref.History(ref.HISTORY)).result()
         w, projs = res["ddf_weights"], self.projections(res)
         self.assertAlmostEqual(sum(w[f"{p}|bench"] for p in ref.POSITIONS), 0.1, places=9)
         self.assertAlmostEqual(sum(w.values()), 1.0, places=9)
@@ -189,7 +189,7 @@ class ReferenceBenchShare(unittest.TestCase):
             self.assertAlmostEqual(w[f"QB|{role}"], want, places=9)
 
     def test_computed_bench_share_is_the_reweighted_bench_total(self):
-        res = ref.Setting(self.inp, "ppr", 12, qb=2).result()
+        res = ref.Setting(self.inp, "ppr", 12, qb=2, hist=ref.History(ref.HISTORY)).result()
         bench = sum(res["ddf_weights"][f"{p}|bench"] for p in ref.POSITIONS)
         self.assertAlmostEqual(res["bench_share_applied"], bench, places=12)
         inc = [k for k in res["included"] if res["sources"][k]["weights"] is not None]
@@ -199,7 +199,7 @@ class ReferenceBenchShare(unittest.TestCase):
     def test_two_qb_with_a_superflex_slot_keeps_every_sources_share(self):
         """QB 2 plus a superflex slot is a superflex league: the QB weight is the
         mean over every included source, not the projections' alone."""
-        res = ref.Setting(self.inp, "ppr", 12, qb=2, superflex=1).result()
+        res = ref.Setting(self.inp, "ppr", 12, qb=2, superflex=1, hist=ref.History(ref.HISTORY)).result()
         inc = [k for k in res["included"] if res["sources"][k]["weights"] is not None]
         every = sum(res["sources"][k]["weights"]["QB|starter"] + res["sources"][k]["weights"]["QB|bench"]
                     for k in inc) / len(inc)
@@ -288,7 +288,7 @@ class Engine(unittest.TestCase):
                 with self.subTest(scoring=scoring, teams=teams):
                     league = {**TWO_QB, "scoring": scoring, "teams": teams}
                     edge = {int(k): v for k, v in self.edge(league).items()}
-                    rows = ref.Setting(self.inp, scoring, teams, qb=2).rows("adj")
+                    rows = ref.Setting(self.inp, scoring, teams, qb=2, hist=ref.History(ref.HISTORY)).rows("adj")
                     want = {int(k): v["ddf_value"] for k, v in rows.items()
                             if isinstance(v.get("ddf_value"), (int, float))}
                     self.assertGreater(len(edge), 50)
@@ -308,10 +308,10 @@ class Engine(unittest.TestCase):
         self.assertAlmostEqual(got["bench_share_applied"], res["bench_share_applied"], places=9)
 
     def test_engine_weights_and_bench_share_equal_the_reference(self):
-        self.assert_weights_match(TWO_QB, ref.Setting(self.inp, "ppr", 12, qb=2).result())
+        self.assert_weights_match(TWO_QB, ref.Setting(self.inp, "ppr", 12, qb=2, hist=ref.History(ref.HISTORY)).result())
 
     def test_engine_fixed_bench_share_equals_the_reference(self):
-        setting = ref.Setting(self.inp, "ppr", 12, qb=2, bench_share_override=0.1)
+        setting = ref.Setting(self.inp, "ppr", 12, qb=2, bench_share_override=0.1, hist=ref.History(ref.HISTORY))
         self.assert_weights_match(TWO_QB, setting.result(), "--bench-share-override", "0.1")
         edge = {int(k): v for k, v in self.edge(TWO_QB, "--bench-share-override", "0.1").items()}
         want = {int(k): v["ddf_value"] for k, v in setting.rows("adj").items()
@@ -322,7 +322,7 @@ class Engine(unittest.TestCase):
 
     def test_engine_two_qb_with_superflex_slot_equals_the_reference(self):
         league = {"scoring": "ppr", "teams": 12, "roster": {"QB": 2, "SUPERFLEX": 1}}
-        self.assert_weights_match(league, ref.Setting(self.inp, "ppr", 12, qb=2, superflex=1).result())
+        self.assert_weights_match(league, ref.Setting(self.inp, "ppr", 12, qb=2, superflex=1, hist=ref.History(ref.HISTORY)).result())
 
 
 if __name__ == "__main__":

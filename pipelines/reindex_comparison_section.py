@@ -304,7 +304,7 @@ def order_preserving_rescale(native, priced, anchor_of, pos_by_slug, uncalibrate
         "anchor_total": anchor_total,
         "n_priced": len(slugs),
         "n_uncalibrated": len(slugs) - len(calib),
-        "note": ("Indexed = native x one factor per chart and combo (JEG-482); "
+        "note": ("Indexed = native x one factor per chart and combo; "
                  "the chart's own order is kept across and within positions."),
     }
     return {"reindexed": reindexed, "index_total": index_total, "fit": fit}

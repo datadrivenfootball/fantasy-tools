@@ -13,6 +13,7 @@ import unittest
 
 from tests import _render_env
 from tests._dist_server import DIST, serve
+from tests._served_weeks import pinned_documents
 
 LIVE = "() => document.body.classList.contains('build-live')"
 KEYS_JS = """() => window.DDF.engine.ready.then(() => DDF.engine.players().filter(p => p.ddf !== null && p.cbs !== null && p.usat !== null && p.fp !== null)
@@ -47,7 +48,9 @@ class BuildOfferRenderTest(unittest.TestCase):
             from playwright.sync_api import sync_playwright, Error as PlaywrightError
         except Exception as exc:
             raise _render_env.unavailable(f"Playwright not available: {exc}") from exc
-        cls._serve = serve(DIST)
+        # Every source on the newest served week (tests/_served_weeks.py): a source still on last week leaves a chart out
+        # of the week and the analyst-chart lists these tests index into come up empty.
+        cls._serve = serve(DIST, {path: text.encode() for path, text in pinned_documents(DIST).items()})
         cls.base = cls._serve.__enter__()
         cls._pw = sync_playwright().start()
         try:

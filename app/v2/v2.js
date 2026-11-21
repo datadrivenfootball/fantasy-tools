@@ -3691,7 +3691,12 @@
         return {pub, name, week: base?.week, status: "held", text: "Held",
           reason: `${name} is temporarily held for a data check.`};
       }
-      const prior = (shown && own && Number(own.weeks_behind) > 0) || items.some(item => item.available && item.stale);
+      // A source still on an earlier week than the week view is left out of that view (no carry-forward). Its own
+      // pipeline can be green, but it is not current for the board, so it is "Prior week", never "Current".
+      const weekState = C.getWeekState ? C.getWeekState() : null;
+      const servedWeek = weekState?.servedWeeks?.[pub];
+      const leftOut = Number.isInteger(weekState?.week) && Number.isInteger(servedWeek) && servedWeek < weekState.week;
+      const prior = leftOut || (shown && own && Number(own.weeks_behind) > 0) || items.some(item => item.available && item.stale);
       if (prior) {
         const isChart = items.some(item => sourceMeta(item.key).method === "indexed");
         const noun = isChart ? "chart" : "projections";
@@ -3699,6 +3704,10 @@
         // of the data (the Tuesday flip), else the reference week. Same logic as the header's calendarNote.
         const target = Math.max(view.calendarWeek || 0, view.refWeek || 0);
         const shownWeek = base?.week;
+        if (leftOut) {
+          return {pub, name, week: servedWeek, status: "prior", text: "Prior week",
+            reason: `Week ${weekState.week} ${noun} not posted yet; left out of Week ${weekState.week} values.`};
+        }
         const reason = target && shownWeek && target > shownWeek
           ? `Week ${target} ${noun} not posted yet; showing Week ${shownWeek}.`
           : shownWeek ? `Has not posted this week's ${noun} yet; showing Week ${shownWeek}.` : "";

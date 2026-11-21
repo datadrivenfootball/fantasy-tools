@@ -168,8 +168,13 @@
       return "<tr><td>" + esc(p.line || p.name) + '</td><td><span class="badge recognition-ok">Matched</span></td><td>' + what + "</td></tr>";
     });
     t.unmatched.forEach(function (u) {
-      var s = STATUS[u.reason] || STATUS.missing;
-      out.push("<tr><td>" + esc(u.line) + "</td><td>" + s[0] + "</td><td>" + s[1] + "</td></tr>");
+      var s = STATUS[u.reason] || STATUS.missing, what = s[1];
+      /* the players a line could be, each with its position, so the reader picks one (none is chosen for them) */
+      var options = (u.options || []).map(function (o) { return esc(o.name) + (o.pos ? " · " + esc(o.pos) : "") + (o.team ? " · " + esc(o.team) : ""); });
+      if (options.length) what = u.reason === "look" ? "Could be " + options.join("; ") + ". " + what
+        : "Fits only a player at another position: " + options.join("; ") + ". Edit or leave this line out.";
+      if (u.reason === "kdef") what = (u.pos === "K" ? "Kicker" : "Defense") + (u.team ? " · " + esc(u.team) : "") + ". " + what;
+      out.push("<tr><td>" + esc(u.line) + "</td><td>" + s[0] + "</td><td>" + what + "</td></tr>");
     });
     return out.join("") || '<tr><td colspan="3">No players read for this team yet.</td></tr>';
   }

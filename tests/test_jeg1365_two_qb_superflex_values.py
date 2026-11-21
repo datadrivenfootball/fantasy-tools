@@ -140,7 +140,9 @@ class EndpointNatives(unittest.TestCase):
 
     def test_endpoint_equals_reference_in_a_two_qb_league(self):
         edge = {int(k): v for k, v in self.run_edge(TWO_QB).items()}
-        rows = ref.Setting(self.inp, "ppr", 12, qb=2).rows("adj")
+        # With the saved history, as the endpoint has it: a source still on last week after a rollover is left out of
+        # this week's view on both sides (2026-11-17: USA Today on Week 10; without history the reference kept it).
+        rows = ref.Setting(self.inp, "ppr", 12, qb=2, hist=ref.History(ref.HISTORY)).rows("adj")
         want = {int(k): v["ddf_value"] for k, v in rows.items()
                 if isinstance(v.get("ddf_value"), (int, float))}
         self.assertGreater(len(edge), 50)
