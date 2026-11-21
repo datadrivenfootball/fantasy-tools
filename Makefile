@@ -790,6 +790,8 @@ test-core:
 	node tests/test_entry_league_paste.js
 	# JEG-1689: league settings read from a paste (team count, lineup, bench, K and DEF; notice copy).
 	node tests/test_paste_settings.js
+	# 2026-11-22: a defense line is never a team name in a bare-name league paste.
+	node tests/test_rosterparse_defense_names.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
@@ -980,6 +982,8 @@ test-core-shard-2:
 	node tests/test_entry_league_paste.js
 	# JEG-1689: league settings read from a paste (team count, lineup, bench, K and DEF; notice copy).
 	node tests/test_paste_settings.js
+	# 2026-11-22: a defense line is never a team name in a bare-name league paste.
+	node tests/test_rosterparse_defense_names.js
 	# JEG-1570: Sleeper import (fixture API responses, no live calls).
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js

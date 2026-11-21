@@ -47,12 +47,22 @@
 
   function clean(s){ return String(s).replace(/\s+/g, ' ').replace(/^[#\d.)\s:-]+(?=[A-Za-z])/, '').replace(/\s*[\-–—|·:]\s*$/, '').replace(/^\|\s*|\s*\|$/g, '').trim(); }
   function isRow(line){ return POS.test(line); }
-  function candidate(line, set){
+  /* A line that is only an NFL defense ("Lions", "Detroit Lions", "Lions D/ST") is a roster row, not a team name.
+     In a paste of bare names every team ends with its defense line, which would otherwise read as the next team's name.
+     Only the nickname, "City Nickname" and "Nickname D/ST|DST|DEF|Defense" forms count; a city alone stays a possible
+     name. strong = the line is a heading, sits above a table header or before a ":" list, or opens the paste, so a
+     real team called "Lions" is still read there. */
+  var DEFENSE_NICK = 'cardinals|falcons|ravens|bills|panthers|bears|bengals|browns|cowboys|broncos|lions|packers|texans|colts|jaguars|chiefs|raiders|chargers|rams|dolphins|vikings|patriots|saints|giants|jets|eagles|steelers|49ers|seahawks|buccaneers|titans|commanders';
+  var DEFENSE_CITY = 'arizona|atlanta|baltimore|buffalo|carolina|chicago|cincinnati|cleveland|dallas|denver|detroit|green bay|houston|indianapolis|jacksonville|kansas city|las vegas|los angeles|miami|minnesota|new england|new orleans|new york|philadelphia|pittsburgh|san francisco|seattle|tampa bay|tennessee|washington';
+  var DEFENSE_LINE = new RegExp('^(?:(?:' + DEFENSE_CITY + ')\\s+)?(?:' + DEFENSE_NICK + ')(?:\\s+(?:d\\/st|dst|def|defense|defence))?$');
+  function isDefenseLine(s){ return DEFENSE_LINE.test(String(s).toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9\/ ]/g, '').trim()); }
+  function candidate(line, set, strong){
     var s = clean(line);
     if (s.length < 2 || s.length > 42) return '';
     if (!/[A-Za-z]/.test(s)) return '';
     if (STOP.test(s) || GAMEY.test(s)) return '';
     if (isRow(s)) return '';
+    if (!strong && (isDefenseLine(s) || isDefenseLine(line))) return '';   /* raw line too: clean() strips the "49" of "49ers" */
     if (/^\|/.test(line)) return '';
     if (/\b\d+-\d+(-\d+)?\b/.test(s) && s.length < 14) return '';
     if (set && hasKnownPlayer(s, set)) return '';
@@ -65,7 +75,7 @@
     var out = [], cur = null;
     for (var i = 0; i < L.length; i++) {
       if (i + 1 < L.length && TABLE_HEAD.test(L[i + 1].t) && !TABLE_HEAD.test(L[i].t)) {
-        var name = candidate(L[i].t, set);
+        var name = candidate(L[i].t, set, true);
         if (name) { cur = {name: name, players: 0}; out.push(cur); i++; continue; }
       }
       if (cur && SLOT_ONLY.test(L[i].t)) cur.players++;
@@ -75,7 +85,7 @@
 
   /* B: heading line (markdown # or a lone short line) before a block of player rows */
   function byBlocks(L, set, playersAsRows){
-    var out = [], seen = {}, cur = null, run = [];
+    var out = [], seen = {}, cur = null, run = [], first = L[0];
     L.forEach(function(o){
       var line = o.t, rowLike = isRow(line) || (playersAsRows && set && hasKnownPlayer(line, set));
       if (rowLike) {
@@ -90,7 +100,7 @@
       }
       if (set && hasKnownPlayer(line, set)) return;
       if (TABLE_HEAD.test(line) || /^\|/.test(o.raw.trim())) return;
-      var c = candidate(line, set);
+      var c = candidate(line, set, o.h || o === first);
       if (c) { run.push({name: c, h: o.h}); if (run.length > 4) run.shift(); } else run = [];
     });
     return out;
@@ -106,7 +116,7 @@
       if (items.length < 4) return;
       var known = set ? items.filter(function(i){ return hasKnownPlayer(i, set); }).length : 0;
       if (known < 3 && items.filter(function(i){ return isRow(i); }).length < 3) return;
-      var name = candidate(m[1], set); if (name) out.push({name: name, players: items.length});
+      var name = candidate(m[1], set, true); if (name) out.push({name: name, players: items.length});
     });
     return out;
   }
