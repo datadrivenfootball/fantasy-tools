@@ -23,6 +23,8 @@
   const F = () => window.TradeValueFinder;
   const POS_ORDER = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF'];
   const ANALYST = ['cbs', 'usatoday', 'fantasypros'];
+  // Two of the three are enough for the analyst-chart average (Jeremy 2026-11-18, option A; same rule as find-engine.js).
+  const MIN_ANALYST = 2;
   const SCORING_LABEL = {standard: 'Standard', half_ppr: 'Half PPR', ppr: 'Full PPR'};
   const LIVE_CANDS = 'ddf.v2.waiverCandidates';   // the live Waivers tab's available players (v2/waivers.js)
 
@@ -256,8 +258,8 @@
       const weights = {overall};
       ['QB', 'RB', 'WR', 'TE'].forEach(pos => { if (readout && finite(readout[pos])) weights[pos] = readout[pos]; });
       if (!shape || !expected) return null;
-      // Analyst charts = the three analyst charts' mean (all three, as finder.js withChartAverage), only when all three run.
-      const rows = new Map(Fd.withChartAverage([...ROWS.values()], analyst.length === 3 ? analyst : []).map(r => [String(r.player_key), r]));
+      // Analyst charts = the mean of the analyst charts that run (finder.js withChartAverage), when at least two of the three do.
+      const rows = new Map(Fd.withChartAverage([...ROWS.values()], analyst.length >= MIN_ANALYST ? analyst : []).map(r => [String(r.player_key), r]));
       FX = {Fd, shape, expected, weights, analyst, market: market.length >= Fd.MIN_CHARTS ? market : null, rows};
     } catch (err) { console.warn('Build a Trade: no fit context', err); FX = false; }
     return FX || null;
@@ -267,7 +269,7 @@
     const X = fitBase();
     if (!X || L.me < 0 || S.partner < 0) return null;
     const ourKey = VALUATION_KEY[$('your-valuation').value] || 'ddf_value', theirKey = VALUATION_KEY[$('their-valuation').value] || 'chart_avg';
-    if ((ourKey === 'chart_avg' || theirKey === 'chart_avg') && X.analyst.length !== 3) return {missing: 'Analyst charts are not available for this league this week.'};
+    if ((ourKey === 'chart_avg' || theirKey === 'chart_avg') && X.analyst.length < MIN_ANALYST) return {missing: 'Analyst charts are not available for this league this week.'};
     const give = rowsOf(picked('give')), get = rowsOf(picked('get'));
     try {
       const fit = X.Fd.tradeFit({mine: {roster: rowsOf(myRosterKeys()), leaving: give, arriving: get}, theirs: {roster: rowsOf(L.teams[S.partner].keys), leaving: get, arriving: give}},
@@ -778,7 +780,7 @@
     if (!X || !(S.mode === 'league' && L.available) || S.partner < 0) return null;
     const raw = keys => keys.map(k => ROWS.get(String(k))).filter(Boolean);
     const ui = f && f.ui, depth = ui && ui.depthContext ? ui.depthContext() : null;
-    const analyst = X.analyst.length === 3 ? X.analyst : null;
+    const analyst = X.analyst.length >= MIN_ANALYST ? X.analyst : null;
     return {trade: {mine: raw(myRosterKeys()), theirs: raw(L.teams[S.partner].keys), give: raw(picked('give')), receive: raw(picked('get'))},
       ctx: {shape: X.shape, expected: depth ? depth.expected : X.expected, weights: ui && ui.benchWeights ? ui.benchWeights() : X.weights,
         analyst, chartKeys: analyst || undefined, senderKey: 'ddf_value', partnerKey: 'chart_avg'}};

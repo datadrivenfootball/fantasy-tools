@@ -116,6 +116,7 @@
     var ctx = DDF.find.context();
     if (!ctx) return;
     S.chartTotal = ctx.gate.length;
+    S.ctx = ctx;
     var list = partners(cur);
     fillPartners(list);
     fillBench(me, ctx);
@@ -130,7 +131,7 @@
     S.sig = sig;
     var token = ++S.token;
     var mine = DDF.find.rowsOf(me), opts = {your: basis().yv, their: basis().tv, sizes: sizes(), minBench: minBench(), held: held(), waivers: waiverPool()};
-    var groups = [], notes = {sanity: 0, guardrail: 0, partial: [], unjudged: false, searchedTop: false};
+    var groups = [], notes = {sanity: 0, guardrail: 0, partial: [], unjudged: false, unjudgedCharts: false, searchedTop: false};
     S.running = true;
     for (var i = 0; i < list.length; i++) {
       $("search-status").textContent = "Searching " + (i + 1) + " of " + list.length + " teams: " + list[i].name + ".";
@@ -140,6 +141,7 @@
       notes.sanity += res.sanityDropped; notes.guardrail += res.guardrailDropped;
       if (res.partial) notes.partial.push(list[i].name);
       if (!res.judged) notes.unjudged = true;
+      if (res.unjudged === "charts") notes.unjudgedCharts = true;
       if (res.searched.mine.searched < res.searched.mine.of || res.searched.theirs.searched < res.searched.theirs.of) notes.searchedTop = true;
       var team = list[i], theirRows = DDF.find.rowsOf(list[i]);
       DDF.find.group(res.trades, opts).forEach(function (g) {
@@ -152,6 +154,23 @@
     finish();
   }
   function finish() { $("search-status").textContent = statusText(); render(); }
+  // Option A (Jeremy 2026-11-18): one analyst chart on hold, so an analyst-chart valuation uses the other two. Said in
+  // plain words wherever that valuation is picked; nothing when it is not (DDF on both sides reads no analyst chart).
+  var usesAnalyst = function () { var B = basis(); return B.yv === "Market" || B.tv === "Market"; };
+  function heldNames() { return DDF.find.chartNames(S.ctx && S.ctx.analystMissing); }
+  function analystNote() {
+    var ctx = S.ctx, missing = ctx && ctx.analystMissing || [];
+    if (!S.cur || !DDF.league.myTeam() || !ctx || !ctx.analyst || !missing.length || !usesAnalyst()) return "";
+    return heldNames() + (missing.length === 1 ? " is" : " are") + " on hold this week, so fit on the analyst charts uses "
+      + DDF.find.chartNames(ctx.analyst) + ".";
+  }
+  // No fit label: fewer than two analyst charts for an analyst-chart valuation, or no lineup settings / expected depth.
+  // The empty sections say why instead of "no offers".
+  function unjudgedText() {
+    var missing = S.ctx && S.ctx.analystMissing || [];
+    if (!(S.notes && S.notes.unjudgedCharts)) return "Fit can’t be judged: this league’s lineup settings are not available";
+    return "Fit can’t be judged this week: " + (missing.length ? heldNames() + (missing.length === 1 ? " is" : " are") + " on hold" : "not enough analyst charts are available");
+  }
   function statusText() {
     if (!S.cur || !DDF.league.myTeam()) return "";
     var n = S.notes || {}, parts = [];
@@ -161,7 +180,7 @@
     if (n.sanity) parts.push(n.sanity + (n.sanity === 1 ? " trade was" : " trades were") + " left out because a starting lineup would be short at a position.");
     if (n.searchedTop) parts.push("Large rosters are searched among each team's top players by your valuation.");
     if (n.partial && n.partial.length) parts.push("Partial roster: " + n.partial.join(", ") + ".");
-    if (n.unjudged) parts.push("Fit is not judged: not enough analyst charts are available this week.");
+    if (n.unjudged) parts.push(unjudgedText() + ".");
     if (held().size) parts.push("Players you hold are left out.");
     return parts.join(" ");
   }
@@ -281,10 +300,15 @@
     updateChips();
     var v = visible();
     var empty = S.running ? "Searching your league." : "No offers clear the bar. Add partners, allow more players each side, or lower the minimum bench." + (minChartsValue() ? " The public charts filter is also on: set it to Any to see every offer." : "");
+    // Natural and Force fits need a fit label: when none could be judged, their empty text says so (the offers are listed
+    // under Partner neutral as "Fit not judged").
+    var unjudged = !S.running && S.notes && S.notes.unjudged ? unjudgedText() + ". Offers are listed under Partner neutral as “Fit not judged”." : null;
     updateChartsNote();
-    section("natural-count", v.list.filter(function (g) { return g.cls === "natural"; }), "natural-table", empty);
+    $("analyst-note").textContent = analystNote();
+    $("analyst-note").hidden = !$("analyst-note").textContent;
+    section("natural-count", v.list.filter(function (g) { return g.cls === "natural"; }), "natural-table", unjudged || empty);
     section("neutral-count", v.list.filter(function (g) { return g.cls === "neutral" || g.cls === "unjudged"; }), "all-table", empty);
-    section("force-count", v.list.filter(function (g) { return g.cls === "force"; }), "force-table", empty);
+    section("force-count", v.list.filter(function (g) { return g.cls === "force"; }), "force-table", unjudged || empty);
     $("sec-force").hidden = $("fit").value !== "force" || $("sec-natural").hidden;
     $("force-note").textContent = v.forceHidden ? v.forceHidden + (v.forceHidden === 1 ? " force fit is" : " force fits are") + " not listed. Pick Fit: Force fits to see " + (v.forceHidden === 1 ? "it" : "them") + "." : "";
     footerTargets = $("sec-natural").hidden ? 0 : v.list.length;
