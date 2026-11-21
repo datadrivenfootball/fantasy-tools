@@ -284,6 +284,47 @@ class LeagueStateRender(unittest.TestCase):
         self.assertTrue(cur["leagueStateReason"])
 
 
+class V2SettingsSaveMarker(unittest.TestCase):
+    """v2.js saveLeagueSettings must carry the weeksFilled marker even when other settings are at the site default (P2, v2.js)."""
+
+    def test_v2_settings_save_keeps_weeksFilled_marker(self):
+        # Regression for P2 (review of 5badd37): saveLeagueSettings() overwrote ddf.v2.league-settings without
+        # weeksFilled, so a page reload after any v2 settings change lost the import-filled marker and a later Sleeper
+        # import was refused ("set by the reader") instead of updating the weeks.
+        # Pre-seed the record with weeksFilled only (all other settings at the site default). isDefault=True, so without
+        # the fix saveLeagueSettings removes the record and the marker is gone. With the fix it is kept.
+        _render_env.ensure_built()
+        from playwright.sync_api import sync_playwright
+        from tests._dist_server import serve, V2_URL
+        marker = {"regularEnd": 13, "playoffLo": 14, "playoffHi": 17}
+        seed = json.dumps({"v": 1, "weeksFilled": marker})
+        with serve() as base, sync_playwright() as pw:
+            browser = pw.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=_render_env.chromium_executable())
+            ctx = browser.new_context(viewport={"width": 1200, "height": 900})
+            ctx.add_init_script("localStorage.setItem('ddf.v2.league-settings', %s)" % json.dumps(seed))
+            page = ctx.new_page()
+            page.route(lambda u: not (u.startswith("http://127.0.0.1") or u.startswith("http://localhost")), lambda r: r.abort())
+            page.goto(f"{base}/{V2_URL}", wait_until="networkidle", timeout=90000)
+            page.wait_for_function("() => window.DDFAssist && window.TradeValueV2 && TradeValueV2.leagueInputs", timeout=60000)
+            # Trigger saveLeagueSettings via applyLinkLeague (save=true, no settings change -> early-return path)
+            page.evaluate("() => TradeValueV2.applyLinkLeague(new URLSearchParams(''), {save: true})")
+            saved_raw = page.evaluate("() => localStorage.getItem('ddf.v2.league-settings')")
+            self.assertIsNotNone(saved_raw, "saveLeagueSettings must not remove the record when weeksFilled is set")
+            saved = json.loads(saved_raw)
+            self.assertEqual(saved.get("weeksFilled"), marker, "weeksFilled must survive saveLeagueSettings")
+            # After reload, the engine must restore weeksMarker from the saved record
+            page.reload(wait_until="networkidle")
+            page.wait_for_function("() => window.DDFAssist && window.TradeValueV2 && TradeValueV2.leagueInputs", timeout=60000)
+            # On reload, the engine reads ddf.v2.league-settings again and restores weeksFilled via applySaved.
+            # On the v2 page there is no ddf-engine.js; check the saved record directly.
+            restored_raw = page.evaluate("() => localStorage.getItem('ddf.v2.league-settings')")
+            restored = json.loads(restored_raw or "null")
+            self.assertIsNotNone(restored, "ddf.v2.league-settings must persist after reload")
+            restored = restored.get("weeksFilled")
+            self.assertEqual(restored, marker, "weeksFilled must survive a reload after saveLeagueSettings")
+            browser.close()
+
+
 class AssistStateGuard(unittest.TestCase):
     """v2.js: the ddf-state block carries the reader's saved league-state, and not on a page showing a shared link's league."""
 
