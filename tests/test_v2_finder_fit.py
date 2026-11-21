@@ -440,8 +440,9 @@ def check(finder_js: Path) -> list[str]:
     # 29. No regression from dropping the old construction checks: a starter lost with a worse bench player promoted
     # (the check 5 trade) lowers your best-lineup total, so it is not Natural on your side.
     f = fit(finder_js, mine5, theirs5, pick(mine5, "c5RB0"), pick(theirs5, "t5WR2"))
-    if f["label"] == "natural" or f["natural"]["us"]["startersOk"] is not False or f["us"]["starterDelta"] >= -0.05:
-        say(f"check 29 a starter lost to a worse promoted player should fail your side: {f['label']} {f['natural']['us']}")
+    rule = {r["key"]: r["ok"] for r in f["natural"]["rules"]}
+    if f["label"] == "natural" or rule.get("your-starters") is not False or f["us"]["starterDelta"] >= -0.05:
+        say(f"check 29 a starter lost to a worse promoted player should fail your best-lineup rule: {f['label']} {rule}")
 
     # 31. Jeremy, 2026-11-21: a bench-depth-only reason needs a bench-weighted gain of at least 1% of that side's starters
     # (measured after bench weighting, not on raw value). You get a bench RB worth 5 for a bench WR worth 3: +2.0 raw,
@@ -460,6 +461,17 @@ def check(finder_js: Path) -> list[str]:
         say(f"check 32 a large projection fall should block: {f['label']} {f['natural']['them']}")
     elif "more than 5% of their starters on projections" not in call(finder_js, "fitText", f):
         say(f"check 32 text: {call(finder_js, 'fitText', f)!r}")
+
+    # 27b. A newly empty starting slot fails "your best lineup does not get weaker" even when the starter total is flat:
+    # your only RB is valued 0.0 and leaves (2026-11-21: the empty-slot rule is folded into the best-lineup rule).
+    mine27 = team("e27", [20], [], [20, 15, 10], [10]) + [p("e27RB", "RB", 0, market=12)]
+    theirs27 = team("t27", [22], [25, 12, 10], [18, 15, 10, 9], [11])
+    f = fit(finder_js, mine27, theirs27, pick(mine27, "e27RB"), pick(theirs27, "t27WR3"))
+    rule = {r["key"]: r["ok"] for r in f["natural"]["rules"]}
+    if not (abs(f["us"]["starterDelta"]) < 0.05 and f["us"]["emptyAfter"] > f["us"]["emptyBefore"]):
+        say(f"check 27b setup: starters {f['us']['starterDelta']:.2f} empty {f['us']['emptyBefore']} -> {f['us']['emptyAfter']}")
+    elif rule.get("your-starters") is not False or "your lineup is left with an empty starting slot" not in call(finder_js, "fitText", f):
+        say(f"check 27b a newly empty slot should fail the best-lineup rule: {rule} {call(finder_js, 'fitText', f)!r}")
 
     # 27. An empty starting slot on either side is never Natural (the check 6 trade).
     f = fit(finder_js, mine6, theirs6, pick(mine6, "c6RB0"), pick(theirs6, "t6WR2"))
@@ -483,33 +495,32 @@ MUTANTS = {
     "starter drop allowed": ("const yourStartersOk = us.starterDelta >= -NET_FLOOR;", "const yourStartersOk = true;"),
     "their loss allowed": ("const theirUp = Boolean(them) && them.net > NET_FLOOR;", "const theirUp = Boolean(them) && them.net >= -them.tau;"),
     # Natural fit 2 (Jeremy, 2026-11-19).
-    "charts ignored": ("const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;", "const chartsOk = true;"),
+    "charts ignored": ('ok: Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS}};', 'ok: true}};'),
     "bench never a reason": ("const bench = Boolean(allowBench) && t.benchDelta > NET_FLOOR && finite(t.starterBefore)", "const bench = false && finite(t.starterBefore)"),
     # "their reason not needed" is gone: with bench depth a reason for them (2026-11-21), a total that rises past 0.05
     # almost always carries a starters or bench reason, so that mutant is not separable on a hand-made roster.
-    "their projections veto": ("themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && !projBlock;", "themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && themProj !== false;"),
-    "their starters may fall": ("const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;", "const theirStartersOk = Boolean(them);"),
+    "their projections veto": ('{key: "their-projections", pass: n => !n.them.projBlock,', '{key: "their-projections", pass: n => n.them.projections !== false,'),
+    "their starters may fall": ('{key: "their-starters", pass: n => n.them.startersOk,', '{key: "their-starters", pass: n => true,'),
+    "your starters may fall": ('{key: "your-starters", pass: n => n.us.startersOk,', '{key: "your-starters", pass: n => true,'),
     "their bench never a reason": ("const ur = sideReason(us, true), tr = sideReason(them, true);", "const ur = sideReason(us, true), tr = sideReason(them, false);"),
-    "checks drop the charts row": ('{key: "charts", ok: n.charts.ok,', '{key: "charts", ok: true,'),
+    "checks drop the charts row": ('const rows = NATURAL_RULES.map((r, i) => ({key: r.key, ok: n.rules[i].ok,', 'const rows = NATURAL_RULES.map((r, i) => ({key: r.key, ok: r.key === "charts" || n.rules[i].ok,'),
+    # "your side needs no rise" / "needs the noise floor" are gone: "your total rises" was dropped as never deciding
+    # (2026-11-21 simplification); check 13 now pins "a real gain" instead.
     "bench share ignored": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& true;"),
     "bench share on raw value": ("&& t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;", "&& t.benchRawDelta >= BENCH_MIN_SHARE * t.starterBefore;"),
-    "large projection fall allowed": ("themSide.lineup && pctOk && !projBlock;", "themSide.lineup && pctOk;"),
+    "large projection fall allowed": ('{key: "their-projections", pass: n => !n.them.projBlock,', '{key: "their-projections", pass: n => true,'),
     "thin never flagged": ("const thin = theirUp && share !== null && share < THIN_SHARE;", "const thin = false;"),
-    "empty slot allowed": ("const lineup = t => Boolean(t) && t.emptyAfter === 0;", "const lineup = t => Boolean(t);"),
+    "empty slot allowed": ("const lineupHolds = t => Boolean(t) && t.starterDelta >= -NET_FLOOR && t.emptyAfter <= t.emptyBefore;", "const lineupHolds = t => Boolean(t) && t.starterDelta >= -NET_FLOOR;"),
     "noise ignored": ("const tau = Math.max(NET_FLOOR, (finite(ctx.z) ? ctx.z : FIT_Z) * noise);", "const tau = NET_FLOOR;"),
-    "your side needs the noise floor": ("const yourTotalUp = us.net > NET_FLOOR;", "const yourTotalUp = us.net > us.tau;"),
-    "your side needs no rise": ("const yourTotalUp = us.net > NET_FLOOR;", "const yourTotalUp = us.net > -1000;"),
     "market needs the noise floor": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > them.tau;"),
     "market needs no gain": ("const marketSupported = theirNet > NET_FLOOR;", "const marketSupported = theirNet > -1000;"),
     "market always": ('const label = isNatural ? "natural" : marketSupported ? "market" : "force";', 'const label = "market";'),
     # JEG-1324: the 1a projections test.
-    "projections ignored": ("usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;",
-                            "usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup;"),
+    "projections ignored": ('{key: "your-projections", pass: n => n.us.projections === true,', '{key: "your-projections", pass: n => true,'),
     "your projections never fall": ("usProjNet: projected ? usProj.net : null", "usProjNet: projected ? 0 : null"),
     "no tolerance": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0"),
     "tolerance inclusive": ("net >= 0 || Math.abs(net) < PROJ_FLOOR", "net >= 0 || Math.abs(net) <= PROJ_FLOOR + 1e-9"),
-    "missing projection read as level": ("usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;",
-                                         "usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj !== false;"),
+    "missing projection read as level": ('{key: "your-projections", pass: n => n.us.projections === true,', '{key: "your-projections", pass: n => n.us.projections !== false,'),
     # JEG-1639's -3% mutants are gone: under Natural fit 2 their total must rise on the same measure, so the percent
     # test cannot bind (tests.test_natural_pct_agree keeps the band arithmetic).
     "tiers reversed": ("a.t - b.t || a.i - b.i", "b.t - a.t || a.i - b.i"),

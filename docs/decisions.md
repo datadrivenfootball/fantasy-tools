@@ -1084,7 +1084,11 @@ Jeremy, 2026-11-21, on the review's judgement calls: (1) a bench-depth-only reas
 the players added to that side's bench are worth (raw value) at least 1% of its starters total (`BENCH_MIN_SHARE`),
 besides the bench-weighted gain past 0.05; (2) their projection-based value falling by more than 5% of their starters'
 projection-based total blocks Natural (`PROJ_BLOCK_SHARE`); a smaller fall stays a caution; (3) keep 2 of 4 charts and
-the thin flag; (4) a player valued 0.0 can fill a position they are short at (no change).
+the thin flag; (4) a player valued 0.0 can fill a position they are short at (no change). Later the same day: the 1% bench
+minimum is measured on the bench-weighted gain, and on the rulebook review "I'm ok if there are more than 5 rules so long as
+the overall objective is achieved, but avoid unnecessary complexity": the rules are one list, `NATURAL_RULES` (8 rules plus
+the Find page's free-pickup check); "your total rises", their -3% roster test and the separate empty-slot rule were
+removed or folded (none decided an offer on the 3,068 USO offers; 0 label changes).
 Built in `naturalFit` / `naturalMisses` / `naturalTags` (`app/v2/finder.js`); the chart count is `judgeSums` over
 `ctx.gateKeys`, the same call that gives the card's n/4. Kept from 1a: your side's DDF Value total up with starters no
 worse, and your DDF Value (projections) not falling. "No bench player promoted" and "no starter lost without one back" are

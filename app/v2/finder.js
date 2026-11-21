@@ -870,23 +870,24 @@
     const pct = finite(before) && before >= PCT_MIN_BASE ? 100 * delta / before : null;
     return {key: key || OUR_KEY, before, after: next, delta, pct, shown: shownPct(pct), band: pctBand(pct)};
   }
-  // Natural fit 2 (Jeremy, 2026-11-19; replaces the 1a value and construction tests). A trade is a Natural fit only when
-  // both sides have a real reason:
-  //   yours   your valuation's total (starters plus bench at bench weight) up past 0.05 with starters no worse, AND a reason:
-  //           your starters improve past 0.05, a position you are short at is filled, or it adds bench depth (the
-  //           bench-weighted change past 0.05; reason "bench", shown as Bench depth, never as a starter upgrade); AND your
-  //           DDF Value (projections) holds (unchanged from 1a; a side not judged is not Natural).
-  //   theirs  their valuation's total up past 0.05 (not merely inside the charts' disagreement allowance) AND a reason: their
-  //           starters improve past 0.05, a position they are short at is filled, or bench depth (Jeremy, 2026-11-21: bench
-  //           depth is a reason for them too, tagged), AND their starters no worse. Their DDF Value (projections) falling is a
-  //           caution for the Why, not a veto. A gain under THIN_SHARE (1%) of their starters total is flagged thin.
-  //   starters (Jeremy, 2026-11-21) neither side's best-lineup starter total (lineupValue: who ends up starting under the
-  //           league's slots, before vs after) may fall past 0.05: yours on your valuation, theirs on theirs. This replaces
-  //           the "bench player promoted" and "starter lost with none back" checks: a worse replacement lowers the total.
-  //   charts  at least NATURAL_MIN_CHARTS (2) of the public trade charts call it even or better for them (the card's n/4).
-  //   lineups neither side is left with an empty starting slot.
-  // JEG-1639's test stays on their side: their roster not clearly worse (-3% or more, rosterChangePct, the Why's number).
-  // parts: {yourValueOk, us, them (teamFit sides), usProjNet, themProjNet (null when not judged), theirPct, charts:{agree, total}}.
+  // Natural fit (Jeremy, 2026-11-19 and 2026-11-21; simplified 2026-11-21: "avoid unnecessary complexity"). The objective:
+  // good for your starting lineup, good for theirs on their valuation (so they would plausibly accept), supported by the
+  // public charts, and not beaten by a free pickup. The rules, in NATURAL_RULES below (the one list the label, the Why,
+  // the checklists, the tooltips and the connector's reason all read):
+  //   1 your best lineup does not get weaker (starter total not down past 0.05, no newly empty starting slot)
+  //   2 a real gain for you: starters up past 0.05, a position you are short at filled, or bench depth whose
+  //     bench-weighted gain is at least 1% of your starters (tagged Bench depth)
+  //   3 your projection-based value does not fall
+  //   4 their total rises past 0.05 on their valuation
+  //   5 their best lineup does not get weaker on their valuation
+  //   6 a real gain for them, as 2 (tagged Bench depth for them)
+  //   7 their projection-based value does not fall more than 5% of their starters on projections (a smaller fall is a
+  //     caution line)
+  //   8 at least 2 of the public trade charts call it even or better for them
+  //   (9 a free pickup does not get most of the gain: find-engine.js waiverAlternative, on the Find page)
+  // Dropped as never deciding on the 3,068 USO offers: "your total rises" and their -3% roster test (both implied by the
+  // rules above); the separate empty-slot rule is folded into 1 and 5. A gain under 1% of their starters is tagged thin.
+  // parts: {us, them (teamFit sides), usProjNet, themProjNet, themProjStarters (null when not judged), theirPct, charts}.
   const NATURAL_MIN_CHARTS = 2;
   const THIN_SHARE = 0.01;
   // Jeremy, 2026-11-21: a bench-depth-only reason needs a real gain: that side's bench-weighted gain (the fit's own
@@ -903,32 +904,55 @@
       && t.benchDelta >= BENCH_MIN_SHARE * t.starterBefore;
     return {kind: starters ? "starters" : need.length || slot ? "need" : bench ? "bench" : null, starters, need, slot, bench};
   }
+  const lineupHolds = t => Boolean(t) && t.starterDelta >= -NET_FLOOR && t.emptyAfter <= t.emptyBefore;
+  // The rules (see above). pass(n) reads the facts naturalFit computes; miss(n, fit, view) words a failed rule.
+  const pctText = n => Math.round(n * 100) + "%";
+  const NATURAL_RULES = [
+    {key: "your-starters", pass: n => n.us.startersOk, text: "Your best lineup does not get weaker",
+      miss: (n, f, v) => f.us.emptyAfter > f.us.emptyBefore ? "your lineup is left with an empty starting slot" : `your starters drop ${Math.abs(f.us.starterDelta).toFixed(1)} on ${v(f.us)}`},
+    {key: "your-reason", pass: n => Boolean(n.us.reason), text: `A real gain for you (starters, a short position, or bench depth worth ${pctText(BENCH_MIN_SHARE)} of your starters)`,
+      miss: () => `nothing improves your starters, fills a position you are short at or adds bench depth worth ${pctText(BENCH_MIN_SHARE)} of your starters`},
+    {key: "your-projections", pass: n => n.us.projections === true, text: "Your projection-based value does not fall",
+      miss: n => n.us.projections === null ? "a player in the trade has no projection-based value, so your side is not checked" : `your projection-based value falls ${Math.abs(n.us.projNet).toFixed(1)}`},
+    {key: "their-total", pass: n => n.them.value, text: "Their total rises on their valuation",
+      miss: (n, f, v) => f.them.net < -NET_FLOOR ? `they lose ${Math.abs(f.them.net).toFixed(1)} on ${v(f.them)}` : `their total does not rise on ${v(f.them)} (${fitFmt(f.them.net)})`},
+    {key: "their-starters", pass: n => n.them.startersOk, text: "Their best lineup does not get weaker",
+      miss: (n, f, v) => f.them.emptyAfter > f.them.emptyBefore ? "their lineup is left with an empty starting slot" : `their starters drop ${Math.abs(f.them.starterDelta).toFixed(1)} on ${v(f.them)}`},
+    {key: "their-reason", pass: n => Boolean(n.them.reason), text: `A real gain for them (starters, a short position, or bench depth worth ${pctText(BENCH_MIN_SHARE)} of their starters)`,
+      miss: () => `nothing improves their starters, fills a position they are short at or adds bench depth worth ${pctText(BENCH_MIN_SHARE)} of their starters`},
+    {key: "their-projections", pass: n => !n.them.projBlock, text: `Their projection-based value does not fall more than ${pctText(PROJ_BLOCK_SHARE)} of their starters`,
+      miss: n => `their projection-based value falls ${Math.abs(n.them.projNet).toFixed(1)}, more than ${pctText(PROJ_BLOCK_SHARE)} of their starters on projections`},
+    {key: "charts", pass: n => n.charts.ok, text: `At least ${NATURAL_MIN_CHARTS} public trade charts even or better for them`,
+      miss: n => `only ${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts call it even or better for them (${n.charts.min} needed)`}
+  ];
   function naturalFit(parts) {
     const us = parts.us || null, them = parts.them || null;
-    const lineup = t => Boolean(t) && t.emptyAfter === 0;
     const ur = sideReason(us, true), tr = sideReason(them, true);
     const usProj = projectionsHold(parts.usProjNet), themProj = projectionsHold(parts.themProjNet);
     const pct = parts.theirPct || null;
-    const pctOk = !(pct && pct.band === "clearly_worse");
     const theirUp = Boolean(them) && them.net > NET_FLOOR;
     const share = them && finite(them.starterBefore) && them.starterBefore > 0 ? them.net / them.starterBefore : null;
     const thin = theirUp && share !== null && share < THIN_SHARE;
     const charts = parts.charts && finite(parts.charts.agree) ? parts.charts : null;
-    const chartsOk = Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS;
-    const usSide = {value: Boolean(parts.yourValueOk), reason: ur.kind, starters: ur.starters, need: ur.need, slot: ur.slot, bench: ur.bench,
-      construction: lineup(us), lineup: lineup(us), projections: usProj, projNet: finite(parts.usProjNet) ? parts.usProjNet : null};
-    usSide.startersOk = Boolean(us) && us.starterDelta >= -NET_FLOOR;
-    usSide.ok = usSide.value && usSide.startersOk && Boolean(ur.kind) && usSide.lineup && usProj === true;
-    const theirStartersOk = Boolean(them) && them.starterDelta >= -NET_FLOOR;
     const projBase = finite(parts.themProjStarters) && parts.themProjStarters > 0 ? parts.themProjStarters : null;
     const projBlock = themProj === false && projBase !== null && -parts.themProjNet > PROJ_BLOCK_SHARE * projBase;
-    const themSide = {value: theirUp, startersOk: theirStartersOk, projBlock, projShare: projBase !== null && finite(parts.themProjNet) ? parts.themProjNet / projBase : null, reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot, bench: tr.bench,
-      construction: lineup(them), lineup: lineup(them), projections: themProj, projNet: finite(parts.themProjNet) ? parts.themProjNet : null,
-      caution: themProj === false && !projBlock, thin, share, pct: pct ? pct.shown : null, pctBand: pct ? pct.band : null, pctOk};
-    themSide.ok = theirUp && theirStartersOk && Boolean(tr.kind) && themSide.lineup && pctOk && !projBlock;
-    const ok = usSide.ok && themSide.ok && chartsOk;
-    return {ok, us: usSide, them: themSide, charts: {agree: charts ? charts.agree : null, total: charts ? charts.total : null, min: NATURAL_MIN_CHARTS, ok: chartsOk},
-      benchDepth: ok && ur.kind === "bench", benchDepthThem: ok && tr.kind === "bench", thin: ok && thin};
+    const usSide = {value: Boolean(us) && us.net > NET_FLOOR, startersOk: lineupHolds(us), reason: ur.kind, starters: ur.starters, need: ur.need, slot: ur.slot, bench: ur.bench,
+      lineup: lineupHolds(us), construction: lineupHolds(us), projections: usProj, projNet: finite(parts.usProjNet) ? parts.usProjNet : null};
+    const themSide = {value: theirUp, startersOk: lineupHolds(them), reason: tr.kind, starters: tr.starters, need: tr.need, slot: tr.slot, bench: tr.bench,
+      lineup: lineupHolds(them), construction: lineupHolds(them), projections: themProj, projNet: finite(parts.themProjNet) ? parts.themProjNet : null,
+      projBlock, projShare: projBase !== null && finite(parts.themProjNet) ? parts.themProjNet / projBase : null,
+      caution: themProj === false && !projBlock, thin, share,
+      pct: pct ? pct.shown : null, pctBand: pct ? pct.band : null, pctOk: !(pct && pct.band === "clearly_worse")};
+    const n = {us: usSide, them: themSide, charts: {agree: charts ? charts.agree : null, total: charts ? charts.total : null, min: NATURAL_MIN_CHARTS, ok: Boolean(charts) && charts.agree >= NATURAL_MIN_CHARTS}};
+    const results = NATURAL_RULES.map(r => ({key: r.key, ok: Boolean(r.pass(n))}));
+    usSide.ok = results.filter(r => r.key.startsWith("your-")).every(r => r.ok);
+    themSide.ok = results.filter(r => r.key.startsWith("their-")).every(r => r.ok);
+    n.rules = results;
+    n.ok = results.every(r => r.ok);
+    n.benchDepth = n.ok && ur.kind === "bench";
+    n.benchDepthThem = n.ok && tr.kind === "bench";
+    n.thin = n.ok && thin;
+    return n;
   }
   function tradeFit(sides, ctx) {
     if (!ctx || !ctx.marketKey) return null;
@@ -986,55 +1010,36 @@
     if (deep.length) parts.push(`deep at ${listJoin(deep)}`);
     return parts.length ? parts.join(" and ") : "balanced by position";
   }
-  // Natural fit 2: the plain reasons a judged trade is not Natural, in rule order (yours, theirs, charts, lineups); [] when
-  // it is. Read by fitText (the connector's reason) and the Why panel, so the label and both texts read one test.
+  // The plain reasons a judged trade is not Natural: the failed NATURAL_RULES in order; [] when it is. Read by fitText (the
+  // connector's reason), the Why panel and (through naturalChecks) the checklists, so every text reads the label's rules.
   // names: optional {you, them}, the page's own names for the two valuations ("DDF", "the analyst charts").
   function naturalMisses(fit, names) {
     const n = fit && fit.natural;
     if (!n || n.ok) return [];
-    const {us, them} = fit;
-    const view = t => (names && names[t === us ? "you" : "them"]) || VIEW_NAME[t.key] || t.key;
-    const out = [];
-    if (!n.us.value) out.push(us.net <= NET_FLOOR ? `your total does not rise (${fitFmt(us.net)} on ${view(us)})` : `your starters drop ${Math.abs(us.starterDelta).toFixed(1)} on ${view(us)}`);
-    else if (!n.us.reason) out.push(`nothing improves your starters, fills a position you are short at or adds bench depth worth ${Math.round(BENCH_MIN_SHARE * 100)}% of your starters`);
-    if (n.us.projections === false) out.push(`your projection-based value falls ${Math.abs(n.us.projNet).toFixed(1)}`);
-    if (n.us.projections === null) out.push("a player in the trade has no projection-based value, so your side is not checked");
-    if (!n.them.value) out.push(them.net < -NET_FLOOR ? `they lose ${Math.abs(them.net).toFixed(1)} on ${view(them)}` : `their total does not rise on ${view(them)} (${fitFmt(them.net)})`);
-    if (n.them.value && !n.them.startersOk) out.push(`their starters drop ${Math.abs(them.starterDelta).toFixed(1)} on ${view(them)}`);
-    else if (n.them.value && !n.them.reason) out.push(`nothing improves their starters, fills a position they are short at or adds bench depth worth ${Math.round(BENCH_MIN_SHARE * 100)}% of their starters`);
-    if (n.them.projBlock) out.push(`their projection-based value falls ${Math.abs(n.them.projNet).toFixed(1)}, more than ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections`);
-    if (n.them.pctOk === false) out.push(`their roster gets about ${Math.abs(n.them.pct).toFixed(1)}% worse`);
-    if (!n.charts.ok) out.push(`only ${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts call it even or better for them (${n.charts.min} needed)`);
-    if (!n.us.lineup) out.push("your lineup is left with an empty starting slot");
-    if (!n.them.lineup) out.push("their lineup is left with an empty starting slot");
-    return out;
+    const view = t => (names && names[t === fit.us ? "you" : "them"]) || VIEW_NAME[t.key] || t.key;
+    return NATURAL_RULES.filter((r, i) => !n.rules[i].ok).map(r => r.miss(n, fit, view));
   }
-  // The Natural test as a checklist, one row per part of naturalFit (Build a Trade and Buy / Sell), so a page's
-  // "checks pass" is natural.ok and every ✕ row is a reason in naturalMisses. ok: true / false, or null for a caution that
-  // does not block (their projection-based value falling). names: optional {you, them}, the page's valuation names.
+  // The rules as a checklist (Build a Trade, Buy / Sell): one row per rule, ok true / false, with the numbers; then their
+  // projection-based value as a caution row (ok null) when it falls by less than the block.
   function naturalChecks(fit, names) {
     const n = fit && fit.natural;
     if (!n) return [];
     const {us, them} = fit;
     const view = t => (names && names[t === us ? "you" : "them"]) || VIEW_NAME[t.key] || t.key;
-    const reasonText = (side, t, who) => side.reason === "starters" ? `${who} starters improve`
-      : side.reason === "need" ? (side.need.length ? `fills ${listJoin(side.need)}, where ${who === "Your" ? "you are" : "they are"} short` : "fills an empty starting slot")
-        : side.reason === "bench" ? `bench depth (${fitFmt(t.benchDelta)} once weighted, at least ${Math.round(BENCH_MIN_SHARE * 100)}% of the starters)` : "none: no starter gain, short position filled or bench depth of at least 1% of the starters";
-    const lineup = (t, who) => `${who} best lineup: starters ${t.starterBefore.toFixed(1)} to ${t.starterAfter.toFixed(1)} (${fitFmt(t.starterDelta)}) on ${view(t)}`;
-    const rows = [
-      {key: "your-starters", ok: n.us.startersOk, text: lineup(us, "Your")},
-      {key: "your-total", ok: us.net > NET_FLOOR, text: `Your total ${fitFmt(us.net)} on ${view(us)}, bench weighted`},
-      {key: "your-reason", ok: Boolean(n.us.reason), text: `Your reason: ${reasonText(n.us, us, "Your")}`},
-      {key: "your-projections", ok: n.us.projections === true, text: n.us.projections === null ? "Your projection-based value: not checked (a player has none)" : `Your projection-based value ${fitFmt(n.us.projNet)}`},
-      {key: "their-starters", ok: n.them.startersOk, text: lineup(them, "Their")},
-      {key: "their-total", ok: n.them.value, text: `Their total ${fitFmt(them.net)} on ${view(them)}, bench weighted`},
-      {key: "their-reason", ok: Boolean(n.them.reason), text: `Their reason: ${reasonText(n.them, them, "their")}`},
-      {key: "charts", ok: n.charts.ok, text: `${n.charts.agree || 0} of ${n.charts.total || 0} public trade charts even or better for them (${n.charts.min} needed)`},
-      {key: "slots", ok: n.us.lineup && n.them.lineup, text: n.us.lineup && n.them.lineup ? "No empty starting slot on either side" : `Empty starting slot: ${[n.us.lineup ? null : "yours", n.them.lineup ? null : "theirs"].filter(Boolean).join(" and ")}`}
-    ];
-    if (n.them.pctOk === false) rows.push({key: "their-pct", ok: false, text: `Their roster gets about ${Math.abs(n.them.pct).toFixed(1)}% worse`});
-    if (n.them.projBlock) rows.push({key: "their-projections", ok: false, text: `Their projection-based value ${fitFmt(n.them.projNet)}, more than ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections`});
-    else if (n.them.caution) rows.push({key: "their-projections", ok: null, text: `Caution: their projection-based value ${fitFmt(n.them.projNet)} (under ${Math.round(PROJ_BLOCK_SHARE * 100)}% of their starters on projections, not a blocker)`});
+    const reasonText = side => side.reason === "starters" ? "starters improve" : side.reason === "need"
+      ? (side.need.length ? `fills ${listJoin(side.need)}` : "fills an empty starting slot") : side.reason === "bench" ? "bench depth" : "none";
+    const detail = {
+      "your-starters": `starters ${us.starterBefore.toFixed(1)} to ${us.starterAfter.toFixed(1)} (${fitFmt(us.starterDelta)}) on ${view(us)}`,
+      "your-reason": `${reasonText(n.us)}; bench ${fitFmt(us.benchDelta)} once weighted`,
+      "your-projections": n.us.projections === null ? "not checked (a player has none)" : fitFmt(n.us.projNet),
+      "their-total": `${fitFmt(them.net)} on ${view(them)}, bench weighted`,
+      "their-starters": `starters ${them.starterBefore.toFixed(1)} to ${them.starterAfter.toFixed(1)} (${fitFmt(them.starterDelta)}) on ${view(them)}`,
+      "their-reason": `${reasonText(n.them)}; bench ${fitFmt(them.benchDelta)} once weighted`,
+      "their-projections": n.them.projNet === null ? "not checked" : fitFmt(n.them.projNet),
+      "charts": `${n.charts.agree || 0} of ${n.charts.total || 0}`
+    };
+    const rows = NATURAL_RULES.map((r, i) => ({key: r.key, ok: n.rules[i].ok, text: `${r.text}: ${detail[r.key]}`}));
+    if (n.them.caution) rows.push({key: "their-projections-caution", ok: null, text: `Caution: their projection-based value ${fitFmt(n.them.projNet)} (under ${pctText(PROJ_BLOCK_SHARE)} of their starters, not a blocker)`});
     return rows;
   }
   // The short tags a Natural fit carries: "Bench depth" (your reason is bench depth only) and "Thin for them" (their gain
@@ -1124,7 +1129,8 @@
   }
   // JEG-1081 PR 7: what each fit label means, for the label's tooltip (spec 4c). Plain words, no abbreviations.
   const FIT_TIPS = {
-    natural: "Natural fit: both rosters have a real reason. Yours on DDF Value: your total rises, and your starters improve, a position you are short at is filled, or bench depth (a bench-weighted gain of at least 1% of your starters, tagged Bench depth); your DDF Value (projections) does not fall. Theirs on their valuation (the Trade chart average by default): their total rises past 0.05, and their starters improve, a position they are short at is filled, or bench depth on the same 1% bar (tagged Bench depth for them); their DDF Value (projections) falling more than 5% of their starters on projections blocks it, a smaller fall is a caution. Neither side's best-lineup starter total may fall, at least 2 of the public trade charts call it even or better for them, and neither lineup is left with an empty starting slot. A gain under 1% of their starters is shown as thin. Fit totals weight bench value by the league's bench share.",
+    // Written from NATURAL_RULES so the tooltip states the same rules as the label (2026-11-21).
+    natural: "Natural fit: good for both rosters' starting lineups, each on its own valuation (theirs is the Trade chart average by default). " + NATURAL_RULES.map(r => r.text[0].toLowerCase() + r.text.slice(1)).join("; ") + ". Their DDF Value (projections) falling by less is a caution; a gain under 1% of their starters is shown as thin. On the Find page an offer a free pickup mostly matches is not Natural. Fit totals weight bench value by the league's bench share.",
     market: "Market supported: their Trade chart average fit value rises by more than 0.05 points, using the league's bench share. A trade can earn this label while their starters lose value or either roster has construction issues; check the team-fit details.",
     force: "Force fit: a roster would be broken, a side loses, or the other team does not clear the bar on the Trade chart average."
   };
@@ -1234,7 +1240,7 @@
     return {mineId: has(link.mineId) ? link.mineId : null, theirId: has(link.theirId) ? link.theirId : null};
   }
 
-  const api = {encodeFinderHash, decodeFinderHash, linkTeamsFor, benchBackups, startersAtGivenPositions, givenPositionsLine, viableGroups, viewTip, VIEW_TIPS, fitTip, FIT_TIPS, hasProjections, chipTooltip, deltaLine, fitHeadline, biggestImbalance, teamFit, tradeFit, naturalFit, rosterChangePct, rosterWorth, shownPct, pctBand, PCT_MIN_BASE, PCT_BANDS, projectionsHold, PROJ_FLOOR, FIT_VARIANTS, fitText, valueNoise, PROJECTION_KEYS, PROJECTIONS_KEY, tierGroups, tierOrder, benchWeight, naturalMisses, naturalTags, naturalChecks, NATURAL_MIN_CHARTS, THIN_SHARE, BENCH_MIN_SHARE, PROJ_BLOCK_SHARE, FIT_Z, FIT_TIER, expectedDepth, rosterBalance, evalSentence, DEPTH_POS, USABLE_MIN, looksLikePage, isNotEvaluated, NOT_EVALUATED_POS, findTrades, evaluateCombo, collapseThrowIns, groupTrades, coreOf, pickStarters, lineupValue, rosterImpact, rosterConstructionOk, balanceCounts, viabilityLabel, withChartAverage, needLine, teamSummary, SUMMARY_ROWS, MARKET_KEY, lineupIssues, issueText, rosterGaps, matchNames, normName, parsePasted, subsets, subsetCount, OUR_KEY, CHART_KEYS, MIN_CHARTS, SEARCH_MIN_CHARTS, MAX_SIZE_CHOICES, MAX_SUBSETS, EXTRA_PLAYER_WEIGHT, LIMIT};
+  const api = {encodeFinderHash, decodeFinderHash, linkTeamsFor, benchBackups, startersAtGivenPositions, givenPositionsLine, viableGroups, viewTip, VIEW_TIPS, fitTip, FIT_TIPS, hasProjections, chipTooltip, deltaLine, fitHeadline, biggestImbalance, teamFit, tradeFit, naturalFit, rosterChangePct, rosterWorth, shownPct, pctBand, PCT_MIN_BASE, PCT_BANDS, projectionsHold, PROJ_FLOOR, FIT_VARIANTS, fitText, valueNoise, PROJECTION_KEYS, PROJECTIONS_KEY, tierGroups, tierOrder, benchWeight, naturalMisses, naturalTags, naturalChecks, NATURAL_RULES, NATURAL_MIN_CHARTS, THIN_SHARE, BENCH_MIN_SHARE, PROJ_BLOCK_SHARE, FIT_Z, FIT_TIER, expectedDepth, rosterBalance, evalSentence, DEPTH_POS, USABLE_MIN, looksLikePage, isNotEvaluated, NOT_EVALUATED_POS, findTrades, evaluateCombo, collapseThrowIns, groupTrades, coreOf, pickStarters, lineupValue, rosterImpact, rosterConstructionOk, balanceCounts, viabilityLabel, withChartAverage, needLine, teamSummary, SUMMARY_ROWS, MARKET_KEY, lineupIssues, issueText, rosterGaps, matchNames, normName, parsePasted, subsets, subsetCount, OUR_KEY, CHART_KEYS, MIN_CHARTS, SEARCH_MIN_CHARTS, MAX_SIZE_CHOICES, MAX_SUBSETS, EXTRA_PLAYER_WEIGHT, LIMIT};
   // Stable identity comes from League, never the name (duplicate names are valid).
   function savedTeamChoices(workspace) {
     return workspace.teams.map((team, i) => ({id: team.id,

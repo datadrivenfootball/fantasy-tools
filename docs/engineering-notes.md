@@ -161,7 +161,10 @@ seeded and two real league rosters (PR for JEG-1639).
 - The public-charts count lives in tradeFit (`fit.natural.charts`, `judgeSums` over `ctx.gateKeys`, default
   `CHART_KEYS`). Pass `gateKeys` equal to the charts the page counts (find-engine `ctx.gate`, opportunities `ctx.charts`,
   the connector its chart keys); on the USO snapshot it equals `rivalOkCount` on all 3,169 offers.
-- Checklists (Build a Trade `checksHTML`, Buy / Sell `fitHTML`) render `naturalChecks(fit, names)`: one row per conjunct
+- `NATURAL_RULES` (finder.js) is the only list of Natural rules: `naturalFit` evaluates it into `natural.rules`,
+  `naturalMisses` words the failed ones, `naturalChecks` renders them, and `FIT_TIPS.natural` is written from their text.
+  Add or change a rule there, never in a page.
+- Checklists (Build a Trade `checksHTML`, Buy / Sell `fitHTML`) render `naturalChecks(fit, names)`: one row per rule
   of `naturalFit`, so "checks pass" / the Natural tag is `natural.ok` exactly (`tests/test_v2_finder_fit.py` check 30; 0
   contradictions on the USO snapshot). Their projection-based value is a caution row (ok null), never a ✕.
 - `teamFit` carries `starterBefore` / `starterAfter` / `startersIn` / `startersOut` and `lineupBefore` / `lineupAfter`
