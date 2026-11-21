@@ -95,6 +95,8 @@ export interface TaggedName {
   team: string | null;
   /** The name is a city alone ("Miami", "Washington"): a defense only when no player's name holds it. */
   cityOnly?: boolean;
+  /** K came from a leading slot label ("K Brandon McManus"): a kicker unless a priced player's name holds the rest. */
+  leadingK?: boolean;
 }
 
 /**
@@ -105,6 +107,7 @@ export interface TaggedName {
 export function positionTag(text: string): TaggedName {
   const words = key(text).split(" ").filter(Boolean);
   let pos: string | null = null;
+  let leadingK = false;
   const kept: string[] = [];
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
@@ -114,7 +117,11 @@ export function positionTag(text: string): TaggedName {
     if (i > 0 && !initialNear && KICKER_TAGS.has(w)) { pos = pos ?? "K"; continue; }
     // A leading slot label before a full name ("K Brandon McManus", as Yahoo pastes it) is a kicker; "K Allen" and
     // "K. J. Osborn" stay names (one word after it, or an initial next to it).
-    if (i === 0 && !initialNear && KICKER_TAGS.has(w) && words.length >= 3) { pos = "K"; continue; }
+    if (i === 0 && !initialNear && KICKER_TAGS.has(w) && words.length >= 3 && /^\s*p?k\s/i.test(String(text))) {
+      pos = "K";
+      leadingK = true;
+      continue;
+    }
     if (DEFENSE_TAGS.has(w)) { pos = "DEF"; continue; }
     if (words.length > 1 && SKILL_TAGS.has(w)) { pos = pos ?? w.toUpperCase(); continue; }
     kept.push(w);
@@ -126,6 +133,7 @@ export function positionTag(text: string): TaggedName {
     ?? (pos === "DEF" && kept.length === 1 && TEAM_CODES.has(kept[0]) ? kept[0].toUpperCase() : null);
   const cityOnly = !pos && !DEFENSE_NAMES.has(rest) && city !== null;
   if (!pos && team) pos = "DEF";
+  if (leadingK) return { name: rest, pos, team: null, leadingK: true };
   return cityOnly ? { name: rest, pos, team, cityOnly } : { name: rest, pos, team: pos === "DEF" ? team : null };
 }
 
@@ -133,6 +141,10 @@ export function positionTag(text: string): TaggedName {
 function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedName {
   const tag = positionTag(text);
   if (tag.cityOnly && nameHolds(players, tag.name)) return { name: tag.name, pos: null, team: null, cityOnly: true };
+  // "K Walker III" is Kenneth Walker III, not a kicker: a leading K stays a kicker only for a name no priced player holds.
+  if (tag.leadingK && !KICKERS.has(tag.name) && nameHolds(players, tag.name)) {
+    return { name: key(text), pos: null, team: null };
+  }
   // An untagged kicker's name is a kicker unless a priced player has exactly that name.
   if (!tag.pos && KICKERS.has(tag.name) && !players.some((p) => key(p.name) === tag.name)) return { ...tag, pos: "K", team: null };
   return tag;
@@ -388,9 +400,9 @@ export function closestNames<T extends Named>(players: T[], query: string, hit?:
  */
 export function splitNames(raw: unknown): string[] {
   const parts = String(raw ?? "").split(/\r?\n/)
-    .filter((line) => !/^\s*#(?!\d+\s*$)/.test(line))
+    .filter((line) => !/^\s*#(\s|$)/.test(line))
     .flatMap((line) => line.split(/[,;]/))
-    .map((part) => part.replace(/^\s*(?:[-*\u2022]+|\d+[.)])\s+/, ""));
+    .map((part) => part.replace(/^\s*(?:[-*\u2022]+|\d+[.)]|#\d+)\s+/, ""));
   const out: string[] = [];
   for (const part of parts) {
     const trimmed = part.trim();

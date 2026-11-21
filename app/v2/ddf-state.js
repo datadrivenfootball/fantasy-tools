@@ -164,7 +164,8 @@
   const listToParam = list => list.map(p => p.key !== undefined ? encodeURIComponent(p.key) : "n:" + encodeName(p.name)).join(",");
   // League teams in a link: lt=<name>:<list>|<name>:<list>, with ":" and "|" escaped twice inside names so the
   // one URLSearchParams decode leaves them as escapes; mt=<index> marks the user's team.
-  const teamText = text => encodeName(text).replace(/%3A/gi, "%253A").replace(/%7C/gi, "%257C");
+  // Escaped twice in full, so the one URLSearchParams decode leaves no raw ":" "|" "," "&" "=" or "%" in a name.
+  const teamText = text => encodeURIComponent(encodeURIComponent(text));
   const teamsToParam = teams => teams.map(t => teamText(t.name) + ":" + t.players.map(p => p.key !== undefined ? encodeURIComponent(p.key) : "n:" + teamText(p.name)).join(",")).join("|");
   const paramToTeams = value => String(value || "").split("|").filter(Boolean).map(part => {
     const at = part.indexOf(":");
@@ -220,7 +221,7 @@
     if (params.has("target")) work.target = paramToList(params.get("target"))[0];
     if (params.has("view")) work.view = params.get("view");
     if (params.has("lt")) work.teams = paramToTeams(params.get("lt"));
-    if (params.has("mt")) work.my_team = Number(params.get("mt"));
+    if (/^\d+$/.test(params.get("mt") || "")) work.my_team = Number(params.get("mt"));
     if (Object.keys(work).length) raw.work = work;
     if (params.has("scoring")) {
       const league = {scoring: params.get("scoring")};
