@@ -127,10 +127,11 @@ test("real pastes (Yahoo phone tab, Yahoo markdown): trimmed rosters change noth
 });
 
 // slot labels: only a slot, never a position line or a team code
-test("published player table: a kicker also read as a skill player (Jake Bates / John Bates) is one roster row", () => {
+test("published player table: the kicker Jake Bates is a kicker, never John Bates the TE, and one roster row", () => {
   const res = LP.read(fs.readFileSync(path.join(DEF_DIR, "sleeper-14team.txt"), "utf8"), TABLE_ROWS, {table: TABLE});
   const team = res.teams.find(t => t.name === "Run It Back");
-  assert.ok(team.players.some(p => p.line === "Jake Bates") && team.unmatched.some(u => u.line === "Jake Bates"), "the reader still reads that line twice");
+  assert.ok(!team.players.some(p => p.line === "Jake Bates"), "Jake Bates is not read as another player");
+  assert.ok(team.unmatched.some(u => u.line === "Jake Bates" && u.reason === "kdef" && u.pos === "K"), "Jake Bates is kept as a kicker");
   assert.deepStrictEqual(res.pasteSettings.rostered.perTeam.map(t => t.count), Array(14).fill(16));
   assert.deepStrictEqual(res.pasteSettings.roster, PROVIDERS["sleeper-14team.txt"].roster);
 });

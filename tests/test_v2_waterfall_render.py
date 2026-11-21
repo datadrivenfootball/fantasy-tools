@@ -75,6 +75,18 @@ V2_JS = ROOT / "app" / "v2" / "v2.js"
 V2_CSS = ROOT / "app" / "v2" / "v2.css"
 TRADE_JS = ROOT / "app" / "v2" / "trade.js"
 
+# The seeds patch the pool PICK picks from: players priced by every source run_checks shows (the shown set plus every
+# available non-VORP, non-adjusted series), sorted by ESPN. Before, they patched the top 12 by ESPN regardless, so when a
+# data bake left one of them without a source (3549f6132: Kenneth Walker III, no razzball), PICK skipped it, its ranks
+# shifted by one against the seed's, and the seeded values landed on the wrong players (win seed read "an even trade").
+SEED_POOL = """const seedPool = (C, fin) => {
+    const avail = C.getSourceInfo().filter(i => i.available).map(i => i.key)
+      .filter(k => !k.endsWith('_vorp') && !k.endsWith('_adjusted'));
+    const active = [...new Set([...window.TradeValueV2.shown(), ...avail])];
+    return C.getAllRows().filter(r => r.values && fin(r.values.espn) && active.every(k => fin(r.values[k])))
+      .sort((a, b) => b.values.espn - a.values.espn);
+  };"""
+
 # JEG-1056: pin values for the test-picked trade so data bakes do not move the column height.
 # PICK selects from the engine rows sorted by ESPN. By seeding the top players with fixed values
 # (small, spread apart, only one source dissenting with DDF Value), the trade PICK produces is always
@@ -85,9 +97,8 @@ TRADE_JS = ROOT / "app" / "v2" / "trade.js"
 SEED_VALUES = """() => {
   const C = window.TradeValueCurveControls;
   const fin = v => typeof v === 'number' && Number.isFinite(v);
-  const rows = C.getAllRows();
-  const byEspn = rows.filter(r => r.values && fin(r.values.espn))
-    .sort((a, b) => b.values.espn - a.values.espn);
+  """ + SEED_POOL + """
+  const byEspn = seedPool(C, fin);
   // Build a per-player patch map for the top 12.
   // The 13th player's ESPN sets the floor: seeded values start above it so PICK still
   // selects from the patched pool. Values spread 2 points apart. Other sources are close
@@ -145,7 +156,8 @@ SEED_VALUES = """() => {
 SEED_VALUES_WIN = """() => {
   const C = window.TradeValueCurveControls;
   const fin = v => typeof v === 'number' && Number.isFinite(v);
-  const byEspn = C.getAllRows().filter(r => r.values && fin(r.values.espn)).sort((a, b) => b.values.espn - a.values.espn);
+  """ + SEED_POOL + """
+  const byEspn = seedPool(C, fin);
   const floor = byEspn.length > 12 ? byEspn[12].values.espn : 10;
   const dissent = ['usatoday', 'fantasycalc', 'fantasypros', 'ddf_value_projections'];
   const patches = {};
@@ -527,6 +539,11 @@ def run_checks(overrides=None, viewports=((1440, 900), (1366, 768), (1100, 900),
                             pick["gap"] = gap_key
                     else:
                         errors.append(tag + "could not simulate a gap player; the missing-step path went unchecked")
+                # The seeded scenario is only the one its comment describes when PICK takes seeded players.
+                if seed and seeded and seeded.get("patched"):
+                    unseeded = [k for k in pick["give"] + pick["receive"] if k not in set(seeded["patched"])]
+                    if unseeded:
+                        errors.append(tag + f"PICK took players the seed did not patch: {unseeded}; seed and PICK pools diverged")
                 if not page.evaluate(SIMULATE_DISSENT, pick):
                     errors.append(tag + "could not make a source disagree with DDF Value; the dissent check went unchecked")
                 page.evaluate("p => { location.hash = `#compare-trade?give=${p.give.join(',')}&get=${p.receive.join(',')}`; }", pick)

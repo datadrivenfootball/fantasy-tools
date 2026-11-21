@@ -25,6 +25,9 @@
     }
     var set = {};
     (list || []).forEach(function(r){ var n = String(r).split('|')[0]; if (n) set[words(n)] = 1; });
+    /* kickers on an NFL team now (v2/kdef-names.js): a bare "Jason Sanders" line is a player, not a team name */
+    var kd = typeof window !== 'undefined' ? window.TradeValueKDef : null;
+    ((kd && kd.kickers) || []).forEach(function(k){ if (k && k.name) set[words(k.name)] = 1; });
     return set;
   }
   /* does the line contain a known player name (2-4 words)? */
