@@ -67,6 +67,7 @@ import build_v2_page  # noqa: E402
 from tests import _render_env  # noqa: E402
 from tests._dist_server import engine_path  # noqa: E402
 from tests._holds import pin_holds_in_dist  # noqa: E402
+from tests._served_weeks import pin_served_weeks_in_dist  # noqa: E402
 
 
 def _fixture_today():
@@ -201,6 +202,10 @@ def _served():
         # held-proof fixture"): GL-09 needs a projection unheld to offer DDF Value
         # (projections). Chain run 573 (JEG-chain573) held all three projections.
         pin_holds_in_dist(dist)
+        # Week-proof fixture: WEEK_BEHIND_FIXTURE fakes USA Today a week behind on top of an all-current board. A real
+        # source still on last week after a rollover is left out of the view, which removed the row TT-06 and GL-05
+        # check (2026-11-17: USA Today on Week 10). The transition itself is test_week_selector_render's job.
+        pin_served_weeks_in_dist(dist)
         build_v2_page.build(dist)
 
         class Handler(http.server.SimpleHTTPRequestHandler):

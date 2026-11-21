@@ -25,6 +25,7 @@ import unittest
 
 from tests import _render_env
 from tests._dist_server import DIST, serve
+from tests._served_weeks import route_pinned_weeks
 from tests.test_find_engine_parity import APPLY, READY
 from tests.test_team_engine_parity import seed_script, seeded_league
 
@@ -130,6 +131,7 @@ def _find_page(browser, base, w, h, league):
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.route(lambda u: not u.startswith(base), lambda r: r.abort())
+    route_pinned_weeks(page, DIST)   # a source still on last week leaves every offer unjudged (tests/_served_weeks.py)
     page.add_init_script(seed_script(league))
     page.goto(f"{base}/find.html", wait_until="domcontentloaded", timeout=60000)
     page.evaluate(APPLY, ["ppr", 12, False])

@@ -6,7 +6,7 @@
 
 import { type Deps, finish, prepare } from "./state.ts";
 import { type Finder, type FinderRow, findTradesForPair } from "./find-trades.ts";
-import { closestNames, type NameMatch, matchName, splitNames } from "./names.ts";
+import { closestNames, type NameMatch, matchName, notEvaluated, splitNames } from "./names.ts";
 import { type BenchShareReadout, type FitContext, type FitFinder, type FitRow, type FitSides, benchWeightsFromReadout, buildFitContext, fitForTrade } from "./fit.ts";
 import {
   type RosterShape,
@@ -629,6 +629,12 @@ function resolveNames<T extends PlayerValue>(players: T[], names: string[]): Res
   const ambiguous: Array<{ input: string; suggestions: string[] }> = [];
   const notes: string[] = [];
   for (const input of names) {
+    // A kicker or defense is not valued: left out with a note, never matched to another player and never a stop.
+    const kd = notEvaluated(input, players);
+    if (kd) {
+      notes.push(`${input}: ${kd.pos === "K" ? "kicker" : "defense"}, not valued; left out.`);
+      continue;
+    }
     const hit: NameMatch<T> = matchName(players, input);
     if (hit.match === "ambiguous") {
       ambiguous.push({ input, suggestions: hit.suggestions.map((p) => p.name) });
@@ -1216,10 +1222,12 @@ async function findTradesHandler(
   // Pull a pool bigger than `limit` so deduping packages that receive the same players can still fill it.
   const pool = Math.min(500, Math.max(limit * 8, limit + 80));
 
+  const pricedCharts = finderDeps.finder.CHART_KEYS.filter((k) => data.sources_included.includes(k)).length;
   const result = findTradesForPair(finderDeps.finder, mineRows, theirRows, {
     maxSize: maxPerSide,
     minRivalEdge,
     limit: pool,
+    pricedCharts,
   });
 
   // --- Viability scoring ---
@@ -1414,6 +1422,7 @@ async function findTradesLeagueHandler(
     const pairResult = findTradesForPair(finderDeps.finder, mineRows, theirRows, {
       maxSize: maxPerSide,
       minRivalEdge,
+      pricedCharts: finderDeps.finder.CHART_KEYS.filter((k) => data.sources_included.includes(k)).length,
       // Never search a smaller pool than the previous per-opponent cap (50). A
       // higher limit asks for more so the shown list can still fill after dedupe.
       limit: Math.min(200, Math.max(50, limit)),

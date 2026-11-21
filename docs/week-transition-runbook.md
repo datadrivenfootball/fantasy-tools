@@ -93,6 +93,29 @@ DDF_NOW=2026-10-29T17:01:00Z python3 pipelines/check_reference_freshness.py --ou
 Related: `runbooks/weekly-refresh.md` (the weekly check),
 `runbooks/source-held.md` (holds), `docs/watchdog.md` (producers).
 
+## Render tests while a source lags
+
+A lagging source is real data in the committed fixture, so a render test that
+assumes "every source on its newest week" goes red on the day's data, not on the
+product (2026-11-17: USA Today on Week 10 for the Week 11 rollover reddened the
+week selector, contract, phone context row, Learn parity, Compare examples,
+Find filter and 2-QB endpoint tests on main; a second pass found
+`test_jeg1366_two_qb_native_share` (reference without history),
+`test_ddf_why` (Find cards all unjudged) and `test_jeg1213_acceptance_render`
+(em dashes in the finder's team columns and fit explanations)).
+
+- A test whose premise is no transition pins the served weeks with
+  `tests/_served_weeks.py` (`pin_served_weeks_in_dist` on a copied dist,
+  `route_pinned_weeks` on a page), the same way `tests/_holds.py` pins holds.
+- `tests/test_week_selector_render.py` builds each transition itself:
+  `transition_index` sets every source, lagging ones to the older week and
+  the rest to the newer one.
+- A Python reference compared with the engine passes the saved history
+  (`hist=value_reference.History(value_reference.HISTORY)`); without it the
+  reference keeps a source the engine leaves out of the week's view.
+- Tests that read a list of charts take the charts this week prices, never a
+  fixed list of four.
+
 
 ## Exemption decision records
 

@@ -36,7 +36,7 @@
     {id: "guardrails", routes: ["pair", "league"],
       detail: "Protected positions, minimum backups and lineup minimums exist only in the pair finder."},
     {id: "opponent-default", routes: ["pair", "compare"],
-      detail: "Compare fills Their team with the first other saved team that has players; the pair finder (JEG-1219) leaves it empty until chosen."},
+      detail: "Compare fills Their team with the first other saved team that has players; the pair finder leaves it empty until chosen."},
     {id: "ranking-basis", routes: ["league"],
       detail: "Ranking by DDF Value or the Trade chart average is a league-finder control only."}
   ].map(Object.freeze));
