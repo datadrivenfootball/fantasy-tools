@@ -76,9 +76,18 @@ for (const [city, mascot, team] of DEFENSES) {
 // index.ts at cold start; empty when unavailable). An untagged kicker name ("Chris Boswell") is a kicker, not valued,
 // and is never offered another player as its closest name.
 const KICKERS = new Set<string>();
+// Review of #1502/#1504: a bare surname ("Boswell") is a kicker too, when no priced player's name holds that word.
+const KICKER_SURNAMES = new Set<string>();
 export function setKnownKickers(names: Iterable<string>): void {
   KICKERS.clear();
-  for (const n of names) { const k = key(n); if (k) KICKERS.add(k); }
+  KICKER_SURNAMES.clear();
+  for (const n of names) {
+    const k = key(n);
+    if (!k) continue;
+    KICKERS.add(k);
+    const last = tokens(n).filter((w) => !SUFFIXES.has(w)).pop();
+    if (last && last.length >= 3) KICKER_SURNAMES.add(last);
+  }
 }
 
 /** Some player's name holds these words as whole words ("washington" in Malik Washington). */
@@ -147,6 +156,7 @@ function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedNam
   }
   // An untagged kicker's name is a kicker unless a priced player has exactly that name.
   if (!tag.pos && KICKERS.has(tag.name) && !players.some((p) => key(p.name) === tag.name)) return { ...tag, pos: "K", team: null };
+  if (!tag.pos && KICKER_SURNAMES.has(tag.name) && !nameHolds(players, tag.name)) return { ...tag, pos: "K", team: null };
   return tag;
 }
 
@@ -249,12 +259,13 @@ function surnameFits(name: string, query: string): boolean {
 }
 
 /**
- * Walkthrough 2026-11-21: a "Closest" guess for a full name keeps a surname within two edits, so a miss is never offered
+ * Walkthrough 2026-11-21: a "Closest" guess keeps a surname within two edits, so a miss is never offered
  * a different player who only shares a first name ("Chris Boswell" is not Chris Bell, "Tyler Loop" not Tyler Goodson).
  */
 function surnameNear(name: string, query: string): boolean {
+  // A bare surname is held to the same rule: "Boswell" is not offered Josh Allen or Chris Bell.
   const q = tokens(query).filter((w) => !SUFFIXES.has(w));
-  if (q.length < 2) return true;
+  if (!q.length) return true;
   const last = q[q.length - 1];
   return tokens(name).some((word) => distance(last, word) <= 2);
 }
