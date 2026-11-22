@@ -1359,7 +1359,13 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     var chip = document.querySelector('header .ddf-chip'), t = chip && chip.querySelector('.ddf-chip-t');
     if(!t) return;
     var i = info(), full = i && i.named ? i.name : null;
-    if(!full){ t.textContent = 'Your league'; chip.removeAttribute('title'); chip.setAttribute('aria-label', 'Your league. Open the league menu'); return; }
+    if(!full){
+      /* no name: "Your league", or "League" when the header has no room for the longer label */
+      var host0 = chip.closest('.header-inner') || chip.parentNode.parentNode;
+      t.textContent = 'Your league';
+      if(host0 && host0.scrollWidth > host0.clientWidth + 1) t.textContent = 'League';
+      chip.removeAttribute('title'); chip.setAttribute('aria-label', 'Your league. Open the league menu'); return;
+    }
     chip.title = full + (i.team ? ' · ' + i.team : '');
     chip.setAttribute('aria-label', 'Your league: ' + full + '. Open the league menu');
     var max = window.innerWidth < 768 ? 120 : 200;
