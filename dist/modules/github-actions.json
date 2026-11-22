@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22T13:46:35.901996+00:00",
+  "generated_at": "2026-11-22T14:23:19.366649+00:00",
   "repo": "datadrivenfootball/fantasy-tools",
   "workflows": [
     {
@@ -1898,25 +1898,52 @@
         "schedule": "On push to main",
         "key_task": "Production deployment"
       },
-      "health": "running",
+      "health": "warn",
       "last_run": {
-        "created_at": "2026-11-22T13:17:33Z",
-        "updated_at": "2026-11-22T13:43:33Z",
-        "status": "in_progress",
+        "created_at": "2026-11-22T14:00:42Z",
+        "updated_at": "2026-11-22T14:00:45Z",
+        "status": "pending",
         "conclusion": null,
         "event": "push",
-        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026699972",
-        "duration_s": 1560
+        "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45030466984",
+        "duration_s": 3
       },
       "recent_runs": [
         {
-          "created_at": "2026-11-22T13:17:33Z",
-          "updated_at": "2026-11-22T13:43:33Z",
+          "created_at": "2026-11-22T14:00:42Z",
+          "updated_at": "2026-11-22T14:00:45Z",
+          "status": "pending",
+          "conclusion": null,
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45030466984",
+          "duration_s": 3
+        },
+        {
+          "created_at": "2026-11-22T13:50:33Z",
+          "updated_at": "2026-11-22T14:10:01Z",
           "status": "in_progress",
           "conclusion": null,
           "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45029596995",
+          "duration_s": 1168
+        },
+        {
+          "created_at": "2026-11-22T13:46:42Z",
+          "updated_at": "2026-11-22T13:50:34Z",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "event": "push",
+          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45029264225",
+          "duration_s": 232
+        },
+        {
+          "created_at": "2026-11-22T13:17:33Z",
+          "updated_at": "2026-11-22T13:56:50Z",
+          "status": "completed",
+          "conclusion": "success",
+          "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026699972",
-          "duration_s": 1560
+          "duration_s": 2357
         },
         {
           "created_at": "2026-11-22T13:17:26Z",
@@ -1926,38 +1953,11 @@
           "event": "push",
           "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026689272",
           "duration_s": 8
-        },
-        {
-          "created_at": "2026-11-22T13:16:26Z",
-          "updated_at": "2026-11-22T13:17:27Z",
-          "status": "completed",
-          "conclusion": "cancelled",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026602033",
-          "duration_s": 61
-        },
-        {
-          "created_at": "2026-11-22T13:10:28Z",
-          "updated_at": "2026-11-22T13:10:29Z",
-          "status": "completed",
-          "conclusion": "cancelled",
-          "event": "push",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026078198",
-          "duration_s": 1
-        },
-        {
-          "created_at": "2026-11-22T13:10:27Z",
-          "updated_at": "2026-11-22T13:16:27Z",
-          "status": "completed",
-          "conclusion": "cancelled",
-          "event": "workflow_dispatch",
-          "html_url": "https://github.com/datadrivenfootball/fantasy-tools/actions/runs/45026077589",
-          "duration_s": 360
         }
       ],
       "recent_failures": 0,
       "consecutive_failures": 0,
-      "last_success_at": null,
+      "last_success_at": "2026-11-22T13:17:33Z",
       "failing_streak": false,
       "alert_needed": false
     },
@@ -2145,9 +2145,9 @@
     "total_workflows": 30,
     "active": 29,
     "healthy": 25,
-    "warn": 0,
+    "warn": 1,
     "failing": 4,
-    "running": 1,
+    "running": 0,
     "failing_streak_count": 3,
     "alert_needed_count": 3,
     "max_consecutive_failures": 5,
