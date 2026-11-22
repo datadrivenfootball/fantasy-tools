@@ -131,6 +131,11 @@ export interface LeagueRead {
   /** Index of the user's team in teams, or null when my_team was not given. */
   mine: number | null;
   notes: string[];
+  /** Kickers and defenses the paste reader left out (folded into one line by the tools). */
+  kickers?: number;
+  defenses?: number;
+  /** Paste lines that could be more than one player: `Team: "line" could be A (RB), B (WR)`. */
+  unsure?: string[];
 }
 
 const MAX_LEAGUE_TEAMS = 20;
@@ -201,15 +206,14 @@ export function readLeague(
         // A line the reader could not pin to one player goes on by name: the tool's own matcher reports it.
         players.push(u.line);
         keys.push(null);
-        if (u.reason === "look" && u.options?.length) missing.push(`${t.name}: "${u.line}" could be ${u.options.map((o) => `${o.name} (${o.pos})`).join(", ")}`);
+        if (u.reason === "look" && u.options?.length) missing.push(`"${u.line}" (${t.name}) could be ${u.options.map((o) => `${o.name} (${o.pos})`).join(" or ")}`);
       }
       return { name: t.name, players, keys };
     });
     if (res.teams.length > MAX_LEAGUE_TEAMS) notes.push(`Only the first ${MAX_LEAGUE_TEAMS} teams were read.`);
     notes.push(`Read ${teams.length} teams from the paste: ${teams.map((t) => `${t.name} (${t.players.length})`).join(", ")}.`);
-    const kd = kdefLine(kickers, defenses);
-    if (kd) notes.push(kd);
-    notes.push(...missing);
+    if (teams.length < 2) throw new LeagueInputError("The league needs at least two teams.");
+    return { teams, mine: teamIndex(teams, args.my_team, "my_team"), notes, kickers, defenses, unsure: missing };
   } else if (args.league_teams !== undefined && args.league_teams !== null) {
     teams = teamsFromArg(args.league_teams);
   }
