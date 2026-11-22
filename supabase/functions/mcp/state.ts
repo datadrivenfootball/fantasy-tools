@@ -15,6 +15,8 @@ export interface Codec {
 export interface Deps {
   codec: Codec | null;
   siteOrigin: string;
+  /** The site's league paste reader (next/league-paste.js), for league_paste; null when it could not be loaded. */
+  paste?: import("./league.ts").PasteReader | null;
 }
 
 export const ROUTES: Record<string, string> = {
@@ -64,15 +66,42 @@ export function prepare(args: Record<string, unknown>, deps?: Deps): Prepared {
   }
   const merged: Record<string, unknown> = { ...args };
   delete merged.state;
+  // An older connector tool list sent the settings as one object: read it the same as top-level fields.
+  const given = args.settings;
+  if (given && typeof given === "object" && !Array.isArray(given)) {
+    for (const k of ["scoring", "teams", "superflex", "slots"]) {
+      const v = (given as Record<string, unknown>)[k];
+      if (merged[k] === undefined && v !== undefined) merged[k] = v;
+    }
+  }
+  delete merged.settings;
   const league = state?.league;
   if (league) {
     if (merged.scoring === undefined) merged.scoring = league.scoring;
     if (merged.teams === undefined && league.teams) merged.teams = league.teams;
-    if (merged.superflex === undefined && league.roster && league.roster.SUPERFLEX !== undefined) {
-      merged.superflex = Number(league.roster.SUPERFLEX) > 0;
-    }
+    // A saved league is the whole league: a roster with no SUPERFLEX slot has none. Slots given in this call
+    // that name a superflex slot win over it (tools.ts settings reads this after them).
+    merged._state_superflex = Number(league.roster?.SUPERFLEX ?? 0) > 0;
     const extras = leagueExtras(league);
     if (extras) merged.league = extras;
+  }
+  // Connector walkthrough 2026-11-21: the rosters a state carries stand in for the roster fields, so later calls
+  // need only the state. A player saved with a key is passed as #key; the tools read it back by key.
+  const work = state?.work;
+  if (work) {
+    const names = (list: unknown) => Array.isArray(list)
+      ? list.map((p: State) => (p?.key !== undefined ? `#${p.key}` : String(p?.name ?? ""))).filter(Boolean).join("\n")
+      : undefined;
+    const pasted = merged.league_paste !== undefined || merged.league_teams !== undefined;
+    if (!pasted && Array.isArray(work.teams) && work.teams.length) {
+      merged.league_teams = work.teams.map((t: State) => ({ name: t.name, players: names(t.players) ?? "" }));
+      if (merged.my_team === undefined && work.my_team !== undefined) merged.my_team = work.my_team;
+    }
+    // With saved teams, my_team and their_team pick the rosters; a saved mine/theirs would override a new choice.
+    const hasTeams = Array.isArray(merged.league_teams) && merged.league_teams.length > 0;
+    for (const k of ["mine", "theirs"]) {
+      if (merged[k] === undefined && work[k]?.length && !pasted && !hasTeams) merged[k] = names(work[k]);
+    }
   }
   return { args: merged, state, warnings };
 }
@@ -80,7 +109,7 @@ export function prepare(args: Record<string, unknown>, deps?: Deps): Prepared {
 export interface Finish {
   prepared: Prepared;
   deps?: Deps;
-  settings: { scoring: string; teams: number; superflex: number };
+  settings: { scoring: string; teams: number; superflex: number; roster?: Record<string, number> | null; notes?: string[] };
   view: string;
   work?: State;
   bare?: boolean;   // a plain site link with no state (explain)
@@ -108,15 +137,26 @@ export function finish<R extends { content: Array<{ type: "text"; text: string }
   f: Finish,
 ): R {
   const { prepared, deps, settings: s } = f;
-  const notes = [...new Set(prepared.warnings)];
+  const notes = [...new Set([...(s.notes ?? []), ...prepared.warnings])];
 
   const league: State = { ...(prepared.state?.league ?? {}), scoring: s.scoring, teams: s.teams };
+  // Slots given in this call are saved with the league, so later calls need not resend them.
+  if (s.roster) league.roster = { ...(league.roster ?? {}), ...s.roster };
   // The link must describe the league actually priced. An explicit superflex argument
   // can override SF1 or SF0 in a pasted state, so replace that slot in either case.
   if (s.superflex || league.roster?.SUPERFLEX !== undefined) {
     league.roster = { ...(league.roster ?? {}), SUPERFLEX: s.superflex ? 1 : 0 };
   }
-  const state: State = { v: 1, league, work: { ...(prepared.state?.work ?? {}), ...(f.work ?? {}), view: f.view } };
+  const work: State = { ...(prepared.state?.work ?? {}), ...(f.work ?? {}), view: f.view };
+  // Every league roster rides along by key only (a name only for a player with no key), so a 12-team league
+  // stays about a kilobyte in each reply; the site and the tools read players back by key.
+  if (Array.isArray(work.teams)) {
+    work.teams = work.teams.map((t: State) => ({
+      name: t.name,
+      players: (t.players ?? []).map((p: State) => (p?.key !== undefined ? { key: p.key } : p)),
+    }));
+  }
+  const state: State = { v: 1, league, work };
 
   const route = ROUTES[f.view] ?? ROUTES.targets;
   let url = `${deps?.siteOrigin ?? ""}/${route}`;

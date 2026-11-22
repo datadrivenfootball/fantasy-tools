@@ -76,7 +76,7 @@ const stub = async (scoring, teams, superflex) => ({
   sources_included: ["espn"], sources_excluded: [],
 });
 const r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "compare_trade",
-  arguments: { scoring: "ppr", side_a: "Jahmyr Gibbs, Jason Sanders K", side_b: "Chuba Hubbard, Dolphins D/ST" } } },
+  arguments: { scoring: "ppr", superflex: false, side_a: "Jahmyr Gibbs, Jason Sanders K", side_b: "Chuba Hubbard, Dolphins D/ST" } } },
   stub, { codec, siteOrigin: "https://site.test" });
 const text = r.result.content[0].text;
 assert.notEqual(r.result.isError, true, text);
@@ -85,7 +85,7 @@ assert.match(text, /Dolphins D\/ST: defense, not valued; left out/, text);
 assert.doesNotMatch(text, /Ja'Tavion|Tyler Badie/, text);
 // a K initial in a trade is priced, never left out as a kicker; a bare "Washington" stops and asks
 const call = (a, b2) => handleRpc({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "compare_trade",
-  arguments: { scoring: "ppr", side_a: a, side_b: b2 } } }, stub, { codec, siteOrigin: "https://site.test" });
+  arguments: { scoring: "ppr", superflex: false, side_a: a, side_b: b2 } } }, stub, { codec, siteOrigin: "https://site.test" });
 const walker = (await call("K. Walker, K. Shakir", "Jahmyr Gibbs")).result;
 assert.notEqual(walker.isError, true, walker.content[0].text);
 assert.doesNotMatch(walker.content[0].text, /kicker/, walker.content[0].text);

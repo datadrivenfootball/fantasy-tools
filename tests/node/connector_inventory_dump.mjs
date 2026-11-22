@@ -45,7 +45,9 @@ const tools = (await rpc("tools/list")).result.tools.map((t) => t.name);
 const routes = {};
 for (const name of tools) {
   if (!ARGS[name]) { routes[name] = null; continue; }
-  const r = (await rpc("tools/call", { name, arguments: ARGS[name] })).result;
+  // Scoring and superflex are required (connector walkthrough 2026-11-21); a state supplies its own.
+  const args = ARGS[name].state || name === "explain" ? ARGS[name] : { scoring: "ppr", superflex: false, teams: 12, ...ARGS[name] };
+  const r = (await rpc("tools/call", { name, arguments: args })).result;
   const url = r.structuredContent?.site_url ?? "";
   routes[name] = r.isError ? `error: ${r.content[0].text}` : ((/\/(#[a-z-]+)/.exec(url) || [])[1] ?? (url.endsWith("/") ? "/" : url));
 }

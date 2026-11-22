@@ -196,6 +196,32 @@ seeded and two real league rosters (PR for JEG-1639).
   "Dallas") is a defense only when no player's name holds that word. Otherwise it is ambiguous, listing those players
   and the defense as an option. A paste also reads spaced initials ("J. K. Dobbins" as J.K. Dobbins).
 
+## Connector league entry (2026-11-21, connector walkthrough)
+- Jeremy, 2026-11-21: "Do all recommendations" on the walkthrough page (decisions 2-5 took the recommended option).
+- Scoring and superflex are required (`tools.ts settings()`): a missing one is a tool error naming it; never PPR or
+  no-superflex by default. A superflex slot in `slots` or a saved state answers superflex (a saved league with no
+  SUPERFLEX slot has none). A missing team count is priced as 12 with a note; 4 to 20 teams are priced at the nearest
+  of 8, 10, 12, 14 (`league.ts nearestTeams`, a tie goes up) with a note.
+- `slots` takes `{QB:1, ..., K:1, DEF:1, BN:5}`, the league's slot text ("QB, RB, RB, ..., W/R/T, K, DEF, BN") or the
+  old 6-number array; K/DEF/IR are read and dropped. Slots price through get-values' `league.roster` (JEG-1031) and
+  set the finders' lineup shape when `roster_shape` is not given.
+- `league_paste` runs the site's own paste reader in a sandbox (`league.ts evalPasteReader`; index.ts loads
+  `v2/kdef-names.js`, `v2/roster-paste.js`, `next/rosterparse.js`, `next/league-paste.js` from the site). League
+  rosters travel in the state as `work.teams` + `work.my_team` (codec `app/v2/ddf-state.js`; link params `lt=`, `mt=`),
+  by key only in replies; `prepare()` turns them back into `league_teams`/`mine`/`theirs` (`#key` entries), so a later
+  call needs only the state. The codec is loaded from the published site, so league rosters persist only after the
+  site publishes this codec.
+- Names: lists split on new lines and semicolons too; a leading "K " before a full name is a kicker; with the site's
+  kicker list loaded an untagged kicker name is "kicker, not valued"; a "Closest" guess keeps a surname within two
+  edits (no Chris Boswell -> Chris Bell).
+- The claude.ai connector caches the tool list it saw when it was connected. The walkthrough's `site_next_steps`,
+  `settings`, `slots`, `league_teams`, `my_team` came from the 2026-11-05 handoff build (v24, `09-mcp-server` in the
+  handoff folder), not from this repo; after a deploy, reconnect the connector to refresh its list.
+- The finders' lineup shape is this call's slots, else the saved league's roster. The trade reply budget leaves out
+  the saved state as it leaves out the site link (both grow with every team); otherwise a 12-team saved league hit
+  the size error.
+- Tests: `tests/node/mcp_entry_check.mjs` (run by `tests.test_mcp_remote`).
+
 ## Edge drift check: input field comparison (JEG-1049 / JEG-1256, 2026-11-21)
 - `tools/edge_drift_check.mjs` now compares top-level `inputSchema.properties` keys and the `required` list for each
   tool present on both sides. A deployed server that advertises a tool but drops or adds fields (e.g. a claude.ai

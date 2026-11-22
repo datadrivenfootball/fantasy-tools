@@ -36,6 +36,11 @@ import { readFileSync } from "node:fs";
 import { handleRpc } from "../../supabase/functions/mcp/rpc.ts";
 import { leagueKey, mapLeague } from "../../supabase/functions/get-values/league.ts";
 import { evalPageModule, PAGE_MODULE_FILES } from "../../supabase/functions/mcp/analyses.ts";
+// Connector walkthrough 2026-11-21: scoring and superflex are required; calls without a state give the defaults the
+// tests were written against.
+const withSettings = (a) => (a && typeof a === "object" && a.state === undefined
+  ? { scoring: "ppr", superflex: false, teams: 12, ...a } : a);
+
 
 const require = createRequire(import.meta.url);
 const codec = require("../../app/v2/ddf-state.js");
@@ -186,7 +191,7 @@ function engineDiff(got, want) {
 }
 
 async function call(deps, rec, name, args) {
-  const msg = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } };
+  const msg = { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } };
   const r = await handleRpc(msg, rec.values, deps, { finder, fetchCharts: rec.charts,
     analysis: { fetchAnalysis: rec.analysis, modules } });
   return r.result;
