@@ -25,7 +25,9 @@
  *             arriving:[{row, slot|null}], leaving:[{row, slot|null}], promoted:[{row, slot}], displaced:[row],
  *             emptyBefore, emptyAfter, unvalued:[row]}
  *   text(trade, ctx)    -> plain text of the same explanation (no "DDF", no team names)
- *   html(trade, ctx, opts) -> '<details class="why">..' tap-to-expand panel; opts.id (unique), opts.extra (html after the table)
+ *   html(trade, ctx, opts) -> '<details class="why">..' tap-to-expand panel; opts.id (unique), opts.extra (html after the table),
+ *                           opts.lineups false leaves out the two lineup tables (Build a Trade shows them in its own card)
+ *   lineupTable(teamFitSide, shape, arrivingKeys, {natural, who}) -> one side's lineup in DDFLineup's shape (ddf-lineup.js)
  *   body(trade, ctx, opts) -> the panel's inside only (a page that renders <details> itself and fills it on first open)
  */
 (function () {
@@ -235,9 +237,62 @@
 
   // ---------- Natural fit 2: lineups before and after, and the two "why" paragraphs (Jeremy, 2026-11-19) ----------
   var one = function (n) { return finite(n) ? n.toFixed(1) : "—"; };
+  // Lineup flags (Build a Trade card, Find card chip; Jeremy, 2026-11-22): tests the Why already uses, read off teamFit
+  // (empty slots, depth against the expected range, shortFilled) and tradeFit's Natural tags (bench depth only, thin).
+  // natural: tradeFit's natural (null for one side alone); who: "you" or "them".
+  function lineupFlags(t, natural, who) {
+    var poss = who === "them" ? "their" : "your", out = [];
+    var emptyB = t.lineupBefore.empty || {}, emptyA = t.lineupAfter.empty || {};
+    Object.keys(emptyA).forEach(function (s) {
+      var n = emptyA[s] - (emptyB[s] || 0);
+      if (n > 0) out.push({kind: "empty", ok: false, slot: s, text: (n === 1 ? "Empty " + s + " slot" : n + " empty " + s + " slots") + " after the trade"});
+    });
+    POS.forEach(function (p) {
+      var d = t.depth && t.depth[p];
+      if (d && d.statusAfter === "under" && d.distAfter > d.distBefore) out.push({kind: "depth", ok: false, pos: p, text: p + " depth " + d.after + " after (" + d.range + " is normal)"});
+    });
+    (t.shortFilled || []).forEach(function (p) {
+      var d = t.depth[p];
+      out.push({kind: "filled", ok: true, pos: p, text: "Fills " + poss + " " + p + " need (" + d.before + " to " + d.after + ")"});
+    });
+    if (natural && (who === "them" ? natural.benchDepthThem : natural.benchDepth)) out.push({kind: "bench", ok: false, text: "Bench depth only"});
+    if (natural && who === "them" && natural.thin) {
+      var share = F() && finite(F().THIN_SHARE) ? Math.round(F().THIN_SHARE * 100) : 1;
+      out.push({kind: "thin", ok: false, text: "Thin gain: under " + share + "% of their starters"});
+    }
+    return out;
+  }
+  // The bench before and after (lineupValue's own bench and benchValue), and who joins or leaves it, in plain words.
+  function lineupBench(t, arrivingKeys) {
+    var key = t.key, B = t.lineupBefore, A = t.lineupAfter;
+    var row = function (r) { return {name: r.name, pos: r.pos, value: r.values ? r.values[key] : null}; };
+    var inB = new Set(B.bench.map(keyOf)), inA = new Set(A.bench.map(keyOf));
+    var startsA = new Set(A.starters.map(keyOf)), startedB = new Set(B.starters.map(keyOf));
+    var left = B.bench.filter(function (r) { return !inA.has(keyOf(r)); }).map(function (r) { return {name: r.name, how: startsA.has(keyOf(r)) ? "up" : "traded"}; });
+    var joined = A.bench.filter(function (r) { return !inB.has(keyOf(r)); }).map(function (r) { return {name: r.name, how: arrivingKeys.has(keyOf(r)) ? "arrives" : startedB.has(keyOf(r)) ? "down" : "joins"}; });
+    return {before: B.bench.map(row), after: A.bench.map(row), valueBefore: B.benchValue, valueAfter: A.benchValue, left: left, joined: joined};
+  }
+  // K and DEF (shape K / DST): never valued, so never starters in lineupValue; their rows list who is rostered there.
+  function lineupExtra(t, shape) {
+    var out = [];
+    [["K", ["K"], shape && shape.K], ["DEF", ["DEF", "DST"], shape && (shape.DST || shape.DEF)]].forEach(function (x) {
+      var n = Number(x[2]) || 0;
+      var at = function (l) { return (l.unvalued || []).filter(function (r) { return x[1].indexOf(r.pos) >= 0; }); };
+      var b = at(t.lineupBefore), a = at(t.lineupAfter);
+      for (var i = 0; i < n; i += 1) {
+        out.push({slot: x[0], unvalued: true, before: b[i] ? {name: b[i].name, pos: x[0]} : null, after: a[i] ? {name: a[i].name, pos: x[0]} : null,
+          changed: (b[i] ? keyOf(b[i]) : "") !== (a[i] ? keyOf(a[i]) : "")});
+      }
+    });
+    return out;
+  }
   // One team's starting lineup slot by slot, before and after, from tradeFit's own lineupValue calls (teamFit lineupBefore /
   // lineupAfter, starterBefore / starterAfter). A player in the same slot both times stays on one row; the rest pair up.
-  function lineupTable(t, shape, arrivingKeys) {
+  // Also (DDFLineup's shape, 2026-11-22): moves (startersIn / startersOut with slots), bench, K / DEF rows (extra) and
+  // flags; opts {natural, who} feeds the flags.
+  function lineupTable(t, shape, arrivingKeys, opts) {
+    opts = opts || {};
+    arrivingKeys = arrivingKeys || new Set();
     var key = t.key, rows = [];
     var startedBefore = new Set(t.lineupBefore.starters.map(keyOf));
     var cell = function (r, side) {
@@ -258,8 +313,11 @@
         rows.push({slot: s, changed: !same && Boolean(l.before || l.after), before: cell(l.before, "before"), after: same ? cell(l.after, "same") : cell(l.after, "after")});
       });
     });
-    return {rows: rows, before: t.starterBefore, after: t.starterAfter, delta: t.starterAfter - t.starterBefore,
-      into: t.startersIn.map(function (x) { return x.name; }), outOf: t.startersOut.map(function (x) { return x.name; })};
+    var brief = function (x) { return {name: x.name, slot: x.slot}; };
+    return {key: key, rows: rows, before: t.starterBefore, after: t.starterAfter, delta: t.starterAfter - t.starterBefore,
+      into: t.startersIn.map(function (x) { return x.name; }), outOf: t.startersOut.map(function (x) { return x.name; }),
+      moves: {"in": t.startersIn.map(brief), out: t.startersOut.map(brief)},
+      bench: lineupBench(t, arrivingKeys), extra: lineupExtra(t, shape), flags: lineupFlags(t, opts.natural || null, opts.who || "you")};
   }
   // The lineup in one sentence per changed slot: "A replaces B at RB (19.6 for 11.4)".
   function lineupLines(table, who) {
@@ -366,7 +424,8 @@
     var p = pct({mine: trade.mine, theirs: trade.theirs, give: trade.give, receive: trade.receive}, ctx, k);
     var unit = function (n) { return n === "DDF" ? "DDF" : "on " + n; };
     var units = {you: unit(names.you), them: unit(names.them)};
-    var lineups = {you: lineupTable(fit.us, ctx.shape, new Set(recv.map(keyOf))), them: lineupTable(fit.them, ctx.shape, new Set(give.map(keyOf)))};
+    var lineups = {you: lineupTable(fit.us, ctx.shape, new Set(recv.map(keyOf)), {natural: fit.natural, who: "you"}),
+      them: lineupTable(fit.them, ctx.shape, new Set(give.map(keyOf)), {natural: fit.natural, who: "them"})};
     var edge = finite(trade.edge) ? trade.edge : null;
     var why = {you: yourWhy(fit, lineups.you, {give: give, receive: recv, edge: edge, demoted: demoted}, units, wl),
       them: theirWhy(fit, lineups.them, {give: give, receive: recv}, units)};
@@ -437,18 +496,10 @@
     if (typeof document !== "undefined") injectCss();
     return bodyOf(e, opts || {});
   }
+  // The two lineup tables ("full" size of the shared DDFLineup, ddf-lineup.js). Build a Trade leaves them out (opts.lineups
+  // false): its own lineup card shows them (Jeremy, 2026-11-22).
   function lineupHtml(t, title, sub) {
-    var c = function (x) {
-      if (!x) return '<td class="why-pl why-empty">Empty</td>';
-      return '<td class="why-pl"><span class="why-nm">' + esc(x.name) + '</span><span class="why-v">' + one(x.value) + "</span>"
-        + (x.tag ? '<span class="why-mv" data-tag="' + esc(x.tag) + '">' + esc(x.tag) + "</span>" : "") + "</td>";
-    };
-    var d = t.delta, dir = !finite(d) || Math.abs(d) < FLOOR ? "flat" : d > 0 ? "up" : "down";
-    return '<div class="why-lu"><p class="why-lu-h"><b>' + esc(title) + "</b> <small>" + esc(sub) + "</small></p>"
-      + '<table class="why-lt"><thead><tr><th scope="col"><span class="why-sr">Slot</span></th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>'
-      + t.rows.map(function (r) { return "<tr" + (r.changed ? ' class="why-chg"' : "") + '><th scope="row">' + esc(r.slot) + "</th>" + c(r.before) + c(r.after) + "</tr>"; }).join("")
-      + '</tbody></table><p class="why-tot" data-starters-before="' + one(t.before) + '" data-starters-after="' + one(t.after) + '"><span>Starters</span> <span class="why-n">' + one(t.before)
-      + '</span> to <span class="why-n">' + one(t.after) + '</span> <span class="why-d" data-dir="' + dir + '">' + shown(d) + "</span></p></div>";
+    return window.DDFLineup ? window.DDFLineup.html(t, {size: "full", title: title, basis: sub}) : "";
   }
   function bodyOf(e, opts) {
     var you = e.you, them = e.them, v = e.verdict, units = opts.units || {};
@@ -463,7 +514,7 @@
       + '<p class="why-head"><span class="why-tag" data-cls="' + esc(v.cls) + '">' + esc(v.word) + (v.cls === "natural" ? " · " + esc(v.charts) + " public charts" : "") + "</span>"
       + v.tags.map(function (t) { return '<span class="why-tag why-tag2" data-tag>' + esc(t) + "</span>"; }).join("") + esc(e.headline) + "</p>"
       + (e.pct ? '<p class="why-pct" data-pct data-band="' + esc(e.pct.partner.band) + '">' + esc(e.pct.line) + "." + (e.pct.sentence ? " <span class=\"why-sentence\">" + esc(e.pct.sentence) + "</span>" : "") + "</p>" : "")
-      + '<div class="why-lus">' + lineupHtml(e.lineups.you, "Your lineup", units.youSub || "your valuation") + lineupHtml(e.lineups.them, opts.partner ? opts.partner + " lineup" : "Their lineup", units.themSub || "their valuation") + "</div>"
+      + (opts.lineups === false ? "" : '<div class="why-lus">' + lineupHtml(e.lineups.you, "Your lineup", units.youSub || "your valuation") + lineupHtml(e.lineups.them, opts.partner ? opts.partner + " lineup" : "Their lineup", units.themSub || "their valuation") + "</div>")
       + '<p class="why-side">Why you should do this</p>' + ul(e.why.you, "data-why-you")
       + '<p class="why-side">Why they may see it as good</p>' + ul(e.why.them, "data-why-them")
       + '<p class="why-verdict" data-verdict="' + esc(v.cls) + '">' + esc(verdictLine(e)) + "</p>"
@@ -472,5 +523,5 @@
   }
 
   if (typeof document !== "undefined" && document.head) injectCss();
-  window.DDFWhy = {explain: explain, text: text, html: html, body: body, waiverLine: waiverLine, FLOOR: FLOOR};
+  window.DDFWhy = {explain: explain, text: text, html: html, body: body, waiverLine: waiverLine, lineupTable: lineupTable, FLOOR: FLOOR};
 })();

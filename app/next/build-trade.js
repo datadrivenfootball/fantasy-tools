@@ -417,6 +417,7 @@
       if (L.full) { renderOutside('give'); renderOutside('get'); }
     }
     for (const side of ['give', 'get']) $(side + '-names').textContent = joinKeys(picked(side));
+    renderLineup();
     if (!any && L.available) {
       const c = ready ? checksHTML() : {pass: false, html: '<p>Add a player to each side to run the trade checks.</p>'};
       $('check-pass').textContent = c.pass ? '✓ Trade checks pass' : 'Review trade checks';
@@ -424,7 +425,8 @@
       $('checks').innerHTML = c.html; S.fit = c.fit || null;
       // JEG-1561: the sender-facing Why panel (tap to expand), from the shared module; nothing when it cannot judge.
       const w = ready ? why() : null;
-      $('build-why').innerHTML = w && w.e && window.DDFWhy.html ? window.DDFWhy.html(w.I.trade, w.I.ctx, {id: 'build-why-panel'}) : '';
+      // Its two lineup tables are left out: the lineup card above shows them (Jeremy, 2026-11-22).
+      $('build-why').innerHTML = w && w.e && window.DDFWhy.html ? window.DDFWhy.html(w.I.trade, w.I.ctx, {id: 'build-why-panel', lineups: false}) : '';
     } else S.fit = null;
     const shop = picked('give').length > 0 && !picked('get').length;
     $('empty-state').hidden = ready || shop; $('result').hidden = !(ready || shop); $('trade-charts').hidden = shop; $('shop-note').hidden = !shop;
@@ -761,6 +763,58 @@
     return {k: e.k, status: e.status, text: `${src[0].toUpperCase() + src.slice(1)} ${e.k === 'fantasycalc' ? 'show' : 'shows'} ${line} (${nums}).`};
   }
 
+  /* ---------- the starting lineup before and after (Jeremy, 2026-11-21/22: layout A "Changes first") ----------
+     Who starts is lineupValue's best lineup under the league's slots, as teamFit reads it: the trade checks' own
+     tradeFit when both teams and both sides are known, else teamFit for your side alone (shopping a player, Any players
+     with your league loaded). DDFWhy.lineupTable shapes it and DDFLineup draws it. No value math here. */
+  function lineupSides() {
+    const X = fitBase(), W = window.DDFWhy;
+    if (!X || !W || !W.lineupTable || !window.DDFLineup || L.me < 0) return null;
+    const any = S.mode === 'any', give = picked('give'), get = picked('get');
+    if (!give.length && !get.length) return null;
+    const mine = myRosterKeys();
+    if (give.some(k => !mine.includes(k))) return null;   // only a trade from your own roster changes your lineup
+    const yv = any ? 'DDF' : $('your-valuation').value, tv = $('their-valuation').value;
+    const ourKey = VALUATION_KEY[yv] || 'ddf_value';
+    const set = keys => new Set(keys.map(String));
+    const you = {who: 'you', title: 'Your lineup', sumTitle: 'Your starters', basis: valuationLabel(yv)};
+    const them = {who: 'them', title: (partnerName() || 'Their') + ' lineup', sumTitle: (partnerName() || 'Their') + ' starters', basis: valuationLabel(tv)};
+    const both = give.length > 0 && get.length > 0;
+    if (!any && L.available && S.partner >= 0 && both) {
+      const t = tradeFit();
+      if (t && t.fit) {
+        you.lineup = W.lineupTable(t.fit.us, X.shape, set(get), {natural: t.fit.natural, who: 'you'});
+        them.lineup = W.lineupTable(t.fit.them, X.shape, set(give), {natural: t.fit.natural, who: 'them'});
+        return {sides: [you, them]};
+      }
+      if (t && t.missing) them.note = t.missing;
+      else return null;
+    }
+    const analystOff = X.analyst.length < MIN_ANALYST;
+    if (ourKey === 'chart_avg' && analystOff) return null;
+    try {
+      const side = X.Fd.teamFit({roster: rowsOf(mine), leaving: rowsOf(give), arriving: rowsOf(get)},
+        {shape: X.shape, expected: X.expected, weights: X.weights, chartKeys: X.analyst.length ? X.analyst : X.market || undefined, z: X.Fd.FIT_Z}, ourKey);
+      you.lineup = W.lineupTable(side, X.shape, set(get), {who: 'you'});
+    } catch (err) { console.warn('Build a Trade: no lineup', err); return null; }
+    if (any) return {sides: [you, Object.assign(them, {title: 'Their lineup', sumTitle: 'Their starters', basis: '', note: 'Pick a team in My league to see their lineup too.'})]};
+    if (them.note) return {sides: [you, them]};
+    const shop = give.length > 0 && !get.length;
+    return {sides: [you], title: shop ? 'Your lineup without ' + joinKeys(give) : 'Your lineup with ' + joinKeys(get),
+      foot: shop ? 'Add a player to receive to see the full trade.' : 'Add a player to give to see the full trade.'};
+  }
+  function renderLineup() {
+    const card = $('lineup-card'), body = $('lineup-body');
+    const got = S.kind === 'trade' ? lineupSides() : null;
+    card.hidden = !got;
+    if (!got) { body.innerHTML = ''; return; }
+    // A re-render (every pick) keeps the folds the reader opened.
+    const open = new Set([...body.querySelectorAll('details[open][data-fold]')].map(d => d.closest('[data-lineup-side]').dataset.lineupSide + '|' + d.dataset.fold));
+    $('lineup-title').textContent = got.title || 'Starting lineup after this trade';
+    body.innerHTML = window.DDFLineup.card(got.sides, {foot: got.foot});
+    body.querySelectorAll('details[data-fold]').forEach(d => { if (open.has(d.closest('[data-lineup-side]').dataset.lineupSide + '|' + d.dataset.fold)) d.open = true; });
+  }
+
   /* ---------- the offer message: options by the shape of the offer (build-offer.js, JEG-1559) ---------- */
   function lineupStarters(keys) {
     const X = fitBase();
@@ -983,5 +1037,5 @@
     if (window.DDF && DDF.link && DDF.link.ready) DDF.link.ready.then(r => { if (r && r.source === 'link' && !r.error) { init(); requestAnimationFrame(scrollToChartsIfLinked); } });
   }).catch(err => { console.error(err); $('build-status').textContent = 'The value engine did not load. Reload the page to try again.'; });
 
-  window.DDFBuild = {state: () => S, picked, rec, tradeSources, chartEval, gainFor, league: () => L, offer: () => OFFER, offerInput};
+  window.DDFBuild = {state: () => S, picked, rec, tradeSources, chartEval, gainFor, league: () => L, offer: () => OFFER, offerInput, lineupSides};
 })();

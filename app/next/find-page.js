@@ -248,18 +248,14 @@
       + tags.map(function (x) { return ' <span class="fit-tag" data-fit-tag>' + esc(x) + "</span>"; }).join("");
   }
   // One side's starting lineup before and after on that side's valuation (tradeFit's starterBefore / starterAfter and the
-  // players entering or leaving a starting slot), so the card shows how the starting lineup's total changes.
-  function lineupMini(side, who, title, label) {
-    if (!side || !DDF.find.finite(side.starterBefore)) return "";
-    var d = side.starterAfter - side.starterBefore, dir = Math.abs(d) < 0.05 ? "flat" : d > 0 ? "up" : "down";
-    var nm = function (x) { return x.name + (x.slot ? " (" + x.slot + ")" : ""); };
-    var moves = side.startersIn.length || side.startersOut.length
-      ? (side.startersIn.length ? "In: " + side.startersIn.map(nm).join(", ") + "." : "") + (side.startersOut.length ? (side.startersIn.length ? " " : "") + "Out: " + side.startersOut.map(nm).join(", ") + "." : "")
-      : "No lineup change.";
-    return '<div class="lm" data-lineup="' + who + '" data-before="' + side.starterBefore.toFixed(1) + '" data-after="' + side.starterAfter.toFixed(1) + '">'
-      + '<div class="lm-top"><span class="lm-h">' + esc(title) + " <i>" + esc(label) + '</i></span><span class="lm-d" data-dir="' + dir + '">' + shown(d) + "</span></div>"
-      + '<div class="lm-n">' + side.starterBefore.toFixed(1) + ' <span aria-hidden="true">&rarr;</span><span class="lm-sr"> to </span> ' + side.starterAfter.toFixed(1) + "</div>"
-      + '<p class="lm-mv">' + esc(moves) + "</p></div>";
+  // players entering or leaving a starting slot), so the card shows how the starting lineup's total changes. Drawn by the
+  // shared DDFLineup at "line" size (Jeremy, 2026-11-22), from DDFWhy.lineupTable on the fit the card already has.
+  function lineupMini(t, who, title, label) {
+    var side = t.fit && t.fit[who === "you" ? "us" : "them"];
+    if (!side || !DDF.find.finite(side.starterBefore) || !window.DDFWhy || !window.DDFLineup) return "";
+    var arriving = new Set((who === "you" ? t.receive : t.give).map(keyOf));
+    var C = window.TradeValueCurveControls, shape = C && C.getRosterShape ? C.getRosterShape() : null;
+    return window.DDFLineup.html(window.DDFWhy.lineupTable(side, shape, arriving, {natural: t.fit.natural, who: who}), {size: "line", who: who, title: title, basis: label});
   }
   function card(g, k, mx) {
     var B = basis(), t = selected(g);
@@ -287,7 +283,7 @@
       + (window.DDFWhy && t.fit ? '<details class="why" data-why data-group="' + esc(g.id) + '"><summary aria-label="Why this offer: ' + esc(names(t.give)) + " for " + esc(names(t.receive)) + '">Why</summary><div class="why-slot"></div></details>' : "")
       + "</div>"
       + '<div class="pk-gain"><small>Trade value (' + esc(B.you) + ')</small><b class="gain" data-trade-value="' + shown(t.edge) + '">' + shown(t.edge) + "</b>"
-      + lineupMini(t.fit && t.fit.us, "you", "Your starters", B.you) + lineupMini(t.fit && t.fit.them, "them", "Their starters", B.them) + "</div>"
+      + lineupMini(t, "you", "Your starters", B.you) + lineupMini(t, "them", "Their starters", B.them) + "</div>"
       + '<div class="pk-act"><a class="button" data-build href="' + esc(hrefFor(t, g.partner)) + '">Build a Trade <span class="arr" aria-hidden="true">&rarr;</span></a></div></article>';
   }
   // JEG-1561: the Why panel, filled on first open from DDFWhy (ddf-why.js) on the same rows and valuations as the card.
