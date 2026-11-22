@@ -32,6 +32,7 @@ from pathlib import Path
 
 from tests import _render_env
 from tests._dist_server import serve, chromium_executable
+from tests._holds import without_holds
 from tests._served_weeks import route_pinned_weeks
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -313,6 +314,22 @@ def manifesto_words(mirror: str) -> list[str]:
     return body.replace("*", "").replace("#", " ").split()
 
 
+SOURCES = ("usatoday", "fantasypros", "fantasycalc", "cbs", "espn", "cbsros", "razzball")
+HELD_PROJECTION, HELD_CHART = "razzball", "fantasycalc"
+
+
+def scrape_hold(*roots):
+    """A detail transform: no source held except `roots`, each held the way the fidelity pulse holds a failed scrape
+    (shape of the live FantasyCalc hold, 2026-11-22)."""
+    def transform(detail: dict) -> dict:
+        out = without_holds(detail)
+        for root in roots:
+            out["sources"][root]["validationHold"] = {"hold_level": "red", "reason": "fidelity: scrape_validity",
+                                                      "root": root, "stage": "scrape_validity", "week": None}
+        return out
+    return transform
+
+
 class LearnEngineParity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -328,7 +345,7 @@ class LearnEngineParity(unittest.TestCase):
             raise unittest.SkipTest("dist/learn.html is not built")
         cls.sync_playwright = staticmethod(sync_playwright)
 
-    def _page(self, p, base, viewport=(1440, 900)):
+    def _page(self, p, base, viewport=(1440, 900), detail_transform=None):
         browser = p.chromium.launch(executable_path=chromium_executable(p), args=_render_env.HERMETIC_ARGS)
         page = browser.new_page(viewport={"width": viewport[0], "height": viewport[1]})
         errors = []
@@ -337,7 +354,8 @@ class LearnEngineParity(unittest.TestCase):
         # Served weeks pinned (tests/_served_weeks.py): parity is checked on the 4-chart board. With a chart still on last
         # week (2026-11-17: USA Today on Week 10) the page and engine still agree, but the rate's ≈ budget ÷ total figure
         # drifts past the 5% bound from the averaged rate (3.66 vs 3.94 at standard/12), a display question, not parity.
-        route_pinned_weeks(page, DIST)
+        # detail_transform: the test's own holds (scrape_hold), so a hold check never rests on the day's fidelity pulse.
+        route_pinned_weeks(page, DIST, detail_transform)
         page.goto(base + "/learn.html#numbers/pie")
         page.wait_for_function("() => window.DDFNumbers && DDFNumbers.snapshot()", timeout=90000)
         return browser, page, errors
@@ -363,13 +381,11 @@ class LearnEngineParity(unittest.TestCase):
             browser.close()
         self.assertTrue(any("DDF Value" in e or "trace" in e for e in errors), errors[:5])
 
-    def test_round4_notes(self):
-        """R4-OP-03 (superflex: the trace says the ≈ rate is not the averaged rate and why), R4-OP-06 (a held source's
-        note in plain words, projections left out of DDF Value · projections) and R4-OP-01 (glossary Bench weight is
-        not the bench share of the pie)."""
+    def _round4(self, detail_transform):
+        """The R4 page reads at superflex 12: the Josh Allen trace, each source's build-up note, the glossary."""
         q = "?scoring=ppr&teams=12&roster=" + ROSTER.format(sf=1)
         with serve() as base, self.sync_playwright() as p:
-            browser, page, console = self._page(p, base, viewport=(390, 844))
+            browser, page, console = self._page(p, base, viewport=(390, 844), detail_transform=detail_transform)
             go(page, "#numbers/pie" + q)
             page.wait_for_function(SNAP_READY, arg={"scoring": "ppr", "teams": 12, "sf": True}, timeout=60000)
             snap = page.evaluate("""() => { const s = DDFNumbers.snapshot(), a = s.players.find(p => p.name === 'Josh Allen');
@@ -379,22 +395,47 @@ class LearnEngineParity(unittest.TestCase):
             go(page, f"#numbers/trace/{snap['key']}{q}")
             trace = page.text_content("#tr-adj-body")
             notes = {}
-            for src in snap["held"]:
+            for src in SOURCES:
                 go(page, f"#numbers/build-up/{src}{q}")
                 notes[src] = page.text_content("#bu-meta")
             gloss = page.text_content("#g-bench-weight")
             overflow = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
             browser.close()
+        self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
+        return snap, trace, notes, gloss, overflow
+
+    def test_round4_notes(self):
+        """R4-OP-03 (superflex: the trace says the ≈ rate is not the averaged rate and why), R4-OP-06 (a held source's
+        note in plain words: a held projection is left out of DDF Value · projections, a held chart out of DDF Value,
+        both still counted in the allocation and the weights) and R4-OP-01 (glossary Bench weight is not the bench
+        share of the pie). The test holds one projection and one chart itself (scrape_hold), so the held path is checked
+        whatever the fidelity pulse held that day (2026-11-22: FantasyCalc held, a chart, turned the projection-only
+        wording red; with nothing held the note loop checked nothing)."""
+        snap, trace, notes, gloss, overflow = self._round4(scrape_hold(HELD_PROJECTION, HELD_CHART))
         self.assertGreater(snap["mix"], 1, "superflex should average several allocations; the check proves nothing")
         self.assertIn(f"the engine’s rate, the weight-average of each of the {snap['mix']} league allocations’ own rate", trace)
         self.assertNotIn("averaged over the allocations:", trace)
-        for src, note in notes.items():
-            self.assertNotIn("held: fidelity", note, src)
-            self.assertIn("Held this week (its latest scrape failed validation): left out of DDF Value · projections, but still "
-                          "counted in the league allocation and the DDF weights.", note, src)
+        self.assertEqual(sorted(snap["held"]), sorted([HELD_PROJECTION, HELD_CHART]),
+                         "the engine does not report the test's holds; the note checks would prove nothing")
+        for src, out in ((HELD_PROJECTION, "DDF Value · projections"), (HELD_CHART, "DDF Value")):
+            self.assertNotIn("held: fidelity", notes[src], src)
+            self.assertIn(f"Held this week (its latest scrape failed validation): left out of {out}, but still "
+                          "counted in the league allocation and the DDF weights.", notes[src], src)
+        for src in set(SOURCES) - {HELD_PROJECTION, HELD_CHART}:
+            self.assertNotIn("Held this week", notes[src], src)
         self.assertIn("It is not the bench share of the pie shown on Full value logic", gloss)
         self.assertFalse(overflow, "horizontal overflow at 390 px")
-        self.assertEqual([e for e in console if "Failed to load resource" not in e], [])
+
+    def test_round4_no_held_note_when_nothing_is_held(self):
+        """R4-OP-06, the other side: with no source held, no build-up says a source is held or left out."""
+        snap, _, notes, _, overflow = self._round4(without_holds)
+        self.assertEqual(snap["held"], [])
+        for src, note in notes.items():
+            self.assertTrue(note, f"{src}: empty build-up note; the absence check proves nothing")
+            self.assertNotIn("Held this week", note, src)
+            self.assertNotIn("Left out of DDF Value", note, src)
+            self.assertNotIn("held:", note, src)
+        self.assertFalse(overflow, "horizontal overflow at 390 px")
 
     def test_round5_derivations_and_status(self):
         """R5-OP-02: the worked rows derive availability, the starter line, the chart spread rate and the DDF weights at the
