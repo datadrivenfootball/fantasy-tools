@@ -10,12 +10,15 @@
  *   your valuation  -> findTrades ourKey (what you must win on), tradeFit ourKey, the waivers view
  *   their valuation -> tradeFit marketKey (the other team's side of the fit label)
  *   The acceptance gate stays the live one: at least one available trade chart has the package even or better for them.
- *   "Analyst charts" (token Market) = chart_avg over CBS Sports, USA Today and FantasyPros (withChartAverage).
+ *   "Analyst charts" (token Market) = chart_avg over CBS Sports, USA Today and FantasyPros (withChartAverage), or over
+ *   the two still available when one is on hold (MIN_ANALYST).
  *
  * API: window.DDF.find
  *   VALUATIONS             token -> {key, label, view, avg}
- *   context()              {shape, expected, weights, gate, analyst, ready} from the engine (null before it loads)
- *   searchPartner(ctx, mine, theirs, opts) -> {trades, total, sanityDropped, guardrailDropped, searched, partial}
+ *   context()              {shape, expected, weights, gate, analyst, analystMissing} from the engine (null before it loads);
+ *                          analyst: the available analyst charts when at least MIN_ANALYST (2 of 3) are, else null
+ *   chartNames(keys)       "USA Today", "CBS Sports and USA Today" (for the page's notes)
+ *   searchPartner(ctx, mine, theirs, opts) -> {trades, total, sanityDropped, guardrailDropped, searched, partial, judged, unjudged}
  *   classify(trade)        'natural' | 'neutral' | 'force' | 'unjudged'
  *   waiverAlternative(...)  JEG-1572: the best available players at the positions received vs the trade (see below);
  *                          searchPartner sets trade.waiver and moves a Natural fit a free pickup mostly matches to neutral
@@ -31,6 +34,10 @@
   var F = function () { return window.TradeValueFinder; };
   var WV = function () { return window.TradeValueWaivers; };
   var ANALYST = ["cbs", "usatoday", "fantasypros"];
+  // Jeremy 2026-11-18 (option A): with one analyst chart on hold, the analyst-chart average (and the fit judged on it) uses
+  // the two still available; with fewer than two it is off and fit is not judged. The connector's trade chart average
+  // (supabase/functions/mcp/fit.ts) likewise runs with one of its four charts missing.
+  var MIN_ANALYST = 2;
   var finite = function (v) { return typeof v === "number" && isFinite(v); };
 
   var VALUATIONS = {
@@ -57,7 +64,16 @@
     var analyst = ANALYST.filter(function (k) { return available.has(k); });
     return {shape: shape, expected: depth ? depth.expected : null, weights: f.ui.benchWeights(),
       gate: f.CHART_KEYS.filter(function (k) { return available.has(k); }),
-      analyst: analyst.length === ANALYST.length ? analyst : null};
+      analyst: analyst.length >= MIN_ANALYST ? analyst : null,
+      analystMissing: ANALYST.filter(function (k) { return !available.has(k); })};
+  }
+  // The analyst charts' names, for the page's notes ("USA Today", "CBS Sports and USA Today").
+  function chartNames(keys) {
+    var names = (keys || []).map(function (k) {
+      var hit = Object.keys(VALUATIONS).filter(function (t) { return VALUATIONS[t].key === k; })[0];
+      return hit ? VALUATIONS[hit].label : k;
+    });
+    return names.length < 2 ? names.join("") : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
   }
 
   var keyOf = function (r) { return String(r.player_key); };
@@ -90,8 +106,10 @@
         minDdfEdge: 0, minUserLineupGain: null, minTheirLineupGain: null, shape: ctx.shape, mine: mineS, theirs: theirS, chartKeys: ctx.gate, ourKey: your.key},
       sanity: ctx.shape ? {shape: ctx.shape, mine: mineS, theirs: theirS, keepMine: true, keepTheirs: true} : null});
     var judged = Boolean(ctx.shape && ctx.expected && (!their.avg || canAvg) && (!your.avg || canAvg));
+    // Why an offer has no fit label: "charts" (fewer than two analyst charts for an analyst-chart valuation) or "depth".
+    var unjudged = judged ? null : (your.avg || their.avg) && !canAvg ? "charts" : "depth";
     var fitCtx = judged ? {shape: ctx.shape, expected: ctx.expected, weights: ctx.weights, ourKey: your.key, marketKey: their.key,
-      chartKeys: ctx.analyst || undefined, z: f.FIT_Z} : null;
+      chartKeys: ctx.analyst || undefined, gateKeys: ctx.gate, z: f.FIT_Z} : null;
     var mineW = widen(mine), theirW = widen(theirs);
     // A list typed on waivers.html is only checked against your roster: a player on either roster here is not available.
     var onRoster = new Set(mine.concat(theirs).map(keyOf));
@@ -121,7 +139,7 @@
     });
     return {trades: trades, total: res.total, sanityDropped: res.sanityDropped, guardrailDropped: res.guardrailDropped || 0,
       searched: {mine: res.mine, theirs: res.theirs}, partial: theirs.filter(function (r) { return ["QB", "RB", "WR", "TE"].indexOf(r.pos) >= 0; }).length < slots,
-      judged: judged};
+      judged: judged, unjudged: unjudged};
   }
   // JEG-1572 (a friend's real league, 2026-11-08: "willing to give away some of my good RBs to plug a QB hole that could
   // better be filled via the waiver wire"). Before an offer counts as a Natural fit, the same tradeFit is run again on your
@@ -158,7 +176,9 @@
     return {players: picks.map(function (r) { return {key: keyOf(r), name: r.name, pos: r.pos}; }), gain: gain, gainAfter: after, netAfter: fit2.us.net,
       covered: covered, ok: ok, demoted: (covered !== null && covered >= WAIVER_SHARE) || !ok};
   }
-  // Natural fit is tradeFit's label (both sides, JEG-1324). Partner neutral: not natural, and the other team's side of the
+  // Natural fit is tradeFit's label (Natural fit 2, Jeremy 2026-11-19: a real reason on both sides, at least 2 public charts
+  // even or better for them, no empty starting slot; the count is judged on ctx.gate, the charts the card counts).
+  // Partner neutral: not natural, and the other team's side of the
   // fit is not worse than its noise floor (the live "neutral" / "favorable" reading of their side). The rest are force fits.
   // JEG-1639: a trade whose only failing test is their roster being clearly worse (-3% or more, the Why text's band) is
   // not natural and, its side being within the noise floor, lands here as Partner neutral.
@@ -226,7 +246,7 @@
 
   var shown = function (n) { return Math.abs(n) < 0.05 ? "0.0" : (n > 0 ? "+" : "−") + Math.abs(n).toFixed(1); };
 
-  DDF.find = {VALUATIONS: VALUATIONS, valuation: valuation, ANALYST: ANALYST, context: context, searchPartner: searchPartner,
+  DDF.find = {VALUATIONS: VALUATIONS, valuation: valuation, ANALYST: ANALYST, MIN_ANALYST: MIN_ANALYST, chartNames: chartNames, context: context, searchPartner: searchPartner,
     classify: classify, group: group, waiverAlternative: waiverAlternative, WAIVER_SHARE: WAIVER_SHARE, pickups: pickups, pickupsByBasis: pickupsByBasis, BASES: BASES, entriesOf: entriesOf, rowsOf: rowsOf, shown: shown, finite: finite,
     chartAgreement: chartAgreement, meetsChartMin: meetsChartMin};
 })();

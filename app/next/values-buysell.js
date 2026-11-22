@@ -88,7 +88,7 @@ function fitCtx(){
   const all=new Map(C.getAllRows().map(r=>[String(r.player_key),r]));
   const rosters=new Map(),wide=new Map();
   LC.lg.teams.forEach(t=>{const rows=Fd.withChartAverage([...t.keys].map(k=>all.get(k)).filter(Boolean),market);rosters.set(t.id,rows);rows.forEach(r=>{if(!wide.has(String(r.player_key)))wide.set(String(r.player_key),r)})});
-  FX={ctx:{shape,expected,weights,ourKey:'ddf_value',marketKey:Fd.MARKET_KEY,chartKeys:market,z:Fd.FIT_Z},rosters,wide};
+  FX={ctx:{shape,expected,weights,ourKey:'ddf_value',marketKey:Fd.MARKET_KEY,chartKeys:market,gateKeys:charts,z:Fd.FIT_Z},rosters,wide};
  }catch(err){console.warn('Buy / Sell: no fit context',err);FX=false}
  return FX||null;
 }
@@ -161,13 +161,10 @@ const mark=b=>b?['ok','Pass']:['no','Fail'];
 function fitHTML(give,get){
  const s=pairStats(give,get),fit=s.fit;
  if(!fit)return `<div class="bs-fithead"><h4>Roster fit</h4>${natTag(s)}</div><p class="bs-note">Roster fit could not be checked here. Check fit in Build a Trade.</p>`;
- const nat=fit.natural,li=(ok,txt)=>{const m=mark(ok);return check(m[0],txt,m[1])};
- let h=`<div class="bs-fithead"><h4>Roster fit</h4>${natTag(s)}</div><ul class="bs-checks">`+
-  li(nat.us.value,`Your DDF Value starters ${sg(fit.us.starterDelta)}`)+
-  li(nat.them.value,`Their starters on the charts ${sg(fit.them.starterDelta)}`)+
-  (fit.constructionOk?li(true,'Both rosters valid'):li(false,'Rosters not both valid: '+esc(fit.myConstruction.issues.concat(fit.theirConstruction.issues).join('; '))));
- [[nat.us,'Your'],[nat.them,'Their']].forEach(([side,who])=>{if(side.projections===false)h+=li(false,`${who} DDF Value (projections) ${sg(side.projNet)}`)});
- if(nat.us.projections===null||nat.them.projections===null)h+=check('na','DDF Value (projections) not checked: a player in this trade has none. Confirm in Build a Trade.','Check');
+ // Natural fit 2 (Jeremy, 2026-11-19 / 2026-11-21): the rows are the shared Natural test (finder.js naturalChecks), so the
+ // tag is Natural exactly when every blocking row passes; their projection-based value falling is a caution, not a fail.
+ const row=r=>r.ok===true?check('ok',esc(r.text),'Pass'):r.ok===false?check('no',esc(r.text),'Fail'):check('na',esc(r.text),'Caution');
+ let h=`<div class="bs-fithead"><h4>Roster fit</h4>${natTag(s)}</div><ul class="bs-checks">`+F().naturalChecks(fit,{you:'DDF Value',them:'the charts'}).map(row).join('');
  return h+'</ul>';
 }
 function renderDetail(pop){

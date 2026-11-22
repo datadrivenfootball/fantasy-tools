@@ -839,10 +839,14 @@ test-core:
 	python3 -m unittest tests.test_find_min_charts_filter
 	# JEG-1561: the Why panel (ddf-why.js) against finder.js, and its button on find.html.
 	python3 -m unittest tests.test_ddf_why
+	# Natural fit 2 (Jeremy, 2026-11-19): the offer card's lineup blocks, label count and tags, and the Why panel at 375px and desktop.
+	python3 -m unittest tests.test_find_natural_fit2_render
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
 	python3 -m unittest tests.test_find_waiver_alternative
+	# Find with an analyst chart on hold: fit on the other two, fails closed below two (Jeremy 2026-11-18).
+	python3 -m unittest tests.test_find_held_chart
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
 	python3 -m unittest tests.test_team_opportunity_render
@@ -968,6 +972,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_v2_phone_context_row_render
 	python3 -m unittest tests.test_v2_phone_trade_rows_render
 	python3 -m unittest tests.test_week_history
+	# Natural fit 2 (Jeremy, 2026-11-19): the Find card and Why at 375px and desktop; in shard 1 so shard 3 stays under its 30-minute limit.
+	python3 -m unittest tests.test_find_natural_fit2_render
 
 test-core-shard-2:
 	python3 -m unittest tests.test_spec_reference_value_pipeline
@@ -1051,6 +1057,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
 	python3 -m unittest tests.test_find_waiver_alternative
+	# Find with an analyst chart on hold: fit on the other two, fails closed below two (Jeremy 2026-11-18).
+	python3 -m unittest tests.test_find_held_chart
 	# JEG-1558: opportunity tiers and roster-improvement percent (node unit tests).
 	python3 -m unittest tests.test_ddf_opportunity
 	python3 -m unittest tests.test_team_opportunity_render

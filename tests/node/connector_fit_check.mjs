@@ -172,4 +172,19 @@ assert.equal(judged.size, compared, "the trades judged in (a) are distinct");
 // Too few charts for a Trade chart average: no fit context (the page's marketKeys() bar).
 assert.equal(buildFitContext(F, { shape: SHAPE, chartKeys: CH.slice(0, 2), weights: WEIGHTS }), null);
 
+// Review of #1494: your total must rise. A starting WR (28) plus a bench RB (14, projection-based value 0) for a WR
+// worth 28.3: your starters +0.3 but your bench-weighted total falls. The connector must not call it Natural.
+{
+  const R = (key, pos, d, c, proj) => ({ player_key: key, name: key, pos, values: { ddf_value: d, ddf_value_projections: proj === undefined ? d : proj,
+    ...Object.fromEntries(CH.map((k) => [k, c])) } });
+  const team = (p, qb, rb, wr, te) => [["QB", qb], ["RB", rb], ["WR", wr], ["TE", te]].flatMap(([pos, vs]) => vs.map((v, i) => R(`${p}${pos}${i}`, pos, v, v)));
+  const z = R("mRBz", "RB", 14, 14, 0), y = R("tWRy", "WR", 28.3, 10, 28.3);
+  const mineT = team("m", [20, 12], [30, 25, 10, 8, 5], [30, 28, 15, 9, 7], [10, 5]).concat([z]);
+  const theirT = team("t", [22, 11], [35, 28, 14, 12, 9], [26, 20, 9, 8, 7], [11, 6]).concat([y]);
+  const ctx = buildFitContext(F, { shape: SHAPE, chartKeys: CH, weights: { overall: 0.15 }, expected, z: F.FIT_Z });
+  const got = fitForTrade(F, mineT, theirT, [mineT.find((r) => r.player_key === "mWR1"), z], [y], ctx);
+  assert.notEqual(got.fit, "Natural", `a falling total must not be Natural in the connector: ${JSON.stringify(got)}`);
+  assert.ok(got.fit_reason.includes("your total does not rise"), `the connector's reason names the falling total: ${got.fit_reason}`);
+}
+
 console.log("ok");

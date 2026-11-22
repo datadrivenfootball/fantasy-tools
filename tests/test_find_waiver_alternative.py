@@ -29,7 +29,9 @@ SETUP = r"""(pool) => {
     values: {ddf_value: d, ddf_value_charts: d, ddf_value_projections: d, cbs: c[0], usatoday: c[1], fantasypros: c[2], fantasycalc: fc === undefined ? d : fc}});
   // My RBs are deep (Josh Jacobs is the RB3, on the bench behind a WR in FLEX) and my second QB slot is empty.
   const mine = [R('m1', 'Jacoby Brissett', 'QB', 6, [6, 6, 6]),
-    R('m2', 'Josh Jacobs', 'RB', 30, [29, 30, 31], 45), R('m3', 'Rex First', 'RB', 40, [39, 40, 41]), R('m4', 'Ray Second', 'RB', 38, [37, 38, 39]),
+    // Natural fit 2 (Jeremy, 2026-11-19): at least 2 public charts must call the friend trade even or better for them, so
+    // Josh Jacobs is priced a little higher on the analyst charts than on DDF (36 for 42 raw, they gain on all four).
+    R('m2', 'Josh Jacobs', 'RB', 30, [35, 36, 37], 45), R('m3', 'Rex First', 'RB', 40, [39, 40, 41]), R('m4', 'Ray Second', 'RB', 38, [37, 38, 39]),
     R('m5', 'Roy Fourth', 'RB', 22, [21, 22, 23]), R('m6', 'Rod Fifth', 'RB', 18, [17, 18, 19]), R('m7', 'Ron Sixth', 'RB', 12, [11, 12, 13]),
     R('m8', 'Will One', 'WR', 42, [41, 42, 43]), R('m9', 'Walt Two', 'WR', 40, [39, 40, 41]), R('m10', 'Wes Three', 'WR', 36, [35, 36, 37]),
     R('m11', 'Wyatt Four', 'WR', 14, [13, 14, 15]), R('m12', 'Ted End', 'TE', 12, [11, 12, 13])];
@@ -114,7 +116,7 @@ def case_errors(page) -> list[str]:
         has = "waiver" in r["kinds"]
         if first and (r["kinds"][:1] != ["waiver"] or not any(WAIVER_RE.match(t) for t in r["texts"])):
             errors.append(f"{name}: Why does not lead with the waiver option: {r['kinds']} {r['texts'][:2]}")
-        if first and "why-tag" in r["html"]:
+        if first and 'class="why-tag" data-cls="natural"' in r["html"]:
             errors.append(f"{name}: demoted offer still tagged Natural fit")
         if not first and pool in ("wr", "none", "stale") and has:
             errors.append(f"{name}: a waiver line with no QB available: {r['texts']}")
@@ -228,11 +230,13 @@ class FindWaiverAlternativeTest(unittest.TestCase):
                     body = card.locator(".why-body")
                     body.wait_for(state="visible", timeout=5000)
                     self.assertEqual(body.get_attribute("data-natural"), "0")
-                    self.assertEqual(body.locator(".why-tag").count(), 0)
-                    self.assertEqual(body.locator(".why-reasons li").first.get_attribute("data-kind"), "waiver")
-                    self.assertEqual(body.locator(".why-reasons li").first.inner_text(), note)
+                    self.assertEqual(body.locator('.why-tag[data-cls="natural"]').count(), 0)
+                    # Natural fit 2: "Why you should do this" leads with the waiver option.
+                    self.assertEqual(body.locator("[data-why-you] li").first.inner_text(), note)
+                    self.assertIn("a free pickup gets most of this gain", body.locator("[data-verdict]").inner_text())
                     text = body.inner_text()
-                    self.assertEqual([b for b in BANNED if re.search(b, text)], [])
+                    # find.html names its valuations (DDF, the analyst charts) in the panel (Jeremy, 2026-11-19).
+                    self.assertEqual([b for b in BANNED if b != r"\bDDF\b" and re.search(b, text)], [])
                     overflow = page.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
                     self.assertFalse(overflow, f"{w}: horizontal overflow")
                     self.assertEqual(errors, [])

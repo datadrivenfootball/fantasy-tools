@@ -3,7 +3,11 @@
 Decision (Jeremy, 2026-11-14, "A"): Natural fit also requires their roster change to be better than -3% (not "clearly
 worse"), on the same measure and rounding as the Why text (ddf-opportunity.js rosterImprovementPct, which wraps
 finder.js rosterChangePct). tests/node/natural_pct_agree_check.cjs judges every trade findTrades lists over the league
-fixtures both ways. Discrimination: the same run on a finder.js without the new test must fail.
+fixtures both ways. Discrimination: the same run on a finder.js whose fit reads the percent off the wrong roster must fail.
+
+Natural fit 2 (Jeremy, 2026-11-19): their total must rise past 0.05 on their valuation, the same measure as the percent,
+so a Natural fit can no longer be clearly worse and the -3% test cannot move a trade out of Natural; the label and the
+Why text must still agree on every trade.
 """
 from __future__ import annotations
 
@@ -32,20 +36,19 @@ class NaturalPctAgreeTests(unittest.TestCase):
     def test_label_and_text_agree(self):
         got = run(FINDER)
         self.assertEqual(got["failures"], [])
-        # Not vacuous: the fixtures hold Natural fits, clearly-worse trades, and trades the new test moves out of Natural.
+        # Not vacuous: the fixtures hold Natural fits and clearly-worse trades.
         self.assertGreater(got["natural"], 0)
         self.assertGreater(got["clearlyWorse"], 0)
-        self.assertGreater(got["wouldBeNatural"], got["natural"])
 
     def test_fails_without_the_new_test(self):
         source = FINDER.read_text(encoding="utf-8")
-        old = 'const pctOk = !(pct && pct.band === "clearly_worse");'
+        old = "rosterChangePct(sides.theirs.roster, sides.theirs.leaving, sides.theirs.arriving, ctx, ctx.marketKey)"
         self.assertIn(old, source)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "finder.js"
-            path.write_text(source.replace(old, "const pctOk = true;", 1), encoding="utf-8")
+            path.write_text(source.replace(old, "rosterChangePct(sides.mine.roster, sides.mine.leaving, sides.mine.arriving, ctx, ctx.marketKey)", 1), encoding="utf-8")
             got = run(path)
-        self.assertTrue(any("Natural fit but the Why text says" in f for f in got["failures"]))
+        self.assertTrue(any(" vs fit " in f for f in got["failures"]))
 
 
 if __name__ == "__main__":

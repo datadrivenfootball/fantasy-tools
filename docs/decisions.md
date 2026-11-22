@@ -1058,6 +1058,43 @@ text never disagree. Offers that fail move to Partner neutral. Built in `natural
 points, no percent printed) does not block. Guarded by `tests/test_v2_finder_fit.py` checks 20 to 22 and
 `tests/test_natural_pct_agree.py`.
 
+## Natural fit 2: a real reason on both sides (2026-11-19)
+
+Jeremy, 2026-11-19, on the trade "why" concept (https://claude.ai/artifact/XczwmfH6xtW84QNy6xUmk6), replacing the value and
+construction parts of 1a:
+1. Their side needs a real reason: their total on their own valuation up past 0.05 AND (their starters improve OR a
+   position they are short at is filled). A loss inside the charts' disagreement allowance no longer counts.
+2. At least 2 of 4 public trade charts call it even or better for them; the count is part of the label.
+3. Bench depth is a real reason for your side ("your starters improve, a position you are short at is filled, or it adds
+   real bench depth (value weighted for bench past the 0.05 bar), labelled accordingly"): such an offer can be Natural,
+   tagged Bench depth, never presented as a starter upgrade. Neither side may be left with an empty starting slot.
+4. Their projection-based value falling is a caution line, not a veto. Any gain above 0.05 counts; a gain under 1% of
+   their starters is flagged thin.
+5. The card keeps trade value first and shows each side's starters before and after: "I need to see my roster before
+   and after and see how my total starting roster value changes. This has to come across neatly in the ui, including
+   on mobile."
+6. The Why panel says why it is good for your roster and why they may see it as good for theirs, and the label and the
+   panel read one test.
+Jeremy, 2026-11-21, on PR #1494's open calls: (1) keep the veto on your own projection-based value falling; (2) bench
+depth is a valid reason for them too, tagged "Bench depth for them"; (3) not "empty slot only": Natural is blocked when
+your best-lineup starter total (who ends up starting after the trade, lineupValue, DDF values) falls, or when theirs
+falls on their valuation (market signals); the empty-slot rule stays, and bench-only gains with a flat lineup are fine;
+(4) trade value stays the card headline; (5) connector differences go to a follow-up ticket.
+Jeremy, 2026-11-21, on the review's judgement calls: (1) a bench-depth-only reason needs a minimum gain on either side:
+the players added to that side's bench are worth (raw value) at least 1% of its starters total (`BENCH_MIN_SHARE`),
+besides the bench-weighted gain past 0.05; (2) their projection-based value falling by more than 5% of their starters'
+projection-based total blocks Natural (`PROJ_BLOCK_SHARE`); a smaller fall stays a caution; (3) keep 2 of 4 charts and
+the thin flag; (4) a player valued 0.0 can fill a position they are short at (no change). Later the same day: the 1% bench
+minimum is measured on the bench-weighted gain, and on the rulebook review "I'm ok if there are more than 5 rules so long as
+the overall objective is achieved, but avoid unnecessary complexity": the rules are one list, `NATURAL_RULES` (8 rules plus
+the Find page's free-pickup check); "your total rises", their -3% roster test and the separate empty-slot rule were
+removed or folded (none decided an offer on the 3,068 USO offers; 0 label changes).
+Built in `naturalFit` / `naturalMisses` / `naturalTags` (`app/v2/finder.js`); the chart count is `judgeSums` over
+`ctx.gateKeys`, the same call that gives the card's n/4. Kept from 1a: your side's DDF Value total up with starters no
+worse, and your DDF Value (projections) not falling. "No bench player promoted" and "no starter lost without one back" are
+replaced by the starter-total blockers (a worse replacement lowers the total; `tests/test_v2_finder_fit.py` check 29). Guarded by `tests/test_v2_finder_fit.py` checks 11 to 27
+and `tests/test_find_natural_fit2_render.py`.
+
 ## JEG-1047: projection waiver line is a 7-player band
 
 Jeremy, 2026-10-29 (multiple choice on the JEG-1047 research, answer "A"): each projection source's waiver line at a position is the average of the 7 players around the first non-rostered seat (indexes `N_p - 3` to `N_p + 3`, clipped to the list), not that one player. Trade charts keep the one-player line. Short-list fallback (`insufficient_coverage`, last value) is unchanged. Tolerance that went with the pick: a 1 PPG change to the waiver-line player moves no other player at the position by more than 1.0 point in that source's Adjusted value, on the 12-combo grid (one player failed it in 19% of cases, worst 3.2; the band's worst is 0.82). Research: `docs/research/jeg1047-waiver-line.md`. Code: `waiver_band_line` in `pipelines/lib/roster_convention.py` (JS twin `waiverBandLine`), used by `value_reference.py`, the spec reference and `value-model.js` `vpWaiverBand`. Guard: `tests/test_waiver_band_line.py`. Not chosen: median band (identical to one player), fitted curve, time smoothing (can be decided later on its own).

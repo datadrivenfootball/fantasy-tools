@@ -518,7 +518,7 @@ t("test_opportunities_our_fit_both_sides", () => {
     const full = O.fullFit(row);
     assert.notStrictEqual(row.ours.label, "natural", "a one-side check never says natural");
     assert.strictEqual(row.ours.label === "works", full.natural.us.ok, `works iff your side passes: ${row.id}`);
-    assert.strictEqual(row.overall === "natural", full.natural.us.ok && full.natural.them.ok, `natural iff both sides pass: ${row.id}`);
+    assert.strictEqual(row.overall === "natural", full.natural.us.ok && full.natural.them.ok && full.natural.charts.ok, `natural iff both sides and the public charts pass: ${row.id}`);
     seen.add(row.ours.label);
   });
   assert.ok(seen.has("works") && seen.size > 1, `the fixture separates our-fit labels: ${[...seen]}`);
