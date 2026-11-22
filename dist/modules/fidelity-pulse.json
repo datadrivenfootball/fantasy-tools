@@ -1,11 +1,11 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-22T06:40:19.500052Z",
- "run_id": "02b38f05-1b39-4b60-b9ee-ce9f16fd35a6",
+ "checked_at": "2026-11-22T09:40:19.719593Z",
+ "run_id": "a4a1c934-fa95-4396-a94a-049e0907895f",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
-  "built_at": "2026-11-22T05:08:06.642849+00:00",
+  "built_at": "2026-11-22T07:29:34.248890+00:00",
   "error": null
  },
  "rules": {
@@ -24,6 +24,18 @@
   "resave": "stage 2: a same-day re-save after the chart was built (the snapshot's last row write, or the probe fingerprint acknowledged with that save, is after the chart's raw_built_at) is amber until the next chain run for every changed, added or dropped player stage 1 shows equal to the publisher"
  },
  "holds": {
+  "fantasycalc": {
+   "stage": "scrape_validity",
+   "stages": [
+    "scrape_validity"
+   ],
+   "hold_level": "red",
+   "reason": "fidelity: scrape_validity",
+   "identity": "fcwk11_2026-11-22t0505_v1",
+   "measured_site": "2026-11-22T05:05:25+00:00",
+   "since": "2026-11-22T09:40:19.719593Z",
+   "summary": "player count dropped vs week 10: stored TE 28->25, chart TE 28->25"
+  },
   "draftsharks": {
    "stage": "stored_vs_chart",
    "stages": [
@@ -33,7 +45,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-22@2026-11-22T04:46:17.086700Z",
    "measured_site": null,
-   "since": "2026-11-22T06:40:19.500052Z",
+   "since": "2026-11-22T09:40:19.719593Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -45,7 +57,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-21@2026-11-21T12:18:37.590482Z",
    "measured_site": null,
-   "since": "2026-11-22T06:40:19.500052Z",
+   "since": "2026-11-22T09:40:19.719593Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -141,7 +153,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-22T05:06:49Z",
+     "chart_imported_at": "2026-11-22T07:26:42Z",
      "bake_id": "usatwk11_2026-11-18t0330_v1",
      "bake_saved_at": "2026-11-18T03:30:40.607236Z",
      "behind": null,
@@ -202,8 +214,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -257,24 +269,24 @@
   {
    "source": "fantasycalc",
    "label": "FantasyCalc",
-   "status": "amber",
+   "status": "red",
    "stored_week": 11,
    "chart_week": 11,
    "stored_bake": "fcwk11_2026-11-22t0505_v1",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1161/1161 values match exactly across 6 columns",
+     "status": "amber",
+     "summary": "24/1140 values match exactly across 6 columns; 1116 of 1140 values moved since the save at 2026-11-22T05:05:35.238028Z (largest 389%; 15 outside the max(25%, 50) band: Bryce Young, Daniel Jones, Elic Ayomanor, Fernando Mendoza, RJ Harvey); 7 players entered or left the bottom of the list since the save (churn)",
      "counts": {
-      "publisher_players": 194,
+      "publisher_players": 193,
       "stored_players": 194,
-      "compared": 1161,
-      "matched": 1161,
-      "mismatched": 0,
+      "compared": 1140,
+      "matched": 24,
+      "mismatched": 1116,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 0,
+      "list_churn": 7,
       "unresolved_names": 0
      },
      "url": "https://api.fantasycalc.com/values/current (12 teams, 1 and 2 QB, 3 scorings)",
@@ -284,49 +296,130 @@
      "bake_saved_at": "2026-11-22T05:05:35.238028Z",
      "grains": {
       "full|1": {
-       "left": 193,
+       "left": 192,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 2,
+       "extra": 3
       },
       "full|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 3,
+       "extra": 4
       },
       "half|1": {
-       "left": 193,
+       "left": 192,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 2,
+       "extra": 3
       },
       "half|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 3,
+       "extra": 4
       },
       "std|1": {
-       "left": 193,
+       "left": 192,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 2,
+       "extra": 3
       },
       "std|2": {
-       "left": 194,
+       "left": 193,
        "right": 194,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 186,
+       "missing": 3,
+       "extra": 4
       }
      },
-     "examples": [],
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 2534,
+       "name": "Matthew Stafford",
+       "pos": "QB",
+       "left": "3221",
+       "right": 2759.0,
+       "delta": -462.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 2534,
+       "name": "Matthew Stafford",
+       "pos": "QB",
+       "left": "3223",
+       "right": 2761.0,
+       "delta": -462.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 2534,
+       "name": "Matthew Stafford",
+       "pos": "QB",
+       "left": "3185",
+       "right": 2728.0,
+       "delta": -457.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 697,
+       "name": "Cam Ward",
+       "pos": "QB",
+       "left": "2439",
+       "right": 2076.0,
+       "delta": -363.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 697,
+       "name": "Cam Ward",
+       "pos": "QB",
+       "left": "2437",
+       "right": 2075.0,
+       "delta": -362.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 697,
+       "name": "Cam Ward",
+       "pos": "QB",
+       "left": "2409",
+       "right": 2051.0,
+       "delta": -358.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 2499,
+       "name": "Fernando Mendoza",
+       "pos": "QB",
+       "left": "2087",
+       "right": 2441.0,
+       "delta": 354.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 2499,
+       "name": "Fernando Mendoza",
+       "pos": "QB",
+       "left": "2086",
+       "right": 2439.0,
+       "delta": 353.0
+      }
+     ],
      "outside_universe": [],
      "unresolved": []
     },
@@ -345,7 +438,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-22T05:06:48Z",
+     "chart_imported_at": "2026-11-22T07:26:41Z",
      "bake_id": "fcwk11_2026-11-22t0505_v1",
      "bake_saved_at": "2026-11-22T05:05:35.238028Z",
      "behind": null,
@@ -405,20 +498,20 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
-     "status": "amber",
-     "summary": "player count dropped vs week 10: stored TE 28->25 (the publisher's own list dropped too (25)), chart TE 28->25 (the publisher's own list dropped too (25))",
+     "status": "red",
+     "summary": "player count dropped vs week 10: stored TE 28->25, chart TE 28->25",
      "signals": {
       "position_counts": {
        "week_compared": 10,
        "publisher": {
         "QB": 34,
         "RB": 60,
-        "WR": 74,
-        "TE": 25
+        "WR": 72,
+        "TE": 26
        },
        "stored": {
         "QB": 34,
@@ -451,16 +544,14 @@
         "position": "TE",
         "now": 25,
         "prior_week": 28,
-        "severity": "amber",
-        "note": "the publisher's own list dropped too (25)"
+        "severity": "red"
        },
        {
         "side": "chart",
         "position": "TE",
         "now": 25,
         "prior_week": 28,
-        "severity": "amber",
-        "note": "the publisher's own list dropped too (25)"
+        "severity": "red"
        }
       ],
       "rank_inversions": null,
@@ -470,9 +561,109 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 2534,
+     "name": "Matthew Stafford",
+     "pos": "QB",
+     "left": "3221",
+     "right": 2759.0,
+     "delta": -462.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 2534,
+     "name": "Matthew Stafford",
+     "pos": "QB",
+     "left": "3223",
+     "right": 2761.0,
+     "delta": -462.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 2534,
+     "name": "Matthew Stafford",
+     "pos": "QB",
+     "left": "3185",
+     "right": 2728.0,
+     "delta": -457.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 697,
+     "name": "Cam Ward",
+     "pos": "QB",
+     "left": "2439",
+     "right": 2076.0,
+     "delta": -363.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 697,
+     "name": "Cam Ward",
+     "pos": "QB",
+     "left": "2437",
+     "right": 2075.0,
+     "delta": -362.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 697,
+     "name": "Cam Ward",
+     "pos": "QB",
+     "left": "2409",
+     "right": 2051.0,
+     "delta": -358.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 2499,
+     "name": "Fernando Mendoza",
+     "pos": "QB",
+     "left": "2087",
+     "right": 2441.0,
+     "delta": 354.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 2499,
+     "name": "Fernando Mendoza",
+     "pos": "QB",
+     "left": "2086",
+     "right": 2439.0,
+     "delta": 353.0
+    }
+   ],
    "held": null,
-   "hold": null
+   "hold": {
+    "stage": "scrape_validity",
+    "stages": [
+     "scrape_validity"
+    ],
+    "hold_level": "red",
+    "reason": "fidelity: scrape_validity",
+    "identity": "fcwk11_2026-11-22t0505_v1",
+    "measured_site": "2026-11-22T05:05:25+00:00",
+    "since": "2026-11-22T09:40:19.719593Z",
+    "summary": "player count dropped vs week 10: stored TE 28->25, chart TE 28->25"
+   }
   },
   {
    "source": "fantasypros",
@@ -565,7 +756,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-22T05:06:50Z",
+     "chart_imported_at": "2026-11-22T07:26:45Z",
      "bake_id": "fpwk11_2026-11-21t1236_v1",
      "bake_saved_at": "2026-11-21T12:36:05.800530Z",
      "behind": null,
@@ -626,8 +817,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -769,7 +960,7 @@
       "unresolved_names": 0
      },
      "chart_week": 11,
-     "chart_imported_at": "2026-11-22T05:06:51Z",
+     "chart_imported_at": "2026-11-22T07:26:48Z",
      "bake_id": "cbswk11_2026-11-21t0035_v1",
      "bake_saved_at": "2026-11-21T00:35:47.076005Z",
      "behind": null,
@@ -830,8 +1021,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -993,8 +1184,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1081,17 +1272,17 @@
    "stages": {
     "publisher_vs_stored": {
      "status": "green",
-     "summary": "1098/1098 values match exactly across 3 columns; 4 players at the page's last listed value swapped in or out (ties at the row cap: Cade Stover, Hunter Long, Jerome Ford, Lan Larison); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
+     "summary": "1101/1101 values match exactly across 3 columns; 2 players at the page's last listed value swapped in or out (ties at the row cap: Cade Stover, Hunter Long); parse notes: RB: 1 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)']",
      "counts": {
       "publisher_players": 368,
       "stored_players": 368,
-      "compared": 1098,
-      "matched": 1098,
+      "compared": 1101,
+      "matched": 1101,
       "mismatched": 0,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 4,
+      "list_churn": 2,
       "unresolved_names": 0
      },
      "url": "https://www.cbssports.com/fantasy/football/stats/QB/2026/restofseason/projections/nonppr/",
@@ -1103,22 +1294,22 @@
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 2,
-       "extra": 2
+       "missing": 1,
+       "extra": 1
       },
       "half|1": {
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 2,
-       "extra": 2
+       "missing": 1,
+       "extra": 1
       },
       "std|1": {
        "left": 368,
        "right": 368,
        "mismatched": 0,
-       "missing": 2,
-       "extra": 2
+       "missing": 1,
+       "extra": 1
       }
      },
      "publisher_version": null,
@@ -1179,8 +1370,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1246,7 +1437,7 @@
   {
    "source": "razzball",
    "label": "Razzball",
-   "status": "amber",
+   "status": "green",
    "stored_week": null,
    "chart_week": null,
    "content_week": 11,
@@ -1255,14 +1446,14 @@
    "stored_bake": "2026-11-21",
    "stages": {
     "publisher_vs_stored": {
-     "status": "amber",
-     "summary": "1678/1704 values match exactly across 3 columns; 26 value mismatches, 0 publisher players not stored, 0 stored players not on the page; publisher updated (2026-11-21) after the stored snapshot 2026-11-21; inside the 24 h grace window",
+     "status": "green",
+     "summary": "1704/1704 values match exactly across 3 columns",
      "counts": {
       "publisher_players": 568,
       "stored_players": 568,
       "compared": 1704,
-      "matched": 1678,
-      "mismatched": 26,
+      "matched": 1704,
+      "mismatched": 0,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
@@ -1272,114 +1463,33 @@
      "url": "https://football.razzball.com/projections-qb-restofseason/",
      "publisher_vintage": "2026-11-21",
      "stored_snapshot": "2026-11-21",
-     "stored_saved_at": "2026-11-22T03:25:53.599453Z",
+     "stored_saved_at": "2026-11-22T07:25:39.116185Z",
      "grains": {
       "full|1": {
        "left": 568,
        "right": 568,
-       "mismatched": 14,
+       "mismatched": 0,
        "missing": 0,
        "extra": 0
       },
       "half|1": {
        "left": 568,
        "right": 568,
-       "mismatched": 4,
+       "mismatched": 0,
        "missing": 0,
        "extra": 0
       },
       "std|1": {
        "left": 568,
        "right": 568,
-       "mismatched": 8,
+       "mismatched": 0,
        "missing": 0,
        "extra": 0
       }
      },
      "publisher_version": null,
      "resync": null,
-     "examples": [
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 327,
-       "name": "Baker Mayfield",
-       "pos": "QB",
-       "left": "12.5",
-       "right": 12.4,
-       "delta": -0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 914,
-       "name": "Connor Heyward",
-       "pos": "RB",
-       "left": "2.3",
-       "right": 2.4,
-       "delta": 0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 999,
-       "name": "John Metchie III",
-       "pos": "WR",
-       "left": "2.0",
-       "right": 2.1,
-       "delta": 0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 1666,
-       "name": "Bo Nix",
-       "pos": "QB",
-       "left": "15.5",
-       "right": 15.6,
-       "delta": 0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 2730,
-       "name": "Ja\u2019Marr Chase",
-       "pos": "WR",
-       "left": "20.3",
-       "right": 20.2,
-       "delta": -0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 3082,
-       "name": "Mike Evans",
-       "pos": "WR",
-       "left": "14.2",
-       "right": 14.3,
-       "delta": 0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 3133,
-       "name": "Trey McBride",
-       "pos": "TE",
-       "left": "12.3",
-       "right": 12.4,
-       "delta": 0.1
-      },
-      {
-       "type": "value_mismatch",
-       "grain": "full|1",
-       "player_key": 3541,
-       "name": "Kirk Cousins",
-       "pos": "QB",
-       "left": "8.3",
-       "right": 8.4,
-       "delta": 0.1
-      }
-     ],
+     "examples": [],
      "outside_universe": [],
      "unresolved": []
     },
@@ -1435,8 +1545,8 @@
     },
     "reference_vs_engine": {
      "status": "green",
-     "summary": "engine and Python reference agree (1126947 values compared in the whole report)",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "summary": "engine and Python reference agree (1126945 values compared in the whole report)",
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1483,96 +1593,7 @@
      }
     }
    },
-   "worst_examples": [
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 327,
-     "name": "Baker Mayfield",
-     "pos": "QB",
-     "left": "12.5",
-     "right": 12.4,
-     "delta": -0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 914,
-     "name": "Connor Heyward",
-     "pos": "RB",
-     "left": "2.3",
-     "right": 2.4,
-     "delta": 0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 999,
-     "name": "John Metchie III",
-     "pos": "WR",
-     "left": "2.0",
-     "right": 2.1,
-     "delta": 0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 1666,
-     "name": "Bo Nix",
-     "pos": "QB",
-     "left": "15.5",
-     "right": 15.6,
-     "delta": 0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 2730,
-     "name": "Ja\u2019Marr Chase",
-     "pos": "WR",
-     "left": "20.3",
-     "right": 20.2,
-     "delta": -0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 3082,
-     "name": "Mike Evans",
-     "pos": "WR",
-     "left": "14.2",
-     "right": 14.3,
-     "delta": 0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 3133,
-     "name": "Trey McBride",
-     "pos": "TE",
-     "left": "12.3",
-     "right": 12.4,
-     "delta": 0.1
-    },
-    {
-     "stage": "publisher_vs_stored",
-     "type": "value_mismatch",
-     "grain": "full|1",
-     "player_key": 3541,
-     "name": "Kirk Cousins",
-     "pos": "QB",
-     "left": "8.3",
-     "right": 8.4,
-     "delta": 0.1
-    }
-   ],
+   "worst_examples": [],
    "held": null,
    "hold": null
   },
@@ -1735,7 +1756,7 @@
     "reference_vs_engine": {
      "status": "n/a",
      "summary": "dist/modules/value-check.json: report does not cover draftsharks",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1778,7 +1799,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-22@2026-11-22T04:46:17.086700Z",
     "measured_site": null,
-    "since": "2026-11-22T06:40:19.500052Z",
+    "since": "2026-11-22T09:40:19.719593Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -1809,7 +1830,7 @@
     "reference_vs_engine": {
      "status": "n/a",
      "summary": "dist/modules/value-check.json: report does not cover fantasysharks",
-     "report_generated_at": "2026-11-22T05:20:51.784900+00:00"
+     "report_generated_at": "2026-11-22T07:47:02.726637+00:00"
     },
     "scrape_validity": {
      "status": "green",
@@ -1847,7 +1868,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-21@2026-11-21T12:18:37.590482Z",
     "measured_site": null,
-    "since": "2026-11-22T06:40:19.500052Z",
+    "since": "2026-11-22T09:40:19.719593Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -1874,13 +1895,13 @@
   "summary": "1163 players searchable; 961 active NFL players (503 active roster, 182 practice squad, 96 injured reserve, 0 pup, 1 reserve, 179 free agent)"
  },
  "last_good": {
-  "usatoday": "2026-11-22T05:08:06.642849+00:00",
+  "usatoday": "2026-11-22T07:29:34.248890+00:00",
   "fantasycalc": "2026-11-22T05:08:06.642849+00:00",
-  "fantasypros": "2026-11-22T05:08:06.642849+00:00",
-  "cbs": "2026-11-22T05:08:06.642849+00:00",
-  "espn": "2026-11-22T05:08:06.642849+00:00",
-  "cbsros": "2026-11-22T05:08:06.642849+00:00",
-  "razzball": "2026-11-22T05:08:06.642849+00:00",
+  "fantasypros": "2026-11-22T07:29:34.248890+00:00",
+  "cbs": "2026-11-22T07:29:34.248890+00:00",
+  "espn": "2026-11-22T07:29:34.248890+00:00",
+  "cbsros": "2026-11-22T07:29:34.248890+00:00",
+  "razzball": "2026-11-22T07:29:34.248890+00:00",
   "draftsharks": "2026-10-16T07:19:25.781124+00:00",
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
