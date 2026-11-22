@@ -47,10 +47,12 @@ class TestDailyStatus(unittest.TestCase):
         raw["4"].update(injury_status="Questionable", injury_body_part=7)
         d = P.build_snapshot(raw, AS_OF)["by_sleeper_id"]
         self.assertEqual(d["1"]["injury_body_part"], "Hamstring")
-        self.assertIsNone(d["2"]["injury_body_part"])   # "Knee" with no status
+        # Absent, not null, when there is none (review of #1518: page weight). Rule changed by that review.
+        self.assertNotIn("injury_body_part", d["2"])   # "Knee" with no status
+        self.assertNotIn("injury_body_part", d["5"])   # healthy, no body part
         self.assertEqual(len(d["3"]["injury_body_part"]), P.BODY_PART_MAX)
         self.assertTrue(d["3"]["injury_body_part"].startswith("Ankle - High"))
-        self.assertIsNone(d["4"]["injury_body_part"])
+        self.assertNotIn("injury_body_part", d["4"])
         bad = P.build_snapshot(raw_players(), AS_OF)
         bad["by_sleeper_id"]["1"]["injury_body_part"] = "x" * (P.BODY_PART_MAX + 1)
         self.assertTrue(P.check_snapshot(bad))

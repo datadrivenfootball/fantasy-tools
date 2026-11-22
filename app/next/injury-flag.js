@@ -5,7 +5,7 @@
  * order or a value: callers add the chip, the card line and the Why line next to what they already draw.
  *
  * Status: the daily Sleeper copy (window.TradeValueStatus, v2/player-status.js) under the Waivers rule
- * (TradeValueWaivers.statusFreshness / statusOf, app/v2/waivers.js): shown only when dated and at most 6 days old, and
+ * (DDFStatusRule.statusFreshness / statusOf, app/v2/player-status-rule.js, which the Waivers tab uses too): shown only when dated and at most 6 days old, and
  * only when the Sleeper id, NFL team and position all match the row. No status means no chip, never "healthy".
  * Body part: the same copy's injury_body_part ("Hamstring"), when present.
  *
@@ -16,7 +16,7 @@
  *   flagsOf(rows, fr?)      -> the flagged rows' flags, in the input order, one per player
  *   chip(flag)              -> '<span class="inj-chip" ...>Out</span>' or ""
  *   summary(flags)          -> "Injury flag on 1 player" or ""
- *   whyLine(flag)           -> "Injury flag: X is Out (hamstring); the trade may not work as planned."
+ *   whyLine(flag)           -> "Injury flag: X is Out (hamstring). A flag, not a stopper: the trade may not work as planned."
  *   note(rows, fr?)         -> the card line (summary with the flag-not-stopper tooltip) as HTML, or ""
  *   whyHtml(rows, fr?)      -> the Why panel's lines as HTML, or ""
  */
@@ -43,7 +43,7 @@
     return s ? {status: name, label: s.label, level: s.level, rank: LEVELS[s.level], phrase: s.phrase} : null;
   }
 
-  function waivers() { return root.TradeValueWaivers || null; }
+  function waivers() { return root.DDFStatusRule || root.TradeValueWaivers || null; }
   function freshness() {
     var W = waivers();
     return W && W.statusFreshness ? W.statusFreshness(root.TradeValueStatus || null, Date.now()) : null;
@@ -86,7 +86,7 @@
   }
   function whyLine(flag) {
     return flag ? "Injury flag: " + flag.name + " is " + flag.phrase + (flag.body ? " (" + flag.body + ")" : "")
-      + "; the trade may not work as planned." : "";
+      + ". A flag, not a stopper: the trade may not work as planned." : "";
   }
   function note(rows, fr) {
     var flags = flagsOf(rows, fr);

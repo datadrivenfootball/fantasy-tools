@@ -318,6 +318,7 @@ class WaiversMathTests(unittest.TestCase):
                     path = Path(tmp) / "waivers.js"
                     path.write_text(source.replace(old, new, 1), encoding="utf-8")
                     (Path(tmp) / "finder.js").write_text(finder, encoding="utf-8")
+                    shutil.copy2(ROOT / "app" / "v2" / "player-status-rule.js", Path(tmp) / "player-status-rule.js")
                     self.assertTrue(check(path), f"checks passed on a build with: {name}")
 
 

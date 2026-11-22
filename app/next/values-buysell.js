@@ -56,7 +56,15 @@ function syncYours(){
  const keys=league?[...LC.mine].sort():[],sig=keys.join(',');
  if(sig===yoursSig||!V().setYours)return;yoursSig=sig;V().setYours(new Set(keys));
 }
+/* Injury flag (injury-flag.js, Jeremy 2026-11-22: a flag, not a stopper): a chip beside the name and one line in the
+   swap. Display only: the lists, their order, the gap and the fit never read it. */
+let ROWS=new Map(),INJFR=null;
+const injOf=p=>{const I=window.DDFInjury,r=p&&ROWS.get(String(p.key));return I&&r?I.flagOf(r,INJFR):null};
+const injChip=p=>{const f=injOf(p);return f?window.DDFInjury.chip(f):''};
+const injAria=p=>{const f=injOf(p);return f?' '+f.aria+'.':''};
 function build(){
+ const C=E()&&E().controls();ROWS=new Map(C&&C.getAllRows?C.getAllRows().map(r=>[String(r.player_key),r]):[]);
+ INJFR=window.DDFInjury?window.DDFInjury.freshness():null;
  LC=leagueCtx();league=!!(LC&&LC.me);
  FX=null;fitCache=new Map();
  DB=makeDB();byKey=new Map(DB.map(p=>[p.key,p]));
@@ -114,9 +122,9 @@ function srcCount(p){const n=p.srcs,names=p.charts.map(c=>c[0]).join(', ');retur
 function buyFit(p){if(!league)return false;return DB.some(q=>q.yours&&pairStats(q,p).natural===true)}
 function rowHTML(o,side){
  const p=o.p,g=o.g,cls=g.g<0?'mh':'dg',nat=side==='buy'&&buyFit(p);
-  const label=`${p.n}, ${p.pos}${p.owner&&side==='buy'?', '+p.owner:''}. ${p.ov?'Your value '+f2(p.ddf)+' (override; DDF '+f2(p.base)+')':'DDF '+f2(p.ddf)}, charts ${f2(p.mkt)} (${p.srcs} of 4 charts), gap ${sg(g.g)}, DDF minus the charts average.${nat?' Natural fit.':''} Select to see a swap.`;
+  const label=`${p.n}, ${p.pos}${p.owner&&side==='buy'?', '+p.owner:''}. ${p.ov?'Your value '+f2(p.ddf)+' (override; DDF '+f2(p.base)+')':'DDF '+f2(p.ddf)}, charts ${f2(p.mkt)} (${p.srcs} of 4 charts), gap ${sg(g.g)}, DDF minus the charts average.${nat?' Natural fit.':''} Select to see a swap.${injAria(p)}`;
  const sub=`<small>${esc(p.pos)}${side==='buy'&&p.owner?' · '+esc(p.owner):''}</small>`;
- return `<li><button type="button" class="bs-row" data-side="${side}" data-k="${esc(p.key)}" data-n="${esc(p.n)}" aria-pressed="false" aria-label="${esc(label)}"><span class="bs-name"><strong>${p.yours?'<span aria-hidden="true">★</span> ':''}${esc(p.n)}</strong>${p.yours?'<span class="bs-yours">Yours</span>':''}${p.ov?'<span class="bs-ovr">Your value</span>':''}${sub}${nat?'<span class="bs-tag nf">Natural fit</span>':''}</span><span class="bs-n bs-ddf" data-label="${p.ov?'Your value':'DDF'}">${f2(p.ddf)}</span><span class="bs-n bs-mkt" data-label="Charts">${f2(p.mkt)} ${srcCount(p)}</span><span class="bs-gap"><span class="bs-tag ${cls}">${sg(g.g)} ${esc(g.c)}</span></span></button><div class="vp-bs"><button type="button" class="vp-act" data-act="own" data-n="${esc(p.n)}" aria-label="Set your own value for ${esc(p.n)}">Set your own value</button></div></li>`;
+ return `<li><button type="button" class="bs-row" data-side="${side}" data-k="${esc(p.key)}" data-n="${esc(p.n)}" aria-pressed="false" aria-label="${esc(label)}"><span class="bs-name"><strong>${p.yours?'<span aria-hidden="true">★</span> ':''}${esc(p.n)}</strong>${injChip(p)}${p.yours?'<span class="bs-yours">Yours</span>':''}${p.ov?'<span class="bs-ovr">Your value</span>':''}${sub}${nat?'<span class="bs-tag nf">Natural fit</span>':''}</span><span class="bs-n bs-ddf" data-label="${p.ov?'Your value':'DDF'}">${f2(p.ddf)}</span><span class="bs-n bs-mkt" data-label="Charts">${f2(p.mkt)} ${srcCount(p)}</span><span class="bs-gap"><span class="bs-tag ${cls}">${sg(g.g)} ${esc(g.c)}</span></span></button><div class="vp-bs"><button type="button" class="vp-act" data-act="own" data-n="${esc(p.n)}" aria-label="Set your own value for ${esc(p.n)}">Set your own value</button></div></li>`;
 }
 function renderList(side){
  const items=side==='sell'?sellList():buyList(),ul=$('bs-'+side),btn=$('bs-'+side+'-more'),open=expanded[side],shown=open?items:items.slice(0,SHOW);
@@ -153,7 +161,7 @@ function renderPick(){
  const opts=sel.side==='sell'?comparables(anchor):gives(anchor);
  $('bs-pick-h').textContent=sel.side==='sell'?'Comparable targets for '+anchor.n:'Players to give for '+anchor.n;
  $('bs-pick-note').textContent=sel.side==='sell'?'Same position on the other teams, natural fit first. Select one to compare.':'Your players, natural fit first, then same position. Select one to compare.';
- $('bs-opts').innerHTML=opts.map(({p,s})=>`<button type="button" class="bs-opt" data-k="${esc(p.key)}" aria-pressed="false"><strong>${p.yours?'★ ':''}${esc(p.n)} · ${esc(p.pos)}${p.owner&&!p.yours?' · '+esc(p.owner):''}</strong><span class="bs-meta">DDF ${f2(p.ddf)} / Charts ${f2(p.mkt)} ${p.srcs}/4</span>${natTag(s)}</button>`).join('')||'<p class="bs-empty">No comparable players in this league.</p>';
+ $('bs-opts').innerHTML=opts.map(({p,s})=>`<button type="button" class="bs-opt" data-k="${esc(p.key)}" aria-pressed="false"><strong>${p.yours?'★ ':''}${esc(p.n)}${injChip(p)} · ${esc(p.pos)}${p.owner&&!p.yours?' · '+esc(p.owner):''}</strong><span class="bs-meta">DDF ${f2(p.ddf)} / Charts ${f2(p.mkt)} ${p.srcs}/4</span>${natTag(s)}</button>`).join('')||'<p class="bs-empty">No comparable players in this league.</p>';
  box.hidden=false;
 }
 function check(cls,txt,sr){return `<li><span class="${cls}" aria-hidden="true">${cls==='ok'?'✓':cls==='no'?'✕':'•'}</span> <span class="vsr">${sr}: </span>${txt}</li>`}
@@ -173,8 +181,12 @@ function renderDetail(pop){
  d.hidden=false;
  $('bs-chip').textContent='After selecting '+sel.chip;
  $('bs-title').textContent=give&&get?short(give.n)+' → '+short(get.n):get?'Target: '+get.n:'Sell: '+give.n;
- const row=p=>`<tr><td>${p.yours?'★ ':''}${esc(short(p.n))} · ${esc(p.pos)}${p.ov?' <span class="bs-ovr">Your value</span>':''}</td><td>${f2(p.ddf)}</td><td>${f2(p.mkt)} ${srcCount(p)}</td></tr>`;
+ const row=p=>`<tr><td>${p.yours?'★ ':''}${esc(short(p.n))}${injChip(p)} · ${esc(p.pos)}${p.ov?' <span class="bs-ovr">Your value</span>':''}</td><td>${f2(p.ddf)}</td><td>${f2(p.mkt)} ${srcCount(p)}</td></tr>`;
  $('bs-vals').innerHTML=(give?row(give):'')+(get?row(get):'');
+ let inj=$('bs-inj');
+ if(!inj){inj=document.createElement('div');inj.id='bs-inj';$('bs-fit').before(inj)}
+ const I=window.DDFInjury,sw=[give,get].filter(Boolean).map(p=>ROWS.get(String(p.key))).filter(Boolean);
+ inj.innerHTML=I?I.whyHtml(sw,INJFR):'';
  const fit=$('bs-fit');
  if(give&&get)fit.innerHTML=fitHTML(give,get);
  else if(!league)fit.innerHTML=`<div class="bs-fithead"><h4>Roster fit</h4></div><p class="bs-note">Add your league to see which of your players to give and whether it is a natural fit.</p><a class="btn" href="connect.html">Add your league</a>`;
