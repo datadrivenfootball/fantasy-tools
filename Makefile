@@ -870,6 +870,8 @@ test-core:
 	# JEG-1559: offer message options by offer shape (table) and rendered at 1440/390.
 	node tests/node/build_offer_check.cjs
 	python3 -m unittest tests.test_build_offer_render
+	# Build a Trade lineup card (Jeremy, 2026-11-22): before / after lineups at 375 and 1440 on the USO fixture.
+	python3 -m unittest tests.test_build_lineup_card_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
@@ -1017,6 +1019,8 @@ test-core-shard-2:
 	python3 -m unittest tests.test_source_scale_agreement_retired
 	python3 -m unittest tests.test_value_reference_worked_example
 	python3 -m unittest tests.test_contract_qa_report
+	# Build a Trade lineup card (Jeremy, 2026-11-22): before / after lineups at 375 and 1440 on the USO fixture.
+	python3 -m unittest tests.test_build_lineup_card_render
 
 test-core-shard-3:
 	python3 -m unittest tests.test_promotion_model_parity

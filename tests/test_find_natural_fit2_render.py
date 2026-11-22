@@ -42,7 +42,7 @@ READ = r"""() => {
     const side = who => { const el = a.querySelector('[data-lineup="' + who + '"]'); if (!el) return null;
       const r = el.getBoundingClientRect();
       return {before: el.dataset.before, after: el.dataset.after, d: el.querySelector('.lm-d').textContent.trim(), n: el.querySelector('.lm-n').textContent.replace(/\s+/g, ' ').trim(),
-        mv: el.querySelector('.lm-mv').textContent.trim(), right: r.right}; };
+        mv: el.querySelector('.lm-mv').textContent.trim(), right: r.right, chips: el.querySelectorAll('.lu-flag').length}; };
     const box = a.getBoundingClientRect();
     return {cls: a.dataset.cls, give: a.dataset.give, receive: a.dataset.receive, partner: a.dataset.partner,
       label: a.querySelector('[data-fit-label]').textContent.replace(/\s+/g, ' ').trim(), tags: [...a.querySelectorAll('[data-fit-tag]')].map(x => x.textContent.trim()),
@@ -163,6 +163,8 @@ class FindNaturalFit2RenderTest(unittest.TestCase):
             self.assertFalse(c["cardOverflow"], f"{tag}: card overflows")
             for s in ("you", "them"):
                 self.assertLessEqual(c[s]["right"], c["cardRight"] + 1, f"{tag}: {s} block overflows the card")
+                # The shared DDFLineup "line" size (2026-11-22): at most one flag chip per side.
+                self.assertLessEqual(c[s]["chips"], 1, f"{tag}: {s} has more than one flag chip")
             # The label: a Natural card carries the count (2 or more), no other class does.
             if c["cls"] == "natural":
                 m = re.match(r"Natural fit · (\d)/(\d) public charts", c["label"])

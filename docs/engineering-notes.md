@@ -173,6 +173,21 @@ seeded and two real league rosters (PR for JEG-1639).
   that its partner valuation is the four-chart average (FantasyCalc included), it has no expected depth (so "a position
   they are short at" never fires there) and it applies no waiver demotion.
 
+
+## One lineup renderer: DDFLineup (2026-11-22, Build a Trade lineup card)
+
+- `app/next/ddf-lineup.js` (`window.DDFLineup`) draws one side's starting lineup before and after in three sizes:
+  `line` (Find offer card), `changes` (Build a Trade card) and `full` (the Why panel's table). Its input is
+  `DDFWhy.lineupTable(teamFitSide, shape, arrivingKeys, {natural, who})` (ddf-why.js), which only reshapes teamFit's own
+  `lineupBefore` / `lineupAfter`; flags come from teamFit depth / `shortFilled` / empty slots and tradeFit's Natural tags.
+  Do not compute lineups or flags in a page.
+- "Starters" everywhere is lineupValue's best lineup under the league's slots, not a static starter list. K and DEF are
+  never valued (never starters in lineupValue); the card lists them as rows marked "not valued" from `lineup*.unvalued`.
+- The change chip is the unrounded difference shown to one decimal (same as the Find card and the Why), so it can differ by
+  0.1 from the two rounded totals beside it.
+- Build a Trade: a full league (every roster entered) always opens in My league; Any players appears only for a partial
+  league. Tests of the Any players state seed a league with one roster left out.
+
 ## Fringe-player repricing is designed pricing (2026-11-16, JEG-1511 / JEG-1651)
 - `OnePlayerPerturbationTest` moves the waiver-line player by +/-1 PPG and bars any other player at the position from moving more than 1.0 Adjusted point. Stars can still move noticeably: the 7-player band moves the waiver line w by 1/7 of the change, every starter's surplus `x - w` moves with it, the starter group total G moves by about avail x starters x dw, and the source budget barely moves, so the rate (budget / G) reprices the whole position. It is largest in thin pools (1QB QB, 8-team TE). Band edges are not the cause.
 - Jeremy, 2026-11-16 (option A): this is designed pricing. No value change, the bar stays at 1.0, and the test carries no exemption list (`KNOWN_OVER_BAR_CASES` is gone). A future breach with this signature goes through `docs/exemption-decision-policy.md` (JEG-1518); do not add cases back to the test or widen the bar.
