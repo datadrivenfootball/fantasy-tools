@@ -257,15 +257,21 @@
     var C = window.TradeValueCurveControls, shape = C && C.getRosterShape ? C.getRosterShape() : null;
     return window.DDFLineup.html(window.DDFWhy.lineupTable(side, shape, arriving, {natural: t.fit.natural, who: who}), {size: "line", who: who, title: title, basis: label});
   }
+  // The injury flag (injury-flag.js, Jeremy 2026-11-22: a flag, not a stopper): a chip beside the name and one line on
+  // the card. Display only: drawn after the offer is classed, counted and sorted, and read by none of them.
+  var INJ = function () { return window.DDFInjury || null; };
+  function named(r, fr) { var I = INJ(), f = I ? I.flagOf(r, fr) : null; return '<span class="inj-name">' + esc(r.name) + "</span>" + (f ? I.chip(f) : ""); }
   function card(g, k, mx) {
-    var B = basis(), t = selected(g);
+    var B = basis(), t = selected(g), I = INJ(), fr = I ? I.freshness() : null;
+    var giveFlags = I ? I.flagsOf(t.give, fr) : [];
     var giveCell = g.trades.length > 1
       ? '<select aria-label="You give, for ' + esc(names(g.heavy)) + '" data-group="' + esc(g.id) + '">' + g.trades.map(function (x, i) {
         var extra = x.receive.length !== g.heavy.length ? " for " + names(x.receive) : "";
         return '<option value="' + i + '"' + (x === t ? " selected" : "") + ">" + esc(names(x.give) + extra) + "</option>";
       }).join("") + "</select>"
-      : "<b>" + esc(names(t.give)) + "</b>";
-    var gets = t.receive.map(function (r) { return esc(r.name) + " · " + esc(r.pos); }).join("<br>");
+        + (giveFlags.length ? '<span class="inj-sub">' + giveFlags.map(function (f) { return '<span class="inj-name">' + esc(f.name) + "</span>" + I.chip(f); }).join(" ") + "</span>" : "")
+      : "<b>" + t.give.map(function (r) { return named(r, fr); }).join(", ") + "</b>";
+    var gets = t.receive.map(function (r) { return named(r, fr) + " · " + esc(r.pos); }).join("<br>");
     var throwIns = t.throwIns ? t.throwIns.give.concat(t.throwIns.receive) : [];
     var added = (t.addedThrowIns || []).map(function (a) { return a.row.name + (a.side === "give" ? " (you add)" : " (they add)"); });
     var you = t.you, them = t.them;
@@ -276,6 +282,7 @@
       + '<div class="pk-side"><small>You get</small><b>' + gets + "</b></div></div>"
       + '<div class="pk-meta"><span class="ptag" data-partner-tag title="' + esc("Trading partner: " + g.partner) + '">Trade with <b>' + esc(g.partner) + '</b></span><span class="fit" data-fit-label>' + fitLabel(g.cls, t) + "</span>"
       + '<span class="fit">' + chartsLink(t, g.partner) + " even or better for them</span></div>"
+      + (I ? I.note(t.give.concat(t.receive), fr) : "")
       + (t.waiver && t.waiver.demoted && window.DDFWhy && DDFWhy.waiverLine ? '<p class="muted pk-note" data-waiver-note>' + esc(DDFWhy.waiverLine(t.waiver, t.give)) + "</p>" : "")
       + (added.length ? '<p class="muted pk-note">Players even out: ' + esc(added.join(", ")) + ".</p>" : "")
       + (throwIns.length ? '<p class="muted pk-note">Also seen with ' + esc(names(throwIns)) + " (worth 0.0) added.</p>" : "")
