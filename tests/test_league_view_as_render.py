@@ -174,6 +174,39 @@ class ViewAsRenderTest(unittest.TestCase):
                 self.assertEqual(self.overflow(page), 0)
                 self.assertEqual(page.errors, [])
 
+    def test_header_fits_unnamed_and_long_named_leagues(self):
+        """An unnamed league ("League" chip) and a very long name both keep the header inside 320/360/375, with Bookmark,
+        the freshness dot (44px, aria-labelled), Menu, and the viewing-as state."""
+        js = """() => { const W = document.documentElement.clientWidth, h = document.querySelector('header .header-inner');
+          const box = s => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return r; };
+          const ok = s => { const r = box(s); return r ? (r.width > 0 && r.left >= -1 && r.right <= W + 1) : false; };
+          const dot = box('.ddf-fresh-hdr a'), a = document.querySelector('.ddf-fresh-hdr a');
+          return {header: h.scrollWidth - h.clientWidth, page: document.documentElement.scrollWidth - W, bookmark: ok('.ddf-bm'), dot: ok('.ddf-fresh-hdr a'),
+                  menu: ok('.morewrap > button'), chip: ok('.ddf-chip'), dotW: dot ? Math.round(dot.width) : 0, dotH: dot ? Math.round(dot.height) : 0,
+                  dotLabel: a ? a.getAttribute('aria-label') : null, chipText: document.querySelector('.ddf-chip-t').textContent}; }"""
+        long_name = "The Extraordinarily Long Dynasty Superflex Keeper League of Champions"
+        for label, name, chip_text in (("unnamed", None, "League"), ("long", long_name, None)):
+            for width in (320, 360, 375):
+                for view_as in (False, True):
+                    with self.subTest(league=label, width=width, view_as=view_as):
+                        page = self.page(seed_script(1, name=name), width=width)
+                        self.open(page, "find.html")
+                        page.wait_for_selector(".ddf-fresh-hdr a", timeout=20000)
+                        if view_as:
+                            page.evaluate("DDF.viewAs.set(2)")
+                            self.open(page, "find.html")
+                            page.wait_for_selector("#ddf-viewas")
+                        page.wait_for_timeout(400)
+                        got = page.evaluate(js)
+                        self.assertEqual((got["header"], got["page"]), (0, 0), got)
+                        self.assertEqual([got[k] for k in ("bookmark", "dot", "menu", "chip")], [True] * 4, got)
+                        self.assertGreaterEqual((got["dotW"], got["dotH"]), (44, 44), got)
+                        self.assertTrue(got["dotLabel"].startswith("Source freshness:"), got)
+                        if chip_text:
+                            self.assertEqual(got["chipText"], chip_text, got)
+                        self.assertEqual(self.overflow(page), 0)
+                        self.assertEqual(page.errors, [])
+
     def test_switch_from_the_header_menu_on_a_saved_league(self):
         page = self.page(SAVED_SEED)
         self.open(page, "team.html")
