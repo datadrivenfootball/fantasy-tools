@@ -7,6 +7,11 @@ import { MCP_BUILD_SHA } from "../../supabase/functions/mcp/build.ts";
 import { checkTradeReplySize, ToolInputError } from "../../supabase/functions/mcp/tools.ts";
 import { evalFinder } from "../../supabase/functions/mcp/find-trades.ts";
 import { readFileSync } from "node:fs";
+// Connector walkthrough 2026-11-21: scoring and superflex are required; calls without a state give the defaults the
+// tests were written against.
+const withSettings = (a) => (a && typeof a === "object" && a.state === undefined
+  ? { scoring: "ppr", superflex: false, teams: 12, ...a } : a);
+
 const codec = createRequire(import.meta.url)("../../app/v2/ddf-state.js");
 const ORIGIN = "https://site.test";
 const deps = { codec, siteOrigin: ORIGIN };
@@ -34,7 +39,7 @@ const stub = async (scoring, teams, superflex, league) => {
   };
 };
 const rpc = (method, params, id = 1) => handleRpc({ jsonrpc: "2.0", id, method, params }, stub);
-const call = (name, args) => rpc("tools/call", { name, arguments: args });
+const call = (name, args) => rpc("tools/call", { name, arguments: withSettings(args) });
 
 let r = await rpc("initialize", { protocolVersion: "2025-06-18" });
 assert.equal(r.result.protocolVersion, "2025-06-18");
@@ -95,22 +100,28 @@ assert.match(r.result.content[0].text, /Ask the user which player they meant/);
 assert.doesNotMatch(r.result.content[0].text, /Verdict|roughly even|total/);
 
 // Bad input is a tool error, not a protocol error.
-for (const [name, args] of [["get_values", { scoring: "bad" }], ["get_values", { teams: 11 }],
+for (const [name, args] of [["get_values", { scoring: "bad" }], ["get_values", { teams: 3 }], ["get_values", { teams: 21 }],
   ["get_values", { position: "K" }], ["explain", { topic: "x" }], ["nope", {}],
   ["compare_trade", { side_a: "", side_b: "x" }]]) {
   const e = await call(name, args);
   assert.equal(e.result.isError, true, name + JSON.stringify(args));
 }
+// Connector walkthrough 2026-11-21: 4 to 20 teams are priced at the nearest supported count, and the answer says so.
+r = await call("get_values", { teams: 11, limit: 1 });
+assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
+assert.match(r.result.content[0].text, /Priced as a 12-team league, the nearest size the values support to your 11 teams/);
+r = await call("get_values", { teams: 9, limit: 1 });
+assert.match(r.result.content[0].text, /Priced as a 10-team league/);
 r = await call("explain", { topic: "value_scale" });
 assert.doesNotMatch(r.result.content[0].text, /0-70/);
 
 // An upstream failure surfaces as a tool error without leaking details.
-const down = await handleRpc({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "get_values", arguments: {} } },
+const down = await handleRpc({ jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "get_values", arguments: withSettings({}) } },
   async () => { throw new Error("get-values 500 secret"); });
 assert.equal(down.result.isError, true);
 assert.doesNotMatch(down.result.content[0].text, /secret/);
 // ---------- JEG-1027: state in and out, links back to the site ----------
-const callD = (name, args, d = deps) => handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, stub, d);
+const callD = (name, args, d = deps) => handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } }, stub, d);
 
 // Without deps the tools behave as before: no link.
 r = await call("get_values", { limit: 1 });
@@ -164,9 +175,13 @@ r = await callD("get_values", { state: carried, limit: 1 });
 assert.deepEqual(r.result.structuredContent.state.work.mine, [{ key: "1" }, { key: "2" }]);
 
 // If the codec cannot be loaded, tools still answer and say the state was not read.
-r = await callD("get_values", { state: pasted, limit: 1 }, { codec: null, siteOrigin: ORIGIN });
+r = await callD("get_values", { state: pasted, scoring: "ppr", superflex: false, limit: 1 }, { codec: null, siteOrigin: ORIGIN });
 assert.notEqual(r.result.isError, true);
 assert.match(r.result.content[0].text, /state reader is unavailable/);
+// ...and with the state unread, the settings it held are missing: asked for, never assumed (walkthrough 2026-11-21).
+r = await callD("get_values", { state: pasted, limit: 1 }, { codec: null, siteOrigin: ORIGIN });
+assert.equal(r.result.isError, true);
+assert.match(r.result.content[0].text, /Missing league settings: scoring .* and superflex/);
 r = await callD("read_state", { state: pasted }, { codec: null, siteOrigin: ORIGIN });
 assert.equal(r.result.isError, true);
 
@@ -292,7 +307,7 @@ const chartStub = async (scoring, teams, superflex) => ({
 });
 const finderDeps = { finder, fetchCharts: chartStub };
 const callF = (name, args) => handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } },
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } },
   stub, deps, finderDeps);
 
 // find_trades: basic search between two rosters.
@@ -343,7 +358,7 @@ if (ft.trades.length > 0) {
   // An older get-values with no bench_share readout: the fit is left out, never approximated.
   const noReadout = async (scoring, teams, superflex) => { const { bench_share, ...rest } = await chartStub(scoring, teams, superflex); return rest; };
   r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades",
-    arguments: { mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" } } }, stub, deps, { finder, fetchCharts: noReadout });
+    arguments: withSettings({ mine: "Josh Allen, Josh Jacobs", theirs: "Chart Gem, Bijan Robinson" }) } }, stub, deps, { finder, fetchCharts: noReadout });
   assert.notEqual(r.result.isError, true);
   assert.ok(r.result.structuredContent.trades.length > 0 && r.result.structuredContent.trades.every((t) => t.fit === undefined), "no readout, no fit");
 }
@@ -360,7 +375,7 @@ if (ft.trades.length > 0) {
       ddf_value_charts: 35, ddf_value_projections: 35 },
   ];
   const arbCharts = async (scoring, teams, superflex) => ({ ...(await chartStub(scoring, teams, superflex)), players: arb });
-  const callA = (args) => handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades", arguments: args } },
+  const callA = (args) => handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades", arguments: withSettings(args) } },
     stub, deps, { finder, fetchCharts: arbCharts });
   r = await callA({ mine: "Market Darling", theirs: "Market Laggard", max_per_side: 1 });
   assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
@@ -378,7 +393,7 @@ if (ft.trades.length > 0) {
   for (const name of ["find_trades", "find_trades_league"]) {
     const args = name === "find_trades" ? { mine: "Market Darling", theirs: "Market Laggard" }
       : { mine: "Market Darling", opponents: [{ name: "Them", roster: "Market Laggard" }] };
-    r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, stub, deps, { finder, fetchCharts: oldCharts });
+    r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } }, stub, deps, { finder, fetchCharts: oldCharts });
     assert.equal(r.result.isError, true, `${name} without chart_indexed is an error`);
     assert.match(r.result.content[0].text, /Chart values are unavailable/);
   }
@@ -410,7 +425,7 @@ const recordingCharts = async (scoring, teams, superflex, league) => {
 };
 const recDeps = { finder, fetchCharts: recordingCharts };
 const callR = (name, args) => handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } },
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } },
   stub, deps, recDeps);
 const finderLeague = { roster: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 6 }, shares: { QB: 0.2, RB: 0.35, WR: 0.35, TE: 0.1 } };
 const finderState = codec.encodeBlock({ league: { scoring: "ppr", teams: 12, ...finderLeague } });
@@ -431,7 +446,7 @@ assert.equal(r.result.isError, true);
 // Missing finder dependency surfaces as a tool error.
 const noFinderDeps = { finder: null, fetchCharts: chartStub };
 r = await handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades", arguments: { mine: "Josh Allen", theirs: "Bijan Robinson" } } },
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "find_trades", arguments: withSettings({ mine: "Josh Allen", theirs: "Bijan Robinson" }) } },
   stub, deps, noFinderDeps);
 assert.equal(r.result.isError, true);
 assert.match(r.result.content[0].text, /unavailable/);
@@ -617,16 +632,17 @@ const sizeCharts = async () => ({
   week: 7, default_week: 7, weeks: [7], missing_sources: [],
 });
 const sizeCall = (name, args, fetch = sizeCharts) => handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } },
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } },
   stub, deps, { finder, fetchCharts: fetch });
 const nbytes = (res) => Buffer.byteLength(JSON.stringify(res.result), "utf8");
 // JEG-1329 (pick B, 2026-10-29): the trade budgets measure the reply without its site link, which
 // opens the full list and grows with every team a league link carries.
+// Measured as tools.ts budgetBytes: without the site link and (connector walkthrough 2026-11-21) the saved state.
 const linkFree = (result) => {
   const url = result.structuredContent?.site_url;
-  if (!url) return Buffer.byteLength(JSON.stringify(result), "utf8");
-  return Buffer.byteLength(JSON.stringify({ ...result, content: result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })),
-    structuredContent: { ...result.structuredContent, site_url: "" } }), "utf8");
+  const content = url ? result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })) : result.content;
+  const sc = result.structuredContent;
+  return Buffer.byteLength(JSON.stringify({ ...result, content, ...(sc ? { structuredContent: { ...sc, site_url: "", state: null } } : {}) }), "utf8");
 };
 const tbytes = (res) => linkFree(res.result);
 const mineList = sizeMine.map((p) => p.name).join(", ");
@@ -755,7 +771,7 @@ const pairFinder = { ...finder, findTrades: (mine, theirs) => {
     total: 1, mine: count, theirs: count, chartKeys: finder.CHART_KEYS };
 } };
 r = await handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {
-  name: "find_trades_league", arguments: { mine: mineList, limit: 100,
+  name: "find_trades_league", arguments: { scoring: "ppr", superflex: false, teams: 12, mine: mineList, limit: 100,
     opponents: [{ name: "Same", roster: theirList }, { name: "Same", roster: otherTeam.map(p => p.name).join(", ") }] }
 } }, stub, deps, { finder: pairFinder, fetchCharts: packageCharts });
 assert.notEqual(r.result.isError, true);
@@ -768,7 +784,7 @@ const board = Array.from({ length: 200 }, (_, i) => ({
   value: Math.round((200 - i) * 0.4 * 10) / 10, tier: i < 80 ? "starter" : "bench",
 }));
 r = await handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_values", arguments: { limit: 200 } } },
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_values", arguments: withSettings({ limit: 200 }) } },
   async () => ({ attribution: "Data Driven Football", as_of: "2026-10-26", setting: { scoring: "ppr", teams: 12, superflex: 0 }, players: board, sources_included: ["espn"], sources_excluded: [] }),
   deps);
 assert.equal(r.result.structuredContent.players.length, 200);

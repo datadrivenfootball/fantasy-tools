@@ -19,6 +19,7 @@ import {
   scoreAndRankOffers,
   selectPackage,
 } from "./viability.ts";
+import { LeagueInputError, MAX_TEAMS, MIN_TEAMS, nearestTeams, type LeagueRead, parseSlots, partnerIndex, readLeague, type Roster, shapeFromRoster, stateTeams } from "./league.ts";
 import { askedWeek, type WeekFields, weekProp, withWeek } from "./week.ts";
 import {
   type AnalysisDeps,
@@ -91,7 +92,6 @@ export interface ToolResult {
 }
 
 const SCORINGS = ["standard", "half_ppr", "ppr"];
-const TEAMS = [8, 10, 12, 14];
 const POSITIONS = ["QB", "RB", "WR", "TE", "all"];
 const EXPLAIN_TOPICS = [
   "methodology",
@@ -107,24 +107,55 @@ const EXPLAIN_TOPICS = [
 const MOVERS_SERIES = ["ddf_value", "ddf_value_charts", "ddf_value_projections", "fantasycalc", "usatoday", "fantasypros", "cbs", "cbsros", "razzball", "espn"];
 const AUDIT_SOURCES = ["fantasycalc", "usatoday", "fantasypros", "cbs", "espn", "cbsros", "razzball"];
 
+// Connector walkthrough 2026-11-21: scoring and superflex are required (or come from slots or a state) and never
+// assumed; any team count from 4 to 20 is accepted and priced at the nearest of 8, 10, 12 or 14.
 const settingsProps = {
   scoring: {
     type: "string",
-    default: "ppr",
-    description: "League scoring: ppr, half_ppr, or standard. Also accepts PPR, 0.5ppr, half, and non-ppr.",
+    description: "Required unless a state is passed. League scoring: ppr, half_ppr, or standard (also PPR, 0.5ppr, half, non-ppr). Ask the user if unknown; never assume it.",
   },
-  teams: { type: "integer", enum: TEAMS, default: 12, description: "Number of teams in the league" },
+  teams: {
+    type: "integer",
+    minimum: MIN_TEAMS,
+    maximum: MAX_TEAMS,
+    description: "Number of teams in the league (4 to 20; priced at the nearest of 8, 10, 12 or 14, and the answer says which).",
+  },
   superflex: {
     type: "boolean",
-    default: false,
-    description: "Whether the league has a superflex slot. Also accepts yes/no and 1/0.",
+    description: "Required unless a state or a superflex slot is given. Whether the league has a superflex slot (yes/no and 1/0 also accepted). Ask the user if unknown.",
+  },
+  slots: {
+    type: ["object", "string", "array"],
+    description: "Optional starting lineup and bench, in plain words: {QB:1, RB:2, WR:3, TE:1, FLEX:1, K:1, DEF:1, BN:5}, or the league's slot list as text (\"QB, RB, RB, WR, WR, WR, TE, W/R/T, K, DEF, BN, BN\"; Q/W/R/T or OP is superflex), or [QB, RB, WR, TE, FLEX, BENCH]. Kicker, defense and IR slots are read and left out. Saved in the state.",
   },
   state: {
     type: "string",
     description:
-      "Optional: a DDF state pasted from the site (a ```ddf-state block, JSON, or a site link). Supplies the league settings; explicit settings above win.",
+      "Optional: a DDF state from make_state or pasted from the site (a ```ddf-state block, JSON, or a site link). Supplies the league settings, slots and rosters it saved; explicit arguments win.",
   },
   ...weekProp,
+};
+
+// Connector walkthrough 2026-11-21: one paste for the whole league, or the teams as a list, plus which team is yours.
+const leagueProps = {
+  league_paste: {
+    type: "string",
+    description: "The whole league as copied from Yahoo, ESPN or Sleeper (or typed): each team's name on a line, then its players one per line (\"WR George Pickens\" and \"K Brandon McManus\" are fine). Read by the site's paste reader. Use with my_team.",
+  },
+  league_teams: {
+    type: "array",
+    maxItems: 20,
+    description: "Every team in the league: [{name, players}], players as a list or one text of names (commas or new lines).",
+    items: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        players: { type: ["array", "string"], items: { type: "string" } },
+      },
+      required: ["name", "players"],
+    },
+  },
+  my_team: { type: ["string", "integer"], description: "Which team is the user's: its name, or its 0-based index in the league." },
 };
 
 // JEG-1124: a one-letter name fits too many players to be useful; ask for a fuller name.
@@ -133,8 +164,8 @@ const MIN_NAME = 2;
 const listProps = {
   give: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: what you give (Compare a trade)" },
   get: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: what you get (Compare a trade)" },
-  mine: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: your roster (Find a trade)" },
-  theirs: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: their roster (Find a trade)" },
+  mine: { type: "string", minLength: MIN_NAME, description: "Your roster: names separated by commas or new lines (not needed with a league and my_team)" },
+  theirs: { type: "string", minLength: MIN_NAME, description: "Their roster: names separated by commas or new lines" },
   target: { type: "string", minLength: MIN_NAME, description: "One player name (Trade targets)" },
 };
 
@@ -159,8 +190,8 @@ const viabilityProps = {
 };
 
 /** Build a RosterShape from tool args, defaulting SUPERFLEX from the league setting. */
-function rosterShape(args: Record<string, unknown>, superflex: number): RosterShape {
-  const rs = (args.roster_shape ?? {}) as Record<string, unknown>;
+function rosterShape(args: Record<string, unknown>, superflex: number, slots?: Record<string, number> | null): RosterShape {
+  const rs = (args.roster_shape ?? shapeFromRoster(slots as Roster) ?? {}) as Record<string, unknown>;
   return {
     QB: Number(rs.QB ?? 1),
     RB: Number(rs.RB ?? 2),
@@ -262,11 +293,12 @@ export const TOOLS = [
   {
     name: "make_state",
     description:
-      "Save work from this chat as a Data Driven Football site link the person opens to continue there: league settings plus a trade, rosters or a target player, by name. Returns the link (and the same state as a block).",
+      "Save the league from this chat as a Data Driven Football state: settings, slots, every team's roster (league_paste or league_teams, with my_team), and a trade or target player, by name. League settings plus a league and my_team is enough. Returns a site link and the same state as a block; pass the state to later calls instead of resending settings and rosters.",
     inputSchema: {
       type: "object",
       properties: {
         ...settingsProps,
+        ...leagueProps,
         ...listProps,
         view: { type: "string", enum: ["compare", "targets", "finder"], description: "Which site view to open; inferred if omitted" },
       },
@@ -281,14 +313,15 @@ export const TOOLS = [
       type: "object",
       properties: {
         ...settingsProps,
-        mine: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: your full roster" },
-        theirs: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: their full roster" },
+        ...leagueProps,
+        their_team: { type: ["string", "integer"], description: "With a league: the partner team's name or 0-based index" },
+        mine: { type: "string", minLength: MIN_NAME, description: "Your full roster: names separated by commas or new lines (or give a league and my_team)" },
+        theirs: { type: "string", minLength: MIN_NAME, description: "Their full roster: names separated by commas or new lines (or give a league and their_team)" },
         max_per_side: { type: "integer", minimum: 1, maximum: 4, default: 2, description: "Maximum players each side trades (default 2-for-2)" },
         min_rival_edge: { type: "number", minimum: 0, default: 0, description: "Minimum average chart-value edge the other team needs (0 = any fair trade)" },
         limit: { type: "integer", minimum: 1, maximum: 50, default: 10, description: "Maximum trade candidates to return" },
         ...viabilityProps,
       },
-      required: ["mine", "theirs"],
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   },
@@ -300,15 +333,16 @@ export const TOOLS = [
       type: "object",
       properties: {
         ...settingsProps,
-        mine: { type: "string", minLength: MIN_NAME, description: "Comma-separated names: your full roster" },
+        ...leagueProps,
+        mine: { type: "string", minLength: MIN_NAME, description: "Your full roster: names separated by commas or new lines (or give a league and my_team)" },
         opponents: {
           type: "array",
-          description: "Opposing teams: [{name, roster}] where roster is comma-separated names",
+          description: "Opposing teams: [{name, roster}], roster as names separated by commas or new lines (or give a league and my_team)",
           items: {
             type: "object",
             properties: {
               name: { type: "string", description: "Team name" },
-              roster: { type: "string", minLength: MIN_NAME, description: "Comma-separated player names" },
+              roster: { type: "string", minLength: MIN_NAME, description: "Player names, separated by commas or new lines" },
             },
             required: ["name", "roster"],
           },
@@ -320,7 +354,6 @@ export const TOOLS = [
         limit: { type: "integer", minimum: 1, maximum: 100, default: 10, description: "Maximum trade candidates to return" },
         ...viabilityProps,
       },
-      required: ["mine", "opponents"],
     },
     annotations: { readOnlyHint: true, openWorldHint: true },
   },
@@ -401,7 +434,6 @@ const SCORING_ALIASES: Record<string, string> = {
 };
 
 function normalizeScoring(value: unknown): string {
-  if (value === undefined || value === null || value === "") return "ppr";
   const key = String(value).trim().toLowerCase().replace(/[\s_-]+/g, "");
   const scoring = SCORING_ALIASES[key];
   if (!scoring) throw new ToolInputError(`invalid scoring: ${value}. Must be one of: ${SCORINGS.join(", ")} (also PPR, 0.5ppr, half, standard).`);
@@ -438,16 +470,62 @@ function parseNonNegative(value: unknown, name: string, fallback: number): numbe
   return n;
 }
 
+/**
+ * Connector walkthrough 2026-11-21 (Jeremy: "ask for them, never default silently"): scoring and superflex are
+ * required, from the arguments, the slots (a superflex slot) or a pasted state; a missing one is an error that names
+ * it. A team count from 4 to 20 is priced at the nearest supported count and says so; a missing count is priced as
+ * 12 and says so.
+ */
 function settings(args: Record<string, unknown>) {
-  const scoring = normalizeScoring(args.scoring);
-  const teams = Number(args.teams ?? 12);
-  if (!TEAMS.includes(teams)) {
-    throw new ToolInputError(`invalid teams: ${teams}. Must be one of: ${TEAMS.join(", ")}`);
+  let roster: Roster | null;
+  try {
+    roster = parseSlots(args.slots);
+  } catch (e) {
+    throw new ToolInputError((e as Error).message);
   }
-  const superflex = parseBool(args.superflex, "superflex", false) ? 1 : 0;
+  const missing: string[] = [];
+  if (args.scoring === undefined || args.scoring === null || args.scoring === "") missing.push("scoring (ppr, half_ppr or standard)");
+  const sfSlot = roster?.SUPERFLEX !== undefined
+    ? roster.SUPERFLEX > 0
+    : typeof args._state_superflex === "boolean" ? args._state_superflex : undefined;
+  if ((args.superflex === undefined || args.superflex === null || args.superflex === "") && sfSlot === undefined) {
+    missing.push("superflex (yes or no)");
+  }
+  if (missing.length) {
+    throw new ToolInputError(
+      `Missing league settings: ${missing.join(" and ")}. Ask the user for ${missing.length === 1 ? "it" : "them"}; they are never assumed. ` +
+        "Or pass a state from make_state, which saves them.",
+    );
+  }
+  const scoring = normalizeScoring(args.scoring);
+  const notes: string[] = [];
+  let teams = 12;
+  if (args.teams === undefined || args.teams === null || args.teams === "") {
+    notes.push("Team count not given: priced as 12 teams.");
+  } else {
+    const asked = Number(args.teams);
+    if (!Number.isInteger(asked) || asked < MIN_TEAMS || asked > MAX_TEAMS) {
+      throw new ToolInputError(`invalid teams: ${args.teams}. Give the league's team count, a whole number from ${MIN_TEAMS} to ${MAX_TEAMS}.`);
+    }
+    teams = nearestTeams(asked);
+    if (teams !== asked) notes.push(`Priced as a ${teams}-team league, the nearest size the values support to your ${asked} teams.`);
+  }
+  const superflex = (args.superflex === undefined || args.superflex === null || args.superflex === ""
+    ? sfSlot!
+    : parseBool(args.superflex, "superflex", false))
+    ? 1
+    : 0;
   // JEG-1031: the rest of a pasted league (roster shape, shares, weeks, advanced), priced by get-values.
-  const league = args.league && typeof args.league === "object" ? args.league as Record<string, unknown> : undefined;
-  return { scoring, teams, superflex, league };
+  let league = args.league && typeof args.league === "object" ? args.league as Record<string, unknown> : undefined;
+  const slots = roster ? Object.fromEntries(Object.entries(roster).filter(([k]) => k !== "SUPERFLEX")) : {};
+  if (Object.keys(slots).length) {
+    league = { ...(league ?? {}), roster: { ...((league?.roster as Record<string, unknown>) ?? {}), ...slots } };
+  }
+  const savedRoster = roster ? { ...slots, SUPERFLEX: superflex } : null;
+  // The finders' lineup shape: this call's slots, else the saved league's roster (a state's league.roster).
+  const savedShape = (league?.roster ?? null) as Record<string, number> | null;
+  const lineup = savedRoster ?? (savedShape ? { ...savedShape, SUPERFLEX: superflex } : null);
+  return { scoring, teams, superflex, league, roster: savedRoster, lineup, notes };
 }
 
 function position(args: Record<string, unknown>): string {
@@ -483,8 +561,62 @@ function header(data: ValuesResponse, s: { scoring: string; teams: number; super
 // Exact or unique partial match, else a single close typo. Ambiguous queries return null
 // (the caller reads matchName for the warning). Kept for callers that only need the player.
 export function findPlayer(players: PlayerValue[], query: string): PlayerValue | null {
+  const byKey = savedKey(query);
+  if (byKey) return players.find((p) => String(p.player_key) === byKey) ?? null;
   const hit = matchName(players, query);
   return hit.match === "ambiguous" ? null : hit.player;
+}
+
+/** A player a state saved by key is passed as "#key" (state.ts prepare); null for a typed name. */
+function savedKey(input: string): string | null {
+  return /^#(\d{1,9})$/.exec(String(input).trim())?.[1] ?? null;
+}
+
+/** The league for a roster tool (league_paste, league_teams or a state's teams), or null when none was given. */
+function leagueOf(a: Record<string, unknown>, rows: PlayerValue[], deps?: Deps): LeagueRead | null {
+  try {
+    return readLeague(a, rows, deps?.paste ?? null);
+  } catch (e) {
+    if (e instanceof LeagueInputError) throw new ToolInputError(e.message);
+    throw e;
+  }
+}
+
+function partnerOf(league: LeagueRead, raw: unknown): number {
+  try {
+    return partnerIndex(league, raw);
+  } catch (e) {
+    if (e instanceof LeagueInputError) throw new ToolInputError(e.message);
+    throw e;
+  }
+}
+
+const hasLeagueInput = (a: Record<string, unknown>) =>
+  (typeof a.league_paste === "string" && a.league_paste.trim() !== "") || Array.isArray(a.league_teams) ||
+  (a.my_team !== undefined && a.my_team !== null && a.my_team !== "");
+
+/** The user's team in a league, or an error that lists the teams. */
+function myTeamOf(league: LeagueRead): number {
+  if (league.mine !== null) return league.mine;
+  throw new ToolInputError(`my_team is required with a league: which team is the user's? Teams: ${league.teams.map((t, i) => `${i} ${t.name}`).join(", ")}.`);
+}
+
+/** A state entry for a roster name: the player's key when the name (or a saved #key) is one player. */
+function workEntry(players: PlayerValue[], input: string, key?: string | null): { key?: string; name?: string } {
+  if (key) return { key, name: input };
+  const saved = savedKey(input);
+  if (saved && !players.some((p) => String(p.player_key) === saved)) return { key: saved };
+  const p = findPlayer(players, input);
+  return p ? { key: String(p.player_key), name: p.name } : { name: input };
+}
+
+/** Every league team, saved in the state so later calls need only the state. */
+function leagueWork(league: LeagueRead | null, players: PlayerValue[]): Record<string, unknown> {
+  if (!league) return {};
+  return {
+    teams: stateTeams(league, (n, k) => workEntry(players, n, k)),
+    ...(league.mine !== null ? { my_team: league.mine } : {}),
+  };
 }
 
 function round1(n: number): number {
@@ -563,11 +695,15 @@ const bytes = (result: ToolResult) => new TextEncoder().encode(JSON.stringify(re
 // JEG-1329 (pick B, 2026-10-29): the site link does not count against the reply budget. It opens the
 // full list on the site, and a league link grows with every team it carries, so counting it would cost
 // trade rows. Measured as the reply with the link left out of the text and site_url.
+// Connector walkthrough 2026-11-21: the saved state is left out the same way. It carries every league roster (by key)
+// so a later call needs only the state, and it grows with each team as the link does.
 const budgetBytes = (result: ToolResult) => {
   const url = result.structuredContent?.site_url;
-  if (typeof url !== "string" || !url) return bytes(result);
-  return bytes({ ...result, content: result.content.map((c) => ({ ...c, text: c.text.split(url).join("") })),
-    structuredContent: { ...result.structuredContent, site_url: "" } });
+  const sc = result.structuredContent;
+  const content = typeof url === "string" && url
+    ? result.content.map((c) => ({ ...c, text: c.text.split(url).join("") }))
+    : result.content;
+  return bytes({ ...result, content, ...(sc ? { structuredContent: { ...sc, site_url: "", state: null } } : {}) });
 };
 const tradeBudget = (name: string, limit: number) => name === "find_trades"
   ? (limit <= 10 ? 6700 : 17000) : (limit <= 10 ? 8000 : 11500);
@@ -629,6 +765,13 @@ function resolveNames<T extends PlayerValue>(players: T[], names: string[]): Res
   const ambiguous: Array<{ input: string; suggestions: string[] }> = [];
   const notes: string[] = [];
   for (const input of names) {
+    const saved = savedKey(input);
+    if (saved) {
+      const p = players.find((row) => String(row.player_key) === saved);
+      if (!p) { notes.push(`A saved player (key ${saved}) is not priced this week; left out.`); continue; }
+      if (!seen.has(p.player_key)) { seen.add(p.player_key); matched.push(p); }
+      continue;
+    }
     // A kicker or defense is not valued: left out with a note, never matched to another player and never a stop.
     const kd = notEvaluated(input, players);
     if (kd) {
@@ -1187,10 +1330,11 @@ async function findTradesHandler(
   const a = prepared.args;
   const s = settings(a);
 
-  const mineNames = playerNames(a.mine, "mine");
-  const theirNames = playerNames(a.theirs, "theirs");
-  if (!mineNames.length) throw new ToolInputError("mine is required: comma-separated roster names");
-  if (!theirNames.length) throw new ToolInputError("theirs is required: comma-separated roster names");
+  let mineNames = playerNames(a.mine, "mine");
+  let theirNames = playerNames(a.theirs, "theirs");
+  const withLeague = hasLeagueInput(a);
+  if (!withLeague && !mineNames.length) throw new ToolInputError("mine is required: your roster's names (commas or new lines), or give league_paste or league_teams with my_team.");
+  if (!withLeague && !theirNames.length) throw new ToolInputError("theirs is required: their roster's names (commas or new lines), or give a league with my_team and their_team.");
   if (!finderDeps?.finder) {
     throw new ToolUnavailableError("The trade finder is unavailable right now. Try again shortly.");
   }
@@ -1200,6 +1344,17 @@ async function findTradesHandler(
 
   const data = await finderDeps.fetchCharts(s.scoring, s.teams, s.superflex, s.league);
   const chartPlayers = chartPlayersOf(data);
+
+  const league = withLeague ? leagueOf(a, chartPlayers, deps) : null;
+  let partner: string | null = null;
+  if (league) {
+    if (!mineNames.length) mineNames = league.teams[myTeamOf(league)].players;
+    if (!theirNames.length) {
+      const j = partnerOf(league, a.their_team);
+      theirNames = league.teams[j].players;
+      partner = league.teams[j].name;
+    }
+  }
 
   const mineRes = resolveNames(chartPlayers, mineNames);
   const theirRes = resolveNames(chartPlayers, theirNames);
@@ -1231,7 +1386,7 @@ async function findTradesHandler(
   });
 
   // --- Viability scoring ---
-  const shape = rosterShape(a, s.superflex);
+  const shape = rosterShape(a, s.superflex, s.lineup);
   const vConfig = viabilityConfig(a);
   const viableOnly = parseBool(a.viable_only, "viable_only", false);
 
@@ -1256,10 +1411,8 @@ async function findTradesHandler(
   const fitCtx = fitContextFor(finder, data, shape);
   const trades = scored.map((o) => slimOffer(withFit(o, finder, fitCtx, mineRows, theirRows, rowByKey), false));
 
-  const entry = (input: string, p: PlayerValue | null) =>
-    p ? { key: String(p.player_key), name: p.name } : { name: input };
-
-  const nameNotes = [...mineRes.notes, ...theirRes.notes];
+  const nameNotes = [...(league?.notes ?? []), ...mineRes.notes, ...theirRes.notes];
+  if (partner) nameNotes.unshift(`Trading with ${partner}.`);
   if (shared.length) nameNotes.push(`On both rosters, kept on yours only: ${shared.map((p) => p.name).join(", ")}.`);
 
   return boundedTrades(trades, "find_trades", limit, (trades, shortened) => {
@@ -1291,8 +1444,9 @@ async function findTradesHandler(
     };
 
     const work = {
-      mine: mineNames.map((n) => entry(n, findPlayer(data.players, n))),
-      theirs: theirNames.map((n) => entry(n, findPlayer(data.players, n))),
+      mine: mineNames.map((n) => workEntry(data.players, n)),
+      theirs: theirNames.map((n) => workEntry(data.players, n)),
+      ...leagueWork(league, data.players),
     };
 
     return finish(ok(lines.join("\n"), structured), {
@@ -1354,10 +1508,10 @@ async function findTradesLeagueHandler(
   const a = prepared.args;
   const s = settings(a);
 
-  const mineNames = playerNames(a.mine, "mine");
-  if (!mineNames.length) throw new ToolInputError("mine is required: comma-separated roster names");
-
-  const opponents = parseOpponents(a.opponents);
+  let mineNames = playerNames(a.mine, "mine");
+  const withLeague = hasLeagueInput(a) && a.opponents === undefined;
+  if (!withLeague && !mineNames.length) throw new ToolInputError("mine is required: your roster's names (commas or new lines), or give league_paste or league_teams with my_team.");
+  let opponents = withLeague ? [] : parseOpponents(a.opponents);
   if (!finderDeps?.finder) {
     throw new ToolUnavailableError("The trade finder is unavailable right now. Try again shortly.");
   }
@@ -1368,12 +1522,21 @@ async function findTradesLeagueHandler(
   const data = await finderDeps.fetchCharts(s.scoring, s.teams, s.superflex, s.league);
   const chartPlayers = chartPlayersOf(data);
 
+  const league = withLeague ? leagueOf(a, chartPlayers, deps) : null;
+  let myName = "My team";
+  if (league) {
+    const me = myTeamOf(league);
+    myName = league.teams[me].name;
+    if (!mineNames.length) mineNames = league.teams[me].players;
+    opponents = league.teams.filter((_, i) => i !== me).map((t) => ({ name: t.name, roster: t.players.join("\n") }));
+  }
+
   const mineRes = resolveNames(chartPlayers, mineNames);
   if (!mineRes.matched.length) throw new ToolInputError(emptyRoster("your roster", mineRes));
   const mineRows = mineRes.matched.map(toFinderRow);
   const mineKeys = new Set(mineRes.matched.map((p) => p.player_key));
 
-  const shape = rosterShape(a, s.superflex);
+  const shape = rosterShape(a, s.superflex, s.lineup);
   const vConfig = viabilityConfig(a);
   const viableOnly = parseBool(a.viable_only, "viable_only", false);
   const maxPerSide = parseBounded(a.max_per_side, "max_per_side", 2, 1, 4);
@@ -1390,7 +1553,7 @@ async function findTradesLeagueHandler(
     unmatchedNames: string[];
     ambiguous?: Array<{ input: string; suggestions: string[] }>;
   }> = [];
-  const nameNotes = [...mineRes.notes];
+  const nameNotes = [...(league?.notes ?? []), ...mineRes.notes];
   // JEG-1329: every opponent's matched roster, in input order, for the site link (even teams with no trade).
   const leagueTeams: Array<{ name: string; keys: string[] }> = [];
 
@@ -1505,13 +1668,12 @@ async function findTradesLeagueHandler(
       mine: { matched: mineRes.matched.length, unmatched: mineRes.unmatched, ...ambiguousOf(mineRes) },
     };
 
-    const entry = (input: string, p: PlayerValue | null) =>
-      p ? { key: String(p.player_key), name: p.name } : { name: input };
     const work = {
-      mine: mineNames.map((n: string) => entry(n, findPlayer(data.players, n))),
+      mine: mineNames.map((n: string) => workEntry(data.players, n)),
+      ...leagueWork(league, data.players),
     };
     // JEG-1329: the site link opens the league finder with every team, yours first, not only yours.
-    const teams = [{ name: "My team", keys: mineRes.matched.map((p) => String(p.player_key)) }]
+    const teams = [{ name: myName, keys: mineRes.matched.map((p) => String(p.player_key)) }]
       .concat(leagueTeams);
 
     return finish(ok(lines.join("\n"), structured), {
@@ -1651,30 +1813,51 @@ async function makeState(args: Record<string, unknown>, fetchValues: FetchValues
   const work: Record<string, unknown> = {};
   const unmatched: string[] = [];
   const toEntry = (input: string) => {
+    const saved = savedKey(input);
+    if (saved) return workEntry(data.players, input);
     const hit = matchName(data.players, input);
     if (hit.match === "ambiguous" || !hit.player) {
-      unmatched.push(hit.match === "ambiguous" ? `${input} (${hit.suggestions.map((p) => p.name).join(" or ")})` : input);
+      if (!notEvaluated(input, data.players)) {
+        unmatched.push(hit.match === "ambiguous" ? `${input} (${hit.suggestions.map((p) => p.name).join(" or ")})` : input);
+      }
       return { name: input };
     }
     return { key: String(hit.player.player_key), name: hit.player.name };
   };
+  // Connector walkthrough 2026-11-21: a league plus my_team is enough; your roster comes from your team.
+  const league = hasLeagueInput(a) ? leagueOf(a, data.players, deps) : null;
+  if (league) {
+    work.teams = league.teams.map((t) => ({
+      name: t.name.slice(0, 60),
+      players: t.players.map((n, i) => (t.keys?.[i] ? { key: t.keys[i]!, name: n } : toEntry(n))),
+    }));
+    if (league.mine !== null) {
+      work.my_team = league.mine;
+      if (a.mine === undefined) work.mine = (work.teams as Array<{ players: unknown[] }>)[league.mine].players;
+    }
+  }
   for (const name of WORK_LISTS) {
     const list = names(a[name], name);
-    if (list.length) work[name] = list.map(toEntry);
+    if (list.length && !(name === "mine" && work.mine && league && a.mine === undefined)) work[name] = list.map(toEntry);
   }
   if (String(a.target ?? "").trim()) work.target = toEntry(checkName(String(a.target).trim(), "target"));
-  if (!Object.keys(work).length && !prepared.state) {
-    throw new ToolInputError("Give at least one of give, get, mine, theirs or target, or a pasted state.");
+  if (!Object.keys(work).length && !prepared.state && !s.roster) {
+    throw new ToolInputError("Give the league (league_paste or league_teams, with my_team), a roster (mine), a trade (give and get), a target, or a pasted state.");
   }
   const allViews = ["compare", "targets", "finder"];
   const view = allViews.includes(String(a.view)) ? String(a.view) : inferView({ ...(prepared.state?.work ?? {}), ...work });
+  const saved: string[] = [];
+  if (league) {
+    saved.push(`${league.teams.length} teams${league.mine !== null ? `, yours is ${league.teams[league.mine].name}` : " (say which is the user's with my_team)"}`);
+  }
+  if (s.roster) saved.push("slots");
   const text = [
+    `Saved${saved.length ? ` ${saved.join(" and ")}` : ""} with the league settings. Pass this state to later calls; it keeps the settings${s.roster ? ", slots" : ""}${league ? " and every roster" : ""}.`,
     ...header(data, s),
-    "",
-    "Saved as a DDF state. The person opens the link below to continue on the site.",
+    ...(league?.notes ?? []),
     ...(unmatched.length ? [`Could not match: ${unmatched.join(", ")} (kept by name; the site will try again).`] : []),
   ].join("\n");
-  return finish(ok(text, { as_of: data.as_of, setting: data.setting, unmatched }), {
+  return finish(ok(text, { as_of: data.as_of, setting: data.setting, unmatched, teams: league?.teams.map((t) => ({ name: t.name, players: t.players.length })) ?? [], my_team: league?.mine ?? null }), {
     prepared, deps, settings: s, view, work, block: true,
   });
 }

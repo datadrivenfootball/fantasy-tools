@@ -1,8 +1,10 @@
 /* setup.html, "Which team is yours?" (JEG-1538): the teams come from the league kept on connect.html.
  *
  * Source, in order: sessionStorage ddf:pasted (a paste or manual entry, connect-entry.js) or the league carried from a
- * chat link (DDF.link.current().teams). Neither: the page says no rosters were added and links back to connect.html.
- * Confirming a team stores it as `me` (ddf:pasted.me, or DDF.link.update({me}) for a chat league).
+ * chat link (DDF.link.current().teams), else the saved league in localStorage ddf.v2.workspaces (a returning visitor whose
+ * tab session ended, JEG-1696). None: the page says no rosters were added and links back to connect.html.
+ * Confirming a team stores it as `me` and `own` (DDF.viewAs, site.js): ddf:pasted.me/.own, DDF.link.update({me}) for a chat
+ * league, or the saved league's myTeamId/ownTeamId. The team you picked here is the one "Viewing as" goes back to.
  *
  * Storage bridge (plan D4, until JEG-1539 retires the live league pages): when the reader confirms a team, the pasted
  * league is also written to localStorage ddf.v2.workspaces in the live workspace format (workspace.js
@@ -28,7 +30,17 @@
       return {kind: "link", me: Number.isInteger(cur.me) && cur.teams[cur.me] ? cur.me : -1,
         teams: cur.teams.map(function (t, i) { return {name: t.name || "Team " + (i + 1), count: Array.isArray(t.players) ? t.players.length : 0}; })};
     }
+    var store = readStore(), ws = store ? (store.workspaces.filter(function (w) { return w && w.id === store.activeId; })[0] || store.workspaces[0]) : null;
+    if (ws && Array.isArray(ws.teams) && ws.teams.length > 1) {
+      return {kind: "saved", ws: ws, me: -1,
+        teams: ws.teams.map(function (t, i) { return {name: (t && t.name) || "Team " + (i + 1), count: t && Array.isArray(t.entries) ? t.entries.length : 0}; })};
+    }
     return null;
+  }
+  /* the team the reader calls theirs (DDF.viewAs own), else the team in view */
+  function ownIndex(src) {
+    var va = DDF.viewAs && DDF.viewAs.read();
+    return va && va.own !== null && src.teams[va.own] ? va.own : src.me;
   }
 
   function newId(prefix) {
@@ -68,6 +80,7 @@
       var mine = Number.isInteger(rec.me) && teams[rec.me] ? teams[rec.me].id : null;
       var ws = ours ? Object.assign({}, prev) : {id: newId("league"), name: "My league", settings: null, createdAt: now};
       ws.teams = teams; ws.myTeamId = mine; ws.updatedAt = now;
+      ws.ownTeamId = Number.isInteger(rec.own) && teams[rec.own] ? teams[rec.own].id : mine;   /* JEG-1696: Viewing as */
       /* JEG-1564: the league's name, roster date and (this device only) league ID */
       ws.name = rec.name || "My league";
       if (rec.enteredAt) ws.enteredAt = rec.enteredAt;
@@ -109,22 +122,23 @@
     var prev = DDF.state.get("editprev", null);
     if (prev && prev.team && src.kind === "pasted" && src.me < 0) {
       var at = src.teams.map(function (t) { return t.name; }).indexOf(prev.team);
-      if (at >= 0) { src.me = at; src.rec.me = at; DDF.state.set("pasted", src.rec); }
+      if (at >= 0) { src.me = at; src.rec.me = at; src.rec.own = at; DDF.state.set("pasted", src.rec); }
     }
+    src.me = ownIndex(src);
     box.innerHTML = src.teams.map(function (t, i) {
       var sel = i === src.me;
       return '<label class="setup-option ddf-pop ddf-lift' + (sel ? " selected" : "") + '"><input type="radio" name="team" value="' + esc(t.name) + '" data-i="' + i + '" required' + (sel ? " checked" : "") + "><span><strong>" + esc(t.name) + "</strong>"
         + (t.count ? '<span class="player-count">' + t.count + " player" + (t.count === 1 ? "" : "s") + "</span>" : "")
         + '</span><span class="selection-check" aria-hidden="true">✓</span></label>';
     }).join("");
-    if (intro) intro.textContent = "We found these " + src.teams.length + " teams in your " + (src.kind === "link" ? "league" : "paste") + ". Confirm the one you manage so we can show your roster.";
+    if (intro) intro.textContent = "We found these " + src.teams.length + " teams in your " + (src.kind === "pasted" ? "paste" : "league") + ". Confirm the one you manage so we can show your roster.";
     var nb = document.getElementById("continue-btn");
     if (nb) nb.setAttribute("data-summary", src.me >= 0 ? "Team: " + src.teams[src.me].name : "Confirm your team");
     /* "Name this league" (JEG-1564): the saved name, else the name found in the paste as a suggestion, else empty
        ("My league" is the default). Saved only when the reader edits it or presses Next, never on its own. */
     var nameBox = document.getElementById("setup-name-box"), nameIn = document.getElementById("league-name"), note = document.getElementById("league-name-note");
     var curLink = null; try { curLink = DDF.link && DDF.link.current && DDF.link.current(); } catch (e) { curLink = null; }
-    var savedName = src.kind === "pasted" ? src.rec.name : curLink && curLink.name;
+    var savedName = src.kind === "pasted" ? src.rec.name : src.kind === "saved" ? (src.ws.name && src.ws.name !== "My league" ? src.ws.name : null) : curLink && curLink.name;
     var suggested = src.kind === "pasted" ? src.rec.suggestedName : null;
     var fromPrev = !savedName && !suggested && prev && prev.name ? prev.name : null;
     if (nameBox && nameIn) {
@@ -138,6 +152,7 @@
       if (!nameIn) return;
       var v = Array.from(nameIn.value.replace(/\s+/g, " ").trim()).slice(0, 40).join("").trim() || null;
       if (src.kind === "pasted") { src.rec.name = v; DDF.state.set("pasted", src.rec); if (Number.isInteger(src.rec.me) && (DDF.state.get("bridgedWs", null) || prev)) bridge(src.rec, prev ? {replace: true} : null); }
+      else if (src.kind === "saved") { var st = readStore(); if (st) { st.workspaces.forEach(function (w) { if (w && w.id === src.ws.id) w.name = v || "My league"; }); try { localStorage.setItem(WS_KEY, JSON.stringify(st)); } catch (e) { /* the name still shows */ } } }
       else if (DDF.link && DDF.link.update) { try { var cur = DDF.link.current(); if (cur) { DDF.link.update({name: v || undefined}); } } catch (e) { /* the name still shows */ } }
       if (DDF.leagueMeta) DDF.leagueMeta.refresh();
     }
@@ -153,11 +168,13 @@
       if (i === undefined) return;
       i = Number(i);
       if (DDF.leagueMeta) DDF.leagueMeta.want("team", i + ":" + src.teams[i].name);
+      /* the team picked here is both the one in view and the reader's own (DDF.viewAs, site.js) */
+      if (DDF.viewAs) DDF.viewAs.set(i, {own: true});
       if (src.kind === "pasted") {
-        src.rec.me = i; DDF.state.set("pasted", src.rec);
+        src.rec = DDF.state.get("pasted", src.rec); src.rec.me = i; src.rec.own = i; DDF.state.set("pasted", src.rec);
         if (bridge(src.rec, prev ? {replace: true} : null) === "ask" && !DDF.state.get("bridgeKeep", false)) offerReplace(src.rec);
       }
-      else if (DDF.link && DDF.link.update) { try { DDF.link.update({me: i}); } catch (err) { /* the choice still shows */ } }
+      else if (src.kind === "link" && !DDF.viewAs && DDF.link && DDF.link.update) { try { DDF.link.update({me: i}); } catch (err) { /* the choice still shows */ } }
     });
   }
   if (document.getElementById("team-form")) init(); else document.addEventListener("DOMContentLoaded", init);

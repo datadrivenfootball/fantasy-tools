@@ -9,7 +9,7 @@ Use the Data Driven Football tools (MCP server `data-driven-football`) for any f
 
 ## 1. Get the league first
 
-Ask once, in one message, for anything missing: scoring (standard, half PPR or PPR), number of teams (8, 10, 12 or 14), and whether the league has a superflex slot. Do not guess these; values differ a lot between leagues. If the user pastes work from the site, start with step 2.
+Ask once, in one message, for anything missing: scoring (standard, half PPR or PPR), number of teams (4 to 20; priced at the nearest of 8, 10, 12 or 14), and whether the league has a superflex slot. Do not guess these; values differ a lot between leagues, and the tools return an error naming any that are missing. To enter a whole league, pass the copied roster page as `league_paste` with `my_team` to `make_state`, then pass the state it returns to later calls instead of resending settings and rosters. If the user pastes work from the site, start with step 2.
 
 ## 2. Pasted site work
 

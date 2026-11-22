@@ -41,6 +41,17 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertTrue(out.stdout.strip().endswith("ok"))
 
     @unittest.skipIf(shutil.which("node") is None, "node not installed")
+    def test_league_entry(self):
+        """Settings asked for, never assumed; league_paste, league_teams + my_team, slots and the state carry the league."""
+        out = subprocess.run(
+            ["node", "--experimental-strip-types", "--no-warnings",
+             str(ROOT / "tests/node/mcp_entry_check.mjs")],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertTrue(out.stdout.strip().endswith("ok"))
+
+    @unittest.skipIf(shutil.which("node") is None, "node not installed")
     def test_explicit_superflex_link(self):
         out = subprocess.run(
             ["node", "--experimental-strip-types", "--no-warnings",
