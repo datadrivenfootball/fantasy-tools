@@ -55,6 +55,12 @@
   var DEFENSE_NICK = 'cardinals|falcons|ravens|bills|panthers|bears|bengals|browns|cowboys|broncos|lions|packers|texans|colts|jaguars|chiefs|raiders|chargers|rams|dolphins|vikings|patriots|saints|giants|jets|eagles|steelers|49ers|seahawks|buccaneers|titans|commanders';
   var DEFENSE_CITY = 'arizona|atlanta|baltimore|buffalo|carolina|chicago|cincinnati|cleveland|dallas|denver|detroit|green bay|houston|indianapolis|jacksonville|kansas city|las vegas|los angeles|miami|minnesota|new england|new orleans|new york|philadelphia|pittsburgh|san francisco|seattle|tampa bay|tennessee|washington';
   var DEFENSE_LINE = new RegExp('^(?:(?:' + DEFENSE_CITY + ')\\s+)?(?:' + DEFENSE_NICK + ')(?:\\s+(?:d\\/st|dst|def|defense|defence))?$');
+  var DEF_ROW = /(^|[\s\-·|,(])(DEF|D\/ST|DST)([\s\-·|,)]|$)/i;
+  /* a bare line that is the full name of a kicker on an NFL team now (v2/kdef-names.js) */
+  function isKicker(line){
+    var kd = typeof window !== 'undefined' ? window.TradeValueKDef : null, w = words(line);
+    return !!(kd && kd.kickers && kd.kickers.some(function(k){ return k && k.name && words(k.name) === w; }));
+  }
   function isDefenseLine(s){ return DEFENSE_LINE.test(String(s).toLowerCase().replace(/\s+/g, ' ').replace(/[^a-z0-9\/ ]/g, '').trim()); }
   function candidate(line, set, strong){
     var s = clean(line);
@@ -85,10 +91,12 @@
 
   /* B: heading line (markdown # or a lone short line) before a block of player rows */
   function byBlocks(L, set, playersAsRows){
-    var out = [], seen = {}, cur = null, run = [], first = L[0];
-    L.forEach(function(o){
+    var out = [], seen = {}, cur = null, run = [], first = L[0], curDef = false;
+    L.forEach(function(o, i){
       var line = o.t, rowLike = isRow(line) || (playersAsRows && set && hasKnownPlayer(line, set));
       if (rowLike) {
+        if (run.length) curDef = false;
+        if (DEF_ROW.test(line)) curDef = true;
         if (run.length) {
           var heads = run.filter(function(r){ return r.h; });
           var name = (heads.length ? heads[heads.length - 1] : run[0]).name, key = name.toLowerCase();
@@ -100,7 +108,14 @@
       }
       if (set && hasKnownPlayer(line, set)) return;
       if (TABLE_HEAD.test(line) || /^\|/.test(o.raw.trim())) return;
-      var c = candidate(line, set, o.h || o === first);
+      /* a defense-like line is the current team's defense only while that team has none yet, and then only when it
+         follows a kicker or no player line follows it (a team name is followed by its players; a Yahoo Starting
+         Rosters page puts the bench after the defense). Otherwise it is a team named like a defense. */
+      var nxt = L[i + 1], prev = L[i - 1];
+      var beforePlayer = !!nxt && (isRow(nxt.t) || (set && hasKnownPlayer(nxt.t, set)));
+      var afterKicker = !!prev && isKicker(prev.t);
+      var c = candidate(line, set, o.h || o === first || curDef || (beforePlayer && !afterKicker));
+      if (!c && (isDefenseLine(clean(line)) || isDefenseLine(line))) curDef = true;
       if (c) { run.push({name: c, h: o.h}); if (run.length > 4) run.shift(); } else run = [];
     });
     return out;

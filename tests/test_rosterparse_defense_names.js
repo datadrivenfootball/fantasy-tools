@@ -82,5 +82,34 @@ test("pastes with slot labels or tags read as before", () => {
   assert.deepStrictEqual(names(labeled), ["Team 1", "Team 2"]);
 });
 
+// Review of PR 1509 (2026-11-22): a team named like a defense, mid-paste, must not merge into the team above it.
+// A line is a defense only while the current team has none yet and no player row follows it.
+const read = text => LP.read(text, ROWS, {table: TABLE});
+const shape = text => { const r = read(text); return r.ok ? r.teams.map(t => [t.name, t.players.length]) : r.reason; };
+test("ESPN slot labels: a third team named Raiders stays a team", () => {
+  const team = (n, qb, rb, wr) => `${n}\nQB ${qb}\nRB ${rb}\nWR ${wr}\nD/ST Lions D/ST\n`;
+  const text = team("Team 1", "Josh Allen", "Bijan Robinson", "Ja'Marr Chase") + team("Team 2", "Jordan Love", "Saquon Barkley", "CeeDee Lamb") + team("Raiders", "Lamar Jackson", "Derrick Henry", "Justin Jefferson");
+  assert.deepStrictEqual(names(text), ["Team 1", "Team 2", "Raiders"]);
+  assert.deepStrictEqual(shape(text).map(t => t[0]), ["Team 1", "Team 2", "Raiders"]);
+});
+test("Sleeper-style tags: a second team named Bears stays a team", () => {
+  const text = "Team 1\nJosh Allen QB - BUF\nBijan Robinson RB - ATL\nJa'Marr Chase WR - CIN\nBears\nJordan Love QB - GB\nSaquon Barkley RB - PHI\nCeeDee Lamb WR - DAL\nTeam 3\nLamar Jackson QB - BAL\nDerrick Henry RB - BAL\nJustin Jefferson WR - MIN\n";
+  assert.deepStrictEqual(names(text), ["Team 1", "Bears", "Team 3"]);
+});
+test("bare names with no defense lines: a second team named Raiders stays a team", () => {
+  const text = "Team 1\nJosh Allen\nBijan Robinson\nJa'Marr Chase\nRaiders\nJordan Love\nSaquon Barkley\nCeeDee Lamb\nTeam 3\nLamar Jackson\nDerrick Henry\nJustin Jefferson\n";
+  assert.deepStrictEqual(names(text), ["Team 1", "Raiders", "Team 3"]);
+  assert.deepStrictEqual(shape(text), [["Team 1", 3], ["Raiders", 3], ["Team 3", 3]]);
+});
+test("bare names with defense lines: a second team named Raiders stays a team and the defenses stay rows", () => {
+  const text = "Team 1\nJosh Allen\nBijan Robinson\nLions\nRaiders\nJordan Love\nSaquon Barkley\nJaguars\nTeam 3\nLamar Jackson\nDerrick Henry\nBengals\n";
+  assert.deepStrictEqual(names(text), ["Team 1", "Raiders", "Team 3"]);
+});
+test("bare names, every team named like a defense: all teams read, edit box not needed", () => {
+  const text = "Bears\nJosh Allen\nBijan Robinson\nPackers\nJordan Love\nSaquon Barkley\nVikings\nLamar Jackson\nDerrick Henry\nRams\nJustin Jefferson\nCeeDee Lamb\n";
+  assert.deepStrictEqual(names(text), ["Bears", "Packers", "Vikings", "Rams"]);
+  assert.strictEqual(read(text).ok, true);
+});
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
