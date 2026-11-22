@@ -23,6 +23,7 @@ import {
 } from "./viability.ts";
 import { kdefLine, LeagueInputError, MAX_TEAMS, MIN_TEAMS, nearestTeams, type LeagueRead, parseSlots, partnerIndex, readLeague, type Roster, shapeFromRoster, stateTeams } from "./league.ts";
 import { askedWeek, type WeekFields, weekProp, withWeek } from "./week.ts";
+import { type InjuryFlag, injuryLine, injuryMap, injuryTag, withoutInjury } from "./injury.ts";
 import {
   type AnalysisDeps,
   type AnalysisResponse,
@@ -43,6 +44,8 @@ export interface PlayerValue {
   pos: string;
   value: number;
   tier: string;
+  /** Injury flag from get-values (display only; absent for a healthy player or when the status copy is stale). */
+  injury?: InjuryFlag;
 }
 
 // JEG-1179: every answer carries the week it was priced on (WeekFields: week, default_week, weeks,
@@ -634,7 +637,7 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-interface SlimPlayer { name: string; pos: string; value: number | null }
+interface SlimPlayer { name: string; pos: string; value: number | null; injury?: InjuryFlag }
 
 function slimOffer(o: {
   team: string;
@@ -649,9 +652,13 @@ function slimOffer(o: {
   fit?: string | null;
   fitReason?: string | null;
   fitSides?: FitSides | null;
-}, withTeam: boolean) {
-  const side = (rows: Array<{ name: string; pos: string; ddfValue: number | null }>): SlimPlayer[] =>
-    rows.map((p) => ({ name: p.name, pos: p.pos, value: p.ddfValue }));
+}, withTeam: boolean, injuries?: Map<number, InjuryFlag>) {
+  // The injury flag rides on the player for display (injury.ts); the offer's checks, fit and order never read it.
+  const side = (rows: Array<{ name: string; pos: string; ddfValue: number | null; player_key?: number }>): SlimPlayer[] =>
+    rows.map((p) => {
+      const injury = p.player_key === undefined ? undefined : injuries?.get(p.player_key);
+      return { name: p.name, pos: p.pos, value: p.ddfValue, ...(injury ? { injury } : {}) };
+    });
   const failed = o.checks.filter((c) => !c.passed).map((c) => c.name);
   return {
     ...(withTeam ? { team: o.team } : {}),
@@ -695,14 +702,16 @@ const FORCE_MEANING = "(Force fit: a roster would be broken, a side loses, or th
 const signed = (n: number) => (n >= 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
 
 function tradeLine(index: number, o: ReturnType<typeof slimOffer>, team?: string): string {
-  const side = (rows: SlimPlayer[]) => rows.map((p) => `${p.name} (${p.pos} ${p.value ?? "?"})`).join(" + ");
+  const side = (rows: SlimPlayer[]) => rows.map((p) => `${p.name}${injuryTag(p)} (${p.pos} ${p.value ?? "?"})`).join(" + ");
   const tag = o.viable ? (o.label ?? "likely accepted") : `fails: ${o.failed.map(plainCheck).join("; ") || "a check"}`;
   const vs = team ? ` with ${team}:` : "";
   // JEG-1329: their starters change on the Trade chart average (their net is in the fit reason).
   const theirs = o.theirs ? ` | their starters ${signed(o.theirs.starters)}` : "";
   const line = `${index + 1}.${vs} give ${side(o.userGives)} → get ${side(o.userGets)} | your gain ${signed(o.ddfEdge)} | your lineup ${signed(o.lineup)}${theirs} | ${tag}`;
   // JEG-1115: the finder's fit label and one-line reason (fitText opens with the label).
-  return o.fit ? `${line}${o.fitReason ? `\n   ${o.fitReason}` : ` | ${o.fit}`}` : line;
+  const hurt = injuryLine([...o.userGives, ...o.userGets]);
+  const out = o.fit ? `${line}${o.fitReason ? `\n   ${o.fitReason}` : ` | ${o.fit}`}` : line;
+  return hurt ? `${out}\n   ${hurt}` : out;
 }
 
 // JEG-1123: the text lists the top rows only, so a long result is not sent twice;
@@ -769,13 +778,16 @@ const bytes = (result: ToolResult) => new TextEncoder().encode(JSON.stringify(re
 // trade rows. Measured as the reply with the link left out of the text and site_url.
 // Connector walkthrough 2026-11-21: the saved state is left out the same way. It carries every league roster (by key)
 // so a later call needs only the state, and it grows with each team as the link does.
+// Injury flags (Jeremy, 2026-11-22: "a flag, not a stopper") are left out the same way, so a flag never costs a trade
+// row: the tags, the "Injury flag:" lines and the structured `injury` fields are not measured (withoutInjury).
 const budgetBytes = (result: ToolResult) => {
   const url = result.structuredContent?.site_url;
   const sc = result.structuredContent;
-  const content = typeof url === "string" && url
+  const content = (typeof url === "string" && url
     ? result.content.map((c) => ({ ...c, text: c.text.split(url).join("") }))
-    : result.content;
-  return bytes({ ...result, content, ...(sc ? { structuredContent: { ...sc, site_url: "", state: null } } : {}) });
+    : result.content).map((c) => ({ ...c, text: withoutInjury(c.text) }));
+  const scBare = sc ? JSON.parse(JSON.stringify(sc, (k, v) => (k === "injury" || k === "injury_source" ? undefined : v))) : null;
+  return bytes({ ...result, content, ...(scBare ? { structuredContent: { ...scBare, site_url: "", state: null } } : {}) });
 };
 const tradeBudget = (name: string, limit: number) => name === "find_trades"
   ? (limit <= 10 ? 6700 : 17000) : (limit <= 10 ? 8000 : 11500);
@@ -1187,10 +1199,11 @@ async function runPricedTool(
     const text = [
       ...header(data, s),
       "",
-      `Trade targets for ${player.name} (${player.pos}, value ${player.value}, tier ${player.tier}):`,
+      `Trade targets for ${player.name}${injuryTag(player)} (${player.pos}, value ${player.value}, tier ${player.tier}):`,
       ...(targets.length
-        ? ["Player | Pos | Value | Tier | Diff", ...targets.map((t) => `${t.name} | ${t.pos} | ${t.value} | ${t.tier} | ${t.diff >= 0 ? "+" : ""}${t.diff.toFixed(1)}`)]
+        ? ["Player | Pos | Value | Tier | Diff", ...targets.map((t) => `${t.name}${injuryTag(t)} | ${t.pos} | ${t.value} | ${t.tier} | ${t.diff >= 0 ? "+" : ""}${t.diff.toFixed(1)}`)]
         : ["  none in range"]),
+      ...[injuryLine([player, ...targets])].filter((x): x is string => Boolean(x)),
     ].join("\n");
     return finish(ok(text, { as_of: data.as_of, setting: data.setting, player, targets, ...(nearest ? { nearest } : {}) }), {
       prepared, deps, settings: s, view: "targets", work: { target: entry(String(args.player_name), player) }, summary,
@@ -1255,7 +1268,8 @@ async function runPricedTool(
       : Math.abs(diff) < 2
       ? `Roughly even by DDF Value: you ${net >= 0 ? "gain" : "lose"} ${Math.abs(net).toFixed(1)} (give ${sumA.toFixed(1)}, get ${sumB.toFixed(1)}).`
       : `You ${net > 0 ? "win" : "lose"} ${Math.abs(net).toFixed(1)} by DDF Value (give ${sumA.toFixed(1)}, get ${sumB.toFixed(1)}).`;
-    const fmt = (rows: PlayerValue[]) => rows.map((p) => `  ${p.name} (${p.pos}): ${p.value}`).join("\n");
+    const fmt = (rows: PlayerValue[]) => rows.map((p) => `  ${p.name}${injuryTag(p)} (${p.pos}): ${p.value}`).join("\n");
+    const hurt = injuryLine([...a.matched, ...b.matched]);
     const text = [
       ...header(data, s),
       ...(lineup ? [lineup.line] : []),
@@ -1265,13 +1279,14 @@ async function runPricedTool(
       fmt(a.matched),
       `You get (total ${sumB.toFixed(1)}):`,
       fmt(b.matched),
+      ...(hurt ? [hurt] : []),
       "",
       `Verdict: DDF Value sum${lineup ? "; the lineup line above is your starting lineup's change" : ", not lineup-aware (give your roster for the lineup change)"} (a gap under 2 points counts as roughly even, a rule of thumb). The site's Compare a trade shows the per-chart breakdown; open the link below.`,
     ].join("\n");
     // Every name matched (stopOnUnresolved), so not_found stays empty; kept for the reply's shape.
     const pack = (rows: PlayerValue[]) => ({
       total: sum(rows),
-      players: rows.map((p) => ({ name: p.name, pos: p.pos, value: p.value })),
+      players: rows.map((p) => ({ name: p.name, pos: p.pos, value: p.value, ...(p.injury ? { injury: p.injury } : {}) })),
       not_found: [] as string[],
     });
     // The site's Compare a trade reads "give" as what the person gives up: side_a is the person's give.
@@ -1854,10 +1869,11 @@ async function findTradesHandler(
   // JEG-1115: the fit label the finder shows, judged only for the trades returned.
   const finder = finderDeps.finder;
   const fitCtx = fitContextFor(finder, data, shape);
-  const trades = scored.map((o) => slimOffer(withFit(o, finder, fitCtx, mineRows, theirRows, rowByKey), false));
+  const injuries = injuryMap(data.players);
+  const trades = scored.map((o) => slimOffer(withFit(o, finder, fitCtx, mineRows, theirRows, rowByKey), false, injuries));
   // Decision 4A: none passes every check, so the closest two (fewest failed checks; ranked puts them first) and why.
   const closest = viableOnly && !viableAll.length
-    ? ranked.slice(0, 2).map((o) => ({ ...slimOffer(withFit(o, finder, fitCtx, mineRows, theirRows, rowByKey), false), why: failReasons(o) }))
+    ? ranked.slice(0, 2).map((o) => ({ ...slimOffer(withFit(o, finder, fitCtx, mineRows, theirRows, rowByKey), false, injuries), why: failReasons(o) }))
     : [];
   const summary = tradeSummary(trades, closest, viableAll.length, ranked.length, viableOnly, partner ?? "they");
 
@@ -2080,10 +2096,11 @@ async function findTradesLeagueHandler(
   // JEG-1115: the fit label the finder shows, judged only for the trades returned.
   const finder = finderDeps.finder;
   const fitCtx = fitContextFor(finder, data, shape);
+  const injuries = injuryMap(data.players);
   const fitted = (o: ScoredOffer) => {
     const opponent = opponentsById.get(o.team)!;
     return { ...slimOffer(withFit({ ...o, team: opponent.name }, finder, fitCtx,
-      mineRows, opponent.rows, allRowsByKey), true), opponent_index: opponent.index };
+      mineRows, opponent.rows, allRowsByKey), true, injuries), opponent_index: opponent.index };
   };
   const shownTrades = scored.slice(0, limit).map(fitted);
   const viableCount = scored.filter((o) => o.viable).length;

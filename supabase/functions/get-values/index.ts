@@ -29,6 +29,8 @@ const VALUE_MODEL_URL = `${SITE_ORIGIN}/assets/value-model.js`;
 const LINEUP_PARAMS_URL = `${SITE_ORIGIN}/assets/lineup-parameters.json`;
 const HISTORY_INDEX_URL = `${SITE_ORIGIN}/assets/history/index.json`;
 const VALUE_LINK_URL = `${SITE_ORIGIN}/v2/ddf-value-link.js`;
+// The daily Sleeper status copy the trade pages flag injured players from (injury.ts). Optional: no copy, no flags.
+const STATUS_URL = `${SITE_ORIGIN}/v2/player-status.js`;
 
 import { DDF_SPLITS, type League, type LineupDefaults, leagueKey, mapLeague } from "./league.ts";
 import { auditBlock, type Include, parseIncludes, priorBlock, seriesBlock } from "./analysis.ts";
@@ -42,6 +44,7 @@ import {
   todayIso,
   type WeekInfo,
 } from "./pipeline.ts";
+import { type InjuryFlag, injuryOf, type InjurySource, injurySource, parseStatusScript, type StatusCopy } from "./injury.ts";
 import {
   applyOverrides, basisConfigOf, basisShortfall, canReadStrictly, checkBounds, contextKey, overrideSeries, readValueContext,
   type ValueContext,
@@ -55,6 +58,8 @@ interface CachedBundle extends Bundle {
   /** The site's share-link value reader (DDFValueLink), or null when the site does not publish it yet. */
   // deno-lint-ignore no-explicit-any
   valueLink: any | null;
+  /** The site's daily Sleeper status copy (injury flags only; never priced), or null. */
+  status: StatusCopy | null;
   loadedAt: number;
 }
 
@@ -111,12 +116,13 @@ async function loadBundle(): Promise<CachedBundle> {
   }
 
   // Fetch bundle, page, lineup parameters, the week history index and the link reader in parallel.
-  const [bundleResponse, pageResponse, lpResponse, history, valueLink] = await Promise.all([
+  const [bundleResponse, pageResponse, lpResponse, history, valueLink, status] = await Promise.all([
     fetch(BUNDLE_URL),
     fetch(PAGE_URL),
     fetch(LINEUP_PARAMS_URL).catch(() => null),
     loadHistoryIndex(),
     loadValueLink(evalFn),
+    loadStatus(),
   ]);
   if (!bundleResponse.ok) throw new Error(`bundle fetch failed: ${bundleResponse.status}`);
   if (!pageResponse.ok) throw new Error(`page fetch failed: ${pageResponse.status}`);
@@ -143,9 +149,33 @@ async function loadBundle(): Promise<CachedBundle> {
     lineupConfig,
     history,
     valueLink,
+    status,
     loadedAt: Date.now(),
   };
   return cached;
+}
+
+async function loadStatus(): Promise<StatusCopy | null> {
+  try {
+    const res = await fetch(STATUS_URL);
+    return res.ok ? parseStatusScript(await res.text()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** player_key -> injury flag for the island's rows (display only), and the line about the copy. */
+function injuriesFor(bundle: CachedBundle, nowMs: number): { source: InjurySource; byKey: Map<number, InjuryFlag> } {
+  const source = injurySource(bundle.status, nowMs);
+  const byKey = new Map<number, InjuryFlag>();
+  if (source.shown) {
+    // deno-lint-ignore no-explicit-any
+    for (const p of (bundle.players || []) as any[]) {
+      const flag = injuryOf(p, bundle.status, source);
+      if (flag) byKey.set(Number(p.player_key), flag);
+    }
+  }
+  return { source, byKey };
 }
 
 // JEG-1225: the site's share-link value reader (app/v2/ddf-value-link.js, published at /v2/). Optional: a site
@@ -204,6 +234,7 @@ function formatResponse(
   // deno-lint-ignore no-explicit-any
   ValueModel: any = null,
   context: ValueContext = { basis: null, overrides: {}, custom: false },
+  injuries: { source: InjurySource; byKey: Map<number, InjuryFlag> } | null = null,
 ) {
   const rows = pipeline.rows || {};
   // JEG-1225: DDF Value after the caller's overrides (the pipeline's own value when there are none).
@@ -260,6 +291,10 @@ function formatResponse(
       entry.ddf_value_projections = typeof projs === "number" && Number.isFinite(projs) ? Math.round(projs * 10) / 10 : null;
     }
 
+    // Injury flag (display only; set after every value above, never read by the engine).
+    const injury = injuries?.byKey.get(Number(pk));
+    if (injury) entry.injury = injury;
+
     values.push(entry);
   }
 
@@ -303,6 +338,7 @@ function formatResponse(
       overrides_not_priced: own.not_priced.map(Number),
     },
     players: values,
+    ...(injuries ? { injury_source: injuries.source } : {}),
     ...(benchShare ? { bench_share: benchShare } : {}),
     sources_included: Object.keys(pipeline.sources || {}).filter(
       (k: string) => pipeline.sources[k]?.included !== false,
@@ -579,7 +615,7 @@ Deno.serve(async (req: Request) => {
       } else {
         const body = formatResponse(
           pipeline, input.players, bundle.meta, mapped.scoring, mapped.teams, mapped.setting.superflex, includeCharts,
-          mapped.custom, input.week, bundle.ValueModel, context,
+          mapped.custom, input.week, bundle.ValueModel, context, injuriesFor(bundle, Date.now()),
         );
         body.sources_excluded = excludedSources(pipeline, input);
         await addAnalysis(body, includes, bundle, input, pipeline, plan, mapped.scoring, context);
