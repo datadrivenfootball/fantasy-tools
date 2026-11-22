@@ -841,6 +841,8 @@ test-core:
 	python3 -m unittest tests.test_ddf_why
 	# Natural fit 2 (Jeremy, 2026-11-19): the offer card's lineup blocks, label count and tags, and the Why panel at 375px and desktop.
 	python3 -m unittest tests.test_find_natural_fit2_render
+	# Build picker pins selected players (Jeremy, 2026-11-22): 375px and desktop; light, so in shard 1.
+	python3 -m unittest tests.test_build_pin_selected_render
 	python3 -m unittest tests.test_league_card_pasted
 	python3 -m unittest tests.test_find_engine_parity
 	# JEG-1572: waiver-aware Natural fit on find.html (best available players vs the trade).
@@ -976,6 +978,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_week_history
 	# Natural fit 2 (Jeremy, 2026-11-19): the Find card and Why at 375px and desktop; in shard 1 so shard 3 stays under its 30-minute limit.
 	python3 -m unittest tests.test_find_natural_fit2_render
+	# Build picker pins selected players (Jeremy, 2026-11-22): 375px and desktop; light, so in shard 1.
+	python3 -m unittest tests.test_build_pin_selected_render
 
 test-core-shard-2:
 	python3 -m unittest tests.test_spec_reference_value_pipeline
