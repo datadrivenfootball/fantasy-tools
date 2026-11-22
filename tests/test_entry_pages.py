@@ -186,10 +186,17 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.assertEqual([t["id"] for t in again["teams"]], ids)
         self.assertEqual(again["id"], live["id"])
         self.assertEqual(again["myTeamId"], ids[2])
+        # JEG-1696 (Jeremy, 2026-11-17: "back up in the league setup easily and be able to see the selections there"):
+        # a later visit without the tab session reads the saved league, its team still picked (was: the empty state)
         page.evaluate("sessionStorage.clear()")
         page.reload(wait_until="domcontentloaded")
-        page.wait_for_selector("#setup-empty", state="visible", timeout=60000)   # readiness: the empty state is drawn
-        self.assertTrue(page.is_visible("#setup-empty"))
+        page.wait_for_selector("input[name=team]", timeout=60000)   # readiness: the team choices are drawn
+        self.assertTrue(page.is_hidden("#setup-empty"))
+        self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.map(e => e.value)"), names)
+        self.assertEqual(page.eval_on_selector("input[name=team]:checked", "e => e.value"), names[2])
+        page.evaluate("localStorage.clear()")
+        page.reload(wait_until="domcontentloaded")
+        page.wait_for_selector("#setup-empty", state="visible", timeout=60000)   # no league anywhere: the empty state
         self.assertEqual(page.eval_on_selector_all("input[name=team]", "els => els.length"), 0)
 
     def test_bridge_asks_before_replacing_a_saved_league(self):
