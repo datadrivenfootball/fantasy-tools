@@ -59,6 +59,9 @@ const refRows = players.map((p) => ({ player_key: p.player_key, name: p.name, po
 const refPrior = (key) => reference.prior[key] ?? { available: false, reason: "no prior week" };
 
 const M = modules.movers;
+// Connector walkthrough 2026-11-21: the tool adds a reason (and, with a league, an owner) to a row; the page's own
+// numbers are what parity compares.
+const bare = (rows) => rows.map(({ reason, owner, ...row }) => row);
 const out = { tools: { risers: {}, compare: [], health: null, source: {} }, page: { risers: {}, compare: [], health: null, source: {} } };
 const LIMIT = 25;
 const slimMovers = (v) => (v.available
@@ -69,11 +72,12 @@ const slimMovers = (v) => (v.available
 for (const series of M.SERIES) {
   const t = await tool("risers_fallers", { series, limit: LIMIT, disagreements: series === "ddf_value" });
   out.tools.risers[series] = t.available
-    ? { available: true, current_week: t.current_week, prior_week: t.prior_week, risers: t.risers, fallers: t.fallers, counts: t.counts }
+    ? { available: true, current_week: t.current_week, prior_week: t.prior_week, risers: bare(t.risers), fallers: bare(t.fallers), counts: t.counts }
     : { available: false };
   out.page.risers[series] = slimMovers(M.buildMovers(refRows, series, refPrior(series)));
   if (series === "ddf_value") {
-    out.tools.disagreements = t.disagreements;
+    out.tools.disagreements = t.disagreements.available
+      ? { ...t.disagreements, market: bare(t.disagreements.market), projections: bare(t.disagreements.projections) } : t.disagreements;
     const d = M.buildDisagreements(refRows, refPrior("ddf_value_charts"), refPrior("ddf_value_projections"));
     out.page.disagreements = d.available
       ? { available: true, compared: d.compared, market: d.market.slice(0, LIMIT).map(slimDisagreement),

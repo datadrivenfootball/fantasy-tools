@@ -106,6 +106,17 @@ class RemoteMcpTests(unittest.TestCase):
         self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
         self.assertTrue(out.stdout.strip().endswith("ok"))
 
+    @unittest.skipIf(shutil.which("node") is None, "node not installed")
+    def test_answer_format(self):
+        """One plain answer line first (also structuredContent.summary); acceptable trades first, closest when none."""
+        out = subprocess.run(
+            ["node", "--experimental-strip-types", "--no-warnings",
+             str(ROOT / "tests/node/mcp_answer_format_check.mjs")],
+            capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(out.returncode, 0, out.stdout + out.stderr)
+        self.assertTrue(out.stdout.strip().endswith("ok"))
+
     def test_function_is_public_like_get_values(self):
         cfg = (ROOT / "supabase/config.toml").read_text()
         self.assertIn("[functions.mcp]\nverify_jwt = false", cfg)
