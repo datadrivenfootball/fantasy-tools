@@ -4,6 +4,10 @@
 The existing player-status-history workflow pulls this daily (13:10 UTC and
 Sunday 16:30 UTC). No keys, identity resolution, database writes or value math.
 Missing ids/statuses stay missing; an empty status never means healthy.
+
+Each record carries Sleeper's short injury_body_part text ("Hamstring") beside
+injury_status, for the trade pages' injury flag (Jeremy, 2026-11-22: "a flag,
+not a stopper"). Display only, like the status; trimmed to BODY_PART_MAX.
 """
 from __future__ import annotations
 
@@ -20,13 +24,22 @@ OUT = ROOT / "data/inputs/player_status.json"
 SCHEMA = "sleeper-player-status-v1"
 MIN_TEAM_PLAYERS = 700
 POSITIONS = {"QB", "RB", "WR", "TE", "K"}
+BODY_PART_MAX = 40
+
+
+def body_part(raw_player):
+    """Sleeper's injury_body_part as short display text, or None (never a guess)."""
+    text = (raw_player or {}).get("injury_body_part")
+    text = " ".join(text.split()) if isinstance(text, str) else ""
+    return text[:BODY_PART_MAX] or None
 
 
 def build_snapshot(raw, as_of):
     base = build_base(raw, pulled_at=as_of)
     problems = check_base(base)
     players = {
-        sid: {"team": p["team"], "pos": p["pos"], "injury_status": p.get("injury_status")}
+        sid: {"team": p["team"], "pos": p["pos"], "injury_status": p.get("injury_status"),
+              "injury_body_part": body_part(raw.get(sid)) if p.get("injury_status") else None}
         for sid, p in base["by_sleeper_id"].items() if p.get("team")
     }
     snapshot = {"schema": SCHEMA, "source": "Sleeper",
@@ -55,7 +68,9 @@ def check_snapshot(snapshot):
     for sid, p in players.items():
         if (not sid.isdecimal() or not isinstance(p, dict) or not p.get("team")
                 or p.get("pos") not in POSITIONS
-                or (p.get("injury_status") is not None and not isinstance(p["injury_status"], str))):
+                or (p.get("injury_status") is not None and not isinstance(p["injury_status"], str))
+                or (p.get("injury_body_part") is not None
+                    and (not isinstance(p["injury_body_part"], str) or len(p["injury_body_part"]) > BODY_PART_MAX))):
             problems.append(f"invalid status record for Sleeper id {sid}")
             break
     return problems

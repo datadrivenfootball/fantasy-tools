@@ -22,7 +22,8 @@ AS_OF = "2026-10-30T13:10:00+00:00"
 def raw_players():
     return {str(i): {"full_name": f"Test Player {i}", "position": "WR",
                      "team": "KC" if i < 800 else None,
-                     "injury_status": "Out" if i == 1 else None}
+                     "injury_status": "Out" if i == 1 else None,
+                     "injury_body_part": {1: "  Hamstring ", 2: "Knee"}.get(i)}
             for i in range(2500)}
 
 
@@ -37,6 +38,24 @@ class TestDailyStatus(unittest.TestCase):
         self.assertEqual(d["by_sleeper_id"]["1"]["injury_status"], "Out")
         self.assertIsNone(d["by_sleeper_id"]["2"]["injury_status"])
         self.assertNotIn("800", d["by_sleeper_id"])
+
+    def test_body_part_rides_with_a_status_only(self):
+        # The injury flag's short text (Jeremy, 2026-11-22). A leftover body part on a player with no status is dropped,
+        # so a healthy player never shows one; long or non-text values are trimmed or dropped, never guessed.
+        raw = raw_players()
+        raw["3"].update(injury_status="IR", injury_body_part="Ankle - High " + "x" * 60)
+        raw["4"].update(injury_status="Questionable", injury_body_part=7)
+        d = P.build_snapshot(raw, AS_OF)["by_sleeper_id"]
+        self.assertEqual(d["1"]["injury_body_part"], "Hamstring")
+        self.assertIsNone(d["2"]["injury_body_part"])   # "Knee" with no status
+        self.assertEqual(len(d["3"]["injury_body_part"]), P.BODY_PART_MAX)
+        self.assertTrue(d["3"]["injury_body_part"].startswith("Ankle - High"))
+        self.assertIsNone(d["4"]["injury_body_part"])
+        bad = P.build_snapshot(raw_players(), AS_OF)
+        bad["by_sleeper_id"]["1"]["injury_body_part"] = "x" * (P.BODY_PART_MAX + 1)
+        self.assertTrue(P.check_snapshot(bad))
+        bad["by_sleeper_id"]["1"]["injury_body_part"] = ["Hamstring"]
+        self.assertTrue(P.check_snapshot(bad))
 
     def test_partial_or_undated_pull_preserves_previous_file(self):
         with tempfile.TemporaryDirectory() as tmp:
