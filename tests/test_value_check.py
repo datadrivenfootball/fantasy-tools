@@ -38,6 +38,7 @@ from pathlib import Path
 
 from tests import _render_env
 from tests._dist_server import DIST
+from tests._holds import without_holds
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "pipelines"))
@@ -170,7 +171,9 @@ class HeldAndUnpublishedInputs(unittest.TestCase):
 
     def test_held_and_unpublished_inputs_agree_and_are_left_out(self):
         import tempfile
-        fixture = json.loads((DIST / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8"))
+        # The test's own holds only: a source the day's chain held (2026-11-22: FantasyCalc) would otherwise stay an
+        # input as a held one, so the USA Today "not yet published" premise would rest on the day's data.
+        fixture = without_holds(json.loads((DIST / "assets" / "comparison-sources-data.json").read_text(encoding="utf-8")))
         fixture["sources"]["fantasycalc"]["validationHold"] = {
             "reason": "engine and Python reference disagree on fantasycalc", "week": 5,
             "root": "fantasycalc", "kept_week": 5}

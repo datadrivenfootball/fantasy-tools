@@ -21,12 +21,15 @@ def newest_served_week(index: dict) -> int | None:
     return max(weeks) if weeks else None
 
 
-def pinned_documents(dist: Path) -> dict[str, str]:
+def pinned_documents(dist: Path, detail_transform=None) -> dict[str, str]:
     """{published path: JSON text} for the history index and source detail with every source on the newest week.
 
     Empty when nothing lags. The source's own label (week_designated) moves with it, as the week-selector harness
     does. Values are not touched: last week's numbers stand in for this week's, which is fine for label, layout and
-    parity checks (the engine and the page read the same numbers)."""
+    parity checks (the engine and the page read the same numbers).
+
+    detail_transform: a function from the source detail to the detail to serve (e.g. a test's own holds, tests/_holds.py),
+    applied after the week pin and served whether or not anything lags, so a pinned week never serves the day's holds."""
     index_path, detail_path = dist / INDEX, dist / DETAIL
     if not index_path.exists():
         return {}
@@ -35,7 +38,9 @@ def pinned_documents(dist: Path) -> dict[str, str]:
     moved = [key for key, rec in (index.get("served") or {}).items()
              if isinstance(rec, dict) and isinstance(rec.get("week"), int) and rec["week"] != newest]
     if not moved:
-        return {}
+        if detail_transform is None or not detail_path.exists():
+            return {}
+        return {DETAIL: json.dumps(detail_transform(json.loads(detail_path.read_text(encoding="utf-8"))))}
     for key in moved:
         index["served"][key] = {**index["served"][key], "week": newest, "label_week": newest}
     out = {INDEX: json.dumps(index)}
@@ -44,7 +49,7 @@ def pinned_documents(dist: Path) -> dict[str, str]:
         for key in moved:
             if isinstance(detail.get("sources", {}).get(key), dict):
                 detail["sources"][key]["week_designated"] = f"Week {newest}"
-        out[DETAIL] = json.dumps(detail)
+        out[DETAIL] = json.dumps(detail_transform(detail) if detail_transform else detail)
     return out
 
 
@@ -56,10 +61,10 @@ def pin_served_weeks_in_dist(dist: Path) -> list[str]:
     return sorted(docs)
 
 
-def route_pinned_weeks(page, dist: Path) -> None:
+def route_pinned_weeks(page, dist: Path, detail_transform=None) -> None:
     """Serve the pinned documents to a Playwright page without touching `dist` (for harnesses that serve dist/)."""
     def handler(body: str):
         return lambda route, *_: route.fulfill(status=200, content_type="application/json", body=body)
 
-    for path, text in pinned_documents(dist).items():
+    for path, text in pinned_documents(dist, detail_transform).items():
         page.route(f"**/{path}*", handler(text))
