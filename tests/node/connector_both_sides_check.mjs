@@ -13,6 +13,11 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { handleRpc } from "../../supabase/functions/mcp/rpc.ts";
 import { leagueShareText } from "../../supabase/functions/mcp/state.ts";
+// Connector walkthrough 2026-11-21: scoring and superflex are required; calls without a state give the defaults the
+// tests were written against.
+const withSettings = (a) => (a && typeof a === "object" && a.state === undefined
+  ? { scoring: "ppr", superflex: false, teams: 12, ...a } : a);
+
 
 const require = createRequire(import.meta.url);
 const codec = require("../../app/v2/ddf-state.js");
@@ -42,7 +47,7 @@ const charts = async (scoring, teams, superflex) => ({
 });
 const stub = async (scoring, teams, superflex) => ({ ...(await charts(scoring, teams, superflex)) });
 const call = (name, args, fetchCharts = charts) => handleRpc(
-  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, stub, deps, { finder: F, fetchCharts });
+  { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } }, stub, deps, { finder: F, fetchCharts });
 
 // The finder's own judgement of one returned row, from the same rows the connector builds
 // (Indexed chart values, the engine's bench weights, the default league shape).
@@ -78,7 +83,7 @@ function checkSides(t, ref, id) {
 // (a) and (b), one team.
 const MINE = ["Josh Allen", "Josh Jacobs", "Brian Thomas Jr."];
 const GEM = ["Chart Gem", "Bijan Robinson"];
-let r = await call("find_trades", { mine: MINE.join(", "), theirs: GEM.join(", ") });
+let r = await call("find_trades", { viable_only: false, mine: MINE.join(", "), theirs: GEM.join(", ") });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 let rows = r.result.structuredContent.trades;
 assert.ok(rows.length > 0, "the fixture finds trades");
@@ -91,14 +96,14 @@ const OPPS = [
   { name: "Wide & Co", roster: "Ja'Marr Chase, Keyed Player, DJ Moore" },
   { name: "Ghosts", roster: "Nobody Atall" },
 ];
-r = await call("find_trades_league", { mine: MINE.join(", "), opponents: OPPS, scoring: "half_ppr", teams: 10 });
+r = await call("find_trades_league", { viable_only: false, mine: MINE.join(", "), opponents: OPPS, scoring: "half_ppr", teams: 10 });
 assert.notEqual(r.result.isError, true, JSON.stringify(r.result));
 const sc = r.result.structuredContent;
 const rosterOf = { "Gem Team": GEM, "Wide & Co": ["Ja'Marr Chase", "Keyed Player", "DJ Moore"] };
 assert.ok(sc.trades.length > 0, "the league scan finds trades");
 sc.trades.forEach((t, i) => checkSides(t, reference(MINE, rosterOf[t.team], t), `league #${i + 1} vs ${t.team}`));
 sc.package.offers.forEach((t, i) => checkSides(t, reference(MINE, rosterOf[t.team], t), `package #${i + 1}`));
-assert.match(r.result.content[0].text, /vs Gem Team give .*\| their starters [+-]\d+\.\d \|/);
+assert.match(r.result.content[0].text, /with Gem Team: give .*\| their starters [+-]\d+\.\d \|/);
 
 const url = sc.site_url;
 assert.ok(url.startsWith(`${ORIGIN}/#find-league?workspace=`), `league link opens the league finder: ${url}`);
@@ -129,12 +134,12 @@ assert.equal(leagueShareText([{ name: "A", keys: ["sl:42"] }]), "A:~sl%3A42", "a
 assert.deepEqual(sc.state.work.mine.map((e) => e.key), keysOf(MINE));
 
 // find_trades keeps its two-roster finder link.
-r = await call("find_trades", { mine: MINE.join(", "), theirs: GEM.join(", ") });
+r = await call("find_trades", { viable_only: false, mine: MINE.join(", "), theirs: GEM.join(", ") });
 assert.ok(r.result.structuredContent.site_url.startsWith(`${ORIGIN}/#find-trade?`));
 
 // (d) an older get-values with no bench_share: no fit, so no sides.
 const noReadout = async (...a) => { const { bench_share, ...rest } = await charts(...a); return rest; };
-r = await call("find_trades", { mine: MINE.join(", "), theirs: GEM.join(", ") }, noReadout);
+r = await call("find_trades", { viable_only: false, mine: MINE.join(", "), theirs: GEM.join(", ") }, noReadout);
 rows = r.result.structuredContent.trades;
 assert.ok(rows.length > 0 && rows.every((t) => t.yours === undefined && t.theirs === undefined), "no fit context, no sides");
 assert.doesNotMatch(r.result.content[0].text, /their starters/);

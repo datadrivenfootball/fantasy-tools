@@ -137,9 +137,11 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     /* JEG-1564: the same age line as the page banner (DDF.leagueMeta.ageLine) */
     var age = wrap.querySelector('.ddf-cm-age'), line = M ? M.ageLine() : '';
     if(age){ age.textContent = line; age.hidden = !line; }
+    if(window.DDF && DDF.viewAs) DDF.viewAs.fillChip(wrap);   /* JEG-1696: the team picker */
   }
   window.DDF = window.DDF || {}; window.DDF.fillChipMenu = fillChipMenu;
   document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('.ddf-chipmenu label, .ddf-chipmenu select')) return;   /* the team picker keeps the menu open */
     var b = e.target.closest && e.target.closest('.ddf-chipwrap .ddf-chip');
     document.querySelectorAll('.ddf-chipwrap.open').forEach(function(w){ if(!b || !w.contains(b)){ w.classList.remove('open'); w.querySelector('.ddf-chip').setAttribute('aria-expanded','false'); } });
     if(b){ var w = b.parentNode, on = !w.classList.contains('open'); if(on) fillChipMenu(w); w.classList.toggle('open', on); b.setAttribute('aria-expanded', String(on)); }
@@ -167,7 +169,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(loaded){
       x.className = 'ddf-chipwrap';
       x.innerHTML = '<button type="button" class="ddf-chip" aria-haspopup="true" aria-expanded="false" aria-controls="ddf-chip-menu"><i aria-hidden="true"></i><span class="ddf-chip-t">Your league</span><span class="ddf-caret" aria-hidden="true">&#9662;</span></button>' +
-        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><a href="connect.html?edit=1">Edit league</a><button type="button" class="ddf-cm-fresh" data-start-fresh>Start fresh</button></div>';
+        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><label class="ddf-cm-va" hidden><span>Viewing as</span></label><a href="connect.html?edit=1">Edit league</a><a href="settings.html">League settings</a><button type="button" class="ddf-cm-fresh" data-start-fresh>Start fresh</button></div>';
       fillChipMenu(x);
       setTimeout(function(){ if(window.DDF && DDF.fitLeagueChip) DDF.fitLeagueChip(); }, 0);
     }
@@ -1357,7 +1359,13 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     var chip = document.querySelector('header .ddf-chip'), t = chip && chip.querySelector('.ddf-chip-t');
     if(!t) return;
     var i = info(), full = i && i.named ? i.name : null;
-    if(!full){ t.textContent = 'Your league'; chip.removeAttribute('title'); chip.setAttribute('aria-label', 'Your league. Open the league menu'); return; }
+    if(!full){
+      /* no name: "Your league", or "League" when the header has no room for the longer label */
+      var host0 = chip.closest('.header-inner') || chip.parentNode.parentNode;
+      t.textContent = 'Your league';
+      if(host0 && host0.scrollWidth > host0.clientWidth + 1) t.textContent = 'League';
+      chip.removeAttribute('title'); chip.setAttribute('aria-label', 'Your league. Open the league menu'); return;
+    }
     chip.title = full + (i.team ? ' · ' + i.team : '');
     chip.setAttribute('aria-label', 'Your league: ' + full + '. Open the league menu');
     var max = window.innerWidth < 768 ? 120 : 200;
@@ -1387,6 +1395,153 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     ageLine: ageLine, message: function(b, d){ return MESSAGES[b] ? MESSAGES[b](ageWords(d)) : ''; }, title: title, today: today,
     want: want, refresh: refresh, savedLeague: savedLeague, chipCandidates: chipCandidates};
   DDF.fitLeagueChip = fitLeagueChip;
+})();
+
+/* ===== Viewing as (JEG-1696): look at the league as any team, with one tap back to your own =====
+   Jeremy, 2026-11-17: "I may want to pretend I'm another team and see their options." `me` stays the one team every page
+   reads (Build a Trade, Recommendations, Waivers, Team, Buy / Sell); `own` is the team the reader confirmed as theirs on
+   setup.html, kept next to `me` in the same record, so no new storage key:
+     chat link   ddf:league.me, own in ddf:link.own (the link body format stays as published)
+     pasted      ddf:pasted.me / .own, and the bridged saved league (ddf:bridgedWs) follows
+     saved       ddf.v2.workspaces active league .myTeamId / .ownTeamId
+   own missing = me (a league from before this change). Switching team drops the waiver roster moves (ddf:moves): they
+   were made on the other team's roster. Pages pick the change up on reload. */
+(function(){
+  var DDF = window.DDF = window.DDF || {};
+  var WS_KEY = 'ddf.v2.workspaces';
+  function at(v, n){ if(v === null || v === undefined || v === '') return null; v = Number(v); return Number.isInteger(v) && v >= 0 && v < n ? v : null; }
+  function saved(){
+    try{
+      var data = JSON.parse(localStorage.getItem(WS_KEY) || 'null');
+      if(!data || data.v !== 1 || !Array.isArray(data.workspaces)) return null;
+      var ws = data.workspaces.filter(function(w){ return w && w.id === data.activeId; })[0] || data.workspaces[0];
+      return ws && Array.isArray(ws.teams) && ws.teams.length ? {data: data, ws: ws} : null;
+    }catch(e){ return null; }
+  }
+  function writeSaved(s){ try{ localStorage.setItem(WS_KEY, JSON.stringify(s.data)); return true; }catch(e){ return false; } }
+  function savedIndex(ws, id){ for(var i = 0; i < ws.teams.length; i++) if(ws.teams[i] && String(ws.teams[i].id) === String(id)) return i; return null; }
+  /* the same league, in the same order, as DDF.leagueMeta.info and DDF.league */
+  function read(){
+    var out = null;
+    try{
+      var link = DDF.link && DDF.link.current && DDF.link.current();
+      if(link && Array.isArray(link.teams) && link.teams.length){
+        var info = DDF.state.get('link', null) || {};
+        out = {source: 'link', names: link.teams.map(function(t, i){ return (t && t.name) || 'Team ' + (i + 1); }), me: link.me, own: info.own};
+      }
+      var p = !out && DDF.state && DDF.state.get('pasted', null);
+      if(p && Array.isArray(p.teams) && p.teams.length) out = {source: 'pasted', names: p.teams.map(function(t, i){ return (t && t.name) || 'Team ' + (i + 1); }), me: p.me, own: p.own};
+      var s = !out && saved();
+      if(s) out = {source: 'saved', names: s.ws.teams.map(function(t, i){ return (t && t.name) || 'Team ' + (i + 1); }),
+        me: savedIndex(s.ws, s.ws.myTeamId), own: s.ws.ownTeamId === undefined ? undefined : savedIndex(s.ws, s.ws.ownTeamId)};
+    }catch(e){ out = null; }
+    if(!out) return null;
+    var n = out.names.length;
+    out.me = at(out.me, n);
+    out.own = out.own === undefined || out.own === null ? out.me : at(out.own, n);
+    out.other = out.me !== null && out.own !== null && out.me !== out.own;
+    return out;
+  }
+  /* set(i): view the league as team i. set(i, {own:true}): team i is the reader's own (setup.html). */
+  function set(i, opts){
+    var r = read();
+    if(!r || at(i, r.names.length) === null) return false;
+    i = Number(i);
+    var own = opts && opts.own ? i : (r.own !== null ? r.own : (r.me !== null ? r.me : i));
+    try{
+      if(r.source === 'link'){
+        DDF.link.update({me: i});
+        var info = DDF.state.get('link', null) || {}; info.own = own; DDF.state.set('link', info);
+      }
+      else if(r.source === 'pasted'){
+        var p = DDF.state.get('pasted', null); p.me = i; p.own = own; DDF.state.set('pasted', p);
+        var s = saved();
+        if(s && s.ws.id === DDF.state.get('bridgedWs', null) && s.ws.teams[i]){
+          s.ws.myTeamId = s.ws.teams[i].id; if(s.ws.teams[own]) s.ws.ownTeamId = s.ws.teams[own].id; writeSaved(s);
+        }
+      }
+      else{
+        var sv = saved(); sv.ws.myTeamId = sv.ws.teams[i].id; sv.ws.ownTeamId = sv.ws.teams[own].id; sv.ws.updatedAt = Date.now();
+        if(!writeSaved(sv)) return false;
+      }
+    }catch(e){ return false; }
+    if(i !== r.me) DDF.state.remove('moves');
+    try{ document.dispatchEvent(new CustomEvent('ddf-viewas', {detail: read()})); }catch(e){}
+    return true;
+  }
+  /* A <select> of every team, the reader's own marked "(yours)"; changing it switches team and reloads the page. */
+  function select(r, cls, label){
+    var sel = document.createElement('select');
+    sel.className = cls; sel.setAttribute('aria-label', label || 'Viewing as');
+    if(r.me === null){ var o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Pick a team'; sel.appendChild(o0); }
+    r.names.forEach(function(name, i){
+      var o = document.createElement('option'); o.value = String(i);
+      o.textContent = name + (i === r.own && r.me !== null ? ' (yours)' : '');
+      if(i === r.me) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function(){ if(sel.value !== '' && set(Number(sel.value))) location.reload(); });
+    return sel;
+  }
+  function workspacePage(){ return !!document.querySelector('header nav[aria-label="Main navigation"]') && document.documentElement.getAttribute('data-league') === 'loaded'; }
+  /* the header league menu: a "Viewing as" picker */
+  function fillChip(wrap){
+    var box = wrap && wrap.querySelector('.ddf-cm-va'); if(!box) return;
+    var r = read();
+    box.hidden = !r || r.names.length < 2;
+    wrap.classList.toggle('is-viewas', !!(r && r.other));
+    if(box.hidden) return;
+    var old = box.querySelector('select'); if(old) old.remove();
+    box.appendChild(select(r, 'ddf-cm-team'));
+  }
+  /* "Viewing as <team>. Not your team." at the top of every workspace page, with one tap back */
+  function banner(){
+    var main = document.querySelector('main'), el = document.getElementById('ddf-viewas');
+    var r = workspacePage() ? read() : null;
+    if(!main || !r || !r.other){ if(el) el.remove(); return; }
+    if(!el){ el = document.createElement('div'); el.id = 'ddf-viewas'; el.className = 'ddf-viewas'; el.setAttribute('role', 'status'); main.insertBefore(el, main.firstChild); }
+    var sig = r.me + ':' + r.own + ':' + r.names[r.me] + ':' + r.names[r.own];
+    if(el.getAttribute('data-sig') === sig) return;
+    el.setAttribute('data-sig', sig);
+    el.innerHTML = '<p class="ddf-viewas-t"><strong></strong> <span>Not your team.</span></p><button type="button" class="ddf-viewas-back"></button>';
+    el.querySelector('strong').textContent = 'Viewing as ' + r.names[r.me] + '.';
+    var b = el.querySelector('button'); b.textContent = 'Back to ' + r.names[r.own];
+    b.addEventListener('click', function(){ if(set(r.own)) location.reload(); });
+  }
+  /* the workspace step trail starts with the league setup: who you are viewing as, then League settings */
+  function trail(){
+    var nav = document.querySelector('nav.ws-steps'); if(!nav) return;
+    var r = read(), lab = nav.querySelector('.ws-viewas'), set_ = nav.querySelector('.ws-setup');
+    if(!r){ if(lab) lab.remove(); if(set_) set_.remove(); return; }
+    if(!set_){ set_ = document.createElement('a'); set_.className = 'ws-setup'; set_.href = 'settings.html'; set_.textContent = '✓ League settings'; nav.insertBefore(set_, nav.firstChild); }
+    if(r.names.length < 2){ if(lab) lab.remove(); return; }
+    if(!lab){ lab = document.createElement('label'); lab.className = 'ws-viewas'; nav.insertBefore(lab, nav.firstChild); }
+    lab.classList.toggle('is-other', r.other);
+    lab.innerHTML = '<span>' + (r.other ? 'Viewing as' : 'Your team') + '</span>';
+    lab.appendChild(select(r, 'ws-viewas-team', 'Viewing as'));
+  }
+  /* the entry trail (connect / setup / settings): with a league kept, every step is a link both ways */
+  var ENTRY = ['connect.html', 'setup.html', 'settings.html'];
+  function entrySteps(){
+    var ol = document.querySelector('ol.entry-steps'); if(!ol) return;
+    var kept = !!(read() || (DDF.leagueMeta && DDF.leagueMeta.info()));
+    Array.prototype.forEach.call(ol.children, function(li, i){
+      if(!kept || li.hasAttribute('aria-current') || li.querySelector('a') || !ENTRY[i]) return;
+      var a = document.createElement('a'); a.href = ENTRY[i];
+      a.textContent = '✓ ' + li.textContent.trim();
+      li.textContent = ''; li.appendChild(a); li.classList.add('is-complete');
+    });
+  }
+  function refresh(){ banner(); trail(); entrySteps(); var w = document.querySelector('.ddf-chipwrap'); if(w) fillChip(w); }
+  DDF.viewAs = {read: read, set: set, fillChip: fillChip, refresh: refresh};
+  ['ddf:link', 'ddf:pasted', 'ddf-viewas'].forEach(function(ev){ document.addEventListener(ev, function(){ setTimeout(refresh, 0); }); });
+  window.addEventListener('pageshow', refresh);
+  function init(){
+    refresh();
+    if(DDF.league && DDF.league.ready && DDF.league.ready.then) DDF.league.ready.then(refresh, function(){});
+    if(window.MutationObserver) new MutationObserver(function(){ banner(); }).observe(document.documentElement, {attributes: true, attributeFilter: ['data-league']});
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 
 /* ===== Bookmark button (Jeremy, 2026-11-06) =====
@@ -1579,6 +1734,8 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     wrap.hidden = false;
     var was = visible; visible = true;
     paint();
+    /* the button takes header room: shorten the league chip again so the header never overflows (375px phones) */
+    if(!was && DDF.fitLeagueChip) DDF.fitLeagueChip();
     if(!was) { check(); if(!showWant() && !(sget(OK_KEY) === '1' && /(^|\/)settings\.html$/.test(location.pathname) && wantNow())) showHint(); }
   }
   function paint(){

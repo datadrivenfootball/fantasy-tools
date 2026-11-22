@@ -7,6 +7,11 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { handleRpc } from "../../supabase/functions/mcp/rpc.ts";
 import { askedWeek, linkWeek, weekLine } from "../../supabase/functions/mcp/week.ts";
+// Connector walkthrough 2026-11-21: scoring and superflex are required; calls without a state give the defaults the
+// tests were written against.
+const withSettings = (a) => (a && typeof a === "object" && a.state === undefined
+  ? { scoring: "ppr", superflex: false, teams: 12, ...a } : a);
+
 
 const require = createRequire(import.meta.url);
 const codec = require("../../app/v2/ddf-state.js");
@@ -51,7 +56,7 @@ const charts = async (scoring, teams, superflex, league, week) => {
   return answer(scoring, teams, superflex, week);
 };
 const call = (name, args) =>
-  handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }, stub, deps,
+  handleRpc({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: withSettings(args) } }, stub, deps,
     { finder, fetchCharts: charts });
 const last = () => asked.at(-1).week;
 
@@ -152,7 +157,7 @@ await import("../../supabase/functions/mcp/index.ts");
 assert.equal(typeof serve, "function");
 const post = async (args) => (await serve(new Request("https://fn.test/functions/v1/mcp", {
   method: "POST", headers: { "content-type": "application/json", "x-forwarded-for": "9.9.9.9" },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_values", arguments: args } }),
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_values", arguments: withSettings(args) } }),
 }))).json();
 let out = await post({ limit: 1 });
 assert.equal(seen.at(-1), null, "no week asked: get-values picks the default");

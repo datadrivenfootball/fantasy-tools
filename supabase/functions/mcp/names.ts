@@ -72,6 +72,24 @@ for (const [city, mascot, team] of DEFENSES) {
   if (DEFENSES.filter(([c]) => c === city).length === 1) DEFENSE_CITIES.set(city, team);
 }
 
+// Walkthrough 2026-11-21: kickers on an NFL team now, by key(name), from the site's v2/kdef-names.js (loaded by
+// index.ts at cold start; empty when unavailable). An untagged kicker name ("Chris Boswell") is a kicker, not valued,
+// and is never offered another player as its closest name.
+const KICKERS = new Set<string>();
+// Review of #1502/#1504: a bare surname ("Boswell") is a kicker too, when no priced player's name holds that word.
+const KICKER_SURNAMES = new Set<string>();
+export function setKnownKickers(names: Iterable<string>): void {
+  KICKERS.clear();
+  KICKER_SURNAMES.clear();
+  for (const n of names) {
+    const k = key(n);
+    if (!k) continue;
+    KICKERS.add(k);
+    const last = tokens(n).filter((w) => !SUFFIXES.has(w)).pop();
+    if (last && last.length >= 3) KICKER_SURNAMES.add(last);
+  }
+}
+
 /** Some player's name holds these words as whole words ("washington" in Malik Washington). */
 function nameHolds<T extends Named>(players: readonly T[], words: string): boolean {
   return players.some((p) => ` ${tokens(p.name).join(" ")} `.includes(` ${words} `));
@@ -86,6 +104,8 @@ export interface TaggedName {
   team: string | null;
   /** The name is a city alone ("Miami", "Washington"): a defense only when no player's name holds it. */
   cityOnly?: boolean;
+  /** K came from a leading slot label ("K Brandon McManus"): a kicker unless a priced player's name holds the rest. */
+  leadingK?: boolean;
 }
 
 /**
@@ -96,6 +116,7 @@ export interface TaggedName {
 export function positionTag(text: string): TaggedName {
   const words = key(text).split(" ").filter(Boolean);
   let pos: string | null = null;
+  let leadingK = false;
   const kept: string[] = [];
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
@@ -103,6 +124,13 @@ export function positionTag(text: string): TaggedName {
     // "k" is a tag only after the name and away from initials: "K. Walker", "J. K. Dobbins" and "K Allen" are names.
     const initialNear = words[i - 1]?.length === 1 || words[i + 1]?.length === 1;
     if (i > 0 && !initialNear && KICKER_TAGS.has(w)) { pos = pos ?? "K"; continue; }
+    // A leading slot label before a full name ("K Brandon McManus", as Yahoo pastes it) is a kicker; "K Allen" and
+    // "K. J. Osborn" stay names (one word after it, or an initial next to it).
+    if (i === 0 && !initialNear && KICKER_TAGS.has(w) && words.length >= 3 && /^\s*p?k\s/i.test(String(text))) {
+      pos = "K";
+      leadingK = true;
+      continue;
+    }
     if (DEFENSE_TAGS.has(w)) { pos = "DEF"; continue; }
     if (words.length > 1 && SKILL_TAGS.has(w)) { pos = pos ?? w.toUpperCase(); continue; }
     kept.push(w);
@@ -114,13 +142,22 @@ export function positionTag(text: string): TaggedName {
     ?? (pos === "DEF" && kept.length === 1 && TEAM_CODES.has(kept[0]) ? kept[0].toUpperCase() : null);
   const cityOnly = !pos && !DEFENSE_NAMES.has(rest) && city !== null;
   if (!pos && team) pos = "DEF";
+  if (leadingK) return { name: rest, pos, team: null, leadingK: true };
   return cityOnly ? { name: rest, pos, team, cityOnly } : { name: rest, pos, team: pos === "DEF" ? team : null };
 }
 
 /** positionTag, with a city alone left untagged when a player's name holds it (the line stays a name to match). */
 function tagFor<T extends Named>(text: string, players: readonly T[]): TaggedName {
   const tag = positionTag(text);
-  return tag.cityOnly && nameHolds(players, tag.name) ? { name: tag.name, pos: null, team: null, cityOnly: true } : tag;
+  if (tag.cityOnly && nameHolds(players, tag.name)) return { name: tag.name, pos: null, team: null, cityOnly: true };
+  // "K Walker III" is Kenneth Walker III, not a kicker: a leading K stays a kicker only for a name no priced player holds.
+  if (tag.leadingK && !KICKERS.has(tag.name) && players.some((p) => ` ${key(p.name)} `.includes(` ${tag.name} `))) {
+    return { name: key(text), pos: null, team: null };
+  }
+  // An untagged kicker's name is a kicker unless a priced player has exactly that name.
+  if (!tag.pos && KICKERS.has(tag.name) && !players.some((p) => key(p.name) === tag.name)) return { ...tag, pos: "K", team: null };
+  if (!tag.pos && KICKER_SURNAMES.has(tag.name) && !nameHolds(players, tag.name)) return { ...tag, pos: "K", team: null };
+  return tag;
 }
 
 /** A kicker or defense line: never priced (the values hold neither), so never matched to another player. */
@@ -219,6 +256,18 @@ function surnameFits(name: string, query: string): boolean {
   const last = q[q.length - 1];
   const limit = Math.max(last.length >= 3 ? 1 : 0, allowedEdits(last.length));
   return tokens(name).some((word) => Math.abs(word.length - last.length) <= limit && distance(last, word) <= limit);
+}
+
+/**
+ * Walkthrough 2026-11-21: a "Closest" guess keeps a surname within two edits, so a miss is never offered
+ * a different player who only shares a first name ("Chris Boswell" is not Chris Bell, "Tyler Loop" not Tyler Goodson).
+ */
+function surnameNear(name: string, query: string): boolean {
+  // A bare surname is held to the same rule: "Boswell" is not offered Josh Allen or Chris Bell.
+  const q = tokens(query).filter((w) => !SUFFIXES.has(w));
+  if (!q.length) return true;
+  const last = q[q.length - 1];
+  return tokens(name).some((word) => distance(last, word) <= 2);
 }
 
 function byValue<T extends Named>(rows: T[]): T[] {
@@ -321,7 +370,7 @@ export function matchName<T extends Named>(players: T[], query: string): NameMat
   if (qs.length >= 4) {
     for (const player of players) {
       const found = fuzzyDistance(player.name, q, 3);
-      if (found !== null) close.push({ player, found });
+      if (found !== null && surnameNear(player.name, q)) close.push({ player, found });
     }
     close.sort((a, b) => a.found - b.found || (b.player.value ?? 0) - (a.player.value ?? 0));
   }
@@ -348,16 +397,23 @@ export function closestNames<T extends Named>(players: T[], query: string, hit?:
     const found = fuzzyDistance(player.name, query, Math.max(3, qs.length));
     if (found !== null) rows.push({ player, found });
   }
+  // Names that keep the surname come first; the rest only when none do, so the question always has names to offer.
+  const near = rows.filter((row) => surnameNear(row.player.name, query));
+  if (near.length) rows.splice(0, rows.length, ...near);
   rows.sort((a, b) => a.found - b.found || (b.player.value ?? 0) - (a.player.value ?? 0));
   return rows.slice(0, n).map((row) => row.player);
 }
 
 /**
- * Split a comma-separated name list. A comma that only introduces a suffix
- * stays with the player: "Brian Thomas, Jr, Ja'Marr Chase" is two names.
+ * Split a name list on commas, semicolons and new lines (one name per line, as a roster paste has them). A comma that
+ * only introduces a suffix stays with the player: "Brian Thomas, Jr, Ja'Marr Chase" is two names. List markers
+ * ("1.", "-", "*") are taken off and "#" comment lines skipped; position labels ("WR George Pickens") are read by matchName.
  */
 export function splitNames(raw: unknown): string[] {
-  const parts = String(raw ?? "").split(",");
+  const parts = String(raw ?? "").split(/\r?\n/)
+    .filter((line) => !/^\s*#(\s|$)/.test(line))
+    .flatMap((line) => line.split(/[,;]/))
+    .map((part) => part.replace(/^\s*(?:[-*\u2022]+|\d+[.)]|#\d+)\s+/, ""));
   const out: string[] = [];
   for (const part of parts) {
     const trimmed = part.trim();

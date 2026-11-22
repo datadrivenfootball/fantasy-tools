@@ -8,6 +8,8 @@
 import { handleRpc, setMcpBuild } from "./rpc.ts";
 import { MCP_BUILD_SHA } from "./build.ts";
 import type { Codec, Deps } from "./state.ts";
+import { evalPasteReader, PASTE_FILES, type PasteReader } from "./league.ts";
+import { setKnownKickers } from "./names.ts";
 import { type ChartValuesResponse, type FetchValues, type FetchValuesWithCharts, ToolInputError, type ValuesResponse } from "./tools.ts";
 import { evalFinder, type Finder } from "./find-trades.ts";
 import type { FinderDeps } from "./tools.ts";
@@ -139,6 +141,27 @@ async function loadPageModules(): Promise<PageModules> {
   return modules;
 }
 
+// Connector walkthrough 2026-11-21: the site's league paste reader (for league_paste) and its kicker list (an
+// untagged kicker name is a kicker, not another player), loaded from the published site like the codec.
+let pasteCache: { at: number; reader: PasteReader | null } | null = null;
+async function loadPaste(): Promise<PasteReader | null> {
+  if (pasteCache && Date.now() - pasteCache.at < CACHE_TTL_MS) return pasteCache.reader;
+  const sources = await Promise.all(PASTE_FILES.map(async (file) => {
+    try {
+      const res = await fetch(`${SITE_ORIGIN}/${file}`);
+      if (res.ok) return await res.text();
+      console.error(`${file} load failed: ${res.status} from ${SITE_ORIGIN}/${file}`);
+    } catch (e) {
+      console.error(`${file} load failed:`, e);
+    }
+    return null;
+  }));
+  const { reader, kickers } = evalPasteReader(sources);
+  if (kickers.length) setKnownKickers(kickers);
+  pasteCache = { at: reader ? Date.now() : Date.now() - CACHE_TTL_MS + 60_000, reader };
+  return reader;
+}
+
 // The finder is the site's app/v2/finder.js, loaded like the codec. It exports
 // findTrades and the constants the search uses. If it cannot be loaded, the
 // find_trades tool says it is unavailable.
@@ -203,7 +226,7 @@ Deno.serve(async (req: Request) => {
     return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, { status: 400, headers: cors });
   }
 
-  const deps: Deps = { codec: await loadCodec(), siteOrigin: SITE_ORIGIN };
+  const deps: Deps = { codec: await loadCodec(), siteOrigin: SITE_ORIGIN, paste: await loadPaste() };
   const fDeps: FinderDeps = { finder: await loadFinder(), fetchCharts, analysis: { fetchAnalysis, modules: await loadPageModules() } };
   const batch = Array.isArray(body);
   const responses = (await Promise.all((batch ? body : [body]).map((m) => handleRpc(m, fetchValues, deps, fDeps))))

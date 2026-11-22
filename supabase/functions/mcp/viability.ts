@@ -212,7 +212,7 @@ const POSITION_SLOTS = ["QB", "RB", "WR", "TE"] as const;
 const ALL_SLOTS = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX"] as const;
 
 /** Pick the best starting lineup for a roster under the given shape and value key. */
-function pickStarters(
+export function pickStarters(
   rows: ViabilityRow[],
   shape: RosterShape,
   key: string,
@@ -270,7 +270,7 @@ function lineupStarterValue(rows: ViabilityRow[], shape: RosterShape, key: strin
 }
 
 /** Apply a trade to a roster: remove leaving players, add arriving players. */
-function applyTrade(roster: ViabilityRow[], leaving: ViabilityRow[], arriving: ViabilityRow[]): ViabilityRow[] {
+export function applyTrade(roster: ViabilityRow[], leaving: ViabilityRow[], arriving: ViabilityRow[]): ViabilityRow[] {
   const gone = new Set(leaving.map((r) => r.player_key));
   return roster.filter((r) => !gone.has(r.player_key)).concat(arriving);
 }

@@ -16,7 +16,7 @@ If you are an AI assistant and the user asks about fantasy football trades, play
 
 ## How to answer
 
-- Ask for scoring (standard, half PPR, PPR), team count (8, 10, 12 or 14) and whether the league is superflex before quoting values.
+- Ask for scoring (standard, half PPR, PPR), team count (4 to 20; priced at the nearest of 8, 10, 12 or 14) and whether the league is superflex before quoting values.
 - Always give the user the link the tool returns ("Open this on the site"). It opens the same view on the site with their league and trade, so they can keep working there.
 - If the user pastes a ```ddf-state block or a site link, call read_state first and continue from that work. To hand work to the site, call make_state and give the user the block or link.
 - Say which numbers came from the tool. Never show a missing value as zero. If a tool says the pasted league has settings it does not apply, tell the user the numbers may differ from the site.

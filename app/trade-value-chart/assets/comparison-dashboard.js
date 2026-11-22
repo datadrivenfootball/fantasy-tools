@@ -642,18 +642,47 @@
     renderTable();
   }
 
+  // Page speed: the redesign pages carry this table inside the hidden engine
+  // block, where nobody sees it. While its panel is not rendered (no layout
+  // box), an engine rebuild only marks the table stale; it re-reads the engine
+  // and redraws as soon as the panel is shown (ResizeObserver), or on refresh().
+  // Without ResizeObserver it always redraws, as before.
+  let staleWhileHidden = false;
+  let panelWatcher = null;
+  function comparisonPanel() {
+    return typeof document === "undefined" ? null : document.querySelector(".comparison-panel");
+  }
+  function panelHidden() {
+    const panel = comparisonPanel();
+    return !!panel && typeof ResizeObserver === "function" && panel.getClientRects().length === 0;
+  }
+  function watchPanel() {
+    const panel = comparisonPanel();
+    if (panelWatcher || !panel) return;
+    panelWatcher = new ResizeObserver(() => {
+      if (staleWhileHidden && !panelHidden()) syncFromEngine();
+    });
+    panelWatcher.observe(panel);
+  }
+
   // Re-read the engine and re-render. Called once the engine has finished
   // its first build and after every engine rebuild; a no-op until both this
   // table's own data and the engine are ready, whichever lands last.
-  function syncFromEngine() {
+  function syncFromEngine(force = false) {
     if (!data || !engineReady()) return;
+    if (!force && panelHidden()) {
+      staleWhileHidden = true;
+      watchPanel();
+      return;
+    }
+    staleWhileHidden = false;
     rebuildSourceMaps();
     renderAll();
     runRegressionGuards();
   }
 
   window.TradeValueComparisonControls = {
-    refresh: () => data && renderAll(),
+    refresh: () => data && (staleWhileHidden ? syncFromEngine(true) : renderAll()),
     setLockOrder: value => data && setLockOrder(value, false),
     // League settings, roster, bench share and weights arrive with the
     // engine's own rebuild (trade-value-rows-change); only view state is

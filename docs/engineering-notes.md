@@ -216,6 +216,51 @@ seeded and two real league rosters (PR for JEG-1639).
   "Dallas") is a defense only when no player's name holds that word. Otherwise it is ambiguous, listing those players
   and the defense as an option. A paste also reads spaced initials ("J. K. Dobbins" as J.K. Dobbins).
 
+## Connector league entry (2026-11-21, connector walkthrough)
+- Jeremy, 2026-11-21: "Do all recommendations" on the walkthrough page (decisions 2-5 took the recommended option).
+- Scoring and superflex are required (`tools.ts settings()`): a missing one is a tool error naming it; never PPR or
+  no-superflex by default. A superflex slot in `slots` or a saved state answers superflex (a saved league with no
+  SUPERFLEX slot has none). A missing team count is priced as 12 with a note; 4 to 20 teams are priced at the nearest
+  of 8, 10, 12, 14 (`league.ts nearestTeams`, a tie goes up) with a note.
+- `slots` takes `{QB:1, ..., K:1, DEF:1, BN:5}`, the league's slot text ("QB, RB, RB, ..., W/R/T, K, DEF, BN") or the
+  old 6-number array; K/DEF/IR are read and dropped. Slots price through get-values' `league.roster` (JEG-1031) and
+  set the finders' lineup shape when `roster_shape` is not given.
+- `league_paste` runs the site's own paste reader in a sandbox (`league.ts evalPasteReader`; index.ts loads
+  `v2/kdef-names.js`, `v2/roster-paste.js`, `next/rosterparse.js`, `next/league-paste.js` from the site). League
+  rosters travel in the state as `work.teams` + `work.my_team` (codec `app/v2/ddf-state.js`; link params `lt=`, `mt=`),
+  by key only in replies; `prepare()` turns them back into `league_teams`/`mine`/`theirs` (`#key` entries), so a later
+  call needs only the state. The codec is loaded from the published site, so league rosters persist only after the
+  site publishes this codec.
+- Names: lists split on new lines and semicolons too; a leading "K " before a full name is a kicker; with the site's
+  kicker list loaded an untagged kicker name is "kicker, not valued"; a "Closest" guess keeps a surname within two
+  edits (no Chris Boswell -> Chris Bell).
+- The claude.ai connector caches the tool list it saw when it was connected. The walkthrough's `site_next_steps`,
+  `settings`, `slots`, `league_teams`, `my_team` came from the 2026-11-05 handoff build (v24, `09-mcp-server` in the
+  handoff folder), not from this repo; after a deploy, reconnect the connector to refresh its list.
+- The finders' lineup shape is this call's slots, else the saved league's roster. The trade reply budget leaves out
+  the saved state as it leaves out the site link (both grow with every team); otherwise a 12-team saved league hit
+  the size error.
+- Tests: `tests/node/mcp_entry_check.mjs` (run by `tests.test_mcp_remote`).
+
+## Connector answers (2026-11-21, connector walkthrough)
+- Jeremy, 2026-11-21: "Do all recommendations" (part B, clear short answers); decision 4A "Viable trades only, with a
+  closest fallback when none". Every reply opens with one plain line, also `structuredContent.summary` (its first key):
+  `finish({summary})` in `state.ts`; `week.ts withWeek` keeps the week line after `Settings:`, never above the answer.
+- Finders default `viable_only` to true; with none viable the closest 1-2 (fewest failed checks) come back as `closest`
+  with `why` (plain words + the check's detail), and the budget trims those rows. Check names stay in `failed`; the text
+  uses `CHECK_WORDS`. Name notices fold through `nameLines` (one line per kind; K/DEF counted, named when 3 or fewer).
+- compare_trade takes give/get (side_a/side_b still work); the lineup line uses `viability.ts pickStarters` with the
+  league's saved slots (`shapeOf`; the finders still use `s.roster` only, so a state's WR 3 is not their shape).
+- Reasons for a drop to 0 or a 2.5+ move come only from the trade charts and projections (get-values has no injury
+  field). Known: with #1503's gate a 12-team state reply passes the size budget only if the state is not counted.
+- One trade count everywhere: find_trades' summary, "Found N trades" line and `total` are the distinct trades after
+  dedupe (`ranked.length`), as in find_trades_league; the finder's raw total counts duplicate packages.
+- A bare surname follows the surname rule too ("Boswell" is offered no Josh Allen or Chris Bell). A known kicker's
+  surname alone is a kicker unless a priced player's name holds that word ("Bell" stays Chris Bell).
+- `tests/node/edge_drift_check.mjs` drives its required-list case with get_player_value: compare_trade has no
+  `required` since it took give/get. A guard fails loudly if get_player_value loses its own.
+- Tests: `tests/node/mcp_answer_format_check.mjs` (run by `tests.test_mcp_remote`).
+
 ## Edge drift check: input field comparison (JEG-1049 / JEG-1256, 2026-11-21)
 - `tools/edge_drift_check.mjs` now compares top-level `inputSchema.properties` keys and the `required` list for each
   tool present on both sides. A deployed server that advertises a tool but drops or adds fields (e.g. a claude.ai
