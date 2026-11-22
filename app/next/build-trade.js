@@ -452,9 +452,16 @@
   function renderChooser(side) {
     const query = normName($(side + '-search').value);
     const keys = rosterKeys(side);
-    $(side + '-picker').innerHTML = keys.map((k, i) => {
-      const p = rec(k), chosen = S.lg[side].has(k);
-      return `<tr class="${chosen ? 'selected' : ''}" data-key="${esc(k)}" ${normName(p.n).includes(query) ? '' : 'hidden'}><td>${esc(p.n)}${isExtra(side, k) ? '<small class="outside-tag">Added from any player</small>' : ''}</td><td>${esc(p.pos)}</td><td class="number">${fmt(p.ddf)}</td><td class="number">${fmt(p.an)}</td><td><button type="button" data-side="${side}" data-index="${i}" aria-pressed="${chosen}" aria-label="${chosen ? 'Remove' : 'Add'} ${esc(p.n)}"><span class="b-full">${chosen ? 'Remove' : 'Add'}</span><span class="b-short" aria-hidden="true">${chosen ? '−' : '+'}</span></button></td></tr>`;
+    // Selected players pin to the top in selection order and ignore the search, so a pick never disappears; the rest keep roster order.
+    const indexOf = new Map(keys.map((k, i) => [k, i]));
+    const pinned = [...S.lg[side]].filter(k => indexOf.has(k));
+    const order = pinned.concat(keys.filter(k => !S.lg[side].has(k)));
+    let note = $(side + '-sel-count');
+    if (!note) { note = document.createElement('p'); note.id = side + '-sel-count'; note.className = 'sel-count'; note.setAttribute('aria-live', 'polite'); $(side + '-picker').closest('.player-scroll').before(note); }
+    note.textContent = pinned.length ? pinned.length + ' selected, shown first' : '';
+    $(side + '-picker').innerHTML = order.map((k, n) => {
+      const i = indexOf.get(k), p = rec(k), chosen = S.lg[side].has(k);
+      return `<tr class="${chosen ? 'selected' : ''}${chosen && n === pinned.length - 1 ? ' pin-last' : ''}" data-key="${esc(k)}" ${chosen || normName(p.n).includes(query) ? '' : 'hidden'}><td>${esc(p.n)}${isExtra(side, k) ? '<small class="outside-tag">Added from any player</small>' : ''}</td><td>${esc(p.pos)}</td><td class="number">${fmt(p.ddf)}</td><td class="number">${fmt(p.an)}</td><td><button type="button" data-side="${side}" data-index="${i}" aria-pressed="${chosen}" aria-label="${chosen ? 'Remove' : 'Add'} ${esc(p.n)}"><span class="b-full">${chosen ? 'Remove' : 'Add'}</span><span class="b-short" aria-hidden="true">${chosen ? '−' : '+'}</span></button></td></tr>`;
     }).join('') || '<tr><td colspan="5">No players on this roster yet.</td></tr>';
   }
   function renderOutside(side) {
@@ -857,7 +864,9 @@
         const k = rosterKeys(side)[Number(b.dataset.index)];
         if (S.lg[side].has(k)) S.lg[side].delete(k); else S.lg[side].add(k);
         changed();
-        const again = $(side + '-picker').querySelector(`button[data-index="${b.dataset.index}"]`); if (again) again.focus();
+        const again = $(side + '-picker').querySelector(`button[data-index="${b.dataset.index}"]`);
+        if (again) again.focus({preventScroll: true});
+        $(side + '-picker').closest('.player-scroll').scrollTop = 0;
       };
       const toggle = document.querySelector(`[aria-controls="${side}-outside"]`);
       toggle.onclick = () => { const panel = $(side + '-outside'), open = panel.hidden; panel.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); if (open) $(side + '-outside-search').focus(); };
