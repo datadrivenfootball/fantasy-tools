@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-22T19:45:03.708097+00:00",
+  "run_at": "2026-11-22T21:44:45.574374+00:00",
   "nfl_week": 11,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -12,11 +12,26 @@
   },
   "failed": [],
   "success": true,
-  "outcome": "green",
-  "held": [],
-  "hold_severity": "none",
+  "outcome": "published_with_holds",
+  "held": [
+    "fantasycalc"
+  ],
+  "hold_severity": "red",
   "list_changes": {},
-  "held_detail": {},
+  "held_detail": {
+    "fantasycalc": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "592/1144 values match exactly across 6 columns; 552 values differ, 5 outside the movement band; 1 live players not stored, 0 stored players not live (above the list's churn line); 11 players entered or left the bottom of the list since the save (churn)",
+      "hold_severity": "red",
+      "week": 11
+    }
+  },
   "runner": "github-actions",
   "detail": {
     "usatoday": {
@@ -50,7 +65,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7428 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7440 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -75,7 +90,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-22 -> 12 DDF legs -> section; review passed (6516 values)",
+      "detail": "snapshot 2026-11-22 -> 12 DDF legs -> section; review passed (6504 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -209,5 +224,8 @@
   },
   "stale_sources": [],
   "lagging_sources": [],
-  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure"
+  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
+  "fidelity_holds": {
+    "fantasycalc": "fidelity: publisher_vs_stored"
+  }
 }
