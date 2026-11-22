@@ -121,6 +121,8 @@ test-unit:
 
 test-unit-modules:
 	python3 -m unittest tests.test_baseline_reds
+	# Page speed: the hidden comparison table skips redraws until it is shown.
+	python3 -m unittest tests.test_hidden_dashboard_skips_redraw
 	python3 -m unittest tests.test_chromium_resolver
 	python3 -m unittest tests.test_run_suite
 	# Page speed: a saved league costs one engine rebuild on load (call counts, not timings).
