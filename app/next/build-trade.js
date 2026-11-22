@@ -235,6 +235,27 @@
   const picked = side => S.mode === 'any' ? S.any[side].slice() : rosterKeys(side).filter(k => S.lg[side].has(k));
   const joinNames = list => list.length < 3 ? (list.join(' and ') || 'No players') : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
   const joinKeys = keys => joinNames(keys.map(nm));
+  /* The injury flag (injury-flag.js, Jeremy 2026-11-22: a flag, not a stopper): a chip beside a player's name and one
+     line under You give / You get. Display only: no pick, check, lineup, chart or value reads it. */
+  const injFlag = (k, fr) => (window.DDFInjury && ROWS.get(String(k)) ? window.DDFInjury.flagOf(ROWS.get(String(k)), fr) : null);
+  const injChip = (k, fr) => { const f = injFlag(k, fr); return f ? window.DDFInjury.chip(f) : ''; };
+  const injNow = () => (window.DDFInjury ? window.DDFInjury.freshness() : null);
+  function namesHTML(keys, fr) {
+    const list = keys.map(k => `<span class="inj-name">${esc(nm(k))}</span>${injChip(k, fr)}`);
+    return list.length < 3 ? (list.join(' and ') || 'No players') : list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1];
+  }
+  function renderInjury() {
+    const fr = injNow(), keys = picked('give').concat(picked('get'));
+    for (const side of ['give', 'get']) $(side + '-names').innerHTML = namesHTML(picked(side), fr);
+    const el = $('injury-note');
+    if (!el) return;
+    const I = window.DDFInjury, rows = keys.map(k => ROWS.get(String(k))).filter(Boolean);
+    const flags = I ? I.flagsOf(rows, fr) : [];
+    el.hidden = !flags.length;
+    el.textContent = flags.length ? I.summary(flags) : '';
+    el.title = I ? I.NOTE_TITLE : '';
+    el.dataset.injurySummary = String(flags.length);
+  }
 
   /* ---------- fit (league mode and waivers) ---------- */
   const VALUATION_KEY = {'DDF': 'ddf_value', 'DDF (Projection based)': 'ddf_value_projections', 'Market': 'chart_avg', 'CBS Sports': 'cbs', 'USA Today': 'usatoday',
@@ -416,7 +437,7 @@
       $('get-title').textContent = partnerName() + ' · Pick players'; $('get-region').setAttribute('aria-label', partnerName() + ' players');
       if (L.full) { renderOutside('give'); renderOutside('get'); }
     }
-    for (const side of ['give', 'get']) $(side + '-names').textContent = joinKeys(picked(side));
+    renderInjury();
     renderLineup();
     if (!any && L.available) {
       const c = ready ? checksHTML() : {pass: false, html: '<p>Add a player to each side to run the trade checks.</p>'};
@@ -446,9 +467,10 @@
     const query = $('any-' + side + '-search').value, taken = new Set(S.any.give.concat(S.any.get)), found = search(query, taken);
     $('any-' + side + '-results').innerHTML = found.map(p => matchRow(p, 'Add')).join('');
     $('any-' + side + '-count').textContent = countText(query, found.length);
+    const fr = injNow();
     $('any-' + side + '-chosen').innerHTML = S.any[side].length ? S.any[side].map(k => {
       const p = rec(k);
-      return `<li><span>${esc(p.n)}<small>${esc(p.pos)}</small> <span class="pick-num">${finite(p.ddf) ? 'DDF ' + p.ddf.toFixed(2) : 'No value this week'}</span></span><button type="button" data-remove="${esc(k)}" aria-label="Remove ${esc(p.n)}">Remove</button></li>`;
+      return `<li><span>${esc(p.n)}${injChip(k, fr)}<small>${esc(p.pos)}</small> <span class="pick-num">${finite(p.ddf) ? 'DDF ' + p.ddf.toFixed(2) : 'No value this week'}</span></span><button type="button" data-remove="${esc(k)}" aria-label="Remove ${esc(p.n)}">Remove</button></li>`;
     }).join('') : '<li class="pick-none">No player added yet</li>';
   }
   function renderChooser(side) {
@@ -461,9 +483,10 @@
     let note = $(side + '-sel-count');
     if (!note) { note = document.createElement('p'); note.id = side + '-sel-count'; note.className = 'sel-count'; note.setAttribute('aria-live', 'polite'); $(side + '-picker').closest('.player-scroll').before(note); }
     note.textContent = pinned.length ? pinned.length + ' selected, shown first' : '';
+    const fr = injNow();
     $(side + '-picker').innerHTML = order.map((k, n) => {
       const i = indexOf.get(k), p = rec(k), chosen = S.lg[side].has(k);
-      return `<tr class="${chosen ? 'selected' : ''}${chosen && n === pinned.length - 1 ? ' pin-last' : ''}" data-key="${esc(k)}" ${chosen || normName(p.n).includes(query) ? '' : 'hidden'}><td>${esc(p.n)}${isExtra(side, k) ? '<small class="outside-tag">Added from any player</small>' : ''}</td><td>${esc(p.pos)}</td><td class="number">${fmt(p.ddf)}</td><td class="number">${fmt(p.an)}</td><td><button type="button" data-side="${side}" data-index="${i}" aria-pressed="${chosen}" aria-label="${chosen ? 'Remove' : 'Add'} ${esc(p.n)}"><span class="b-full">${chosen ? 'Remove' : 'Add'}</span><span class="b-short" aria-hidden="true">${chosen ? '−' : '+'}</span></button></td></tr>`;
+      return `<tr class="${chosen ? 'selected' : ''}${chosen && n === pinned.length - 1 ? ' pin-last' : ''}" data-key="${esc(k)}" ${chosen || normName(p.n).includes(query) ? '' : 'hidden'}><td>${esc(p.n)}${injChip(k, fr)}${isExtra(side, k) ? '<small class="outside-tag">Added from any player</small>' : ''}</td><td>${esc(p.pos)}</td><td class="number">${fmt(p.ddf)}</td><td class="number">${fmt(p.an)}</td><td><button type="button" data-side="${side}" data-index="${i}" aria-pressed="${chosen}" aria-label="${chosen ? 'Remove' : 'Add'} ${esc(p.n)}"><span class="b-full">${chosen ? 'Remove' : 'Add'}</span><span class="b-short" aria-hidden="true">${chosen ? '−' : '+'}</span></button></td></tr>`;
     }).join('') || '<tr><td colspan="5">No players on this roster yet.</td></tr>';
   }
   function renderOutside(side) {

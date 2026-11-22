@@ -27,6 +27,8 @@
     return '<span class="' + cls + '">' + one(a) + '</span> <span aria-hidden="true">&rarr;</span><span class="lu-sr"> to </span> <span class="' + cls + '">' + one(b) + "</span>";
   };
   var valued = function (rows) { return rows.filter(function (r) { return !r.unvalued; }); };
+  // The injury flag (injury-flag.js) on a starter, beside the name and outside .lu-nm / .why-nm: display only.
+  var inj = function (x) { return x && x.inj && window.DDFInjury ? window.DDFInjury.chip(x.inj) : ""; };
 
   // ---------- "line": the Find offer card ----------
   function line(t, o) {
@@ -48,7 +50,7 @@
   function full(t, o) {
     var c = function (x, kdef) {
       if (!x) return kdef ? '<td class="why-pl"><span class="why-nm">—</span><span class="why-v">not valued</span></td>' : '<td class="why-pl why-empty">Empty</td>';
-      return '<td class="why-pl"><span class="why-nm">' + esc(x.name) + '</span><span class="why-v">' + (kdef ? "not valued" : one(x.value)) + "</span>"
+      return '<td class="why-pl"><span class="why-nm">' + esc(x.name) + "</span>" + inj(x) + '<span class="why-v">' + (kdef ? "not valued" : one(x.value)) + "</span>"
         + (x.tag ? '<span class="why-mv" data-tag="' + esc(x.tag) + '">' + esc(x.tag) + "</span>" : "") + "</td>";
     };
     var tr = function (r) {
@@ -67,9 +69,9 @@
   function changedRow(r) {
     var a = r.after, b = r.before, d = valueOf(a) - valueOf(b);
     var now = a
-      ? '<b class="lu-nm">' + esc(a.name) + '</b> <span class="lu-v">' + one(a.value) + "</span>" + (a.tag ? ' <span class="lu-tag" data-tag="' + esc(a.tag) + '">' + esc(a.tag) + "</span>" : "")
+      ? '<b class="lu-nm">' + esc(a.name) + "</b>" + inj(a) + ' <span class="lu-v">' + one(a.value) + "</span>" + (a.tag ? ' <span class="lu-tag" data-tag="' + esc(a.tag) + '">' + esc(a.tag) + "</span>" : "")
       : '<b class="lu-nm lu-empty">Empty</b>';
-    var was = b ? 'for <s>' + esc(b.name) + " " + one(b.value) + "</s>" : "an empty slot before";
+    var was = b ? 'for <s>' + esc(b.name) + " " + one(b.value) + "</s>" + inj(b) : "an empty slot before";
     return '<div class="lu-row lu-chg" data-slot="' + esc(r.slot) + '" data-changed><span class="lu-slot">' + esc(r.slot) + '</span><span class="lu-now">' + now + "</span>"
       + '<span class="lu-d" data-dir="' + dirOf(d) + '">' + shown(d) + '</span><span class="lu-was">' + was + "</span></div>";
   }
@@ -78,7 +80,7 @@
     // K / DEF are never valued: the row names who is rostered there (a dash when the league did not list one).
     var who = r.unvalued ? '<span class="lu-nm">' + esc(a ? a.name : "—") + '</span> <span class="lu-v">not valued</span>'
         + (r.changed && r.before && r.after ? ' <span class="lu-was">for ' + esc(r.before.name) + "</span>" : "")
-      : a ? '<span class="lu-nm">' + esc(a.name) + '</span> <span class="lu-v">' + one(a.value) + "</span>" : '<span class="lu-nm lu-empty">Empty</span>';
+      : a ? '<span class="lu-nm">' + esc(a.name) + "</span>" + inj(a) + ' <span class="lu-v">' + one(a.value) + "</span>" : '<span class="lu-nm lu-empty">Empty</span>';
     return '<div class="lu-row" data-slot="' + esc(r.slot) + '"' + (r.unvalued ? " data-unvalued" : "") + '><span class="lu-slot">' + esc(r.slot) + '</span><span class="lu-now">' + who + "</span></div>";
   }
   // "5 starters unchanged, plus K and DEF" (K and DEF are never valued, so they never count as starters here).
