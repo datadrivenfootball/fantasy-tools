@@ -61,6 +61,8 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               "ddf-why.js",
               # Build a Trade lineup card (2026-11-22): the shared before / after lineup renderer (DDFLineup).
               "ddf-lineup.js",
+              # Injury flag on trade players (Jeremy, 2026-11-22: a flag, not a stopper): chip, card line, Why line.
+              "injury-flag.js",
               # waivers.html how-to slides (the provider walkthrough).
               # Build a Trade (JEG-1537): the page script, the trade chart component.
               "build-offer.js", "build-trade.js", "tradechart.js", "tradechart.css",

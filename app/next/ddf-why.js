@@ -294,11 +294,13 @@
     opts = opts || {};
     arrivingKeys = arrivingKeys || new Set();
     var key = t.key, rows = [];
+    // The injury flag (injury-flag.js) rides on the cell for display; it never enters a lineup or a total.
+    var I = typeof window !== "undefined" && window.DDFInjury ? window.DDFInjury : null, fr = I ? I.freshness() : null;
     var startedBefore = new Set(t.lineupBefore.starters.map(keyOf));
     var cell = function (r, side) {
       if (!r) return null;
       var tag = side === "after" ? (arrivingKeys.has(keyOf(r)) ? "arrives" : startedBefore.has(keyOf(r)) ? "moves" : "from bench") : null;
-      return {name: r.name, pos: r.pos, value: r.values ? r.values[key] : null, tag: tag};
+      return {name: r.name, pos: r.pos, value: r.values ? r.values[key] : null, tag: tag, inj: I ? I.flagOf(r, fr) : null};
     };
     SLOTS.forEach(function (s) {
       if (!(shape && shape[s])) return;
@@ -487,14 +489,19 @@
     if (!e) return "";
     if (typeof document !== "undefined") injectCss();
     return '<details class="why"' + (opts.id ? ' id="' + esc(opts.id) + '"' : "") + ' data-why' + (e.natural ? " data-natural" : "") + '><summary>Why</summary>'
-      + bodyOf(e, opts) + "</details>";
+      + bodyOf(e, withInjury(trade, opts)) + "</details>";
   }
   // The panel's inside (for a page that renders the <details> itself and fills it on first open).
   function body(trade, ctx, opts) {
     var e = explain(trade, ctx);
     if (!e) return "";
     if (typeof document !== "undefined") injectCss();
-    return bodyOf(e, opts || {});
+    return bodyOf(e, withInjury(trade, opts));
+  }
+  // The injury flag's lines (injury-flag.js) for the players in the offer: display only, after the verdict head.
+  function withInjury(trade, opts) {
+    var I = typeof window !== "undefined" && window.DDFInjury ? window.DDFInjury : null;
+    return Object.assign({}, opts || {}, {injury: I ? I.whyHtml((trade.give || []).concat(trade.receive || [])) : ""});
   }
   // The two lineup tables ("full" size of the shared DDFLineup, ddf-lineup.js). Build a Trade leaves them out (opts.lineups
   // false): its own lineup card shows them (Jeremy, 2026-11-22).
@@ -513,6 +520,7 @@
     return '<div class="why-body" data-natural="' + (e.natural ? "1" : "0") + '" data-cls="' + esc(v.cls) + '">'
       + '<p class="why-head"><span class="why-tag" data-cls="' + esc(v.cls) + '">' + esc(v.word) + (v.cls === "natural" ? " · " + esc(v.charts) + " public charts" : "") + "</span>"
       + v.tags.map(function (t) { return '<span class="why-tag why-tag2" data-tag>' + esc(t) + "</span>"; }).join("") + esc(e.headline) + "</p>"
+      + (opts.injury || "")
       + (e.pct ? '<p class="why-pct" data-pct data-band="' + esc(e.pct.partner.band) + '">' + esc(e.pct.line) + "." + (e.pct.sentence ? " <span class=\"why-sentence\">" + esc(e.pct.sentence) + "</span>" : "") + "</p>" : "")
       + (opts.lineups === false ? "" : '<div class="why-lus">' + lineupHtml(e.lineups.you, "Your lineup", units.youSub || "your valuation") + lineupHtml(e.lineups.them, opts.partner ? opts.partner + " lineup" : "Their lineup", units.themSub || "their valuation") + "</div>")
       + '<p class="why-side">Why you should do this</p>' + ul(e.why.you, "data-why-you")

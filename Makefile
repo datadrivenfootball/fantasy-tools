@@ -874,6 +874,9 @@ test-core:
 	python3 -m unittest tests.test_build_offer_render
 	# Build a Trade lineup card (Jeremy, 2026-11-22): before / after lineups at 375 and 1440 on the USO fixture.
 	python3 -m unittest tests.test_build_lineup_card_render
+	# Injury flags (Jeremy, 2026-11-22: a flag, not a stopper): severity map, and Find / Build at 320-1440 on the USO fixture.
+	python3 -m unittest tests.test_injury_flag
+	python3 -m unittest tests.test_injury_flag_render
 	python3 -m unittest tests.test_math_inspector
 	python3 -m unittest tests.test_view_invariants
 	python3 -m unittest tests.test_launch_front_door
@@ -980,6 +983,9 @@ test-core-shard-1:
 	python3 -m unittest tests.test_find_natural_fit2_render
 	# Build picker pins selected players (Jeremy, 2026-11-22): 375px and desktop; light, so in shard 1.
 	python3 -m unittest tests.test_build_pin_selected_render
+	# Injury flags (Jeremy, 2026-11-22): light (unit map plus two render tests, about 35 s), so in shard 1.
+	python3 -m unittest tests.test_injury_flag
+	python3 -m unittest tests.test_injury_flag_render
 
 test-core-shard-2:
 	python3 -m unittest tests.test_spec_reference_value_pipeline
