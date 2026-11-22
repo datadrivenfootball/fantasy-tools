@@ -8,7 +8,7 @@ The rule lives in app/next/injury-flag.js (window.DDFInjury), the one function e
   * flagOf: the status comes only through the Waivers rule (TradeValueWaivers.statusOf): a dated copy at most 6 days
     old, the same Sleeper id, team and position. The body part is the same copy's injury_body_part, when present.
   * the chip's aria-label ("Injury: Out, hamstring"), the card line ("Injury flag on 1 player") and the Why line
-    ("Injury flag: X is Out (hamstring); the trade may not work as planned.").
+    ("Injury flag: X is Out (hamstring). A flag, not a stopper: the trade may not work as planned.").
   * display only: flagOf never changes the row it reads.
 
 The pages are covered by tests/test_injury_flag_render.py.
@@ -24,9 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 SCRIPT = r"""
 const assert = require('assert');
-globalThis.TradeValueWaivers = require('./app/v2/waivers.js');
+globalThis.DDFStatusRule = require('./app/v2/player-status-rule.js');
 const I = require('./app/next/injury-flag.js');
-const W = globalThis.TradeValueWaivers;
+const W = globalThis.DDFStatusRule;
+// The Waivers tab reads the same rule (waivers.js re-exports it).
+assert.strictEqual(require('./app/v2/waivers.js').statusOf, W.statusOf);
 
 // The severity map.
 const want = {Out: ['Out', 'out'], IR: ['IR', 'out'], PUP: ['PUP', 'out'], Sus: ['Suspended', 'out'],
@@ -76,10 +78,10 @@ assert.deepStrictEqual(flags.map(x => x.name), ['Christian McCaffrey', 'Rashee R
 assert.strictEqual(I.summary(flags), 'Injury flag on 2 players');
 assert.strictEqual(I.summary(flags.slice(0, 1)), 'Injury flag on 1 player');
 assert.strictEqual(I.summary([]), '');
-assert.strictEqual(I.whyLine(flags[0]), 'Injury flag: Christian McCaffrey is Out (hamstring); the trade may not work as planned.');
-assert.strictEqual(I.whyLine(flags[1]), 'Injury flag: Rashee Rice is Questionable; the trade may not work as planned.');
+assert.strictEqual(I.whyLine(flags[0]), 'Injury flag: Christian McCaffrey is Out (hamstring). A flag, not a stopper: the trade may not work as planned.');
+assert.strictEqual(I.whyLine(flags[1]), 'Injury flag: Rashee Rice is Questionable. A flag, not a stopper: the trade may not work as planned.');
 assert.strictEqual(I.whyLine(I.flagOf({...row, sleeper_id: '3', team: 'LAR', pos: 'WR', name: 'Puka Nacua'}, fresh)),
-  'Injury flag: Puka Nacua is on IR (ankle - high); the trade may not work as planned.');
+  'Injury flag: Puka Nacua is on IR (ankle - high). A flag, not a stopper: the trade may not work as planned.');
 const chip = I.chip(flags[0]);
 assert(chip.includes('aria-label="Injury: Out, hamstring"') && chip.includes('data-level="out"') && chip.includes('>Out</span>'), chip);
 assert.strictEqual(I.chip(null), '');
@@ -102,12 +104,18 @@ class InjuryFlagTest(unittest.TestCase):
 
     def test_every_trade_page_loads_the_shared_module(self):
         # One function on every page: the pages that show trade players load injury-flag.js after the status copy
-        # and the Waivers rule, and no page reimplements the map.
-        for page in ("find.html", "build.html"):
+        # and the status rule (app/v2/player-status-rule.js), and no page reimplements the map. Build and Values load
+        # the small rule file, not the whole Waivers script (review of #1519: page weight).
+        for page in ("find.html", "build.html", "values.html"):
             html = (ROOT / "app" / "next" / page).read_text()
-            order = [html.find(s) for s in ('src="v2/player-status.js"', 'src="v2/waivers.js"', 'src="injury-flag.js"')]
+            order = [html.find(s) for s in ('src="v2/player-status.js"', 'src="v2/player-status-rule.js"', 'src="injury-flag.js"')]
             self.assertTrue(all(i >= 0 for i in order) and order == sorted(order), f"{page}: {order}")
-        for js in ("find-page.js", "build-trade.js", "ddf-why.js", "ddf-lineup.js"):
+        for page in ("build.html", "values.html"):
+            self.assertNotIn('src="v2/waivers.js"', (ROOT / "app" / "next" / page).read_text(), page)
+        for page in ("find.html", "team.html", "waivers.html"):
+            html = (ROOT / "app" / "next" / page).read_text()
+            self.assertLess(html.find('src="v2/player-status-rule.js"'), html.find('src="v2/waivers.js"'), f"{page}: the rule loads after waivers.js")
+        for js in ("find-page.js", "build-trade.js", "ddf-why.js", "ddf-lineup.js", "values-buysell.js"):
             src = (ROOT / "app" / "next" / js).read_text()
             self.assertIn("DDFInjury", src, js)
             self.assertNotIn('"Questionable"', src, f"{js} carries its own status list")

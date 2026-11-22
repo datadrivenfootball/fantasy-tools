@@ -312,6 +312,7 @@ def build_v2_html(index_html: str, shell_html: str, at_root: bool = False, posts
                   '\n  <script src="v2/nfl-byes.js" defer></script>'
                   '\n  <script src="v2/player-flags.js" defer></script>'
                   '\n  <script src="v2/player-status.js" defer></script>'
+                  '\n  <script src="v2/player-status-rule.js" defer></script>'
                   '\n  <script src="v2/waivers.js" defer></script>'
                   '\n  <script src="v2/modules.js" defer></script>'
                   '\n  <script src="v2/audit-core.js" defer></script>'
@@ -431,7 +432,7 @@ def build(dist: Path = DIST, engine_page: Path = ENGINE_PAGE, research_dir: Path
     (out_dir / "nfl-byes.js").write_text(nfl_byes_js(), encoding="utf-8")
     (out_dir / "player-status.js").write_text(player_status_js(), encoding="utf-8")
     for name in ("v2.css", "namesearch.js", "source-views.js", "targets.js", "trade.js", "movers.js", "roster-paste.js", "roster-provenance-transitions.js", "workspace.js", "table-sort.js", "team-summary.js", "opportunities.js", "simplified-site.js", "simplified-site.css", "finder.js", "lineup-comparison.js", "opponent-inclusion.js", "opponent-inclusion.css", "trade-readout.js", "league.js", "modules.js",
-                 "audit-core.js", "audit-pie.js", "audit-source.js", "audit-pie.css", "audit-source.css", "ddf-value-link.js", "overrides.js", "overrides.css", "inputs-status.js", "name-format.js", "ddf-state.js", "trade-context.js", "ddf-assist.js", "waivers.js", "waivers.css", "player-flags.js", "design-flag.js", "v2.js"):
+                 "audit-core.js", "audit-pie.js", "audit-source.js", "audit-pie.css", "audit-source.css", "ddf-value-link.js", "overrides.js", "overrides.css", "inputs-status.js", "name-format.js", "ddf-state.js", "trade-context.js", "ddf-assist.js", "player-status-rule.js", "waivers.js", "waivers.css", "player-flags.js", "design-flag.js", "v2.js"):
         shutil.copy2(APP_V2 / name, out_dir / name)
     # JEG-1137: self-hosted Fraunces (SIL OFL 1.1, license kept beside it), read by v2.css as fonts/fraunces.woff2.
     (out_dir / "fonts").mkdir(exist_ok=True)

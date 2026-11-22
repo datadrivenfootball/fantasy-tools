@@ -139,23 +139,26 @@ class TestWaiversStatus(unittest.TestCase):
         self.assertEqual(check_rules(WAIVERS_JS), [])
 
     def test_checks_fail_on_broken_builds(self):
-        source = WAIVERS_JS.read_text(encoding="utf-8")
+        # 2026-11-22: statusFreshness / statusOf moved to player-status-rule.js (waivers.js requires it), so three
+        # mutants now break that file; the checks still run through waivers.js.
+        rule_js = WAIVERS_JS.parent / "player-status-rule.js"
+        sources = {"waivers.js": WAIVERS_JS.read_text(encoding="utf-8"), "player-status-rule.js": rule_js.read_text(encoding="utf-8")}
         breaks = {
-            "no age limit": ("if (at > nowMs || ageDays > STATUS_MAX_AGE_DAYS) {", "if (false) {"),
+            "no age limit": ("player-status-rule.js", "if (at > nowMs || ageDays > STATUS_MAX_AGE_DAYS) {", "if (false) {"),
             # injuryNote now uses statusOf too; removing its redundant early
             # guard is harmless. Break the positive control instead.
-            "fresh note omitted": ("const hurt = lineup.starters.find", "const hurt = [].find"),
-            "row ignores freshness": ("if (!freshness || !freshness.shown || !row) return null;", "if (!row) return null;"),
-            "undated copy shown": ("if (!Number.isFinite(at) || !finite(nowMs)) {", "if (false) {"),
+            "fresh note omitted": ("waivers.js", "const hurt = lineup.starters.find", "const hurt = [].find"),
+            "row ignores freshness": ("player-status-rule.js", "if (!freshness || !freshness.shown || !row) return null;", "if (!row) return null;"),
+            "undated copy shown": ("player-status-rule.js", "if (!Number.isFinite(at) || !finite(nowMs)) {", "if (false) {"),
         }
         with tempfile.TemporaryDirectory() as tmp:
             shutil.copy2(WAIVERS_JS.parent / "finder.js", Path(tmp) / "finder.js")
-            for name, (old, new) in breaks.items():
-                self.assertIn(old, source, name)
-                broken = Path(tmp) / "waivers.js"
-                broken.write_text(source.replace(old, new), encoding="utf-8")
+            for name, (target, old, new) in breaks.items():
+                self.assertIn(old, sources[target], name)
+                for fname, text in sources.items():
+                    (Path(tmp) / fname).write_text(text.replace(old, new) if fname == target else text, encoding="utf-8")
                 try:
-                    failures = check_rules(broken)
+                    failures = check_rules(Path(tmp) / "waivers.js")
                 except subprocess.CalledProcessError:
                     failures = ["crashed"]
                 self.assertTrue(failures, f"not caught: {name}")

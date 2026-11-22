@@ -9,10 +9,14 @@ the daily Sleeper status copy (v2/player-status.js) replaced by a dated test cop
   every other player in the offers (Out, IR, Doubtful, Questionable in turn; the rest stay healthy).
 - With the flags on, every player in a card has one chip beside his name with an aria-label "Injury: <status>[, body
   part]", the card has one line "Injury flag on N player(s)", and the Why panel has one line per flagged player:
-  "Injury flag: <name> is <status> (<body part>); the trade may not work as planned." Healthy players show nothing.
+  "Injury flag: <name> is <status> (<body part>). A flag, not a stopper: the trade may not work as planned." Healthy players show nothing.
 - Build a Trade (McCaffrey and Boston to Team 9 for Cook and Henry): chips beside the names in You give / You get and in
   the roster picker, one line under the boxes, chips on the flagged starters in the lineup card, the Why line; the
   lineup totals, the trade checks and the Why verdict are the same as without the flags.
+- Buy / Sell (values.html#buy-sell, USO league): both lists in full (every row's key, text, aria-label, gap and
+  Natural fit tag, in order) are identical with and without half the listed players flagged, once the chips and the
+  aria-label's injury words are taken out; a flagged row has a chip and its aria-label says "Injury: ...", and the
+  swap shows the Why line for a flagged player.
 - No horizontal scroll at 320, 360, 375 or 1440, chips inside their card, picker rows at least 44px.
 """
 from __future__ import annotations
@@ -182,7 +186,7 @@ class InjuryFlagRenderTest(unittest.TestCase):
                 lines = page.evaluate("() => [...document.querySelector('[data-offer] [data-injury-why]').querySelectorAll('p')].map(p => p.textContent)")
                 keys = [k for k in first["give"].split(",") + first["receive"].split(",") if k in by_key]
                 self.assertEqual(lines, [f"Injury flag: {by_key[k][2]} is {phrase(by_key[k][0])}" + (f" ({by_key[k][1].lower()})" if by_key[k][1] else "")
-                                         + "; the trade may not work as planned." for k in keys])
+                                         + ". A flag, not a stopper: the trade may not work as planned." for k in keys])
                 self.assertFalse(page.evaluate(OVERFLOW), f"{width}: horizontal scroll with the Why open")
                 self.assertEqual(e1 + e2, [])
 
@@ -229,13 +233,64 @@ class InjuryFlagRenderTest(unittest.TestCase):
                 # McCaffrey starts for you before the trade, Henry for you after: both carry a chip in your lineup.
                 self.assertIn(["you", "Injury: Out, hamstring"], got["lineupChips"], label)
                 self.assertIn(["you", "Injury: Questionable"], got["lineupChips"], label)
-                self.assertEqual(got["whyLines"], ["Injury flag: Christian McCaffrey is Out (hamstring); the trade may not work as planned.",
-                                                   "Injury flag: Derrick Henry is Questionable; the trade may not work as planned."], label)
+                self.assertEqual(got["whyLines"], ["Injury flag: Christian McCaffrey is Out (hamstring). A flag, not a stopper: the trade may not work as planned.",
+                                                   "Injury flag: Derrick Henry is Questionable. A flag, not a stopper: the trade may not work as planned."], label)
                 # Nothing else moves: names, lineup, totals, checks, the Why's own words.
                 for k in ("give", "get", "lineup", "sums", "checks", "pass", "why"):
                     self.assertEqual(got[k], plain[k], f"{label}: {k} changed with the flags")
                 self.assertFalse(page.evaluate(OVERFLOW), f"{label}: horizontal scroll")
                 self.assertEqual(errors, [])
+
+    def test_buy_sell_flags_change_no_list(self):
+        BS_READY = "() => document.body.classList.contains('values-live') && document.querySelector('#bs-sell .bs-row, #bs-buy .bs-row') !== null"
+        EXPAND = "() => { ['sell', 'buy'].forEach(s => { const b = document.getElementById('bs-' + s + '-more'); if (b && !b.hidden && b.getAttribute('aria-expanded') !== 'true') b.click(); }); return true; }"
+        LISTS = r"""() => { const t = el => el.textContent.replace(/\s+/g, ' ').trim();
+          const bare = el => { const c = el.cloneNode(true); c.querySelectorAll('[data-injury-chip]').forEach(x => x.remove()); return t(c); };
+          return ['sell', 'buy'].map(s => [...document.querySelectorAll('#bs-' + s + ' .bs-row')].map(b => ({key: b.dataset.k, text: bare(b),
+            aria: b.getAttribute('aria-label').replace(/ Injury: [^.]+\.$/, ''), injAria: (b.getAttribute('aria-label').match(/Injury: [^.]+\.$/) || [null])[0],
+            chip: (b.querySelector('[data-injury-chip]') || {getAttribute: () => null}).getAttribute('aria-label')}))); }"""
+        KEYS = r"""() => [...document.querySelectorAll('#bs-sell .bs-row, #bs-buy .bs-row')].map(b => b.dataset.k)"""
+
+        def open_bs(width, status):
+            page, errors = self.page(width, status)
+            page.goto(f"{self.base}/values.html#buy-sell", wait_until="load", timeout=60000)
+            page.wait_for_function(BS_READY, timeout=60000)
+            page.evaluate(EXPAND)
+            page.wait_for_timeout(300)
+            return page, errors
+
+        for width in (375, 1440):
+            with self.subTest(width=width):
+                plain_page, e1 = open_bs(width, status_js({}))
+                plain = plain_page.evaluate(LISTS)
+                self.assertTrue(plain[0] and plain[1], f"{width}: an empty Buy / Sell list proves nothing")
+                rows = plain_page.evaluate(ROWS, plain_page.evaluate(KEYS))
+                flagged, by_key = {}, {}
+                for i, r in enumerate(sorted(rows, key=lambda r: r["key"])):
+                    if i % 2 or not (r["sleeper_id"] and r["team"]):
+                        continue
+                    st, body = STATUSES[(i // 2) % len(STATUSES)]
+                    flagged[r["sleeper_id"]] = (st, body, r)
+                    by_key[r["key"]] = f"Injury: {st}" + (f", {body.lower()}" if body else "")
+                page, e2 = open_bs(width, status_js(flagged))
+                got = page.evaluate(LISTS)
+                strip = lambda lists: [[{k: v for k, v in r.items() if k not in ("chip", "injAria")} for r in side] for side in lists]
+                self.assertEqual(strip(got), strip(plain), f"{width}: injury flags changed a Buy / Sell list")
+                for side in got:
+                    for r in side:
+                        want = by_key.get(r["key"])
+                        self.assertEqual(r["chip"], want, f"{width}: {r['key']}")
+                        self.assertEqual(r["injAria"], f"{want}." if want else None, f"{width}: {r['key']}")
+                self.assertTrue(any(r["chip"] for side in got for r in side), f"{width}: no listed player flagged")
+                self.assertFalse(page.evaluate(OVERFLOW), f"{width}: horizontal scroll")
+                # The swap for a flagged row: the Why line.
+                first = next(r for side in got for r in side if r["chip"])
+                page.click(f'.bs-row[data-k="{first["key"]}"]')
+                page.wait_for_selector("#bs-inj [data-injury-why]", timeout=10000)
+                lines = page.evaluate("() => [...document.querySelectorAll('#bs-inj [data-injury-why] p')].map(p => p.textContent)")
+                self.assertTrue(lines and all(l.startswith("Injury flag: ") and l.endswith(". A flag, not a stopper: the trade may not work as planned.") for l in lines), lines)
+                self.assertFalse(page.evaluate(OVERFLOW), f"{width}: horizontal scroll with the swap open")
+                self.assertEqual(e1 + e2, [])
 
 
 if __name__ == "__main__":

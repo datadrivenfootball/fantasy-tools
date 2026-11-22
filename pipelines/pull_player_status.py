@@ -7,7 +7,8 @@ Missing ids/statuses stay missing; an empty status never means healthy.
 
 Each record carries Sleeper's short injury_body_part text ("Hamstring") beside
 injury_status, for the trade pages' injury flag (Jeremy, 2026-11-22: "a flag,
-not a stopper"). Display only, like the status; trimmed to BODY_PART_MAX.
+not a stopper"). Display only, like the status; trimmed to BODY_PART_MAX and
+left out when there is none.
 """
 from __future__ import annotations
 
@@ -37,11 +38,17 @@ def body_part(raw_player):
 def build_snapshot(raw, as_of):
     base = build_base(raw, pulled_at=as_of)
     problems = check_base(base)
-    players = {
-        sid: {"team": p["team"], "pos": p["pos"], "injury_status": p.get("injury_status"),
-              "injury_body_part": body_part(raw.get(sid)) if p.get("injury_status") else None}
-        for sid, p in base["by_sleeper_id"].items() if p.get("team")
-    }
+    # The body part is written only when there is one (review of #1518: an empty field on every healthy player grew
+    # the published status script by 46%).
+    players = {}
+    for sid, p in base["by_sleeper_id"].items():
+        if not p.get("team"):
+            continue
+        rec = {"team": p["team"], "pos": p["pos"], "injury_status": p.get("injury_status")}
+        body = body_part(raw.get(sid)) if p.get("injury_status") else None
+        if body:
+            rec["injury_body_part"] = body
+        players[sid] = rec
     snapshot = {"schema": SCHEMA, "source": "Sleeper",
                 "source_url": "https://api.sleeper.app/v1/players/nfl",
                 "as_of": as_of, "by_sleeper_id": players}
