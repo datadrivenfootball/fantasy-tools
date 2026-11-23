@@ -1,8 +1,8 @@
 {
- "run_at": "2026-11-22T16:30:02+00:00",
+ "run_at": "2026-11-23T12:40:47+00:00",
  "season": 2026,
  "dry_run": false,
- "pulled_at": "2026-11-22T16:29:42+00:00",
+ "pulled_at": "2026-11-23T12:40:24+00:00",
  "played_weeks": [
   1,
   2,
@@ -13,7 +13,8 @@
   7,
   8,
   9,
-  10
+  10,
+  11
  ],
  "actual_weeks": [
   1,
@@ -29,19 +30,27 @@
   11
  ],
  "actuals": {
-  "rows_in": 4029,
-  "resolved": 4029,
+  "rows_in": 4321,
+  "resolved": 4320,
   "resolved_by": {
-   "espn_id->gsis_id": 592,
-   "espn_id->name": 447,
-   "name": 2990
+   "espn_id->gsis_id": 635,
+   "espn_id->name": 476,
+   "name": 3209
   },
-  "n_unresolved": 0,
-  "unresolved": [],
+  "n_unresolved": 1,
+  "unresolved": [
+   {
+    "espn_id": "4694237",
+    "name": "Max Hurleman",
+    "pos": "WR",
+    "week": 11,
+    "why": "name: inactive"
+   }
+  ],
   "n_no_game": 0,
   "no_game": [],
-  "to_upsert": 1681,
-  "no_offensive_line_skipped": 893,
+  "to_upsert": 1901,
+  "no_offensive_line_skipped": 964,
   "comparison_with_existing": {
    "by_position": {
     "QB": {
@@ -191,16 +200,16 @@
    8,
    9,
    10,
-   11
+   11,
+   12
   ],
-  "rows_written": 147,
-  "unchanged_skipped": 16380,
-  "unresolved_rows": 0,
-  "no_game_skipped": 880
+  "rows_written": 1870,
+  "unchanged_skipped": 16418,
+  "unresolved_rows": 1,
+  "no_game_skipped": 916
  },
  "captures": {
   "target_weeks": [
-   11,
    12,
    13,
    14,
@@ -209,31 +218,31 @@
    17,
    18
   ],
-  "rows": 14856,
-  "unresolved_rows": 0,
+  "rows": 13062,
+  "unresolved_rows": 7,
   "source_week": 11,
-  "phase": "sunday",
+  "phase": "midweek",
   "written": 0,
   "note": "capture for this content week and phase already stored; first one wins"
  },
- "resolved_share": 1.0,
+ "resolved_share": 0.9998,
  "written": {
-  "player_game_stats": 1681,
-  "projection_snapshots": 147
+  "player_game_stats": 1901,
+  "projection_snapshots": 1870
  },
  "warehouse": {
-  "unresolved_rows": 0,
-  "rows": 4952,
+  "unresolved_rows": 7,
+  "rows": 4981,
   "rows_by_week": {
-   "11": 619,
-   "12": 619,
-   "13": 619,
-   "14": 619,
-   "15": 619,
-   "16": 619,
-   "17": 619,
-   "18": 619
+   "11": 620,
+   "12": 623,
+   "13": 623,
+   "14": 623,
+   "15": 623,
+   "16": 623,
+   "17": 623,
+   "18": 623
   },
-  "written": 4952
+  "written": 4981
  }
 }
