@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-23T04:09:25.759050+00:00",
+  "run_at": "2026-11-23T06:44:10.280206+00:00",
   "nfl_week": 11,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -10,9 +10,11 @@
     "cbsros": "promoted 1/1",
     "razzball": "promoted 1/1"
   },
-  "failed": [],
-  "success": true,
-  "outcome": "green",
+  "failed": [
+    "post_rebuild_validation"
+  ],
+  "success": false,
+  "outcome": "failed",
   "held": [],
   "hold_severity": "none",
   "list_changes": {},
@@ -50,7 +52,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7440 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7464 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -75,7 +77,7 @@
       "source": "razzball",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-22 -> 12 DDF legs -> section; review passed (6492 values)",
+      "detail": "snapshot 2026-11-22 -> 12 DDF legs -> section; review passed (6444 values)",
       "promoted": 1,
       "sections": 1
     }
@@ -104,7 +106,7 @@
       "lagging_one_week": false
     },
     "espn": {
-      "content_vintage": "2026-11-22",
+      "content_vintage": "2026-11-23",
       "content_week": 11,
       "health_status": "ok",
       "lagging_one_week": false
@@ -154,7 +156,7 @@
     "espn": {
       "served_week": 11,
       "label_week": 11,
-      "published_at": "2026-11-22",
+      "published_at": "2026-11-23",
       "basis": "section_label",
       "expected_week": 11,
       "weeks_behind": 0,
@@ -209,5 +211,22 @@
   },
   "stale_sources": [],
   "lagging_sources": [],
-  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure"
+  "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
+  "post_rebuild_validation": {
+    "status": "failed",
+    "command": "make validate-data",
+    "failed_tests": [
+      "FAIL tests.test_static_export.StaticExportTest.test_top_indexed_values_preserve_high_overall_scale"
+    ],
+    "assertions": [
+      "AssertionError: 37.411337579617836 not greater than or equal to 38"
+    ],
+    "breaches": [],
+    "make_targets": [
+      "Makefile:696: data-gate"
+    ],
+    "detail": "FAIL tests.test_static_export.StaticExportTest.test_top_indexed_values_preserve_high_overall_scale\nAssertionError: 37.411337579617836 not greater than or equal to 38",
+    "recorded_at": "2026-11-23T06:51:14.753276+00:00",
+    "breach_artifact": "output/post-rebuild-validation-breaches.json"
+  }
 }
