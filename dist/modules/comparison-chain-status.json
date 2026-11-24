@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-24T03:04:46.759044+00:00",
+  "run_at": "2026-11-24T03:29:40.739457+00:00",
   "nfl_week": 11,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -78,7 +78,7 @@
       "source": "espn",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7464 values)",
+      "detail": "snapshot None -> 12 DDF legs -> section; review passed (7476 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -95,7 +95,7 @@
       "source": "cbsros",
       "status": "ok",
       "stage": "complete",
-      "detail": "snapshot 2026-11-23 -> 12 DDF legs -> section; review passed (4368 values)",
+      "detail": "snapshot 2026-11-24 -> 12 DDF legs -> section; review passed (4380 values)",
       "promoted": 1,
       "sections": 1
     },
@@ -144,8 +144,8 @@
       "lagging_one_week": false
     },
     "cbsros": {
-      "content_vintage": "2026-11-23",
-      "content_week": 11,
+      "content_vintage": "2026-11-24",
+      "content_week": 12,
       "health_status": "ok",
       "lagging_one_week": false
     },
@@ -169,9 +169,9 @@
       "stale_after": null
     },
     "cbsros": {
-      "served_week": 11,
-      "label_week": 11,
-      "published_at": "2026-11-23",
+      "served_week": 12,
+      "label_week": 12,
+      "published_at": "2026-11-24",
       "basis": "section_label",
       "expected_week": 11,
       "weeks_behind": 0,
@@ -241,18 +241,14 @@
   "post_rebuild_validation": {
     "status": "failed",
     "command": "make validate-data",
-    "failed_tests": [
-      "FAIL tests.test_static_export.StaticExportTest.test_top_indexed_values_preserve_high_overall_scale"
-    ],
-    "assertions": [
-      "AssertionError: 37.55923566878981 not greater than or equal to 38"
-    ],
+    "failed_tests": [],
+    "assertions": [],
     "breaches": [],
     "make_targets": [
-      "Makefile:696: data-gate"
+      "Makefile:717: value-check-compare"
     ],
-    "detail": "FAIL tests.test_static_export.StaticExportTest.test_top_indexed_values_preserve_high_overall_scale\nAssertionError: 37.55923566878981 not greater than or equal to 38",
-    "recorded_at": "2026-11-24T03:15:00.640400+00:00",
+    "detail": "make validate-data failed at Makefile:717: value-check-compare",
+    "recorded_at": "2026-11-24T03:35:46.842751+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
