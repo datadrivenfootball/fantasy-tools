@@ -240,7 +240,7 @@ class CiSpeedupTest(unittest.TestCase):
         self.assertTrue(any("one browser build" in p for p in browser_problems("v2-render-test.yml", text)))
 
     def test_missing_preview_timeout_is_caught(self):
-        for job, minutes in (("preview-build", 60), ("preview-shard", 30), ("preview", 5)):
+        for job, minutes in (("preview-build", 60), ("preview-shard", 40), ("preview", 5)):
             text = re.sub(rf"    timeout-minutes: {minutes}\n", "", read("preview.yml"))
             self.assertIsNone(job_timeout(text, job), job)
 
