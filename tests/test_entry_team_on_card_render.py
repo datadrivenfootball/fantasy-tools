@@ -161,7 +161,16 @@ class TeamOnCardTest(unittest.TestCase):
         run = Run(page, width)
         run.paste("#rosters", USO, "paste every team's roster")
         page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        self.pick_scoring(page)
         return run
+
+    def pick_scoring(self, page, run=None):
+        """Another league-entry change asks a paste's scoring on the card, and Next waits for it."""
+        if page.locator("#scoring-pick").count() and page.is_visible("#scoring-pick"):
+            if run:
+                run.tap("#scoring-pick [data-scoring=half_ppr]", "Half PPR on the card")
+            else:
+                page.click("#scoring-pick [data-scoring=half_ppr]")
 
     # ---- 1 ----
     def test_the_card_asks_which_team_is_yours(self):
@@ -269,6 +278,7 @@ class TeamOnCardTest(unittest.TestCase):
         run.paste("#rosters", USO, "paste every team's roster")
         page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
         self.assert_page_ok(page)
+        self.pick_scoring(page, run)
         run.tap('#team-pick-list .team-pick-option:has-text("Team 3")', "Team 3 on the card")
         run.tap(".ddf-actionbar__next", "Next: league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
