@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tests._holds import held_source_roots, without_held_charts
+from tests._holds import held_source_roots, without_held_charts, without_holds
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -798,8 +798,10 @@ class StaticExportTest(unittest.TestCase):
     def test_scale_floor_follows_chart_type_not_hold_or_drift(self):
         """JEG-1700: a one-factor chart whose top falls under 38 with its pie
         intact (USA Today, Week 12) passes, held or not; anchor-scale charts
-        under 38 still fail."""
-        drift = copy.deepcopy(self.comparison)
+        under 38 still fail. The build's own holds are cleared so USA Today is the
+        only held chart (test_seeded_hold_build holds FantasyCalc, which shares
+        ESPN's full_12 combo with it)."""
+        drift = without_holds(self.comparison)
         usatoday = drift["sources"].get("usatoday") or {}
         espn_combos = (drift["sources"].get("espn") or {}).get("combos") or {}
         for name, combo in (usatoday.get("combos") or {}).items():
@@ -833,7 +835,7 @@ class StaticExportTest(unittest.TestCase):
         """JEG-1700 (Jeremy, 2026-11-24, "close the gap first"): a held one-factor
         chart whose whole scale halves fails, though its top is still native x factor;
         the same chart held at its real scale passes."""
-        held = copy.deepcopy(self.comparison)
+        held = without_holds(self.comparison)
         usatoday = held["sources"].get("usatoday") or {}
         if not usatoday.get("combos"):
             self.skipTest("no USA Today chart in this build")
