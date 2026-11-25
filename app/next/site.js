@@ -1150,7 +1150,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       'ddf:skip', 'ddf:trade', 'ddf:settingsok', 'ddf:bridgedWs', 'ddf:bridgeKeep', 'ddf:editprev', 'ddf:bookmarked',
       'ddf:bmhint', 'ddf:bmwant', 'ddf:bmdone', 'ddf:bmovbase', 'ddf-recommendation'],
     sessionPrefixes: ['ddf:freshdismiss:'],
-    local: ['ddf.v2.workspaces', 'ddf.v2.league-settings', 'ddf.v2.waiverCandidates', 'ddf.v2.find-min-charts'],
+    local: ['ddf.v2.workspaces', 'ddf.v2.league-settings', 'ddf.v2.waiverCandidates', 'ddf.v2.find-min-charts', 'ddf.v2.entry-last'],
     /* the reader's own edits: only with "Also clear my value overrides" */
     overridesSession: ['ddf:overrides', 'ddf:basis', 'ddf:posweights', 'ddf-v2-link-state'],
     overridesLocal: ['ddf-v2-value-overrides'],

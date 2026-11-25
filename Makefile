@@ -762,6 +762,8 @@ test-core:
 	python3 -m unittest tests.test_player_alias_table
 	python3 -m unittest tests.test_jeg539_position_and_inactive_rules
 	python3 -m unittest tests.test_chain_commits_legs
+	# League entry (Jeremy, 2026-11-20): ESPN and Yahoo quick wins (live rosters link, Paste rosters, remembered league); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main
 	python3 -m unittest tests.test_razzball_refresh
@@ -993,6 +995,8 @@ test-core-shard-1:
 	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
 	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_chain_commits_legs
+	# League entry (Jeremy, 2026-11-20): ESPN and Yahoo quick wins (live rosters link, Paste rosters, remembered league); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main
 	python3 -m unittest tests.test_timestamps
