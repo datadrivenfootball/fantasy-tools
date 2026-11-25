@@ -515,7 +515,10 @@
         if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
         hideEditNames();
         showResult(res, "sleeper");
-        save(DDF.leaguePaste.record(res, "sleeper"));
+        /* the settings Sleeper gave (sleeper-import.js settingsOf), so settings.html can show them as read from the league */
+        var srec = DDF.leaguePaste.record(res, "sleeper");
+        if (out.settings) srec.importSettings = out.settings;
+        save(srec);
         askBookmark(res);
         var lg = res.league || {};
         linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then pick your team.", "ok");

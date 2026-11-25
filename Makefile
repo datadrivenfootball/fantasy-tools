@@ -744,6 +744,8 @@ test-core:
 	python3 -m unittest tests.test_source_curves_distinct
 	python3 -m unittest tests.test_curve_default_guard
 	python3 -m unittest tests.test_superflex
+	# League entry (Jeremy, 2026-11-20): imported league settings as one line, marked From Sleeper; 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_settings_line_render
 	python3 -m unittest tests.test_superflex_publisher_values
 	python3 -m unittest tests.test_jeg1365_two_qb_superflex_values
 	python3 -m unittest tests.test_jeg1366_two_qb_native_share
@@ -979,6 +981,8 @@ test-core-shard-1:
 	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
 	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_superflex
+	# League entry (Jeremy, 2026-11-20): imported league settings as one line, marked From Sleeper; 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_settings_line_render
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
