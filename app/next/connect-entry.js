@@ -105,12 +105,18 @@
     return record;
   }
   function save(record) {
+    if (pickable(record) && !Number.isInteger(record.me)) {
+      var known = knownTeam(record, kept() || dropped);
+      if (known !== null) { record.me = known; record.own = known; }
+    }
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
     /* JEG-1548: the method only (paste, sleeper, manual); analytics.js drops anything not on its list */
     if (DDF.track && record && typeof record.source === "string") DDF.track("league-added/" + record.source);
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
+    drawTeamPick(record);
+    if (Number.isInteger(record.me) && pickable(record)) pickTeam(record.me, {quiet: true});
   }
   function drop() {
     if (editing) { restoreEditing(); return; }
@@ -188,6 +194,57 @@
     var b = $("recognize-button"); if (b) b.setAttribute("aria-expanded", "false");
   }
 
+  /* ---------- "Which team is yours?" on the read card ----------
+     The card already lists every team, so the reader picks theirs here and Next goes straight to League settings; the
+     team page (setup.html) stays for switching later and is still where Next goes before a team is picked. Preselected
+     when the team is known: editing a league (the team you had, by name) or reading the same league again. */
+  var askReplace = false;
+  function pickable(rec) { return !!rec && (rec.source === "paste" || rec.source === "sleeper") && Array.isArray(rec.teams) && rec.teams.length > 1; }
+  function knownTeam(rec, prior) {
+    var names = rec.teams.map(function (t) { return t.name; }), want = null;
+    var prev = DDF.state.get("editprev", null);
+    if (prev && prev.team) want = prev.team;
+    else if (prior && Number.isInteger(prior.me) && prior.teams[prior.me] && DDF.leaguePaste.sameLeague(prior, rec)) want = prior.teams[prior.me].name;
+    var at = want === null ? -1 : names.indexOf(want);
+    return at >= 0 ? at : null;
+  }
+  function teamLine(t) {
+    var n = (t.players || []).length, top = (t.players || []).slice(0, 2).map(function (p) { return p.name; });
+    return plural(n, "player") + " matched" + (top.length ? " · " + top.join(", ") : "");
+  }
+  function drawTeamPick(rec) {
+    var box = $("team-pick"), list = $("team-pick-list");
+    if (!box || !list) return;
+    box.hidden = !pickable(rec);
+    if (box.hidden) { list.innerHTML = ""; return; }
+    list.innerHTML = rec.teams.map(function (t, i) {
+      var on = rec.me === i;
+      return '<label class="team-pick-option' + (on ? " selected" : "") + '"><input type="radio" name="team-pick" value="' + i + '"' + (on ? " checked" : "")
+        + '><span class="team-pick-text"><strong>' + esc(t.name) + "</strong><small>" + esc(teamLine(t)) + "</small></span></label>";
+    }).join("");
+  }
+  function pickTeam(i, opts) {
+    var rec = kept();
+    if (!pickable(rec) || !rec.teams[i]) return;
+    if (DDF.viewAs) DDF.viewAs.set(i, {own: true});
+    rec = kept(); rec.me = i; rec.own = i; DDF.state.set("pasted", rec);
+    if (!(opts && opts.quiet) && DDF.leagueMeta) DDF.leagueMeta.want("team", i + ":" + rec.teams[i].name);
+    /* the live store (setup-entry.js bridge): another saved league is replaced only after the reader says so, on setup.html */
+    var prev = DDF.state.get("editprev", null);
+    var r = DDF.setupEntry && DDF.setupEntry.bridge ? DDF.setupEntry.bridge(rec, prev ? {replace: true} : null) : "failed";
+    askReplace = r === "ask" && !DDF.state.get("bridgeKeep", false);
+    Array.prototype.forEach.call(document.querySelectorAll("#team-pick-list .team-pick-option"), function (l, k) { l.classList.toggle("selected", k === i); });
+    document.dispatchEvent(new CustomEvent("ddf-teampick", {detail: {me: i, name: rec.teams[i].name, askReplace: askReplace}}));
+  }
+  /* only a team shown on this page's card counts: a league kept from before (editing, no new read) still confirms its
+     team on setup.html */
+  function teamChoice() {
+    var box = $("team-pick"), card = $("recognized");
+    if (!box || box.hidden || !card || card.hidden) return null;
+    var rec = kept();
+    return pickable(rec) && Number.isInteger(rec.me) && rec.teams[rec.me] ? {me: rec.me, name: rec.teams[rec.me].name, askReplace: askReplace} : null;
+  }
+
   /* ---------- edit-names box ---------- */
   function showEditNames(names, why) {
     var box = $("edit-names");
@@ -219,7 +276,7 @@
         save(rec);
         pastedSettings(rec);
         askBookmark(res);
-        status("Check the list below, then confirm your team.", "ok");
+        status("Check the list below, then pick your team.", "ok");
         if (scroll) $("recognized").scrollIntoView({block: "start"});
         if (focus) $("recognition-title").focus({preventScroll: true});
         return res;
@@ -258,7 +315,7 @@
       save(rec);
       pastedSettings(rec);
       askBookmark(res);
-      status("Check the list below, then confirm your team.", "ok");
+      status("Check the list below, then pick your team.", "ok");
       $("recognized").scrollIntoView({block: "start"});
       $("recognition-title").focus({preventScroll: true});
     }).catch(function () { $("edit-names-status").textContent = "Player values are still loading. Try again in a moment."; });
@@ -408,7 +465,7 @@
         save(DDF.leaguePaste.record(res, "sleeper"));
         askBookmark(res);
         var lg = res.league || {};
-        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then press Next to confirm your team.", "ok");
+        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then pick your team.", "ok");
         status("", "");
         return out;
       });
@@ -449,6 +506,24 @@
       if (!ta.value.trim()) { status("", ""); hideEditNames(); }
     });
     $("edit-names-go").addEventListener("click", readAgain);
+    var pickList = $("team-pick-list");
+    if (pickList) pickList.addEventListener("change", function (e) { if (e.target && e.target.name === "team-pick") pickTeam(Number(e.target.value)); });
+    /* Next from here confirms the team, as Next on setup.html does: the edit is done */
+    var nextLink = $("connect-next");
+    if (nextLink) nextLink.addEventListener("click", function () {
+      if (!/settings\.html$/.test(nextLink.getAttribute("href") || "")) return;
+      /* the league's name, as Next on setup.html saves it: the name you had (editing), else the one found in the paste */
+      var rec = kept(), prev = DDF.state.get("editprev", null);
+      if (rec && !rec.name) {
+        var name = (prev && prev.name) || rec.suggestedName || null;
+        if (name) {
+          rec.name = name; DDF.state.set("pasted", rec);
+          if (DDF.setupEntry && (DDF.state.get("bridgedWs", null) || prev)) DDF.setupEntry.bridge(rec, prev ? {replace: true} : null);
+          if (DDF.leagueMeta) DDF.leagueMeta.refresh();
+        }
+      }
+      DDF.state.remove("editprev");
+    });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);
@@ -473,5 +548,6 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo,
+    teamChoice: teamChoice, pickTeam: pickTeam};
 })();
