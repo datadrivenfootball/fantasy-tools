@@ -19,6 +19,19 @@ below are history, including any "Codex reviews and merges" line.
 
 ## Resume here
 
+### Week 12 held by the overall-scale floor (JEG-1700, Claude, 2026-11-25 UTC): PR up, urgent
+
+- Every main chain run from 2026-11-23 06:44 UTC failed closed on one data-gate test,
+  `test_static_export.test_top_indexed_values_preserve_high_overall_scale` (min chart top >= 38). The low chart is
+  USA Today: its Nov 17 board is unchanged (top native 81, total 4710) and is indexed by one factor to ESPN's pie over
+  its players, which fell 2242.7 -> 2175.4 -> 2127.4 -> 2080.8, so its top went 38.6 -> 35.8. Not the CBS ROS hold
+  (cbsros was held 2026-11-23 12:48 to 2026-11-24 00:04 UTC, while this test was already failing).
+- Fix on branch `claude/project-thread-n8nb42`: test-only. The 38 floor now applies to anchor-scale charts (ESPN,
+  CBS ROS, Razzball); one-factor charts must reproduce their top as top native x factor, and their scale stays
+  pinned exactly by `test_published_indexed_is_one_factor_on_the_anchor_pie`. Max >= 68 unchanged. No value change.
+- Next: green CI, branch proof of the chain, independent review, Jeremy's yes, merge. Later data-gate tests never ran
+  on the held candidate, so the branch proof is what shows nothing else stands behind this one.
+
 ### Week 10 held by the view-invariants count (JEG-1614, Claude, 2026-11-10 UTC): PR up, urgent
 
 - Every main chain run from 2026-11-10 03:25 UTC failed closed; the site kept the 01:13 UTC build (all Week 9).
