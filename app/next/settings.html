@@ -65,6 +65,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 .team-page .info summary:focus-visible{outline:3px solid #7fbf9d;outline-offset:2px}
 /* JEG-1689: settings read from a pasted league, each marked until the reader confirms or changes it */
 .team-page .paste-notice{background:#fff8e6;border:1px solid #e9d39a;border-left:4px solid #a3730f;border-radius:10px;padding:14px 16px;margin:16px 0 0;color:#3b2f12;max-width:74ch}.team-page .paste-notice p{margin:0 0 6px;font-size:15px;line-height:1.45}.team-page .paste-notice p:last-child{margin-bottom:0}
+.team-page .fit-notice{background:#fff8e6;border:1px solid #e9d39a;border-left:4px solid #a3730f;border-radius:10px;padding:12px 14px;margin:16px 0 0;color:#3b2f12;max-width:74ch}.team-page .fit-notice p{margin:0 0 6px;font-size:15px;line-height:1.45}.team-page .fit-notice p:last-child{margin-bottom:0}.team-page .fit-notice[hidden]{display:none}
 .team-page .st-from{display:inline-block;align-self:flex-start;font-weight:600;font-size:12px;line-height:1.3;padding:2px 8px;border-radius:99px;background:#fff1cc;color:#6b4c00;border:1px solid #e2c676}.team-page .st-from[hidden]{display:none}.team-page .st-lbl .st-from{margin-left:8px;vertical-align:1px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.st-actions{display:none}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
@@ -72,6 +73,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <h1>League settings</h1>
 <div class="paste-notice" id="paste-notice" role="status" hidden></div>
 <p class="muted" id="roster-optional">Roster sizes are optional. Unless you change them, we use a standard roster: <span id="std-roster-text">1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench</span>. You can change any of it below, or just continue. Leagues you import or paste fill in their own sizes.</p>
+<div class="fit-notice" id="fit-notice" role="status" hidden></div>
 <form id="editor">
 <section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
 <section class="card"><h2>Position counts <span class="st-optional">(optional)</span></h2><div class="st-slots">
@@ -275,6 +277,26 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
   }, e => console.error(e));
   $('finish-setup').addEventListener('click', e => { if (!e.currentTarget.hasAttribute('aria-disabled')) save(); }, true);
   $('editor').addEventListener('submit', e => { e.preventDefault(); $('settings-status').textContent = save() ? 'Settings saved.' : 'Check the position counts.'; });
+})();
+</script>
+<script type="module">
+/* Say so when a league does not fit the values: a team count outside 8 to 14 (valued at the closest size we support)
+   and TE premium (extra points per catch for tight ends, not in the values yet). Read from the league (Sleeper today). */
+(function () {
+  const box = document.getElementById('fit-notice');
+  if (!box || !window.DDF || !DDF.league) return;
+  const num = x => (Math.round(x * 100) / 100).toString();
+  DDF.league.ready.then(c => {
+    const rec = c && c.source === 'pasted' ? DDF.state.get('pasted', null) : null, fit = rec && rec.fit;
+    if (!fit) return;
+    const lines = [];
+    if (fit.teams && fit.usedTeams) lines.push('Your league has ' + fit.teams + ' teams. Values are for 8, 10, 12 or 14 teams, so we use ' + fit.usedTeams
+      + (fit.usedTeams >= fit.teams ? ', the closest size at or above yours.' : '.'));
+    if (fit.tePremium) lines.push('Your league gives tight ends ' + num(fit.tePremium) + ' extra ' + (fit.tePremium === 1 ? 'point' : 'points') + ' per catch. Values do not include that yet.');
+    if (!lines.length) return;
+    box.replaceChildren(...lines.map(t => { const p = document.createElement('p'); p.textContent = t; return p; }));
+    box.hidden = false;
+  }, () => {});
 })();
 </script>
 </body></html>

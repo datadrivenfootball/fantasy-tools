@@ -442,7 +442,9 @@ class TestEngineKeepsOrderWhenTheDefaultFallsBack(TestEngineKeepsOrderWithLiveHo
 
     @classmethod
     def _overrides(cls, W):
-        return W.transition_overrides(fixture=cls._live_held_fixture(W), keep_holds=True)
+        # JEG-1700: the scenario names MOVED as on the newest week; pin them there when the
+        # day's data has one still a week behind (FantasyPros at the Week 12 rollover).
+        return W.transition_overrides(fixture=cls._live_held_fixture(W), keep_holds=True, pin_newest=cls.MOVED)
 
     def test_the_replay_clears_the_live_holds(self):
         self.skipTest("this class keeps the live holds on purpose")

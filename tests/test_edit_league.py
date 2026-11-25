@@ -131,14 +131,21 @@ class EditLeagueRenderTest(unittest.TestCase):
         page.fill("#rosters", (FIXTURES / "01-yahoo-iphone.txt").read_text(encoding="utf-8"))   # no league name; has "Hail Marys"
         page.click("#recognize-button")
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        # League entry (Jeremy, 2026-11-20): the team you had is preselected on the read card, and Next goes straight to
+        # League settings with the league's name carried over, as Next on setup.html did.
+        self.assertEqual(page.locator("#team-pick-list .team-pick-option.selected strong").all_text_contents(), ["Hail Marys"])
+        self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
         self.assertEqual(page.get_attribute("#scoring-pick [data-scoring=ppr]", "aria-pressed"), "true", "editing: the league's scoring is kept")
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
-        page.wait_for_url("**/setup.html", timeout=20000)
+        page.wait_for_url("**/settings.html", timeout=20000)
+        kept = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")
+        self.assertEqual(kept["name"], "USO Season XVIII")
+        self.assertEqual(kept["teams"][kept["me"]]["name"], "Hail Marys")
+        self.assertIsNone(page.evaluate("sessionStorage.getItem('ddf:editprev')"), "the edit is done")
+        page.goto(page.url.replace("settings.html", "setup.html"), wait_until="networkidle")
         self.assertEqual(page.input_value("#league-name"), "USO Season XVIII")
-        self.assertIn("current league", page.text_content("#league-name-note"))
         self.assertEqual(page.eval_on_selector("input[name=team]:checked", "e => e.value"), "Hail Marys")
         self.assertIsNone(page.get_attribute("#continue-btn", "aria-disabled"))
-        self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
 
     def test_keep_my_league_after_a_replacement_paste(self):
         page = self.page(seed=seed_script(2))

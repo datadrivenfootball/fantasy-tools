@@ -1041,7 +1041,7 @@ class ReplayPremiseUnavailable(unittest.SkipTest):
 
 
 def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, fixture=None,
-                         keep_holds=False):
+                         keep_holds=False, pin_newest=()):
     """JEG-1177 sentinel: replay a week transition from committed data. The
     `lagging` charts serve their saved Week `week` (default: the week before
     newest_week(); the served fixture carries exactly those natives and the
@@ -1062,7 +1062,12 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
     fixture: the built fixture document to replay (default: the one in dist/),
     for a test that replays a chain state the committed data does not have.
     keep_holds: keep the other charts' holds (only the lagging charts' are
-    cleared), to replay a chain state where the holds tip the default view."""
+    cleared), to replay a chain state where the holds tip the default view.
+    pin_newest: charts the scenario names as already on the newest week. One
+    that really serves an older week (2026-11-24: FantasyPros still on Week 11
+    at the Week 12 rollover) is pinned to the newest week the way
+    tests/_served_weeks.py pins it (label moves, values stay), instead of
+    being hidden, so the replay is the scenario it names (JEG-1700)."""
     if week is None:
         week = newest_week(lagging) - 1
     index = json.loads((DIST / "assets" / "history" / "index.json").read_text(encoding="utf-8"))
@@ -1072,6 +1077,12 @@ def transition_overrides(lagging=("cbs", "usatoday"), week=None, corrupt=None, f
     for slug, key in sorted((fixture.get("player_keys") or {}).items()):
         slug_of.setdefault(int(key), slug)
     saved = _week(week)
+    for key in pin_newest:
+        served = index["served"].get(key)
+        if isinstance(served, dict) and isinstance(served.get("week"), int) and served["week"] != week + 1:
+            index["served"][key] = {**served, "week": week + 1, "label_week": week + 1}
+            if isinstance(fixture["sources"].get(key), dict):
+                fixture["sources"][key]["week_designated"] = f"Week {week + 1}"
     for section in ([] if keep_holds else fixture["sources"].values()):
         if isinstance(section, dict):
             for field in ("validationHold", "promotionHold"):
