@@ -222,11 +222,42 @@ class EspnYahooQuickWinsTest(unittest.TestCase):
         page.wait_for_function(ENGINE_READY, timeout=60000)
         page.wait_for_selector("#link-result a.button")
         self.assertEqual(self.provider(page), "yahoo", "the platform is preselected")
-        self.assertEqual(page.input_value("#league-ref"), YAHOO_LINK)
+        self.assertEqual(page.input_value("#league-ref"), "848938", "the league ID only, never the rest of the link")
         self.assertEqual(page.get_attribute("#link-result a.button", "href"), YAHOO_ROSTERS, "the Open button is ready: 1 tap")
+        self.assertEqual(page.evaluate("JSON.parse(localStorage.getItem('ddf.v2.entry-last'))"), {"v": 2, "platform": "yahoo", "id": "848938"})
         keys = page.evaluate("DDF.startFresh.KEYS.local")
         self.assertIn("ddf.v2.entry-last", keys, "Start fresh clears it")
         self.assert_page_ok(page)
+
+    def test_only_the_platform_and_id_are_stored_and_forget_clears_them(self):
+        page = self.connect(PHONE)
+        page.click("[data-provider=espn]")
+        page.fill("#league-ref", "https://fantasy.espn.com/football/league?leagueId=123456&seasonId=2026#team")
+        page.wait_for_selector("#link-result a.button")
+        self.assertEqual(page.evaluate("localStorage.getItem('ddf.v2.entry-last')"), '{"v":2,"platform":"espn","id":"123456"}')
+        self.assertTrue(page.is_visible("#entry-forget"))
+        self.assertGreaterEqual(page.locator("#entry-forget").bounding_box()["height"], 44)
+        page.click("#entry-forget")
+        self.assertIsNone(page.evaluate("localStorage.getItem('ddf.v2.entry-last')"))
+        self.assertEqual(page.input_value("#league-ref"), "")
+        self.assertTrue(page.is_hidden("#entry-forget"))
+        page.goto(f"{self.base}/connect.html", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        self.assertEqual(page.input_value("#league-ref"), "", "nothing comes back after Forget")
+
+    def test_a_sleeper_length_number_on_espn_offers_sleeper(self):
+        page = self.connect(PHONE)
+        page.fill("#league-ref", SLEEPER_ID)
+        page.wait_for_timeout(200)
+        self.assertEqual(page.locator("#link-result a.button").count(), 0, "no ESPN rosters link for a league that cannot exist")
+        if page.locator("#link-platform").count():   # the platform-link change says it there
+            self.assertIn("as long as a Sleeper league ID", page.text_content("#link-platform"))
+            page.click("#link-platform [data-switch-provider=sleeper]")
+        else:
+            self.assertIn("as long as a Sleeper league ID", page.text_content("#link-result"))
+            page.click("#entry-to-sleeper")
+        page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        self.assertEqual(self.provider(page), "sleeper")
 
     def test_a_loaded_sleeper_league_is_remembered(self):
         page = self.connect(PHONE)
