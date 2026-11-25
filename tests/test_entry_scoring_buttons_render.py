@@ -222,8 +222,13 @@ class ScoringButtonsTest(unittest.TestCase):
         if not f["link"]:
             run.tap("[data-provider=yahoo]", "Yahoo toggle (the link does not set it on this build)")
         run.paste("#league-ref", YAHOO_LINK, "paste the USO league link")
-        run.tap("#get-link", "Get rosters link")
+        live = page.is_hidden("#get-link")   # the ESPN and Yahoo quick wins show the link as the box fills
+        if live:
+            page.wait_for_selector("#link-result a.button")
+        else:
+            run.tap("#get-link", "Get rosters link")
         self.assertEqual(page.get_attribute("#link-result a.button", "href"), YAHOO_ROSTERS)
+        f["live"] = live
         run.count(1, "Open your rosters page")
         run.offsite()
         run.paste("#rosters", USO, "paste every team's roster")
@@ -260,7 +265,7 @@ class ScoringButtonsTest(unittest.TestCase):
         for width in (PHONE, DESKTOP):
             with self.subTest(width=width):
                 run, f = self.uso_path(width)
-                want = USO_TAPS_MAIN[width] - (1 if f["link"] else 0) - (1 if f["card"] else 0)
+                want = USO_TAPS_MAIN[width] - (1 if f["link"] else 0) - (1 if f["card"] else 0) - (1 if f.get("live") else 0)
                 self.assertEqual(run.taps, want, "\n".join(run.log))
                 self.assertEqual(len(run.entry_pages()), 3 - (1 if f["card"] else 0))
                 print(f"\nUSO {width}px: {run.taps} taps, {len(run.entry_pages())} pages (main: {USO_TAPS_MAIN[width]}, 3)")
