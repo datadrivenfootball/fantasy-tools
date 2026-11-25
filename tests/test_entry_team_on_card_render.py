@@ -155,7 +155,7 @@ class TeamOnCardTest(unittest.TestCase):
 
     def expected_uso(self, width, f):
         """main's count less each shipped quick win: the link sets Yahoo (1), the team on the card (1 tap, 1 page)"""
-        return USO_TAPS_MAIN[width] - (1 if f["link"] else 0) - (1 if f["card"] else 0), 3 - (1 if f["card"] else 0)
+        return USO_TAPS_MAIN[width] - (1 if f["link"] else 0) - (1 if f["card"] else 0) - (1 if f.get("live") else 0), 3 - (1 if f["card"] else 0)
 
     def paste_uso(self, page, width):
         run = Run(page, width)
@@ -271,8 +271,13 @@ class TeamOnCardTest(unittest.TestCase):
             run.tap("[data-provider=yahoo]", "Yahoo toggle (the link does not set it on this build)")
         run.paste("#league-ref", YAHOO_LINK, "paste the USO league link")
         self.assertEqual(self.provider(page), "yahoo")
-        run.tap("#get-link", "Get rosters link")
+        live = page.is_hidden("#get-link")   # the ESPN and Yahoo quick wins show the link as the box fills
+        if live:
+            page.wait_for_selector("#link-result a.button")
+        else:
+            run.tap("#get-link", "Get rosters link")
         self.assertEqual(page.get_attribute("#link-result a.button", "href"), YAHOO_ROSTERS)
+        f["live"] = live
         run.count(1, "Open your rosters page")
         run.offsite()
         run.paste("#rosters", USO, "paste every team's roster")
