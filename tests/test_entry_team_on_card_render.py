@@ -249,6 +249,58 @@ class TeamOnCardTest(unittest.TestCase):
         self.assertEqual(page.locator("#team-pick-list .team-pick-option.selected strong").all_text_contents(), ["Team 5"])
         self.assertEqual(page.get_attribute("#connect-next", "href"), "settings.html")
 
+    def edit_league(self, page, team="Team 5"):
+        """A saved USO league with your team, then Edit league (connect.html?edit=1)."""
+        self.paste_uso(page, PHONE)
+        page.click(f'#team-pick-list .team-pick-option:has-text("{team}")')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.goto(f"{self.base}/connect.html?edit=1", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        page.fill("#rosters", "")
+        return page.evaluate("localStorage.getItem('ddf.v2.workspaces')")
+
+    def test_editing_writes_the_saved_league_only_on_next(self):
+        page = self.connect(PHONE)
+        saved = self.edit_league(page)
+        renamed = USO.replace("Team 1\n", "Renamed One\n", 1)   # a new read of the league, one team renamed
+        Run(page, PHONE).paste("#rosters", renamed)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        self.pick_scoring(page)
+        self.assertEqual(page.locator("#team-pick-list .team-pick-option.selected strong").all_text_contents(), ["Team 5"])
+        self.assertEqual(page.evaluate("localStorage.getItem('ddf.v2.workspaces')"), saved, "reading a paste writes nothing to the saved league")
+        page.click('#team-pick-list .team-pick-option:has-text("Team 7")')
+        self.assertEqual(page.evaluate("localStorage.getItem('ddf.v2.workspaces')"), saved, "nor does picking a team")
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        ws = page.evaluate("JSON.parse(localStorage.getItem('ddf.v2.workspaces')).workspaces[0]")
+        self.assertEqual(ws["teams"][0]["name"], "Renamed One", "Next writes the new rosters")
+        self.assertEqual([t["id"] for t in ws["teams"]].index(ws["myTeamId"]), 6, "and your team")
+
+    def test_keep_my_league_after_a_pick_leaves_everything_as_it_was(self):
+        page = self.connect(PHONE)
+        saved = self.edit_league(page)
+        session = page.evaluate("sessionStorage.getItem('ddf:pasted')")
+        Run(page, PHONE).paste("#rosters", USO.replace("Team 1\n", "Renamed One\n", 1))
+        page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        page.click('#team-pick-list .team-pick-option:has-text("Team 7")')
+        page.click("#entry-keep")
+        page.wait_for_url("**/team.html", timeout=30000)
+        self.assertEqual(page.evaluate("localStorage.getItem('ddf.v2.workspaces')"), saved)
+        self.assertEqual(page.evaluate("sessionStorage.getItem('ddf:pasted')"), session)
+
+    def test_editing_with_no_team_you_had_falls_back_to_the_team_page(self):
+        page = self.connect(PHONE)
+        self.edit_league(page)
+        Run(page, PHONE).paste("#rosters", USO.replace("Team 5\n", "Someone Else\n", 1))   # the team you had is gone
+        page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        self.pick_scoring(page)
+        self.assertEqual(page.locator("#team-pick-list input:checked").count(), 0, "nothing to preselect")
+        self.assertEqual(page.text_content(".ddf-actionbar__next").strip(), "Next: confirm your team")
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/setup.html", timeout=30000)
+        self.assertEqual(page.locator(".setup-option").count(), 12)
+
     # ---- 4 ----
     def test_without_a_pick_next_goes_to_the_team_page(self):
         page = self.connect(PHONE)

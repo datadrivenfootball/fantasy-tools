@@ -223,21 +223,36 @@
         + '><span class="team-pick-text"><strong>' + esc(t.name) + "</strong><small>" + esc(teamLine(t)) + "</small></span></label>";
     }).join("");
   }
+  /* Picking only marks the team in this tab's league (ddf:pasted me/own). The saved league (ddf.v2.workspaces) and
+     Viewing as are written on Next (confirmTeam), as on main where they wait for the team page: until then "Keep my
+     league" puts everything back. */
   function pickTeam(i, opts) {
     var rec = kept();
     if (!pickable(rec) || !rec.teams[i]) return;
-    if (DDF.viewAs) DDF.viewAs.set(i, {own: true});
-    rec = kept(); rec.me = i; rec.own = i; DDF.state.set("pasted", rec);
+    rec.me = i; rec.own = i; DDF.state.set("pasted", rec);
     if (!(opts && opts.quiet) && DDF.leagueMeta) DDF.leagueMeta.want("team", i + ":" + rec.teams[i].name);
-    /* the live store (setup-entry.js bridge): another saved league is replaced only after the reader says so, on setup.html */
+    /* another saved league is replaced only after the reader says so, on setup.html (a dry run: nothing written) */
     var prev = DDF.state.get("editprev", null);
-    var r = DDF.setupEntry && DDF.setupEntry.bridge ? DDF.setupEntry.bridge(rec, prev ? {replace: true} : null) : "failed";
+    var r = DDF.setupEntry && DDF.setupEntry.bridge ? DDF.setupEntry.bridge(rec, {dryRun: true, replace: !!prev}) : "failed";
     askReplace = r === "ask" && !DDF.state.get("bridgeKeep", false);
     Array.prototype.forEach.call(document.querySelectorAll("#team-pick-list .team-pick-option"), function (l, k) { l.classList.toggle("selected", k === i); });
     document.dispatchEvent(new CustomEvent("ddf-teampick", {detail: {me: i, name: rec.teams[i].name, askReplace: askReplace}}));
   }
   /* only a team shown on this page's card counts: a league kept from before (editing, no new read) still confirms its
      team on setup.html */
+  /* Next with a team picked on the card: what Next on setup.html does. Viewing as, the league's name (the name you had
+     while editing, else the one found in the paste), the saved league, and the edit is done. */
+  function confirmTeam() {
+    var rec = kept(), prev = DDF.state.get("editprev", null);
+    if (!pickable(rec) || !Number.isInteger(rec.me)) return;
+    if (DDF.viewAs) DDF.viewAs.set(rec.me, {own: true});
+    rec = kept();
+    if (!rec.name) { var name = (prev && prev.name) || rec.suggestedName || null; if (name) rec.name = name; }
+    DDF.state.set("pasted", rec);
+    if (DDF.setupEntry && DDF.setupEntry.bridge) DDF.setupEntry.bridge(rec, prev ? {replace: true} : null);
+    if (DDF.leagueMeta) DDF.leagueMeta.refresh();
+    DDF.state.remove("editprev");
+  }
   function teamChoice() {
     var box = $("team-pick"), card = $("recognized");
     if (!box || box.hidden || !card || card.hidden) return null;
@@ -512,17 +527,7 @@
     var nextLink = $("connect-next");
     if (nextLink) nextLink.addEventListener("click", function () {
       if (!/settings\.html$/.test(nextLink.getAttribute("href") || "")) return;
-      /* the league's name, as Next on setup.html saves it: the name you had (editing), else the one found in the paste */
-      var rec = kept(), prev = DDF.state.get("editprev", null);
-      if (rec && !rec.name) {
-        var name = (prev && prev.name) || rec.suggestedName || null;
-        if (name) {
-          rec.name = name; DDF.state.set("pasted", rec);
-          if (DDF.setupEntry && (DDF.state.get("bridgedWs", null) || prev)) DDF.setupEntry.bridge(rec, prev ? {replace: true} : null);
-          if (DDF.leagueMeta) DDF.leagueMeta.refresh();
-        }
-      }
-      DDF.state.remove("editprev");
+      confirmTeam();
     });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
