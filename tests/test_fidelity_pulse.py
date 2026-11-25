@@ -988,6 +988,22 @@ class Parsers(unittest.TestCase):
         self.assertEqual({"std|2": "3", "half|2": "3", "full|2": "3"}, rows[0].values)  # '--' never read as 0
         self.assertTrue(any("no table found" in n for n in notes))
 
+    def test_empty_heading_keeps_the_position(self):
+        """JEG-1700: the Week 12 2026 FantasyPros page has an empty <h3> (zero-width text) between the QB
+        heading and the QB table. It replaced the QB heading, QB was 'no table found' and FantasyPros was
+        held red on publisher_vs_stored with every value matching. A heading with text still resets."""
+        table = ("<table><tr><th>Name</th><th>Team</th><th>Value</th><th>2QB Value</th></tr>"
+                 "<tr><td>Josh Allen</td><td>BUF</td><td>29.1</td><td>69.5</td></tr></table>")
+        for empty in ("<h3>\u200b</h3>", "<h3><span>\ufeff</span>\u00ad</h3>", "<h3> \u00a0</h3>", "<h3></h3>"):
+            html = "<h3>Quarterback Fantasy Football Trade Value Chart</h3>" + empty + table
+            rows, notes = fp.read_tables("fantasypros", fp.parse_page(html)[1])
+            self.assertEqual(["QB"], [r.pos for r in rows], empty)
+            self.assertEqual({"std|1": "29.1", "half|1": "29.1", "full|1": "29.1", "std|2": "69.5",
+                              "half|2": "69.5", "full|2": "69.5"}, rows[0].values)
+        html = "<h3>Quarterback Fantasy Football Trade Value Chart</h3><h3>Sponsored</h3>" + table
+        rows, _ = fp.read_tables("fantasypros", fp.parse_page(html)[1])
+        self.assertEqual([], rows)
+
     def test_first_title_wins(self):
         title, _ = fp.parse_page(cbs_html(CBS))
         self.assertIn("Week 5", title)

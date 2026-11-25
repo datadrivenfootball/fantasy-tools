@@ -28,3 +28,13 @@ followed by whitespace or `>`, and a heading closes at its own level. A failed p
 
 ### Claimed, not confirmed
 - FantasyPros Week 12 on the live site: needs the write ingest, the chain and the deploy after merge.
+
+### Same cause in the fidelity pulse (added 14:40 UTC)
+After the FantasyPros Week 12 write ingest (04:01) the fidelity pulse held FantasyPros **red** on
+`publisher_vs_stored` from 06:40: "438/438 values match exactly ... 32 stored players not on the page; parse notes:
+no table found for QB". The pulse has its own table reader (`pipelines/fidelity_pulse.py` `_TableParser`). It
+already skipped a whitespace-only heading, but zero-width characters and soft hyphens are not whitespace to
+`str.split()`, so the empty `<h3>` replaced the QB heading and the QB table had no position. A red hold hides the
+source's curves on the page, so the next deploy of main would hide FantasyPros. Fix: strip the same invisible
+characters before the empty check. Test: `tests/test_fidelity_pulse.py`
+`Parsers.test_empty_heading_keeps_the_position` (fails on main's reader; 58 pass with the fix).
