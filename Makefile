@@ -764,6 +764,10 @@ test-core:
 	python3 -m unittest tests.test_chain_commits_legs
 	# League entry (Jeremy, 2026-11-20): ESPN and Yahoo quick wins (live rosters link, Paste rosters, remembered league); 375px and desktop. Light, so in shard 1.
 	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
+	# League entry (Jeremy, 2026-11-24): a public ESPN league loads from its ID (ESPN faked); 375px and desktop. Light (about 50 s), so in shard 1.
+	python3 -m unittest tests.test_entry_espn_load_render
+	# ESPN import reader: fixture responses, no live calls (node, under a second).
+	node tests/test_espn_import.js
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main
 	python3 -m unittest tests.test_razzball_refresh
@@ -997,6 +1001,10 @@ test-core-shard-1:
 	python3 -m unittest tests.test_chain_commits_legs
 	# League entry (Jeremy, 2026-11-20): ESPN and Yahoo quick wins (live rosters link, Paste rosters, remembered league); 375px and desktop. Light, so in shard 1.
 	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
+	# League entry (Jeremy, 2026-11-24): a public ESPN league loads from its ID (ESPN faked); 375px and desktop. Light (about 50 s), so in shard 1.
+	python3 -m unittest tests.test_entry_espn_load_render
+	# ESPN import reader: fixture responses, no live calls (node, under a second).
+	node tests/test_espn_import.js
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main
 	python3 -m unittest tests.test_timestamps

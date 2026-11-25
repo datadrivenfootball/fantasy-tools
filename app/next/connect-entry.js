@@ -172,9 +172,10 @@
   }
   function showResult(res, from) {
     var card = $("recognized");
-    /* a Sleeper league is read from Sleeper, not a paste: its team names come from the league, so no rename box */
-    $("recognition-title").textContent = from === "sleeper" ? "Here's what we read from Sleeper" : "Here's what we read from your paste";
-    $("edit-team-names").hidden = from === "sleeper";
+    /* a Sleeper or ESPN league is read from the platform, not a paste: its team names come from the league, so no rename box */
+    var platformName = {sleeper: "Sleeper", espn: "ESPN"}[from];
+    $("recognition-title").textContent = platformName ? "Here's what we read from " + platformName : "Here's what we read from your paste";
+    $("edit-team-names").hidden = !!platformName;
     $("recognition-summary").textContent = summaryText(res);
     var lg = res.league || {}, found = $("recognition-league");
     if (found) {
@@ -205,7 +206,7 @@
      team page (setup.html) stays for switching later and is still where Next goes before a team is picked. Preselected
      when the team is known: editing a league (the team you had, by name) or reading the same league again. */
   var askReplace = false;
-  function pickable(rec) { return !!rec && (rec.source === "paste" || rec.source === "sleeper") && Array.isArray(rec.teams) && rec.teams.length > 1; }
+  function pickable(rec) { return !!rec && (rec.source === "paste" || rec.source === "sleeper" || rec.source === "espn") && Array.isArray(rec.teams) && rec.teams.length > 1; }
   function knownTeam(rec, prior) {
     var names = rec.teams.map(function (t) { return t.name; }), want = null;
     var prev = DDF.state.get("editprev", null);
@@ -357,7 +358,7 @@
     });
   }
   function readAgain() {
-    if (kept() && kept().source === "sleeper") { hideEditNames(); return; }
+    if (kept() && (kept().source === "sleeper" || kept().source === "espn")) { hideEditNames(); return; }
     var names = $("edit-names-input").value.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
     if (names.length < 2) { $("edit-names-status").textContent = "Add at least two team names, one per line."; return; }
     whenRows().then(function (r) {
@@ -570,6 +571,93 @@
       return null;
     }).catch(function () { if (current()) { sleeperDone(el); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); } return null; });
   }
+  /* ---------- ESPN public leagues: the league ID loads every roster (espn-import.js) ----------
+     connect.html's live() calls espnLookup(id, {button}) when the box holds an ESPN league ID; `button` is the rosters
+     page link it would have shown. While ESPN answers, the box says "Looking up your league..."; a public league fills
+     the read card (the team is picked there: ESPN's public data does not say which team is yours); a private league,
+     an unknown ID, a timeout or no network falls through to that rosters link with the reason. A remembered ID on a
+     return visit loads only when no league is kept in this browser. */
+  var espnSeq = 0, espnLast = null;
+  function espnOut(id, html, kind) {
+    var out = $("link-result"); if (!out) return;
+    out.className = kind ? "is-" + kind : "";
+    out.innerHTML = '<span class="espn-out" data-espn="' + esc(id) + '">' + html + "</span>";
+  }
+  function espnShown(id) { var out = $("link-result"); return !!(out && out.querySelector('.espn-out[data-espn="' + id + '"]')); }
+  function espnProgress(id, steps) {
+    espnOut(id, '<strong class="espn-look-title">Looking up your league...</strong><ul class="espn-prog">' + steps.map(function (s) {
+      return '<li class="' + (s.done ? "done" : "on") + '">' + esc(s.text) + "</li>";
+    }).join("") + '</ul><span class="espn-look-note">Straight from ESPN to your browser. Usually a few seconds.</span>', "loading");
+  }
+  function espnFail(id, out, button) {
+    var code = (out && out.code) || "network", msg = DDF.espn.MESSAGES[code] ? DDF.espn.MESSAGES[code](out) : DDF.espn.MESSAGES.network();
+    var extra = "";
+    if (code === "private") extra = '<span class="espn-why-tip">League manager? Making the league viewable to the public in ESPN\'s league settings lets everyone skip this.</span>';
+    if (code === "notfound") extra = '<span class="espn-why-tip">Is your league on Yahoo? <button type="button" class="link-button" data-switch-provider="yahoo">My league is on Yahoo</button></span>';
+    if (code === "timeout" || code === "network") extra = '<span class="espn-why-tip"><button type="button" class="link-button" data-espn-retry>Try again</button></span>';
+    espnOut(id, '<span class="espn-why">' + esc(msg) + "</span>" + (button || "") + extra, "note");
+  }
+  function espnLookup(id, opts) {
+    opts = opts || {};
+    var el = wayEls();
+    if (!DDF.espn || !el || !/^\d{1,12}$/.test(String(id || ""))) return false;
+    if (espnShown(id)) return true;   /* already looking it up, loaded, or said why not */
+    if (opts.restore && (kept() || (DDF.leagueMeta && DDF.leagueMeta.info()))) return false;   /* a kept league stays as it is */
+    var seq = ++espnSeq, ref = DDF.espn.parseId(el.input.value) || {id: id, season: null};
+    espnLast = {id: id, button: opts.button || ""};
+    var inBox = new RegExp("(^|\\D)" + id + "(\\D|$)");   /* the box still holds this ID (a link, a bare number or text around it) */
+    var current = function () { return seq === espnSeq && provider() === "espn" && inBox.test(el.input.value); };
+    var started = Date.now();
+    document.body.classList.remove("espn-loaded");
+    espnProgress(id, [{text: "Asking ESPN for league " + id}]);
+    /* a short pause, so typing an ID digit by digit asks ESPN once */
+    setTimeout(function () {
+      if (!current()) return;
+      whenRows().then(function (rows) {
+        if (!current()) return null;
+        return DDF.espn.load(id, {rows: rows, table: table(), season: ref.season || null, onProgress: function (p) {
+          if (!current()) return;
+          espnProgress(id, [{text: "Found an ESPN league" + (p.name ? ": " + p.name : ""), done: true},
+            {text: p.teams ? "Reading " + plural(p.teams, "roster") : "Reading every roster"}]);
+        }}).then(function (out) {
+          if (!current()) return null;
+          if (!out || !out.ok) { espnFail(id, out, espnLast.button); return out; }
+          var res = out.result;
+          if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
+          hideEditNames();
+          showResult(res, "espn");
+          var rec = DDF.leaguePaste.record(res, "espn");
+          if (out.settings) rec.importSettings = out.settings;
+          save(rec);
+          askBookmark(res);
+          var lg = res.league || {};
+          espnOut(id, esc("We found: " + (lg.leagueName || "your league") + " on ESPN, " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player")
+            + ". Pick your team below.") + ' <button type="button" class="link-button" data-espn-paste>Paste the rosters page instead</button>', "ok");
+          document.body.classList.add("espn-loaded");
+          status("", "");
+          DDF.espn.lastMs = Date.now() - started;
+          var card = $("recognized"); if (card && card.scrollIntoView) card.scrollIntoView({block: "start"});
+          return out;
+        });
+      }, function () {
+        if (current()) espnOut(id, esc("Player values are still loading. Try again in a moment.") + ' <button type="button" class="link-button" data-espn-retry>Try again</button>', "note");
+        return null;
+      }).catch(function () { if (current()) espnFail(id, {code: "network"}, espnLast.button); });
+    }, opts.delay === undefined ? 350 : opts.delay);
+    return true;
+  }
+  /* the copy steps come back with any other league, another platform, or "Paste the rosters page instead" */
+  document.addEventListener("ddf:pasted", function (e) { var r = e.detail; if (!r || r.source !== "espn") document.body.classList.remove("espn-loaded"); });
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("[data-provider]")) setTimeout(function () { if (provider() !== "espn") document.body.classList.remove("espn-loaded"); }, 0);
+    if (e.target.closest && e.target.closest("[data-espn-paste]")) { document.body.classList.add("show-paste"); $("rosters").focus(); }
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest("[data-espn-retry]") || !espnLast) return;
+    var last = espnLast, out = $("link-result");
+    if (out) out.innerHTML = "";
+    espnLookup(last.id, {button: last.button, delay: 0});
+  });
   function initSleeper() {
     var el = wayEls(); if (!el || !DDF.sleeper) return;
     document.addEventListener("click", function (e) {
@@ -647,7 +735,7 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo,
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo, espnLookup: espnLookup,
     platformOf: platformOf, followLink: followLink,
     teamChoice: teamChoice, pickTeam: pickTeam,
     scoringChoice: scoringChoice, pickScoring: pickScoring};

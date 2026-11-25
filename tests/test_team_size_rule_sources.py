@@ -40,6 +40,13 @@ class TeamSizeRuleTest(unittest.TestCase):
             console.log(JSON.stringify({json.dumps(COUNTS)}.map(n => S.settingsOf({{total_rosters: n, roster_positions: ['QB'], scoring_settings: {{rec: 1}}}}).teams)));""")
         self.assertEqual(got, WANT)
 
+    def test_espn_import_rounds_up(self):
+        got = node(f"""
+            global.window = global; global.DDF = {{}};
+            const E = require({json.dumps(str(NEXT / 'espn-import.js'))});
+            console.log(JSON.stringify({json.dumps(COUNTS)}.map(n => E.settingsOf({{settings: {{size: n, rosterSettings: {{lineupSlotCounts: {{"0": 1}}}}}}}}).teams)));""")
+        self.assertEqual(got, WANT)
+
     def test_paste_reader_rounds_up_from_six(self):
         got = node(f"""
             global.window = global;
