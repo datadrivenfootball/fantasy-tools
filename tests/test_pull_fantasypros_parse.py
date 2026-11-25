@@ -63,6 +63,43 @@ class ParseTablesTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             fp.parse_tables(_page(positions=("Quarterback", "Running Back", "Wide Receiver")))
 
+    def test_custom_table_element_does_not_swallow_the_qb_section(self):
+        """JEG-1700: Week 12 2026 failed four runs with "found ['RB', 'WR',
+        'TE']". An element whose tag starts with "table" (a table of contents,
+        a TablePress wrapper) opened a lazy <table...</table> match before
+        the QB heading and ran on to the QB table's close, so the QB heading
+        and table vanished. Only a real <table> tag opens a table now."""
+        page = _page().replace(
+            "<h2>Quarterback",
+            '<table-of-contents class="toc"><a href="#qb">QB</a></table-of-contents>'
+            "<h2>Quarterback")
+        rows = fp.parse_tables(page)
+        self.assertEqual([r[0] for r in rows], ["QB", "RB", "WR", "TE"])
+        self.assertEqual(rows[0], ("QB", "Josh Allen", "BUF", 29.1))
+        self.assertEqual(fp.parse_superflex(page), {("Josh Allen", "BUF"): 69.5})
+
+    def test_h3_headings_and_invisible_characters(self):
+        """The Week 12 page puts the position headings in h3 under an h2;
+        a soft hyphen or zero-width space inside a heading word must not
+        hide the position."""
+        page = _page().replace("<h2>Quarterback", "<h3>Quarter\u00adback").replace(
+            "Quarterback Fantasy Football Trade Value Chart</h2>", "")
+        page = page.replace("<h3>Quarter\u00adback Fantasy Football Trade Value Chart</h2>",
+                            "<h3>Quarter\u00adback Fantasy Football Trade Value Chart</h3>")
+        page = page.replace("<h2>Running Back", "<h3>Running\u200b Back").replace(
+            "Running\u200b Back Fantasy Football Trade Value Chart</h2>",
+            "Running\u200b Back Fantasy Football Trade Value Chart</h3>")
+        rows = fp.parse_tables(page)
+        self.assertEqual([r[0] for r in rows], ["QB", "RB", "WR", "TE"])
+
+    def test_failure_names_the_page_layout(self):
+        page = _page(positions=("Running Back", "Wide Receiver", "Tight End"))
+        with self.assertRaises(RuntimeError) as cm:
+            fp.parse_tables(page)
+        msg = str(cm.exception)
+        self.assertIn("page outline:", msg)
+        self.assertIn("h2 'Running Back Fantasy Football Trade Value Chart'", msg)
+
     def test_published_date(self):
         self.assertEqual(fp.published_date(_page()), "2026-10-06")
 

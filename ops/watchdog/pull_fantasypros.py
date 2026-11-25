@@ -252,6 +252,45 @@ def published_date(html):
     return m.group(1) if m else None
 
 
+# A position heading, or a real <table> element. `<table` then whitespace or `>` on purpose (not `\b`, which matches before a hyphen): a
+# custom element such as <table-of-contents> or <tablepress-...> must not
+# open a match, because its lazy `.*?</table>` would run on to the next real
+# table's close and swallow the heading in between (the Week 12 2026 QB
+# section vanished that way: "found ['RB', 'WR', 'TE']"). A heading must
+# close at its own level.
+_SECTION_RE = re.compile(r"<(h[23])(?=[\s>])[^>]*>(.*?)</\1\s*>|<table(?=[\s>])[^>]*>.*?</table\s*>",
+                         re.S | re.I)
+# Characters that split a word without showing: soft hyphen, zero-width
+# space/joiners, word joiner, BOM.
+_INVISIBLE_RE = re.compile("[\u00ad\u200b\u200c\u200d\u2060\ufeff]")
+
+
+def _heading_position(raw):
+    head = _INVISIBLE_RE.sub("", _cell_text(raw)).lower()
+    head = re.sub(r"\s+", " ", head)
+    return next((p for k, p in POSITION_HEADINGS if k in head), None)
+
+
+def _position_tables(html):
+    """-> [(position, table_html)]: each real table that directly follows a
+    position heading (any other heading in between resets the position)."""
+    out, pos = [], None
+    for m in _SECTION_RE.finditer(html):
+        if m.group(1) is not None:
+            pos = _heading_position(m.group(2))
+            continue
+        if pos is not None:
+            out.append((pos, m.group(0)))
+            pos = None
+    return out
+
+
+def _table_cells(table_html):
+    trs = re.findall(r"<tr(?=[\s>]).*?</tr\s*>", table_html, re.S | re.I)
+    return [[_cell_text(c) for c in re.findall(r"<t[dh](?=[\s>])[^>]*>(.*?)</t[dh]\s*>", tr, re.S | re.I)]
+            for tr in trs]
+
+
 def parse_tables(html):
     """-> [(position, name, team, value)] from the four position tables.
 
@@ -261,17 +300,8 @@ def parse_tables(html):
     exactly QB, RB, WR and TE are each found once with rows.
     """
     rows, seen = [], []
-    pos = None
-    for m in re.finditer(r"<h[23][^>]*>(.*?)</h[23]>|<table.*?</table>", html, re.S | re.I):
-        if m.group(1) is not None:
-            head = _cell_text(m.group(1)).lower()
-            pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
-            continue
-        if pos is None:
-            continue
-        trs = re.findall(r"<tr.*?</tr>", m.group(0), re.S | re.I)
-        cells = [[_cell_text(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)]
-                 for tr in trs]
+    for pos, table in _position_tables(html):
+        cells = _table_cells(table)
         header = cells[0] if cells else []
         if "Name" not in header or "Value" not in header:
             raise RuntimeError("FantasyPros %s table has no Name/Value header: %r" % (pos, header))
@@ -285,11 +315,39 @@ def parse_tables(html):
         if n == 0:
             raise RuntimeError("FantasyPros %s table is empty" % pos)
         seen.append(pos)
-        pos = None
     if sorted(seen) != ["QB", "RB", "TE", "WR"]:
         raise RuntimeError("FantasyPros position tables found: %s (need QB, RB, WR, TE once each)\n%s"
                            % (seen, page_outline(html)))
     return rows
+
+
+# GAP-SUPERFLEX-PUBLISHER-VALUES: the QB table also publishes "2QB Value"
+# (FantasyPros' superflex / 2-QB price). QB only: the RB/WR/TE tables have no
+# 2-QB column. Saved as qb_slots = 2 rows by save_fantasypros_references.py.
+SUPERFLEX_COLUMN = "2QB Value"
+
+
+def parse_superflex(html):
+    """-> {(name, team): 2QB value} from the QB table; {} when the chart has
+    no "2QB Value" column (never guessed)."""
+    out = {}
+    for pos, table in _position_tables(html):
+        if pos != "QB":
+            continue
+        cells = _table_cells(table)
+        header = cells[0] if cells else []
+        if SUPERFLEX_COLUMN not in header or "Name" not in header:
+            return {}
+        i_name, i_team, i_sf = header.index("Name"), header.index("Team"), header.index(SUPERFLEX_COLUMN)
+        for c in cells[1:]:
+            if len(c) <= i_sf or not c[i_name]:
+                continue
+            try:
+                out[(c[i_name], c[i_team])] = float(c[i_sf])
+            except ValueError:
+                continue
+        return out
+    return out
 
 
 def page_outline(html, limit=60):
@@ -306,43 +364,6 @@ def page_outline(html, limit=60):
             out.append("  ...")
             break
     return "page outline:\n" + "\n".join(out)
-
-
-# GAP-SUPERFLEX-PUBLISHER-VALUES: the QB table also publishes "2QB Value"
-# (FantasyPros' superflex / 2-QB price). QB only: the RB/WR/TE tables have no
-# 2-QB column. Saved as qb_slots = 2 rows by save_fantasypros_references.py.
-SUPERFLEX_COLUMN = "2QB Value"
-
-
-def parse_superflex(html):
-    """-> {(name, team): 2QB value} from the QB table; {} when the chart has
-    no "2QB Value" column (never guessed)."""
-    out, pos = {}, None
-    for m in re.finditer(r"<h[23][^>]*>(.*?)</h[23]>|<table.*?</table>", html, re.S | re.I):
-        if m.group(1) is not None:
-            head = _cell_text(m.group(1)).lower()
-            pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
-            continue
-        if pos != "QB":
-            pos = None
-            continue
-        pos = None
-        trs = re.findall(r"<tr.*?</tr>", m.group(0), re.S | re.I)
-        cells = [[_cell_text(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)]
-                 for tr in trs]
-        header = cells[0] if cells else []
-        if SUPERFLEX_COLUMN not in header or "Name" not in header:
-            return {}
-        i_name, i_team, i_sf = header.index("Name"), header.index("Team"), header.index(SUPERFLEX_COLUMN)
-        for c in cells[1:]:
-            if len(c) <= i_sf or not c[i_name]:
-                continue
-            try:
-                out[(c[i_name], c[i_team])] = float(c[i_sf])
-            except ValueError:
-                continue
-        return out
-    return out
 
 
 def write_saver_inputs(url, html, week, csv_path, log_path, players=None):
