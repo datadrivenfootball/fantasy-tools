@@ -736,6 +736,10 @@ test-core:
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_kdst_removed
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_comparison_source_integrity
 	python3 -m unittest tests.test_source_curves_distinct
 	python3 -m unittest tests.test_curve_default_guard
@@ -748,6 +752,8 @@ test-core:
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_one_name_resolver
 	python3 -m unittest tests.test_player_alias_table
 	python3 -m unittest tests.test_jeg539_position_and_inactive_rules
@@ -965,10 +971,16 @@ test-core-shard-1:
 	python3 -m unittest tests.test_isolate_post_validate
 	python3 -m unittest tests.test_post_validate_workflow_wiring
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_superflex
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_chain_commits_legs
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main

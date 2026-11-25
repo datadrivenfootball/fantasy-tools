@@ -163,7 +163,7 @@
     const scoring = q.get('scoring');
     if (['standard', 'half_ppr', 'ppr'].includes(scoring)) out.scoring = scoring;
     const teams = Number(q.get('teams'));
-    if ([8, 10, 12, 14].includes(teams)) out.teams = teams;
+    if (Number.isInteger(teams) && teams >= 2 && teams <= 40) out.teams = [8, 10, 12, 14].find(t => t >= teams) || 14;   // a count between sizes rounds up (9 -> 10), below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24)
     const roster = {};
     String(q.get('roster') || '').split('.').forEach(part => {
       const m = /^([A-Z]+)(\d+)$/.exec(part);
