@@ -962,11 +962,14 @@ test-core:
 # JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
 # 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
 # and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
+# 2026-11-25: mean tests-only minutes over 12 successful preview and pages runs (45516398949 to 45631025933, per-command log timestamps)
+# were 23.1 / 20.0 / 17.6 / 19.7 / 20.7 for shards 1-5; four league entry PRs add about 5 min to shard 1. Moved 7.1 min out of shard 1
+# to land at 16.0 / 21.8 / 21.2 / 21.5 / 20.7 before those PRs. Job timeouts raised from 30 to 40 minutes.
 # 2026-11-22: mean tests-only minutes over preview runs 44937904678, 44937945880, 44947279886 were 16.2 / 18.6 / 21.5 / 16.4 / 20.5
 # for shards 1-5 (job = tests + about 5.5 min setup). Moved three modules (about 4.9 min) to land at 17.9 / 18.6 / 18.4 / 19.6 / 18.7.
 test-core-shard-1:
-	# 2026-11-22 rebalance: moved from shard 3 (21.5 min of tests, the longest).
-	python3 -m unittest tests.test_main_table_engine_parity
+	# 2026-11-25 rebalance (CI shard 1 hit its job limit): test_main_table_engine_parity, test_week_history and two v2_phone
+	# render modules (about 7 min) moved to shards 4, 3 and 2, leaving room for the league entry tests. test_seeded_hold_build is about 10.5 min alone.
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
 	python3 -m unittest tests.test_post_validate_workflow_wiring
@@ -998,9 +1001,6 @@ test-core-shard-1:
 	python3 -m unittest tests.test_roster_paste_mutation_proof
 	python3 -m unittest tests.test_v2_movers
 	python3 -m unittest tests.test_v2_phone_layout_render
-	python3 -m unittest tests.test_v2_phone_context_row_render
-	python3 -m unittest tests.test_v2_phone_trade_rows_render
-	python3 -m unittest tests.test_week_history
 	# Natural fit 2 (Jeremy, 2026-11-19): the Find card and Why at 375px and desktop; in shard 1 so shard 3 stays under its 30-minute limit.
 	python3 -m unittest tests.test_find_natural_fit2_render
 	# Build picker pins selected players (Jeremy, 2026-11-22): 375px and desktop; light, so in shard 1.
@@ -1010,6 +1010,9 @@ test-core-shard-1:
 	python3 -m unittest tests.test_injury_flag_render
 
 test-core-shard-2:
+	# 2026-11-25 rebalance: moved from shard 1 (about 1.8 min).
+	python3 -m unittest tests.test_v2_phone_context_row_render
+	python3 -m unittest tests.test_v2_phone_trade_rows_render
 	python3 -m unittest tests.test_spec_reference_value_pipeline
 	python3 -m unittest tests.test_value_pipeline_engine
 	# JEG-1335: a 1 PPG fringe change moves no other player more than 1.0 DDF Value.
@@ -1055,6 +1058,8 @@ test-core-shard-2:
 	python3 -m unittest tests.test_build_lineup_card_render
 
 test-core-shard-3:
+	# 2026-11-25 rebalance: moved from shard 1 (about 3.6 min).
+	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_promotion_model_parity
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_source_curves_distinct
@@ -1120,6 +1125,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_build_offer_render
 
 test-core-shard-4:
+	# 2026-11-25 rebalance: moved from shard 1 (about 1.8 min).
+	python3 -m unittest tests.test_main_table_engine_parity
 	# 2026-11-22 rebalance: moved from shards 3 and 5 (shard 5 hit the 30-min job limit on several PRs).
 	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
 	python3 -m unittest tests.test_values_page_engine_parity
