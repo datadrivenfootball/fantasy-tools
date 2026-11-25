@@ -736,10 +736,16 @@ test-core:
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_kdst_removed
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_comparison_source_integrity
 	python3 -m unittest tests.test_source_curves_distinct
 	python3 -m unittest tests.test_curve_default_guard
 	python3 -m unittest tests.test_superflex
+	# League entry (Jeremy, 2026-11-20): imported league settings as one line, marked From Sleeper; 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_settings_line_render
 	python3 -m unittest tests.test_superflex_publisher_values
 	python3 -m unittest tests.test_jeg1365_two_qb_superflex_values
 	python3 -m unittest tests.test_jeg1366_two_qb_native_share
@@ -748,6 +754,8 @@ test-core:
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_one_name_resolver
 	python3 -m unittest tests.test_player_alias_table
 	python3 -m unittest tests.test_jeg539_position_and_inactive_rules
@@ -781,6 +789,10 @@ test-core:
 	python3 -m unittest tests.test_player_flags
 	python3 -m unittest tests.test_waivers_views
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
+	# League entry: every script on the entry pages parses (node --check), so a bad merge fails here. A few seconds.
+	python3 -m unittest tests.test_entry_scripts_parse
 	python3 -m unittest tests.test_v2_finder_trifit
 	python3 -m unittest tests.test_v2_finder_projection_noise
 	python3 -m unittest tests.test_v2_finder_triview_display
@@ -954,19 +966,30 @@ test-core:
 # JEG-1580 (2026-11-08): shard 3 had grown to 29.1 min of tests against its 30-min job timeout (pages run 42520541617;
 # 2 = 14.9, 4 = 14.8). Its tail, test_espn_listed_rows through test_razzball_outlier_guard (9.6 min), moved to shards 2
 # and 4 at their test-core positions. Add new lines to the shortest shard, not by default to shard 3.
+# 2026-11-25: mean tests-only minutes over 12 successful preview and pages runs (45516398949 to 45631025933, per-command log timestamps)
+# were 23.1 / 20.0 / 17.6 / 19.7 / 20.7 for shards 1-5; four league entry PRs add about 5 min to shard 1. Moved 7.1 min out of shard 1
+# to land at 16.0 / 21.8 / 21.2 / 21.5 / 20.7 before those PRs. Job timeouts raised from 30 to 40 minutes.
 # 2026-11-22: mean tests-only minutes over preview runs 44937904678, 44937945880, 44947279886 were 16.2 / 18.6 / 21.5 / 16.4 / 20.5
 # for shards 1-5 (job = tests + about 5.5 min setup). Moved three modules (about 4.9 min) to land at 17.9 / 18.6 / 18.4 / 19.6 / 18.7.
 test-core-shard-1:
-	# 2026-11-22 rebalance: moved from shard 3 (21.5 min of tests, the longest).
-	python3 -m unittest tests.test_main_table_engine_parity
+	# 2026-11-25 rebalance (CI shard 1 hit its job limit): test_main_table_engine_parity, test_week_history and two v2_phone
+	# render modules (about 7 min) moved to shards 4, 3 and 2, leaving room for the league entry tests. test_seeded_hold_build is about 10.5 min alone.
 	python3 -m unittest tests.test_seeded_hold_build
 	python3 -m unittest tests.test_isolate_post_validate
 	python3 -m unittest tests.test_post_validate_workflow_wiring
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_superflex
+	# League entry (Jeremy, 2026-11-20): imported league settings as one line, marked From Sleeper; 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_settings_line_render
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_chain_commits_legs
 	# League entry (Jeremy, 2026-11-20): ESPN and Yahoo quick wins (live rosters link, Paste rosters, remembered league); 375px and desktop. Light, so in shard 1.
 	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
@@ -976,15 +999,16 @@ test-core-shard-1:
 	python3 -m unittest tests.test_producers_schedule_tidy
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
+	# League entry: every script on the entry pages parses (node --check), so a bad merge fails here. A few seconds.
+	python3 -m unittest tests.test_entry_scripts_parse
 	node tests/test_v2_roster_paste.js
 	# Kickers and defenses in a paste are never read as another player (the Jason Sanders case, 2026-11-19).
 	node tests/test_kdef_paste_matching.js
 	python3 -m unittest tests.test_roster_paste_mutation_proof
 	python3 -m unittest tests.test_v2_movers
 	python3 -m unittest tests.test_v2_phone_layout_render
-	python3 -m unittest tests.test_v2_phone_context_row_render
-	python3 -m unittest tests.test_v2_phone_trade_rows_render
-	python3 -m unittest tests.test_week_history
 	# Natural fit 2 (Jeremy, 2026-11-19): the Find card and Why at 375px and desktop; in shard 1 so shard 3 stays under its 30-minute limit.
 	python3 -m unittest tests.test_find_natural_fit2_render
 	# Build picker pins selected players (Jeremy, 2026-11-22): 375px and desktop; light, so in shard 1.
@@ -994,6 +1018,9 @@ test-core-shard-1:
 	python3 -m unittest tests.test_injury_flag_render
 
 test-core-shard-2:
+	# 2026-11-25 rebalance: moved from shard 1 (about 1.8 min).
+	python3 -m unittest tests.test_v2_phone_context_row_render
+	python3 -m unittest tests.test_v2_phone_trade_rows_render
 	python3 -m unittest tests.test_spec_reference_value_pipeline
 	python3 -m unittest tests.test_value_pipeline_engine
 	# JEG-1335: a 1 PPG fringe change moves no other player more than 1.0 DDF Value.
@@ -1039,6 +1066,8 @@ test-core-shard-2:
 	python3 -m unittest tests.test_build_lineup_card_render
 
 test-core-shard-3:
+	# 2026-11-25 rebalance: moved from shard 1 (about 3.6 min).
+	python3 -m unittest tests.test_week_history
 	python3 -m unittest tests.test_promotion_model_parity
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_source_curves_distinct
@@ -1104,6 +1133,8 @@ test-core-shard-3:
 	python3 -m unittest tests.test_build_offer_render
 
 test-core-shard-4:
+	# 2026-11-25 rebalance: moved from shard 1 (about 1.8 min).
+	python3 -m unittest tests.test_main_table_engine_parity
 	# 2026-11-22 rebalance: moved from shards 3 and 5 (shard 5 hit the 30-min job limit on several PRs).
 	# JEG-1535: values.html engine parity, swap routes, and build_root_pages unit tests.
 	python3 -m unittest tests.test_values_page_engine_parity
