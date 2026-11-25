@@ -65,12 +65,14 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 .team-page .info summary:focus-visible{outline:3px solid #7fbf9d;outline-offset:2px}
 /* JEG-1689: settings read from a pasted league, each marked until the reader confirms or changes it */
 .team-page .paste-notice{background:#fff8e6;border:1px solid #e9d39a;border-left:4px solid #a3730f;border-radius:10px;padding:14px 16px;margin:16px 0 0;color:#3b2f12;max-width:74ch}.team-page .paste-notice p{margin:0 0 6px;font-size:15px;line-height:1.45}.team-page .paste-notice p:last-child{margin-bottom:0}
+.team-page .st-sum{display:flex;flex-direction:column;gap:8px;background:#fbfcfa;border:1px solid #dbe0dc;border-radius:12px;padding:14px 16px;margin:16px 0 0;max-width:74ch}.team-page .st-sum[hidden]{display:none}.team-page .st-sum-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.team-page .st-src,.team-page .st-from.is-import{display:inline-block;font-weight:600;font-size:12px;line-height:1.3;padding:2px 8px;border-radius:99px;background:#e8f5ee;color:#176c4d;border:1px solid #176c4d55}.team-page .st-edit{background:none;border:0;padding:0 4px;min-height:44px;min-width:44px;color:#176c4d;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer}.team-page .st-sum-vals{margin:0;font-weight:600;font-size:16px;line-height:1.45;overflow-wrap:anywhere}.team-page .st-sum-note{margin:0;font-size:14px;color:#5c6a76}.team-page .st-sum-note:empty{display:none}
 .team-page .st-from{display:inline-block;align-self:flex-start;font-weight:600;font-size:12px;line-height:1.3;padding:2px 8px;border-radius:99px;background:#fff1cc;color:#6b4c00;border:1px solid #e2c676}.team-page .st-from[hidden]{display:none}.team-page .st-lbl .st-from{margin-left:8px;vertical-align:1px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style><link rel="stylesheet" href="actionbar.css"><script src="actionbar.js"></script><style id="gating-pass">.team-page a.button.primary[aria-disabled="true"],.team-page a.button.primary[aria-disabled="true"]:hover,.team-page a.button.primary[aria-disabled="true"]:active{background:#e3e7e4;color:#59666f;border-color:#e3e7e4;box-shadow:none;transform:none;filter:none;cursor:not-allowed}.team-page .gate-reason{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}</style><style id="one-next">/* JEG-1568 (Jeremy, 2026-11-07): the sticky action bar is the one Back/Next on every entry page; the in-page copies stay in the markup (the bar forwards its click to them) but are not shown */.st-actions{display:none}</style></head><body class="team-shell"><header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="index.html">DDF</a><ol class="entry-steps" aria-label="League entry progress"><li class="is-complete"><a href="connect.html">✓ 1. League rosters</a></li><li class="is-complete"><a href="setup.html">✓ 2. Your team</a></li><li aria-current="step">3. League settings</li></ol></div></header><main class="team-page">
 <section id="settings">
 <h1>League settings</h1>
 <div class="paste-notice" id="paste-notice" role="status" hidden></div>
+<div class="st-sum" id="settings-summary" hidden><div class="st-sum-top"><span class="st-src" id="settings-source"></span><button type="button" class="st-edit" id="settings-edit" aria-controls="editor" aria-expanded="false">Edit</button></div><p class="st-sum-vals" id="settings-values"></p><p class="st-sum-note" id="settings-note"></p></div>
 <p class="muted" id="roster-optional">Roster sizes are optional. Unless you change them, we use a standard roster: <span id="std-roster-text">1 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DEF, 7 bench</span>. You can change any of it below, or just continue. Leagues you import or paste fill in their own sizes.</p>
 <form id="editor">
 <section class="card"><h2>League format</h2><div class="st-sel"><div class="st-field"><span class="st-lbl" id="lbl-scoring">Scoring</span><select class="st-native" id="scoring" aria-labelledby="lbl-scoring" tabindex="-1"><option>PPR</option><option selected>Half PPR</option><option>Standard</option></select></div><div class="st-field"><span class="st-lbl" id="lbl-teams">Teams</span><select class="st-native" id="teams" aria-labelledby="lbl-teams" tabindex="-1"><option>8</option><option>10</option><option selected>12</option><option>14</option></select></div></div></section>
@@ -261,6 +263,65 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     DDF.state.set('pasted', rec);
     showPaste();
   }
+  /* Settings read from the league itself (Sleeper today): one line marked "From Sleeper" with Edit, instead of the full
+     form and the "we use a standard roster" intro. Shown only when scoring, team count and the lineup all came from
+     the league; otherwise the form stays open, each value that did come from the league marked. Edit opens the form;
+     a changed value loses its marker. Looks right saves the form as it stands (filled from the league). */
+  const IMPORT_NAME = {sleeper: 'Sleeper', espn: 'ESPN', yahoo: 'Yahoo'};
+  const IMPORT_FIELDS = Object.assign({scoring: 'scoring'}, FIELD_INPUT);
+  let importOn = null;
+  function importedFields(st) {
+    const f = ['scoring', 'SUPERFLEX'];
+    if (Number.isInteger(st.teams)) f.push('teams');
+    if (st.roster) ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BENCH', 'K', 'DST'].forEach(k => { if (Number.isInteger(st.roster[k])) f.push(k); });
+    return f;
+  }
+  function importMarker(f, name) {
+    let m = $('imp-' + f);
+    if (!m) {
+      const inp = $(IMPORT_FIELDS[f]);
+      m = document.createElement('span'); m.className = 'st-from is-import'; m.id = 'imp-' + f;
+      if (f === 'teams' || f === 'scoring') $('lbl-' + f).appendChild(m);
+      else { const lb = inp.closest('label'); lb.insertBefore(m, lb.querySelector('.stepper') || inp); }
+      const d = (inp.getAttribute('aria-describedby') || '').split(' ').filter(Boolean);
+      if (d.indexOf(m.id) < 0) { d.push(m.id); inp.setAttribute('aria-describedby', d.join(' ')); }
+    }
+    m.textContent = 'From ' + name;
+    return m;
+  }
+  function summaryText() {
+    const v = id => $(id).value, n = id => Number($(id).value), sf = n('lineup-sf');
+    const parts = [v('scoring'), v('teams') + ' teams'];
+    if (sf > 0) parts.push(sf === 2 ? '2 SUPERFLEX' : 'Superflex');
+    [['lineup-qb', 'QB'], ['lineup-rb', 'RB'], ['lineup-wr', 'WR'], ['lineup-te', 'TE'], ['lineup-flex', 'FLEX']].forEach(([id, l]) => parts.push(n(id) + ' ' + l));
+    parts.push(n('lineup-bench') + ' bench');
+    [['lineup-k', 'K'], ['lineup-def', 'DEF']].forEach(([id, l]) => { if (n(id) > 0) parts.push(n(id) + ' ' + l); });
+    return parts.map(t => t.replace(/ /g, '\u00a0')).join(' \u00b7 ');   // "5 bench" never splits across lines
+  }
+  function showImport(c) {
+    const rec = DDF.state.get('pasted', null), name = rec && IMPORT_NAME[rec.source];
+    if (!(c && c.source === 'pasted' && name && rec.importSettings)) return;
+    const fields = importedFields(rec.importSettings);
+    importOn = {name, fields};
+    fields.forEach(f => { importMarker(f, name).hidden = false; });
+    $('roster-optional').hidden = true;   // the values are the league's own, not a standard roster
+    const whole = fields.indexOf('teams') >= 0 && fields.indexOf('QB') >= 0;
+    if (!whole) return;
+    $('settings-source').textContent = 'From ' + name;
+    $('settings-values').textContent = summaryText();
+    $('settings-note').textContent = 'Read from ' + (rec.suggestedName || 'your league') + ' on ' + name + '.';
+    $('settings-summary').hidden = false;
+    $('editor').hidden = true;
+  }
+  $('settings-edit').addEventListener('click', () => {
+    $('editor').hidden = false; $('settings-summary').hidden = true;
+    $('settings-edit').setAttribute('aria-expanded', 'true');
+    const first = $('editor').querySelector('.segmented button[aria-pressed="true"]') || $('editor').querySelector('button');
+    if (first) first.focus();
+  });
+  Object.keys(IMPORT_FIELDS).forEach(f => $(IMPORT_FIELDS[f]).addEventListener('change', () => {
+    if (importOn && !filling) { const m = $('imp-' + f); if (m) m.hidden = true; }
+  }));
   let filling = false;   // fill() sets the form from the settings: not the reader's own change
   const touched = new Set();
   Object.keys(FIELD_INPUT).forEach(f => $(FIELD_INPUT[f]).addEventListener('change', () => { if (pasteOn && !filling) { touched.add(f); showPaste(); } }));
@@ -269,6 +330,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     filling = true; try { fill(s); } finally { filling = false; }
     pasteOn = !!(c && c.source === 'pasted');
     showPaste();
+    showImport(c);
     const std = DDF.engine.defaultRoster && DDF.engine.defaultRoster();
     if (std) $('std-roster-text').textContent = DDF.engine.rosterText(std);
     if (!c) $('settings-status').innerHTML = 'No league added yet: these are the settings every page uses. <a href="connect.html">Add your league</a>';
