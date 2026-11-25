@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tests._holds import without_held_charts
+from tests._holds import held_source_roots, without_held_charts
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,11 +77,13 @@ def overall_scale_problems(comparison):
     problems = []
     anchor_scale_tops = {}
     all_tops = {}
+    held = held_source_roots(comparison)
     for source, source_data in (comparison.get("sources") or {}).items():
         if not isinstance(source_data, dict):
             continue
         combos = source_data.get("combos") or {}
-        combo = combos.get("full_12") or combos.get("full_12_qb1")
+        combo_name = "full_12" if combos.get("full_12") else "full_12_qb1"
+        combo = combos.get(combo_name)
         if not combo:
             continue
         values = combo.get("values") or combo.get("reindexed") or {}
@@ -99,6 +101,8 @@ def overall_scale_problems(comparison):
                 problems.append(f"{source}: top Indexed {top:.4f} is not its top native x factor")
             elif top <= 0:
                 problems.append(f"{source}: one-factor chart collapsed to zero")
+            elif source in held:
+                problems.extend(held_pie_problems(comparison, source, combo_name, combo))
             continue
         anchor_scale_tops[source] = top
     if not anchor_scale_tops:
@@ -110,6 +114,36 @@ def overall_scale_problems(comparison):
     if all_tops and max(all_tops.values()) < 68:
         problems.append(f"overall scale collapsed ({all_tops})")
     return problems
+
+
+def held_pie_problems(comparison, source, combo_name, combo):
+    """JEG-1700 (Jeremy, 2026-11-24, "close the gap first"): a held one-factor
+    chart is still re-indexed every run (pipelines/reindex_published_fixture.py),
+    but test_published_indexed_is_one_factor_on_the_anchor_pie reads the fixture
+    without held charts. Hold its full_12 Indexed total over the players ESPN
+    also prices to ESPN's total over them (JEG-482's rule), so its scale is
+    still pinned while held. Chart-only players (not_on_espn) take the factor
+    and stay out of the total, as in the pie test."""
+    espn_combos = ((comparison.get("sources") or {}).get("espn") or {}).get("combos") or {}
+    espn = espn_combos.get(combo_name) or espn_combos.get(re.sub(r"_qb[12]$", "", combo_name))
+    if not espn:
+        return [f"{source} {combo_name}: held one-factor chart with no ESPN {combo_name} to pin its scale"]
+    fixture_keys = comparison.get("player_keys") or {}
+    combo_keys = combo.get("player_keys") or {}
+    anchor = {fixture_keys[s]: v for s, v in (espn.get("values") or {}).items() if s in fixture_keys}
+    chart_only = set(combo.get("not_on_espn") or [])
+    anchor_total = indexed_total = 0.0
+    for slug, value in (combo.get("reindexed") or {}).items():
+        if slug in chart_only:
+            continue
+        numkey = combo_keys.get(slug, fixture_keys.get(slug))
+        if numkey not in anchor:
+            return [f"{source} {combo_name} {slug}: held chart indexed without an anchor value"]
+        anchor_total += max(0.0, float(anchor[numkey]))
+        indexed_total += value
+    if abs(indexed_total - anchor_total) > 0.05:
+        return [f"{source} {combo_name}: held chart's Indexed pie {indexed_total:.2f} != anchor pie {anchor_total:.2f}"]
+    return []
 
 
 PUBLISHED_TOP_QB_COMBOS = {"usatoday": "full_12", "fantasycalc": "full_12_qb1",
@@ -767,12 +801,20 @@ class StaticExportTest(unittest.TestCase):
         under 38 still fail."""
         drift = copy.deepcopy(self.comparison)
         usatoday = drift["sources"].get("usatoday") or {}
-        for combo in (usatoday.get("combos") or {}).values():
+        espn_combos = (drift["sources"].get("espn") or {}).get("combos") or {}
+        for name, combo in (usatoday.get("combos") or {}).items():
             fit = (combo.get("fit") or {}).get("order_preserving_rescale")
             if not fit:
                 continue
-            fit["factor"] = 35.78445859872612 / max(float(v) for v in combo["native"].values())
+            # The Week 12 drift: ESPN's values over these players fall, so the factor
+            # and the top fall with them and the pie stays exact (held_pie_problems).
+            ratio = 35.78445859872612 / (max(float(v) for v in combo["native"].values()) * fit["factor"])
+            fit["factor"] *= ratio
             combo["reindexed"] = {k: float(combo["native"][k]) * fit["factor"] for k in combo["reindexed"]}
+            espn = espn_combos.get(name) or espn_combos.get(re.sub(r"_qb[12]$", "", name)) or {}
+            for key in ("values", "reindexed"):
+                if espn.get(key):
+                    espn[key] = {k: (v * ratio if isinstance(v, (int, float)) else v) for k, v in espn[key].items()}
         if not usatoday.get("combos"):
             self.skipTest("no USA Today chart in this build")
         self.assertEqual([], overall_scale_problems(drift))
@@ -786,6 +828,24 @@ class StaticExportTest(unittest.TestCase):
                 combo[key] = {k: (v * 0.4 if isinstance(v, (int, float)) else v)
                               for k, v in (combo.get(key) or {}).items()}
         self.assertTrue(any("below 38" in p for p in overall_scale_problems(low)))
+
+    def test_held_one_factor_chart_keeps_its_anchor_pie(self):
+        """JEG-1700 (Jeremy, 2026-11-24, "close the gap first"): a held one-factor
+        chart whose whole scale halves fails, though its top is still native x factor;
+        the same chart held at its real scale passes."""
+        held = copy.deepcopy(self.comparison)
+        usatoday = held["sources"].get("usatoday") or {}
+        if not usatoday.get("combos"):
+            self.skipTest("no USA Today chart in this build")
+        usatoday["validationHold"] = {"reason": "JEG-1700 seeded hold"}
+        self.assertEqual([], overall_scale_problems(held))
+        for combo in usatoday["combos"].values():
+            fit = (combo.get("fit") or {}).get("order_preserving_rescale")
+            if fit:
+                fit["factor"] *= 0.5
+                combo["reindexed"] = {k: v * 0.5 for k, v in combo["reindexed"].items()}
+        self.assertTrue(any("usatoday" in p and "anchor pie" in p for p in overall_scale_problems(held)),
+                        overall_scale_problems(held))
 
     def test_player_table_supports_configurable_fields(self):
         text = (APP / "assets" / "comparison-dashboard.js").read_text(encoding="utf-8")
