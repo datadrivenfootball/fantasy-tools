@@ -116,35 +116,58 @@ def overall_scale_problems(comparison):
     return problems
 
 
+def scale_recorded_totals(combo, ratio):
+    """Test helper: scale a combo's recorded index_total (and its fit's anchor_total) as if it was indexed
+    against an anchor `ratio` times the one it recorded."""
+    for t in (combo.get("index_total") or {}).values():
+        if isinstance(t, dict):
+            for key in ("target_total", "post_total"):
+                if isinstance(t.get(key), (int, float)):
+                    t[key] *= ratio
+    fit = (combo.get("fit") or {}).get("order_preserving_rescale") or {}
+    if isinstance(fit.get("anchor_total"), (int, float)):
+        fit["anchor_total"] *= ratio
+
+
+HELD_ANCHOR_BAND = 0.25   # JEG-1700 A1: Week 11 -> 12 the ESPN total over USA Today's players moved about 7%
+
+
 def held_pie_problems(comparison, source, combo_name, combo):
-    """JEG-1700 (Jeremy, 2026-11-24, "close the gap first"): a held one-factor
-    chart is still re-indexed every run (pipelines/reindex_published_fixture.py),
-    but test_published_indexed_is_one_factor_on_the_anchor_pie reads the fixture
-    without held charts. Hold its full_12 Indexed total over the players ESPN
-    also prices to ESPN's total over them (JEG-482's rule), so its scale is
-    still pinned while held. Chart-only players (not_on_espn) take the factor
-    and stay out of the total, as in the pie test."""
+    """JEG-1700 (Jeremy, 2026-11-24, option A1): the scale of a held one-factor
+    chart. test_published_indexed_is_one_factor_on_the_anchor_pie reads the
+    fixture without held charts, and a held section can be its last promoted
+    one, indexed on the previous ESPN anchor (JEG-1583), so it is not held to
+    today's anchor exactly. Two checks instead:
+    - consistency: its full_12 Indexed total over the players ESPN priced when
+      it was indexed (chart-only players, not_on_espn, take the factor and stay
+      out) equals the anchor total it recorded then (index_total target_total,
+      summed over positions), within 0.05;
+    - sanity: that recorded total is within HELD_ANCHOR_BAND of today's ESPN
+      total over the same players."""
+    totals = combo.get("index_total") or {}
+    recorded = sum(float(t.get("target_total") or 0.0) for t in totals.values() if isinstance(t, dict))
+    if recorded <= 0:
+        return [f"{source} {combo_name}: held one-factor chart with no recorded index_total"]
+    chart_only = set(combo.get("not_on_espn") or [])
+    matched = {slug: v for slug, v in (combo.get("reindexed") or {}).items()
+               if slug not in chart_only and isinstance(v, (int, float))}
+    indexed_total = sum(matched.values())
+    if abs(indexed_total - recorded) > 0.05:
+        return [f"{source} {combo_name}: held chart's Indexed total {indexed_total:.2f} != "
+                f"its recorded anchor total {recorded:.2f}"]
     espn_combos = ((comparison.get("sources") or {}).get("espn") or {}).get("combos") or {}
     espn = espn_combos.get(combo_name) or espn_combos.get(re.sub(r"_qb[12]$", "", combo_name))
     if not espn:
-        return [f"{source} {combo_name}: held one-factor chart with no ESPN {combo_name} to pin its scale"]
+        return [f"{source} {combo_name}: held one-factor chart with no ESPN {combo_name} to check its scale against"]
     fixture_keys = comparison.get("player_keys") or {}
     combo_keys = combo.get("player_keys") or {}
     anchor = {fixture_keys[s]: v for s, v in (espn.get("values") or {}).items() if s in fixture_keys}
-    chart_only = set(combo.get("not_on_espn") or [])
-    anchor_total = indexed_total = 0.0
-    for slug, value in (combo.get("reindexed") or {}).items():
-        if slug in chart_only:
-            continue
-        numkey = combo_keys.get(slug, fixture_keys.get(slug))
-        if numkey not in anchor:
-            return [f"{source} {combo_name} {slug}: held chart indexed without an anchor value"]
-        anchor_total += max(0.0, float(anchor[numkey]))
-        indexed_total += value
-    if abs(indexed_total - anchor_total) > 0.05:
-        return [f"{source} {combo_name}: held chart's Indexed pie {indexed_total:.2f} != anchor pie {anchor_total:.2f}"]
+    today = sum(max(0.0, float(anchor[k])) for k in (combo_keys.get(s, fixture_keys.get(s)) for s in matched)
+                if k in anchor and isinstance(anchor[k], (int, float)))
+    if today <= 0 or abs(recorded / today - 1) > HELD_ANCHOR_BAND:
+        return [f"{source} {combo_name}: held chart's recorded anchor total {recorded:.2f} is not within "
+                f"{HELD_ANCHOR_BAND:.0%} of today's ESPN total {today:.2f} over the same players"]
     return []
-
 
 PUBLISHED_TOP_QB_COMBOS = {"usatoday": "full_12", "fantasycalc": "full_12_qb1",
                            "fantasypros": "full_12", "cbs": "full_12"}
@@ -813,6 +836,7 @@ class StaticExportTest(unittest.TestCase):
             ratio = 35.78445859872612 / (max(float(v) for v in combo["native"].values()) * fit["factor"])
             fit["factor"] *= ratio
             combo["reindexed"] = {k: float(combo["native"][k]) * fit["factor"] for k in combo["reindexed"]}
+            scale_recorded_totals(combo, ratio)
             espn = espn_combos.get(name) or espn_combos.get(re.sub(r"_qb[12]$", "", name)) or {}
             for key in ("values", "reindexed"):
                 if espn.get(key):
@@ -831,23 +855,41 @@ class StaticExportTest(unittest.TestCase):
                               for k, v in (combo.get(key) or {}).items()}
         self.assertTrue(any("below 38" in p for p in overall_scale_problems(low)))
 
-    def test_held_one_factor_chart_keeps_its_anchor_pie(self):
-        """JEG-1700 (Jeremy, 2026-11-24, "close the gap first"): a held one-factor
-        chart whose whole scale halves fails, though its top is still native x factor;
-        the same chart held at its real scale passes."""
-        held = without_holds(self.comparison)
-        usatoday = held["sources"].get("usatoday") or {}
-        if not usatoday.get("combos"):
+    def test_held_one_factor_chart_keeps_its_scale(self):
+        """JEG-1700 (Jeremy, 2026-11-24, option A1): a held one-factor chart must match
+        its own recorded anchor total and stay within the band of today's ESPN total."""
+        base = without_holds(self.comparison)
+        if not ((base["sources"].get("usatoday") or {}).get("combos")):
             self.skipTest("no USA Today chart in this build")
-        usatoday["validationHold"] = {"reason": "JEG-1700 seeded hold"}
-        self.assertEqual([], overall_scale_problems(held))
-        for combo in usatoday["combos"].values():
-            fit = (combo.get("fit") or {}).get("order_preserving_rescale")
-            if fit:
-                fit["factor"] *= 0.5
-                combo["reindexed"] = {k: v * 0.5 for k, v in combo["reindexed"].items()}
-        self.assertTrue(any("usatoday" in p and "anchor pie" in p for p in overall_scale_problems(held)),
-                        overall_scale_problems(held))
+
+        def held(chart_ratio=1.0, recorded_ratio=1.0, espn_ratio=1.0):
+            doc = copy.deepcopy(base)
+            usatoday = doc["sources"]["usatoday"]
+            usatoday["validationHold"] = {"reason": "JEG-1700 seeded hold"}
+            for combo in usatoday["combos"].values():
+                fit = (combo.get("fit") or {}).get("order_preserving_rescale")
+                if fit:
+                    fit["factor"] *= chart_ratio
+                    combo["reindexed"] = {k: v * chart_ratio for k, v in combo["reindexed"].items()}
+                    scale_recorded_totals(combo, recorded_ratio)
+            for combo in ((doc["sources"].get("espn") or {}).get("combos") or {}).values():
+                for key in ("values", "reindexed"):
+                    if combo.get(key):
+                        combo[key] = {k: (v * espn_ratio if isinstance(v, (int, float)) else v)
+                                      for k, v in combo[key].items()}
+            return [p for p in overall_scale_problems(doc) if p.startswith("usatoday")]
+
+        self.assertEqual([], held())
+        # Halved and held: the Indexed total no longer equals its recorded anchor total.
+        self.assertTrue(any("recorded anchor total" in p for p in held(chart_ratio=0.5)), held(chart_ratio=0.5))
+        # Held on a previous ESPN anchor (JEG-1583): indexed and recorded 7% higher, consistent.
+        self.assertEqual([], held(chart_ratio=1.07, recorded_ratio=1.07))
+        # Held while ESPN's total moved 7% (the Week 11 -> 12 drift).
+        self.assertEqual([], held(espn_ratio=0.93))
+        # ESPN's total moved 40% with the held chart unchanged: outside the band.
+        self.assertTrue(any("within 25%" in p for p in held(espn_ratio=0.6)), held(espn_ratio=0.6))
+        # A coherent collapse (values and recorded total halved together) is caught by the band.
+        self.assertTrue(any("within 25%" in p for p in held(chart_ratio=0.5, recorded_ratio=0.5)))
 
     def test_player_table_supports_configurable_fields(self):
         text = (APP / "assets" / "comparison-dashboard.js").read_text(encoding="utf-8")
