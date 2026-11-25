@@ -137,7 +137,10 @@ class EntryPagesRenderTest(unittest.TestCase):
         kept = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")
         self.assertEqual(kept["source"], "paste")
         self.assertIn("Drake Maye", [p["name"] for p in kept["teams"][0]["players"]])
-        self.assertIsNone(page.get_attribute("#connect-next", "aria-disabled"), "Next enabled after a read")
+        self.assertEqual(page.get_attribute("#connect-next", "aria-disabled"), "true", "Next waits for the scoring")
+        self.assertIn("Pick your league's scoring to continue.", page.text_content(".ddf-actionbar__sum"))
+        page.click("#scoring-pick [data-scoring=ppr]")  # League entry (2026-11-20): a paste asks its scoring on the read card
+        self.assertIsNone(page.get_attribute("#connect-next", "aria-disabled"), "Next enabled after a read and a scoring")
         self.assertEqual(page.errors, [])
 
     def test_unreadable_paste_offers_edit_names(self):
@@ -163,6 +166,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.connect(page)
         self.paste(page, (FIXTURES / "01-yahoo-iphone.txt").read_text(encoding="utf-8"))
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        page.click("#scoring-pick [data-scoring=ppr]")  # League entry (2026-11-20): a paste asks its scoring on the read card
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         names = page.eval_on_selector_all("input[name=team]", "els => els.map(e => e.value)")
@@ -207,6 +211,7 @@ class EntryPagesRenderTest(unittest.TestCase):
         self.connect(page)
         self.paste(page, (FIXTURES / "03-espn.txt").read_text(encoding="utf-8"))
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        page.click("#scoring-pick [data-scoring=ppr]")  # League entry (2026-11-20): a paste asks its scoring on the read card
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         page.click("label.setup-option >> nth=0")

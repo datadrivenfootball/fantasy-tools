@@ -109,11 +109,17 @@
       var known = knownTeam(record, kept() || dropped);
       if (known !== null) { record.me = known; record.own = known; }
     }
+    if (needsScoring(record) && !record.scoring) {
+      var before = kept() || dropped;
+      if (before && before.scoring && DDF.leaguePaste.sameLeague(before, record)) record.scoring = before.scoring;
+      else if (editing && editing.source !== "link") { try { record.scoring = DDF.engine.settings().scoring || null; } catch (e) { /* asked on the card */ } }
+    }
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
     /* JEG-1548: the method only (paste, sleeper, manual); analytics.js drops anything not on its list */
     if (DDF.track && record && typeof record.source === "string") DDF.track("league-added/" + record.source);
+    drawScoring(record);   /* before ddf:pasted: connect.html's Next reads the scoring on that event */
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
     drawTeamPick(record);
     if (Number.isInteger(record.me) && pickable(record)) pickTeam(record.me, {quiet: true});
@@ -258,6 +264,40 @@
     if (!box || box.hidden || !card || card.hidden) return null;
     var rec = kept();
     return pickable(rec) && Number.isInteger(rec.me) && rec.teams[rec.me] ? {me: rec.me, name: rec.teams[rec.me].name, askReplace: askReplace} : null;
+  }
+
+  /* ---------- scoring on the read card (pasted leagues) ----------
+     A rosters page never shows scoring, so a paste used to start as PPR with nothing saying it was a guess. The card
+     asks PPR, Half PPR or Standard with nothing preselected, and Next waits for the answer. Preselected only when known:
+     the same league read again, or the league being edited. Sleeper and chat leagues bring their own scoring.
+     The answer is kept on ddf:pasted and reaches the league's settings on Next (applyPickedScoring), so "Keep my
+     league" while editing leaves the league's scoring as it was. */
+  function needsScoring(rec) { return !!rec && rec.source === "paste" && Array.isArray(rec.teams) && rec.teams.length > 1; }
+  function applyScoring(tok) { try { if (DDF.engine && DDF.engine.apply) DDF.engine.apply({scoring: tok}); } catch (e) { /* settings.html asks */ } }
+  function drawScoring(rec) {
+    var box = $("scoring-pick"); if (!box) return;
+    box.hidden = !needsScoring(rec);
+    Array.prototype.forEach.call(box.querySelectorAll("[data-scoring]"), function (b) {
+      b.setAttribute("aria-pressed", String(!box.hidden && rec.scoring === b.getAttribute("data-scoring")));
+    });
+  }
+  function pickScoring(tok) {
+    var rec = kept();
+    if (!needsScoring(rec)) return;
+    rec.scoring = tok; DDF.state.set("pasted", rec);
+    drawScoring(rec);
+    document.dispatchEvent(new CustomEvent("ddf-scoringpick", {detail: {scoring: tok}}));
+  }
+  function applyPickedScoring() {
+    var rec = kept();
+    if (needsScoring(rec) && rec.scoring && scoringChoice() !== "n/a") applyScoring(rec.scoring);
+  }
+  /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
+  function scoringChoice() {
+    var box = $("scoring-pick"), card = $("recognized");
+    if (!box || box.hidden || !card || card.hidden) return "n/a";
+    var rec = kept();
+    return needsScoring(rec) ? rec.scoring || null : "n/a";
   }
 
   /* ---------- edit-names box ---------- */
@@ -578,6 +618,11 @@
       if (!/settings\.html$/.test(nextLink.getAttribute("href") || "")) return;
       confirmTeam();
     });
+    var scoringBox = $("scoring-pick");
+    if (scoringBox) scoringBox.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-scoring]"); if (b) pickScoring(b.getAttribute("data-scoring")); });
+    /* Next (to the team page or League settings): the scoring picked on the card becomes the league's */
+    var scoringNext = $("connect-next");
+    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) applyPickedScoring(); });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);
@@ -604,5 +649,6 @@
 
   DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo,
     platformOf: platformOf, followLink: followLink,
-    teamChoice: teamChoice, pickTeam: pickTeam};
+    teamChoice: teamChoice, pickTeam: pickTeam,
+    scoringChoice: scoringChoice, pickScoring: pickScoring};
 })();

@@ -135,6 +135,7 @@ class EditLeagueRenderTest(unittest.TestCase):
         # League settings with the league's name carried over, as Next on setup.html did.
         self.assertEqual(page.locator("#team-pick-list .team-pick-option.selected strong").all_text_contents(), ["Hail Marys"])
         self.assertEqual(page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
+        self.assertEqual(page.get_attribute("#scoring-pick [data-scoring=ppr]", "aria-pressed"), "true", "editing: the league's scoring is kept")
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/settings.html", timeout=20000)
         kept = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")

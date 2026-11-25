@@ -753,6 +753,8 @@ test-core:
 	python3 -m unittest tests.test_suffix_identity
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
+	# League entry (Jeremy, 2026-11-20): scoring as three buttons on the read card, no silent PPR; 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_scoring_buttons_render
 	python3 -m unittest tests.test_ros_rank_keys
 	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
 	python3 -m unittest tests.test_entry_team_on_card_render
@@ -987,6 +989,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_entry_settings_line_render
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
+	# League entry (Jeremy, 2026-11-20): scoring as three buttons on the read card, no silent PPR; 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_scoring_buttons_render
 	python3 -m unittest tests.test_ros_rank_keys
 	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
 	python3 -m unittest tests.test_entry_team_on_card_render
