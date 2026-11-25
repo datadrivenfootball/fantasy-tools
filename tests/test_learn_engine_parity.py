@@ -28,6 +28,7 @@ from __future__ import annotations
 import math
 import re
 import unittest
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from tests import _render_env
@@ -330,6 +331,10 @@ def scrape_hold(*roots):
     return transform
 
 
+def js_fixed(value: float, digits: int) -> str:
+    """Number.prototype.toFixed: the double's exact decimal value, a tie rounded away from zero."""
+    return str(Decimal(value).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP))
+
 class LearnEngineParity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -476,7 +481,10 @@ class LearnEngineParity(unittest.TestCase):
             tag = "/".join(map(str, combo))
             # Availability = (1 − bye share) × (1 − missed-game rate).
             a = (1 - eng["bye"]) * (1 - eng["m"])
-            want = f"(1 − bye share {eng['bye'] * 100:.2f}%) × (1 − RB missed-game rate {eng['m'] * 100:.2f}%) = {1 - eng['bye']:.4f} × {1 - eng['m']:.4f} = {a * 100:.1f}%"
+            # The page formats with JS toFixed (exact binary value, ties away from zero); Python's
+            # format rounds the 3.125% Week 12 bye share (1/32) to 3.12 where the page shows 3.13 (JEG-1700).
+            want = (f"(1 − bye share {js_fixed(eng['bye'] * 100, 2)}%) × (1 − RB missed-game rate {js_fixed(eng['m'] * 100, 2)}%)"
+                    f" = {js_fixed(1 - eng['bye'], 4)} × {js_fixed(1 - eng['m'], 4)} = {js_fixed(a * 100, 1)}%")
             if want not in worked["Availability"]["how"] or abs(a - eng["avail"]) > 1e-9:
                 errors.append(f"{tag}: availability {worked['Availability']['how']!r}, want {want!r} (engine {eng['avail']})")
             # DDF weight = mean of the included sources' own shares for the group; on the charts-only split
