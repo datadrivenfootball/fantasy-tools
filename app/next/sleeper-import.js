@@ -77,9 +77,22 @@
     var out = {scoring: scoring, superflex: sf > 0};
     if (sf >= 2) out.superflexSlots = 2;   /* JEG-1571: two QB-eligible flex slots (the site's most) */
     if (roster.QB >= 1) out.roster = roster;   /* a superflex-only lineup is left for settings.html to confirm */
+    /* the site values 8, 10, 12 and 14 teams: any other size uses the closest one, and fitOf says so on settings.html */
     var n = Number(lg.total_rosters);
-    if ([8, 10, 12, 14].indexOf(n) >= 0) out.teams = n;
+    if (isFinite(n) && n >= 2) out.teams = closestSize(n);
     return out;
+  }
+  var SIZES = [8, 10, 12, 14];
+  function closestSize(n) {
+    return SIZES.reduce(function (best, s) { return Math.abs(s - n) < Math.abs(best - n) ? s : best; }, SIZES[0]);
+  }
+  /* what the league has that the values cannot reflect: a team count outside 8 to 14, TE premium (extra points per catch) */
+  function fitOf(lg) {
+    if (!lg) return null;
+    var fit = {}, n = Number(lg.total_rosters), te = Number(lg.scoring_settings && lg.scoring_settings.bonus_rec_te);
+    if (isFinite(n) && n >= 2 && SIZES.indexOf(n) < 0) { fit.teams = n; fit.usedTeams = closestSize(n); }
+    if (isFinite(te) && te > 0) fit.tePremium = te;
+    return Object.keys(fit).length ? fit : null;
   }
 
   /* ---------- league state (JEG-1656) ---------- */
@@ -281,6 +294,7 @@
           });
           res.league = {leagueName: lg.name ? String(lg.name).slice(0, 60) : null, leagueId: String(id), platform: "sleeper", confidence: 1};
           if (!res.ok) return {ok: false, code: "empty"};
+          res.fit = fitOf(lg);
           var out = {ok: true, result: res, settings: settingsOf(lg)};
           if (!opts.leagueState) return out;
           return fetchMatchups(f, base, remainingWeeks(lg, rosters)).then(function (m) {
@@ -292,7 +306,7 @@
       .catch(function () { return {ok: false, code: "network"}; });
   }
 
-  var api = {parseId: parseId, load: load, settingsOf: settingsOf, buildLeagueState: buildLeagueState, remainingWeeks: remainingWeeks, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
+  var api = {parseId: parseId, load: load, settingsOf: settingsOf, fitOf: fitOf, buildLeagueState: buildLeagueState, remainingWeeks: remainingWeeks, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
   root.DDF = root.DDF || {};
   root.DDF.sleeper = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -296,10 +296,13 @@
      leagueId stays on this device (never in links or titles). */
   function record(result, source) {
     var lg = result.league || {};
-    return {v: 1, source: source || "paste", site: result.site || "unknown", me: null, enteredAt: today(),
+    var rec = {v: 1, source: source || "paste", site: result.site || "unknown", me: null, enteredAt: today(),
       suggestedName: lg.leagueName || null, leagueId: lg.leagueId || null, platform: lg.platform || null,
       teams: result.teams.map(function (t) { return {name: t.name, players: t.players, unmatched: t.unmatched}; }),
       pasteSettings: result.pasteSettings || null};
+    /* what an imported league has that the values cannot reflect (sleeper-import.js fitOf), for settings.html to say */
+    if (result.fit) rec.fit = result.fit;
+    return rec;
   }
 
   /* teams given as their own blocks of lines ({name, text}), read by the live matcher one team at a time: the same

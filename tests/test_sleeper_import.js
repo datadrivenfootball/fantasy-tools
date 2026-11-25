@@ -93,8 +93,20 @@ test("team names, defenses, unknown ids, settings", async () => {
   assert.deepStrictEqual(teams[1].unmatched.map(u => [u.line, u.reason]), [["A player not in our list yet (Sleeper id 99999999)", "missing"]]);
   assert.ok(teams.every(t => t.players.every(p => /^\d+$/.test(p.key))));
   // JEG-1632: the K and DEF slots come through as the engine's K / DST roster keys
-  assert.deepStrictEqual(out.settings, {scoring: "half_ppr", superflex: true, roster: {QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 5, K: 1, DST: 1}});
-  assert.ok(!("teams" in out.settings), "4 teams is not a league size the site offers, so it is left to settings.html");
+  // League entry (Jeremy, 2026-11-20): a size the site does not offer uses the closest one (4 -> 8), and the record says so
+  assert.deepStrictEqual(out.settings, {scoring: "half_ppr", superflex: true, roster: {QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BENCH: 5, K: 1, DST: 1}, teams: 8});
+  assert.deepStrictEqual(out.result.fit, {teams: 4, usedTeams: 8});
+});
+
+test("team counts outside 8 to 14 use the closest size; TE premium is reported, not valued", () => {
+  const S = DDF.sleeper;
+  const lg = n => ({total_rosters: n, roster_positions: ["QB", "RB", "WR", "TE", "BN"], scoring_settings: {rec: 1}});
+  assert.deepStrictEqual([6, 8, 9, 12, 13, 16, 18, 32].map(n => S.settingsOf(lg(n)).teams), [8, 8, 8, 12, 12, 14, 14, 14]);
+  assert.strictEqual(S.fitOf(lg(12)), null, "a league that fits has nothing to say");
+  assert.deepStrictEqual(S.fitOf(lg(18)), {teams: 18, usedTeams: 14});
+  assert.deepStrictEqual(S.fitOf({total_rosters: 12, scoring_settings: {rec: 1, bonus_rec_te: 0.5}}), {tePremium: 0.5});
+  assert.deepStrictEqual(S.fitOf({total_rosters: 18, scoring_settings: {bonus_rec_te: 1}}), {teams: 18, usedTeams: 14, tePremium: 1});
+  assert.strictEqual(S.fitOf({total_rosters: 10, scoring_settings: {bonus_rec_te: 0}}), null);
 });
 
 test("kicker and defense slot counts (JEG-1632)", async () => {
