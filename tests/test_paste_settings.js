@@ -203,6 +203,15 @@ test("notice: everything confirmed", () => {
   LP.FIELDS.forEach(f => { all[f] = after(ps)[f]; });
   assert.strictEqual(notice(ps, all).lines.slice(-1)[0], "You've checked these. You can still change any of them below.");
 });
+test("6 to 20 teams read: a size between 8, 10, 12 and 14 rounds up, the ends clamp, and the notice says so (Jeremy, 2026-11-24)", () => {
+  const league = n => ({teams: Array.from({length: n}, (_, i) => ({name: "T" + i, players: [{line: "a" + i}, {line: "b" + i}], unmatched: []}))});
+  const sizes = [6, 9, 11, 13, 16, 20].map(n => LP.inferSettings("", league(n)));
+  assert.deepStrictEqual(sizes.map(ps => ps.teams), [8, 10, 12, 14, 14, 14]);
+  assert.ok(sizes.every(ps => ps.why.teams === "rounded"));
+  assert.ok(notice(sizes[1], {}).lines.includes("Values are for 8, 10, 12 or 14 teams, so we use 10, the closest size at or above yours."));
+  assert.ok(notice(sizes[4], {}).lines.includes("Values are for 8, 10, 12 or 14 teams, so we use 14."));
+  assert.strictEqual(LP.inferSettings("", league(5)).why.teams, "unsupported", "5 or fewer: more often a partial copy; the reader picks");
+});
 test("notice: nothing read (no labels, supported size not reached) keeps the page's own text", () => {
   const ps = LP.inferSettings("A\nx\nB\ny", {teams: [{name: "A", players: [1], unmatched: []}, {name: "B", players: [1], unmatched: []}]});
   ps.why.teams = undefined;   // as if the size were supported but not read

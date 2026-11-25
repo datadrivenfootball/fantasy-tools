@@ -58,7 +58,7 @@
     var sc = p.get('scoring');
     if (sc && LE().SCORING_LABEL[sc]) s.scoring = sc;
     var t = Number(p.get('teams'));
-    if ([8, 10, 12, 14].indexOf(t) >= 0) s.teams = t;
+    if (Number.isInteger(t) && t >= 2 && t <= 40) s.teams = [8, 10, 12, 14].filter(function (x) { return x >= t; })[0] || 14;   /* a count between sizes rounds up (9 -> 10), below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24) */
     var r = parseRoster(p.get('roster'));
     if (r) s.roster = r;
     return Object.keys(s).length ? s : null;

@@ -736,6 +736,10 @@ test-core:
 	python3 -m unittest tests.test_ppg_tie_parity
 	python3 -m unittest tests.test_kdst_removed
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_comparison_source_integrity
 	python3 -m unittest tests.test_source_curves_distinct
 	python3 -m unittest tests.test_curve_default_guard
@@ -967,6 +971,10 @@ test-core-shard-1:
 	python3 -m unittest tests.test_isolate_post_validate
 	python3 -m unittest tests.test_post_validate_workflow_wiring
 	python3 -m unittest tests.test_market_bench
+	# League entry (Jeremy, 2026-11-20): notices when a league does not fit (team count, TE premium); 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_fit_notices_render
+	# Team counts: the Sleeper import, the paste reader and every page-link reader round up the same way (node, under a second).
+	python3 -m unittest tests.test_team_size_rule_sources
 	python3 -m unittest tests.test_superflex
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
