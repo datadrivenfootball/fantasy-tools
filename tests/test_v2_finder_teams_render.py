@@ -190,18 +190,24 @@ def check(page, tag, width) -> list[str]:
     # Changing the league scoring rebuilds the card from the new rows. The change must move the totals by well over the
     # rounding tolerance, or a card that was never rebuilt still reads "close": after the 54674fbe0 bake, PPR -> standard
     # moved Your team by 0.24 and the "card not rebuilt" mutation went uncaught. So try each scoring until both teams move.
+    # JEG-1700: with FantasyPros Week 12 (a scoring-agnostic chart) in the blend no scoring alone moved the second
+    # sample team by 1.0 (0.6 to 1.03 depending on the day), so after the scorings try scoring with a team-count change.
+    # The card must rebuild on either; the 1.0 bar is unchanged.
     start = {side: page.evaluate(INDEP, side)["total"] for side in ("Mine", "Theirs")}
     moved = False
-    for scoring in ("standard", "ppr", "half_ppr"):
-        page.evaluate("""(s) => { window.TradeValueCurveControls.setScoring(s);
-          document.dispatchEvent(new CustomEvent('ddf:league-settings-changed', {detail: {reason: 'settings', notes: []}})); }""", scoring)
+    changes = [(scoring, None) for scoring in ("standard", "ppr", "half_ppr")]
+    changes += [(scoring, teams) for teams in (8, 14, 10) for scoring in ("standard", "ppr", "half_ppr")]
+    for scoring, teams in changes:
+        page.evaluate("""([s, t]) => { const C = window.TradeValueCurveControls; C.setScoring(s); if (t) C.setTeams(t);
+          document.dispatchEvent(new CustomEvent('ddf:league-settings-changed', {detail: {reason: 'settings', notes: []}})); }""",
+                      [scoring, teams])
         page.wait_for_timeout(700)
         now = {side: page.evaluate(INDEP, side) for side in ("Mine", "Theirs")}
         if all(abs(now[side]["total"] - start[side]) >= 1.0 for side in now):
             moved = True
             break
     if not moved:
-        errors.append(tag + "no league scoring change moved both teams' DDF totals by 1.0, so a stale card could not be told apart")
+        errors.append(tag + "no league scoring or team-count change moved both teams' DDF totals by 1.0, so a stale card could not be told apart")
     after = page.evaluate(CARD)
     if not after:
         errors.append(tag + "the team summary disappeared after a league scoring change")

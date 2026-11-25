@@ -205,7 +205,7 @@ class MobileConnectTest(_RenderBase):
         self.assertTrue(page.text_content("#recognition-summary").startswith("Found 3 teams and "), page.text_content("#recognition-summary"))
         top = page.eval_on_selector("#recognized", "e => e.getBoundingClientRect().top")
         self.assertTrue(0 <= top < 400, f"success card off screen (top={top})")
-        self.assertEqual(page.text_content("#entry-status").strip(), "Check the list below, then confirm your team.")
+        self.assertEqual(page.text_content("#entry-status").strip(), "Check the list below, then pick your team.")
 
     def test_connect_unreadable_paste_wording(self):
         page = self.page(390)

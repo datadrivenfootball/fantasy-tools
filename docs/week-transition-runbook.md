@@ -115,6 +115,22 @@ Find filter and 2-QB endpoint tests on main; a second pass found
   reference keeps a source the engine leaves out of the week's view.
 - Tests that read a list of charts take the charts this week prices, never a
   fixed list of four.
+- Week 12 rollover (2026-11-24, JEG-1700) reddened test-core again on main.
+  The data deploy still shipped. The fixes:
+  - `test_build_page_engine_parity` now serves `pinned_documents` (it went
+    vacuous with 3 sources).
+  - The `test_rank_guard` fall-back replay now pins the charts it names as
+    newest with `transition_overrides(pin_newest=...)` rather than hiding a
+    real laggard.
+  - `test_fractional_seats_stability` now reads a pinned Week 11 input
+    snapshot (`tests/fixtures/fractional_seats_stability/`, read as of
+    2026-11-23). Its bound depends on which players sit at that week's fill
+    cutoff. The Week 12 failure (1.07) was the accepted JEG-1336 fill-set
+    step reaching a neighbour through the CBS chart estimate, not a seat move.
+  - `test_learn_engine_parity` formats numbers like the page's `toFixed`
+    (#1535).
+  - The `test_find_waiver_alternative` note regex now accepts the
+    multi-position wording.
 
 
 ## Exemption decision records
