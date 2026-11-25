@@ -270,11 +270,18 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
   const IMPORT_NAME = {sleeper: 'Sleeper', espn: 'ESPN', yahoo: 'Yahoo'};
   const IMPORT_FIELDS = Object.assign({scoring: 'scoring'}, FIELD_INPUT);
   let importOn = null;
+  /* the league's value for each field it gave, in the form's terms */
+  function importedValues(st) {
+    const v = {scoring: LABEL[st.scoring] || null, SUPERFLEX: st.superflexSlots === 2 ? 2 : (st.superflex ? 1 : 0)};
+    if (Number.isInteger(st.teams)) v.teams = st.teams;
+    if (st.roster) ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BENCH', 'K', 'DST'].forEach(k => { if (Number.isInteger(st.roster[k])) v[k] = st.roster[k]; });
+    return v;
+  }
+  /* a field counts as the league's only while the form still holds the league's value: one the reader changed and
+     saved (12 teams to 10, say) shows no marker when they come back */
   function importedFields(st) {
-    const f = ['scoring', 'SUPERFLEX'];
-    if (Number.isInteger(st.teams)) f.push('teams');
-    if (st.roster) ['QB', 'RB', 'WR', 'TE', 'FLEX', 'BENCH', 'K', 'DST'].forEach(k => { if (Number.isInteger(st.roster[k])) f.push(k); });
-    return f;
+    const v = importedValues(st);
+    return Object.keys(v).filter(f => v[f] !== null && String($(IMPORT_FIELDS[f]).value) === String(v[f]));
   }
   function importMarker(f, name) {
     let m = $('imp-' + f);
@@ -305,7 +312,9 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     importOn = {name, fields};
     fields.forEach(f => { importMarker(f, name).hidden = false; });
     $('roster-optional').hidden = true;   // the values are the league's own, not a standard roster
-    const whole = fields.indexOf('teams') >= 0 && fields.indexOf('QB') >= 0;
+    const given = Object.keys(importedValues(rec.importSettings));
+    /* one line only when every value is the league's: scoring, team count and the whole lineup, none changed since */
+    const whole = given.indexOf('teams') >= 0 && given.indexOf('QB') >= 0 && given.every(f => fields.indexOf(f) >= 0);
     if (!whole) return;
     $('settings-source').textContent = 'From ' + name;
     $('settings-values').textContent = summaryText();

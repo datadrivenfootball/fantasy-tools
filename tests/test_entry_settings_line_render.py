@@ -64,7 +64,7 @@ class SettingsLineTest(unittest.TestCase):
         cls._pwcm.__exit__(None, None, None)
         cls._serve.__exit__(None, None, None)
 
-    def page(self, width, teams=12):
+    def page(self, width, teams=12, positions=None):
         ctx = {"viewport": {"width": width, "height": 812 if width < 761 else 900}}
         if width < 761:
             ctx.update(is_mobile=True, has_touch=True)
@@ -80,6 +80,8 @@ class SettingsLineTest(unittest.TestCase):
             body = json.loads((FX / files[path]).read_text())
             if path == f"league/{ID}":
                 body["total_rosters"] = teams   # the fixture's 4 rosters stand in for a league of this size
+                if positions:
+                    body["roster_positions"] = positions
             route.fulfill(status=200, body=json.dumps(body), content_type="application/json", headers={"Access-Control-Allow-Origin": "*"})
 
         page.route(lambda u: not (u.startswith("http://127.0.0.1") or u.startswith("http://localhost")) and "api.sleeper.app" not in u, lambda r: r.abort())
@@ -93,9 +95,9 @@ class SettingsLineTest(unittest.TestCase):
         page.locator(selector).first.click()
         page.taps.append(what)
 
-    def sleeper_to_settings(self, width, teams=12):
+    def sleeper_to_settings(self, width, teams=12, positions=None):
         """Landing page to League settings by the Sleeper league ID, counted."""
-        page = self.page(width, teams)
+        page = self.page(width, teams, positions)
         page.goto(f"{self.base}/index.html", wait_until="networkidle", timeout=60000)
         self.tap(page, "a.getstarted:visible, a.cta2:visible", "Get started")
         page.wait_for_url("**/connect.html", timeout=30000)
@@ -174,13 +176,33 @@ class SettingsLineTest(unittest.TestCase):
         self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"], s["roster"]["SUPERFLEX"]), ("half_ppr", 12, 3, 5, 1))
 
     # ---- 3 ----
-    def test_a_team_count_sleeper_did_not_give_keeps_the_form(self):
-        page = self.sleeper_to_settings(PHONE, teams=4)
+    def test_a_lineup_sleeper_did_not_give_keeps_the_form(self):
+        """A superflex-only Sleeper lineup (no QB slot) is left for this page to confirm: the form stays open, the
+        values that did come from Sleeper are marked, the lineup is not."""
+        page = self.sleeper_to_settings(PHONE, positions=["SUPER_FLEX", "RB", "RB", "WR", "WR", "TE", "FLEX", "BN", "BN", "BN"])
         self.assertTrue(page.is_hidden("#settings-summary"))
         self.assertTrue(page.is_visible("#editor"))
         self.assertTrue(page.is_hidden("#roster-optional"))
         self.assertEqual(page.text_content("#imp-scoring"), "From Sleeper")
-        self.assertEqual(page.locator("#imp-teams").count(), 0, "the team count did not come from Sleeper")
+        self.assertEqual(page.text_content("#imp-teams"), "From Sleeper")
+        self.assertEqual(page.locator("#imp-QB").count(), 0, "the lineup did not come from Sleeper")
+        self.assert_page_ok(page)
+
+    def test_a_value_you_changed_is_no_longer_marked(self):
+        page = self.sleeper_to_settings(PHONE)
+        page.click("#settings-edit")
+        page.click('[aria-labelledby=lbl-teams] button[data-value="10"]')
+        self.assertTrue(page.is_hidden("#imp-teams"))
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/team.html", timeout=30000)
+        page.goto(page.url.replace("team.html", "settings.html"), wait_until="networkidle", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_timeout(500)
+        self.assertEqual(page.input_value("#teams"), "10")
+        self.assertTrue(page.is_hidden("#settings-summary"), "not every value is Sleeper's now: the form stays open")
+        self.assertTrue(page.is_visible("#editor"))
+        self.assertEqual(page.locator("#imp-teams:not([hidden])").count(), 0, "the team count you changed has no marker")
+        self.assertEqual(page.text_content("#imp-WR"), "From Sleeper")
         self.assert_page_ok(page)
 
     # ---- 4 ----
