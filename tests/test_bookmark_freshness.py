@@ -260,6 +260,7 @@ class BookmarkFreshnessTest(unittest.TestCase):
         kept = page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted'))")
         self.assertEqual(kept["suggestedName"], "Sample League")
         self.assertNotIn("name", kept)
+        page.click("#scoring-pick [data-scoring=ppr]")  # League entry (2026-11-20): a paste asks its scoring on the read card
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         self.assertEqual(page.input_value("#league-name"), "Sample League")

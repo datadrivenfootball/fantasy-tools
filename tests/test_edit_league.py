@@ -131,6 +131,7 @@ class EditLeagueRenderTest(unittest.TestCase):
         page.fill("#rosters", (FIXTURES / "01-yahoo-iphone.txt").read_text(encoding="utf-8"))   # no league name; has "Hail Marys"
         page.click("#recognize-button")
         page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        self.assertEqual(page.get_attribute("#scoring-pick [data-scoring=ppr]", "aria-pressed"), "true", "editing: the league's scoring is kept")
         page.click(".ddf-actionbar__next")  # the sticky bar is the one Next (JEG-1568)
         page.wait_for_url("**/setup.html", timeout=20000)
         self.assertEqual(page.input_value("#league-name"), "USO Season XVIII")

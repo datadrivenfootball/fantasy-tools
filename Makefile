@@ -747,6 +747,8 @@ test-core:
 	python3 -m unittest tests.test_suffix_identity
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
+	# League entry (Jeremy, 2026-11-20): scoring as three buttons on the read card, no silent PPR; 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_scoring_buttons_render
 	python3 -m unittest tests.test_ros_rank_keys
 	python3 -m unittest tests.test_one_name_resolver
 	python3 -m unittest tests.test_player_alias_table
@@ -964,6 +966,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_superflex
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
+	# League entry (Jeremy, 2026-11-20): scoring as three buttons on the read card, no silent PPR; 375px and desktop. Light, so in shard 1.
+	python3 -m unittest tests.test_entry_scoring_buttons_render
 	python3 -m unittest tests.test_ros_rank_keys
 	python3 -m unittest tests.test_chain_commits_legs
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).

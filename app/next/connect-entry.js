@@ -105,11 +105,18 @@
     return record;
   }
   function save(record) {
+    if (needsScoring(record) && !record.scoring) {
+      var before = kept() || dropped;
+      if (before && before.scoring && DDF.leaguePaste.sameLeague(before, record)) record.scoring = before.scoring;
+      else if (editing && editing.source !== "link") { try { record.scoring = DDF.engine.settings().scoring || null; } catch (e) { /* asked on the card */ } }
+    }
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
     DDF.state.set("pasted", record);
     /* JEG-1548: the method only (paste, sleeper, manual); analytics.js drops anything not on its list */
     if (DDF.track && record && typeof record.source === "string") DDF.track("league-added/" + record.source);
+    drawScoring(record);   /* before ddf:pasted: connect.html's Next reads the scoring on that event */
+    if (needsScoring(record) && record.scoring) applyScoring(record.scoring);
     document.dispatchEvent(new CustomEvent("ddf:pasted", {detail: record}));
   }
   function drop() {
@@ -186,6 +193,35 @@
     var card = $("recognized");
     if (card) card.hidden = true;
     var b = $("recognize-button"); if (b) b.setAttribute("aria-expanded", "false");
+  }
+
+  /* ---------- scoring on the read card (pasted leagues) ----------
+     A rosters page never shows scoring, so a paste used to start as PPR with nothing saying it was a guess. The card
+     asks PPR, Half PPR or Standard with nothing preselected, and Next waits for the answer. Preselected only when known:
+     the same league read again, or the league being edited. Sleeper and chat leagues bring their own scoring. */
+  function needsScoring(rec) { return !!rec && rec.source === "paste" && Array.isArray(rec.teams) && rec.teams.length > 1; }
+  function applyScoring(tok) { try { if (DDF.engine && DDF.engine.apply) DDF.engine.apply({scoring: tok}); } catch (e) { /* settings.html asks */ } }
+  function drawScoring(rec) {
+    var box = $("scoring-pick"); if (!box) return;
+    box.hidden = !needsScoring(rec);
+    Array.prototype.forEach.call(box.querySelectorAll("[data-scoring]"), function (b) {
+      b.setAttribute("aria-pressed", String(!box.hidden && rec.scoring === b.getAttribute("data-scoring")));
+    });
+  }
+  function pickScoring(tok) {
+    var rec = kept();
+    if (!needsScoring(rec)) return;
+    rec.scoring = tok; DDF.state.set("pasted", rec);
+    applyScoring(tok);
+    drawScoring(rec);
+    document.dispatchEvent(new CustomEvent("ddf-scoringpick", {detail: {scoring: tok}}));
+  }
+  /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
+  function scoringChoice() {
+    var box = $("scoring-pick"), card = $("recognized");
+    if (!box || box.hidden || !card || card.hidden) return "n/a";
+    var rec = kept();
+    return needsScoring(rec) ? rec.scoring || null : "n/a";
   }
 
   /* ---------- edit-names box ---------- */
@@ -449,6 +485,8 @@
       if (!ta.value.trim()) { status("", ""); hideEditNames(); }
     });
     $("edit-names-go").addEventListener("click", readAgain);
+    var scoringBox = $("scoring-pick");
+    if (scoringBox) scoringBox.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-scoring]"); if (b) pickScoring(b.getAttribute("data-scoring")); });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);
@@ -473,5 +511,6 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo,
+    scoringChoice: scoringChoice, pickScoring: pickScoring};
 })();

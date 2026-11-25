@@ -56,6 +56,10 @@ body.connect{scrollbar-color:#176c4d #eef1ec;caret-color:#176c4d}.connect ::sele
 .connect .sleeper-paste{margin:8px 0 0;font-size:14px}.connect .sleeper-example{margin:6px 0 0;font-size:14px;color:#5c6a76;overflow-wrap:anywhere}.connect .sleeper-paste .link-button{min-height:44px}
 .connect #link-result.is-loading{color:#5c6a76}.connect #link-result.is-error{color:#8a3b12;background:#fbeee3;border-radius:8px;padding:10px 14px}.connect #link-result.is-ok{color:#176c4d;font-weight:600}
 .connect .entry-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#f3f5f2;border:1px solid #dbe0dc;border-radius:10px;padding:12px 14px;margin:0 0 18px}.connect .entry-top p{margin:0;flex:1 1 280px;font-size:15px}.connect .entry-top-actions{display:flex;gap:10px;flex-wrap:wrap}.connect .entry-top .button,.connect .entry-fresh{min-height:44px;display:inline-flex;align-items:center}.connect .entry-fresh{background:#fff;border:1px solid #a83e12;color:#a83e12;border-radius:5px;padding:8px 13px;font-weight:600;cursor:pointer}.connect .replacing-line{margin:4px 0 0;font-size:14px;color:#5c6a76}
+.connect .scoring-pick{margin:16px 0 8px}.connect .scoring-pick h3{margin:0 0 4px}.connect .scoring-pick p{margin:0 0 10px;font-size:14px}
+.connect .scoring-seg{display:flex;border:1px solid #dbe0dc;border-radius:10px;overflow:hidden;background:#fff;max-width:420px}
+.connect .scoring-seg button{flex:1 1 0;min-width:0;min-height:44px;border:0;border-radius:0;background:#fff;color:#39413b;padding:10px 6px;font:inherit;font-weight:600;cursor:pointer}
+.connect .scoring-seg button+button{border-left:1px solid #dbe0dc}.connect .scoring-seg button[aria-pressed="true"]{background:#e8f5ee;color:#176c4d;box-shadow:inset 0 0 0 1px #176c4d}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 html[data-device="phone"] .dv-desktop{display:none}html[data-device="desktop"] .dv-phone{display:none}
 .dv-toggle{display:none}html[data-device="phone"] .dv-toggle.to-desktop,html[data-device="desktop"] .dv-toggle.to-phone{display:inline-block}
@@ -206,6 +210,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <section class="card connect-recognition" id="recognized" hidden aria-labelledby="recognition-title">
 <div class="row"><h2 id="recognition-title" tabindex="-1">Here's what we read from your paste</h2><button type="button" class="link-button" id="edit-team-names">Edit team names</button></div>
 <p class="muted" id="recognition-summary" role="status"></p>
+<div class="scoring-pick" id="scoring-pick" hidden><h3 id="scoring-pick-title">Scoring</h3><p class="muted" id="scoring-pick-help">A rosters page does not show scoring. Pick your league's.</p><div class="scoring-seg" role="group" aria-labelledby="scoring-pick-title" aria-describedby="scoring-pick-help"><button type="button" data-scoring="ppr" aria-pressed="false">PPR</button><button type="button" data-scoring="half_ppr" aria-pressed="false">Half PPR</button><button type="button" data-scoring="standard" aria-pressed="false">Standard</button></div></div>
 <p id="recognition-league" hidden></p>
 <div id="recognition-teams"></div>
 <p id="recognition-partial" class="muted" hidden>Some lines were not matched. You can continue with the matched players.</p>
@@ -518,13 +523,17 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
     var has=!!(linked||(kept&&Array.isArray(kept.teams)&&kept.teams.length>1));
     /* JEG-1696: a league kept from an earlier visit (the saved league) moves on too */
     if(!has){try{has=!!(DDF.leagueMeta&&DDF.leagueMeta.info())}catch(e){}}
-    ddfGate([document.getElementById('connect-next')],has,'Paste your rosters to continue.','gate-reason');
-    if(window.DDF&&DDF.actionBar&&has)DDF.actionBar.setSummary('Rosters added, next: confirm your team');
+    /* a paste asks its scoring on the read card: Next waits for it (connect-entry.js scoringChoice) */
+    var sc=has&&window.DDF&&DDF.connectEntry&&DDF.connectEntry.scoringChoice?DDF.connectEntry.scoringChoice():'n/a';
+    var ok=has&&sc!==null;
+    ddfGate([document.getElementById('connect-next')],ok,has?'Pick your league\'s scoring to continue.':'Paste your rosters to continue.','gate-reason');
+    if(window.DDF&&DDF.actionBar&&ok)DDF.actionBar.setSummary('Rosters added, next: confirm your team');
   }
   if(ta)ta.addEventListener('input',upd);
   document.addEventListener('ddf:link',function(e){var d=e.detail||{};linked=!!(d.state&&!d.error&&d.source!=='none');upd()});
   if(manual)new MutationObserver(upd).observe(manual,{attributes:true,attributeFilter:['hidden']});
   document.addEventListener('ddf:pasted',upd);
+  document.addEventListener('ddf-scoringpick',upd);
   upd();
 })();
 </script></body></html>
