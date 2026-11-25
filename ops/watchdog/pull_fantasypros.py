@@ -287,8 +287,25 @@ def parse_tables(html):
         seen.append(pos)
         pos = None
     if sorted(seen) != ["QB", "RB", "TE", "WR"]:
-        raise RuntimeError("FantasyPros position tables found: %s (need QB, RB, WR, TE once each)" % seen)
+        raise RuntimeError("FantasyPros position tables found: %s (need QB, RB, WR, TE once each)\n%s"
+                           % (seen, page_outline(html)))
     return rows
+
+
+def page_outline(html, limit=60):
+    """Headings and table tags in page order, for a parse failure's log:
+    a changed layout is then diagnosable from the run log alone (JEG-1700,
+    Week 12 2026 lost the QB table and the log could not say why)."""
+    out = []
+    for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1\s*>|<(/?table[^\s>]*)[^>]*>", html, re.S | re.I):
+        if m.group(1):
+            out.append("  %s %r" % (m.group(1).lower(), _cell_text(m.group(2))[:80]))
+        else:
+            out.append("  <%s> at %d" % (m.group(3), m.start()))
+        if len(out) >= limit:
+            out.append("  ...")
+            break
+    return "page outline:\n" + "\n".join(out)
 
 
 # GAP-SUPERFLEX-PUBLISHER-VALUES: the QB table also publishes "2QB Value"
