@@ -18,6 +18,7 @@ import unittest
 from pathlib import Path
 
 from tests import _render_env
+from tests.test_entry_platform_link_render import espn_data_view
 from tests._dist_server import serve
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -189,7 +190,8 @@ class MobileConnectTest(_RenderBase):
         page.click("[data-provider=espn]")
         page.fill("#league-ref", "https://fantasy.espn.com/football/league?leagueId=123456")
         page.wait_for_selector("#link-result a.button")
-        self.assertEqual(page.get_attribute("#link-result a.button", "href"), "https://fantasy.espn.com/football/league/rosters?leagueId=123456")
+        self.assertEqual(page.get_attribute("#link-result a.button", "href"), espn_data_view("123456"))
+        self.assertEqual(page.get_attribute("#link-result a.rosters-instead", "href"), "https://fantasy.espn.com/football/league/rosters?leagueId=123456")
         page.click("[data-provider=yahoo]")
         page.click("#tutorial > summary")
         toggle = page.locator("[data-walkthrough=yahoo] .dv-toggle:visible").first
