@@ -258,7 +258,7 @@ class EspnLoadTest(unittest.TestCase):
             with self.subTest(width=width):
                 before, _ = self.before_path(width)
                 after, page = self.after_path(width)
-                page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+                page.wait_for_function("() => { try { return !!(window.DDF && DDF.engine && DDF.engine.settings && DDF.engine.settings()); } catch (e) { return false; } }", timeout=60000)
                 s = page.evaluate("DDF.engine.settings()")
                 self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 12, 3, 5))
                 self.assertEqual(page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted')).me"), 4, "Team Panettone is yours")
