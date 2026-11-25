@@ -23,6 +23,7 @@ from pathlib import Path
 
 from tests import _render_env
 from tests._dist_server import DIST, serve
+from tests._served_weeks import pinned_documents
 
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS = [(s, t, sf) for s in ("standard", "half_ppr", "ppr") for t in (10, 12) for sf in (False, True)]
@@ -107,7 +108,12 @@ def _pw():
 def run_parity(overrides=None, settings=SETTINGS, reverse=False):
     sync_playwright, PlaywrightError = _pw()
     errors = []
-    with serve(DIST, overrides=overrides) as base, sync_playwright() as pw:
+    # JEG-1700: the premise is no week transition. On the Week 12 rollover USA Today and FantasyPros still served
+    # Week 11, the engine left them out of the Week 12 view, and the check went vacuous (3 sources). Pin every
+    # source on the newest served week (tests/_served_weeks.py, docs/week-transition-runbook.md); the vacuity
+    # guard below is unchanged.
+    served = {path: text.encode("utf-8") for path, text in pinned_documents(DIST).items()}
+    with serve(DIST, overrides={**served, **(overrides or {})}) as base, sync_playwright() as pw:
         try:
             browser = pw.chromium.launch(args=_render_env.HERMETIC_ARGS, executable_path=_render_env.chromium_executable(pw))
         except PlaywrightError as exc:
