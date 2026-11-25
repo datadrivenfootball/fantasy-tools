@@ -17,6 +17,14 @@
  *     opts: {fetch, rows, table, playersUrl, leagueState, now, myTeamId} (fetch is injectable for tests)
  * DDF.sleeper.MESSAGES[code](info)  -> the plain-words message for an error
  *
+ * By username (league entry, Jeremy 2026-11-24; research: 0.29 s from our page): Sleeper's public lookup turns a
+ * username into that person's leagues for the season (GET user/{name}, then user/{user_id}/leagues/nfl/{season}), and
+ * each roster names its owner, so the reader's team is found for them. Nothing about the username is stored.
+ * DDF.sleeper.parseUsername(text)  -> the username or null (letters, digits and underscores; a number is a league ID)
+ * DDF.sleeper.findLeagues(name, opts) -> Promise<{ok, user:{id, name}, season, leagues:[{id, name, teams, scoring}]}
+ *     | {ok:false, code:'nouser'|'noleagues'|'network', name?, season?}>   opts: {fetch}
+ * load(id, {userId}) also returns `mine`: the index of that user's team in result.teams (owner or co-owner), or null.
+ *
  * League state (JEG-1656, part of JEG-1653; contract docs/contract/league-state-v1.md): load(id, {leagueState: true})
  * also returns leagueState, a league-state/1 document built from the same league, users and rosters responses plus one
  * public matchups call per remaining regular-season week (GET league/{id}/matchups/{week}). Without the option load is
@@ -39,10 +47,12 @@
   }
 
   var MESSAGES = {
-    invalid: function () { return "We could not find a Sleeper league ID in that. Paste your league link from the Sleeper app, or just the long number."; },
+    invalid: function () { return "We could not find a Sleeper username or league ID in that. Type your username as it shows in the Sleeper app, or paste your league link."; },
     notfound: function () { return "We could not find a Sleeper league with that ID. Check the number in your league link and try again."; },
     oldseason: function (i) { return "That league is from the " + (i && i.season ? i.season : "last") + " season. Open your league in the Sleeper app for this season and copy its link or ID."; },
     empty: function () { return "That Sleeper league has no rosters yet. Once the draft is done, try again."; },
+    nouser: function (i) { return "We could not find a Sleeper user named " + ((i && i.name) || "that") + ". Check the spelling in your Sleeper profile, or paste your league link instead."; },
+    noleagues: function (i) { return "We found " + ((i && i.name) || "that user") + " on Sleeper, but no football leagues for the " + ((i && i.season) || "current") + " season. Paste your league link instead."; },
     network: function () { return "We could not reach Sleeper just now. Check your connection and try again, or paste the rosters page instead."; }
   };
 
@@ -59,6 +69,43 @@
       if (!j || !j.p) throw new Error("players");   /* not cached: the next try fetches again */
       players = j.p; return players;
     });
+  }
+
+  function parseUsername(text) {
+    var t = String(text || "").trim().replace(/^@/, "");
+    return /^[A-Za-z0-9_]{2,30}$/.test(t) && !/^\d+$/.test(t) ? t : null;
+  }
+  function scoringName(lg) {
+    var rec = lg && lg.scoring_settings && Number(lg.scoring_settings.rec);
+    return rec >= 1 ? "PPR" : rec >= 0.5 ? "Half PPR" : "Standard";
+  }
+  function findLeagues(name, opts) {
+    opts = opts || {};
+    var f = opts.fetch || (root.fetch && root.fetch.bind(root));
+    if (!name) return Promise.resolve({ok: false, code: "invalid"});
+    return Promise.all([getJSON(f, API + "user/" + encodeURIComponent(name)), getJSON(f, API + "state/nfl")]).then(function (got) {
+      var user = got[0], state = got[1];
+      if (!user || !user.user_id) return {ok: false, code: "nouser", name: name};
+      var season = String((state && (state.league_season || state.season)) || new Date().getFullYear());
+      var who = String(user.display_name || user.username || name);
+      return getJSON(f, API + "user/" + encodeURIComponent(user.user_id) + "/leagues/nfl/" + encodeURIComponent(season)).then(function (list) {
+        var leagues = (Array.isArray(list) ? list : []).filter(function (l) { return l && l.league_id; }).map(function (l) {
+          return {id: String(l.league_id), name: String(l.name || "Sleeper league").slice(0, 60), teams: Number(l.total_rosters) || null, scoring: scoringName(l)};
+        });
+        if (!leagues.length) return {ok: false, code: "noleagues", name: who, season: season};
+        return {ok: true, user: {id: String(user.user_id), name: who}, season: season, leagues: leagues};
+      });
+    }).then(null, function () { return {ok: false, code: "network"}; });
+  }
+  /* the user's team: the roster they own or co-own, as an index in asBlocks order (sorted by roster_id) */
+  function mineOf(rosters, userId) {
+    if (!userId) return null;
+    var sorted = (rosters || []).slice().sort(function (a, b) { return (a.roster_id || 0) - (b.roster_id || 0); });
+    for (var i = 0; i < sorted.length; i++) {
+      var r = sorted[i];
+      if (r && (String(r.owner_id) === String(userId) || (Array.isArray(r.co_owners) && r.co_owners.map(String).indexOf(String(userId)) >= 0))) return i;
+    }
+    return null;
   }
 
   function settingsOf(lg) {
@@ -297,7 +344,7 @@
           res.league = {leagueName: lg.name ? String(lg.name).slice(0, 60) : null, leagueId: String(id), platform: "sleeper", confidence: 1};
           if (!res.ok) return {ok: false, code: "empty"};
           res.fit = fitOf(lg);
-          var out = {ok: true, result: res, settings: settingsOf(lg)};
+          var out = {ok: true, result: res, settings: settingsOf(lg), mine: mineOf(rosters, opts.userId)};
           if (!opts.leagueState) return out;
           return fetchMatchups(f, base, remainingWeeks(lg, rosters)).then(function (m) {
             out.leagueState = buildLeagueState(lg, users, rosters, m, {now: opts.now, myTeamId: opts.myTeamId, leagueId: String(id)});
@@ -308,7 +355,7 @@
       .catch(function () { return {ok: false, code: "network"}; });
   }
 
-  var api = {parseId: parseId, load: load, settingsOf: settingsOf, fitOf: fitOf, buildLeagueState: buildLeagueState, remainingWeeks: remainingWeeks, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
+  var api = {parseId: parseId, parseUsername: parseUsername, findLeagues: findLeagues, mineOf: mineOf, load: load, settingsOf: settingsOf, fitOf: fitOf, buildLeagueState: buildLeagueState, remainingWeeks: remainingWeeks, asBlocks: asBlocks, MESSAGES: MESSAGES, _reset: function () { players = null; }};
   root.DDF = root.DDF || {};
   root.DDF.sleeper = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

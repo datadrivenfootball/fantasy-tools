@@ -468,8 +468,9 @@
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }
   /* ---------- Sleeper (JEG-1570): the league ID loads every roster; no copy and paste ---------- */
-  var SLEEPER = {h3: "Sleeper league link or ID", p: "Paste your league link or ID and we'll load every team's roster. No copying needed.",
-    label: "Sleeper league link or ID", btn: "Load my league", ph: "sleeper.com/leagues/... or a number", title: "Add your Sleeper league",
+  /* Sleeper by username (JEG-1714): the same box takes a username (we find the leagues and your team) or a league link or ID */
+  var SLEEPER = {h3: "Sleeper username or league ID", p: "Type your Sleeper username and we'll find your leagues and your team. A league link or ID works too. No copying needed.",
+    label: "Sleeper username or league ID", btn: "Find my league", ph: "Your Sleeper username, or a league link", title: "Add your Sleeper league",
     intro: "Sleeper rosters are public, so there is nothing to copy."};
   var original = null, sleeperBusy = false, sleeperLast = null;
   function provider() { var b = document.querySelector("[data-provider][aria-pressed='true']"); return b ? b.getAttribute("data-provider") : "espn"; }
@@ -536,17 +537,54 @@
   }
   var sleeperSeq = 0;
   function sleeperDone(el) { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); }
-  function sleeperGo() {
-    var el = wayEls(), id = DDF.sleeper && DDF.sleeper.parseId(el.input.value);
-    if (!id) { linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Paste your Sleeper league link or ID first.", "error"); return Promise.resolve(null); }
+  /* a username: Sleeper's public lookup lists the user's leagues this season; one league loads at once, several are
+     listed to pick from. The user's team is preselected from the roster they own. The username is never stored. */
+  var sleeperUser = null, sleeperFinding = null;   /* the username found (and still in the box); one being looked up */
+  function sleeperFind(name) {
+    var el = wayEls();
+    if (sleeperFinding === name) return Promise.resolve(null);   /* leaving the box, then tapping Find: one lookup */
+    if (sleeperUser && sleeperUser.input === name && (document.querySelector("#link-result [data-sleeper-league]") || (kept() && kept().source === "sleeper"))) return Promise.resolve(null);
+    sleeperFinding = name;
+    var seq = ++sleeperSeq;
+    var current = function () { return seq === sleeperSeq && provider() === "sleeper" && DDF.sleeper.parseUsername(el.input.value) === name; };
+    sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
+    linkMsg("Finding your Sleeper leagues...", "loading");
+    return DDF.sleeper.findLeagues(name).then(function (out) {
+      if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }
+      sleeperDone(el);
+      if (!out || !out.ok) { sleeperUser = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
+      sleeperUser = {id: out.user.id, name: out.user.name, input: name};
+      if (out.leagues.length === 1) return sleeperGo({id: out.leagues[0].id});
+      var list = $("link-result");
+      list.className = "";
+      list.innerHTML = '<span class="sleeper-leagues-head">Found ' + plural(out.leagues.length, "league") + " for " + esc(out.user.name) + " this season. Which one?</span>"
+        + '<span class="sleeper-leagues" role="group" aria-label="Your Sleeper leagues">' + out.leagues.map(function (l) {
+          return '<button type="button" class="sleeper-league" data-sleeper-league="' + esc(l.id) + '"><strong>' + esc(l.name) + "</strong><small>"
+            + esc([l.teams ? plural(l.teams, "team") : "", l.scoring].filter(Boolean).join(" · ")) + "</small></button>";
+        }).join("") + "</span>";
+      return out;
+    }).then(function (out) { if (sleeperFinding === name) sleeperFinding = null; return out; },
+      function () { if (sleeperFinding === name) sleeperFinding = null; sleeperDone(el); linkMsg(DDF.sleeper.MESSAGES.network(), "error"); return null; });
+  }
+  function sleeperGo(opts) {
+    opts = opts || {};
+    var el = wayEls(), id = opts.id || (DDF.sleeper && DDF.sleeper.parseId(el.input.value));
+    if (!id) {
+      var name = DDF.sleeper && DDF.sleeper.parseUsername && DDF.sleeper.parseUsername(el.input.value);
+      if (name) return sleeperFind(name);
+      linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Type your Sleeper username, or paste your league link or ID.", "error"); return Promise.resolve(null);
+    }
+    var byUser = !!opts.id && !!sleeperUser;
     if (sleeperLast === id && kept() && kept().source === "sleeper" && kept().leagueId === id) return Promise.resolve(null);
     /* a newer request (another ID, or switching away from Sleeper) wins; an older answer is dropped */
     var seq = ++sleeperSeq;
-    var current = function () { return seq === sleeperSeq && provider() === "sleeper" && DDF.sleeper.parseId(el.input.value) === id; };
+    var current = function () {
+      return seq === sleeperSeq && provider() === "sleeper" && (byUser ? DDF.sleeper.parseUsername(el.input.value) === sleeperUser.input : DDF.sleeper.parseId(el.input.value) === id);
+    };
     sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
     linkMsg("Loading your league from Sleeper...", "loading");
     return whenRows().then(function (rows) {
-      return DDF.sleeper.load(id, {rows: rows, table: table()}).then(function (out) {
+      return DDF.sleeper.load(id, {rows: rows, table: table(), userId: byUser ? sleeperUser.id : null}).then(function (out) {
         if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
         sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
@@ -558,10 +596,14 @@
         /* the settings Sleeper gave (sleeper-import.js settingsOf), so settings.html can show them as read from the league */
         var srec = DDF.leaguePaste.record(res, "sleeper");
         if (out.settings) srec.importSettings = out.settings;
+        var mine = byUser && Number.isInteger(out.mine) && res.teams[out.mine] ? out.mine : null;
+        if (mine !== null) { srec.me = mine; srec.own = mine; }
         save(srec);
         askBookmark(res);
         var lg = res.league || {};
-        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". Check the list below, then pick your team.", "ok");
+        linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". "
+          + (mine !== null ? "Your team: " + res.teams[mine].name + ", matched to " + sleeperUser.name + ". Change it below if that is not yours." : "Check the list below, then pick your team."), "ok");
+        if (byUser) { var card = $("recognized"); if (card && card.scrollIntoView) card.scrollIntoView({block: "start"}); }
         status("", "");
         return out;
       });
@@ -576,11 +618,17 @@
       if (e.target.closest && e.target.closest("button[data-provider]")) applyProvider();   /* after the toggle's own handler */
     });
     el.btn.addEventListener("click", function () { if (provider() === "sleeper") sleeperGo(); });
+    $("link-result").addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-sleeper-league]");
+      if (!b || provider() !== "sleeper" || !sleeperUser) return;
+      Array.prototype.forEach.call(document.querySelectorAll("[data-sleeper-league]"), function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      sleeperGo({id: b.getAttribute("data-sleeper-league")});
+    });
     el.input.addEventListener("keydown", function (e) { if (e.key === "Enter" && provider() === "sleeper") { e.preventDefault(); sleeperGo(); } });
     /* a pasted link for another platform switches the toggle first (followLink), so Sleeper loads only while Sleeper is on */
     el.input.addEventListener("paste", function () { if (provider() === "sleeper") setTimeout(function () { if (provider() === "sleeper") sleeperGo(); }, 0); });
     el.input.addEventListener("change", function () { if (provider() === "sleeper") sleeperGo(); });
-    el.input.addEventListener("input", function () { sleeperLast = null; followLink(); });
+    el.input.addEventListener("input", function () { sleeperLast = null; if (sleeperUser && DDF.sleeper.parseUsername(el.input.value) !== sleeperUser.input) sleeperUser = null; followLink(); });
     document.addEventListener("click", function (e) {
       var b = e.target.closest && e.target.closest("[data-switch-provider]");
       if (!b) return;

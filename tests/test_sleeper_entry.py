@@ -1,6 +1,6 @@
 """JEG-1570: connect.html with Sleeper selected loads the league from its link or ID (Sleeper API answered by fixtures).
 
-1. Sleeper view: one field ("Sleeper league link or ID") with the league ID help; no paste step, no rosters-page
+1. Sleeper view: one field ("Sleeper username or league ID") with the league ID help; no paste step, no rosters-page
    button, no copy-the-page tutorial; the paste box stays one tap away. ESPN and Yahoo views unchanged.
 2. A league ID loads every team: recognition card, "We found: <name>, N teams, M players", ddf:pasted (source sleeper,
    suggestedName, leagueId on the device), league settings saved for settings.html, the sticky Next enabled, setup lists
@@ -101,8 +101,8 @@ class SleeperEntryTest(unittest.TestCase):
                 self.assertTrue(page.is_visible("#entry"), "ESPN: paste step shown")
                 espn_label = page.text_content("label[for=league-ref]")
                 page.click('[data-provider="sleeper"]')
-                self.assertEqual(page.text_content("label[for=league-ref]"), "Sleeper league link or ID")
-                self.assertEqual(page.text_content("#get-link"), "Load my league")
+                self.assertEqual(page.text_content("label[for=league-ref]"), "Sleeper username or league ID")
+                self.assertEqual(page.text_content("#get-link"), "Find my league")
                 self.assertTrue(page.is_hidden("#entry"), "no paste step")
                 self.assertTrue(page.is_hidden("#step1-title .step-num"), "one step, no numbering")
                 self.assertTrue(page.text_content("#step1-title").endswith("Add your Sleeper league"))
@@ -185,7 +185,7 @@ class SleeperEntryTest(unittest.TestCase):
         page.click('[data-provider="sleeper"]')
         page.fill("#league-ref", "not a league")
         page.click("#get-link")
-        self.assertIn("could not find a Sleeper league ID", page.text_content("#link-result"))
+        self.assertIn("could not find a Sleeper username or league ID", page.text_content("#link-result"))
         self.assertEqual(page.calls, [], "no call without an ID")
 
 

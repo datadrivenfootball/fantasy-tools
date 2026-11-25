@@ -143,6 +143,32 @@ test("errors", async () => {
   assert.ok(SL.MESSAGES.oldseason({season: "2025"}).includes("2025 season"));
 });
 
+test("a username finds the leagues, and the user's own team", async () => {
+  for (const t of ["gamma_user", " gamma_user ", "@gamma_user", "Gamma_User", "ab"]) assert.ok(SL.parseUsername(t), t);
+  for (const t of ["", "a", "not a league", ID, "123456", "https://sleeper.com/leagues/1", "x".repeat(31)]) assert.strictEqual(SL.parseUsername(t), null, t);
+  const USER = {"/user/alpha_user": FX("user"), "/state/nfl": FX("state"), "/user/u1/leagues/nfl/2026": FX("user-leagues")};
+  const calls = [];
+  const found = await SL.findLeagues("alpha_user", {fetch: fakeFetch(USER, calls)});
+  assert.strictEqual(found.ok, true, JSON.stringify(found));
+  assert.deepStrictEqual(found.user, {id: "u1", name: "alpha_user"});
+  assert.deepStrictEqual(found.leagues, [{id: ID, name: "Gridiron Test League", teams: 4, scoring: "Half PPR"},
+    {id: "100000000000000002", name: "Office League", teams: 10, scoring: "PPR"}]);
+  assert.ok(calls.every(u => u.startsWith("https://api.sleeper.app/v1/")), "calls go to Sleeper only");
+  assert.strictEqual(calls.length, 3, "user, season, leagues");
+  assert.deepStrictEqual(await SL.findLeagues("nobody_here", {fetch: fakeFetch(USER)}), {ok: false, code: "nouser", name: "nobody_here"});
+  const none = await SL.findLeagues("alpha_user", {fetch: fakeFetch({"/user/alpha_user": FX("user"), "/state/nfl": FX("state"), "/user/u1/leagues/nfl/2026": []})});
+  assert.deepStrictEqual([none.code, none.name, none.season], ["noleagues", "alpha_user", "2026"]);
+  assert.strictEqual((await SL.findLeagues("alpha_user", {fetch: fakeFetch({"/user/alpha_user": new Error("offline")})})).code, "network");
+  // the league loaded for that user: their roster (owner u1, roster 1) is the first team; u3 owns the third
+  assert.strictEqual((await SL.load(ID, {fetch: fakeFetch(GOOD), rows: ROWS, table: TABLE, userId: "u1"})).mine, 0);
+  assert.strictEqual((await SL.load(ID, {fetch: fakeFetch(GOOD), rows: ROWS, table: TABLE, userId: "u3"})).mine, 2);
+  assert.strictEqual((await SL.load(ID, {fetch: fakeFetch(GOOD), rows: ROWS, table: TABLE})).mine, null, "a league ID alone does not say which team is yours");
+  assert.strictEqual(SL.mineOf([{roster_id: 2, owner_id: "x", co_owners: ["u9"]}, {roster_id: 1, owner_id: "y"}], "u9"), 1, "a co-owner's team, in roster order");
+  assert.strictEqual(SL.mineOf(FX("rosters"), "u404"), null);
+  assert.ok(SL.MESSAGES.nouser({name: "nobody_here"}).includes("nobody_here"));
+  assert.ok(SL.MESSAGES.noleagues({name: "gamma_user", season: "2026"}).includes("2026 season"));
+});
+
 (async () => {
   for (const [name, fn] of queue) {
     SL._reset();   // each test starts without the cached player table
