@@ -255,6 +255,8 @@ class PlatformLinkTest(unittest.TestCase):
         page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
         self.assertIn("Found 12 teams", page.text_content("#recognition-summary"))
         self.assert_page_ok(page)
+        if page.locator("#scoring-pick").count() and page.is_visible("#scoring-pick"):   # scoring asked on the card (another league-entry change)
+            run.tap("#scoring-pick [data-scoring=half_ppr]", "Half PPR on the card")
         card = page.locator("#team-pick-list").count() > 0
         if card:   # the team is picked on the read card (another league-entry change); setup.html is skipped
             run.tap('#team-pick-list .team-pick-option:has-text("Team 3")', "Team 3 on the card")
