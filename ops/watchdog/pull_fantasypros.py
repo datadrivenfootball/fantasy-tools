@@ -252,12 +252,11 @@ def published_date(html):
     return m.group(1) if m else None
 
 
-# A position heading, or a real <table> element. `<table` then whitespace or `>` on purpose (not `\b`, which matches before a hyphen): a
-# custom element such as <table-of-contents> or <tablepress-...> must not
-# open a match, because its lazy `.*?</table>` would run on to the next real
-# table's close and swallow the heading in between (the Week 12 2026 QB
-# section vanished that way: "found ['RB', 'WR', 'TE']"). A heading must
-# close at its own level.
+# A position heading, or a real <table> element. A heading must close at its
+# own level. A table opens only on `<table` followed by whitespace or `>`
+# (not `\b`, which also matches before a hyphen), so a custom element such as
+# <table-of-contents> cannot open a lazy match that runs on to the next real
+# table's close and swallows the heading in between.
 _SECTION_RE = re.compile(r"<(h[23])(?=[\s>])[^>]*>(.*?)</\1\s*>|<table(?=[\s>])[^>]*>.*?</table\s*>",
                          re.S | re.I)
 # Characters that split a word without showing: soft hyphen, zero-width
@@ -265,19 +264,23 @@ _SECTION_RE = re.compile(r"<(h[23])(?=[\s>])[^>]*>(.*?)</\1\s*>|<table(?=[\s>])[
 _INVISIBLE_RE = re.compile("[\u00ad\u200b\u200c\u200d\u2060\ufeff]")
 
 
-def _heading_position(raw):
-    head = _INVISIBLE_RE.sub("", _cell_text(raw)).lower()
-    head = re.sub(r"\s+", " ", head)
-    return next((p for k, p in POSITION_HEADINGS if k in head), None)
+def _heading_text(raw):
+    return re.sub(r"\s+", " ", _INVISIBLE_RE.sub("", _cell_text(raw))).strip().lower()
 
 
 def _position_tables(html):
-    """-> [(position, table_html)]: each real table that directly follows a
-    position heading (any other heading in between resets the position)."""
+    """-> [(position, table_html)]: each real table that follows a position
+    heading. Another heading with text in between resets the position; an
+    empty heading does not. The Week 12 2026 page (JEG-1700) puts an empty
+    <h3> between "Quarterback ... Trade Value Chart" and the QB table, which
+    reset the position, so the QB table was skipped and the ingest failed
+    closed four times with "found ['RB', 'WR', 'TE']"."""
     out, pos = [], None
     for m in _SECTION_RE.finditer(html):
         if m.group(1) is not None:
-            pos = _heading_position(m.group(2))
+            head = _heading_text(m.group(2))
+            if head:
+                pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
             continue
         if pos is not None:
             out.append((pos, m.group(0)))
