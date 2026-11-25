@@ -44,6 +44,6 @@ USA Today published Week 12 at 10:10 UTC; it was ingested at 12:35 and built int
 data-gate and rendered gate passed). The live site stayed on the 04:24 build because no deploy finished:
 test-core shard 1 now runs 22 to 30+ minutes with setup, and its job limit is 30. Deploy run 45627372353
 (df072631, a data commit that may deploy on its data checks) had shard 1 cut at 30:12; the run was then cancelled
-before its deploy job got a runner. Run 45630372379 (84be8ac2) hit the same limit at 14:55. Fix:
-`timeout-minutes: 45` for `validate-shard` (pages.yml) and `preview-shard` (preview.yml), within
-`test_ci_speedup_workflows`' bound of 45; that test's removal check names the new value.
+before its deploy job got a runner. Run 45630372379 (84be8ac2) hit the same limit at 14:55. The fix that shipped is #1547 on main (rebalanced shard 1, shard limits 40 minutes); this PR's
+own 45-minute change was dropped in the merge of main (17:10 UTC). Deploy 45654391850 (f161254f) passed every
+shard and went live at 17:03 (live tag tv-20261125-1629-f161254, USA Today Week 12, no hold).

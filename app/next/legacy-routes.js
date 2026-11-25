@@ -96,7 +96,7 @@
 
   function nearestTeams(n) {
     if (!isFinite(n)) return null;
-    return TEAMS_ALLOWED.reduce(function (best, t) { return Math.abs(t - n) < Math.abs(best - n) ? t : best; }, 12);
+    return TEAMS_ALLOWED.filter(function (t) { return t >= n; })[0] || 14;   /* a count between sizes rounds up (9 -> 10), below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24) */
   }
   // The link's league settings in the LINK-FORMAT shape (settings are required there): the link's own, else the
   // reader's saved settings, else the engine's default lineup (league.ts DEFAULT_ROSTER).
