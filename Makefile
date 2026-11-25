@@ -752,6 +752,8 @@ test-core:
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_one_name_resolver
 	python3 -m unittest tests.test_player_alias_table
 	python3 -m unittest tests.test_jeg539_position_and_inactive_rules
@@ -783,6 +785,10 @@ test-core:
 	python3 -m unittest tests.test_player_flags
 	python3 -m unittest tests.test_waivers_views
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
+	# League entry: every script on the entry pages parses (node --check), so a bad merge fails here. A few seconds.
+	python3 -m unittest tests.test_entry_scripts_parse
 	python3 -m unittest tests.test_v2_finder_trifit
 	python3 -m unittest tests.test_v2_finder_projection_noise
 	python3 -m unittest tests.test_v2_finder_triview_display
@@ -973,6 +979,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_player_aliases
 	python3 -m unittest tests.test_jeg1350_espn_dst
 	python3 -m unittest tests.test_ros_rank_keys
+	# League entry (Jeremy, 2026-11-20): pick your team on the read card; tap counts at 375px and desktop. Light (about 100 s), so in shard 1.
+	python3 -m unittest tests.test_entry_team_on_card_render
 	python3 -m unittest tests.test_chain_commits_legs
 	# JEG-1206: a validated rebuild survives main moving under it (run 40689076971).
 	python3 -m unittest tests.test_rebuild_chain_concurrent_main
@@ -980,6 +988,10 @@ test-core-shard-1:
 	python3 -m unittest tests.test_producers_schedule_tidy
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
+	# League entry: every script on the entry pages parses (node --check), so a bad merge fails here. A few seconds.
+	python3 -m unittest tests.test_entry_scripts_parse
 	node tests/test_v2_roster_paste.js
 	# Kickers and defenses in a paste are never read as another player (the Jason Sanders case, 2026-11-19).
 	node tests/test_kdef_paste_matching.js

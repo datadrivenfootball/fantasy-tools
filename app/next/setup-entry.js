@@ -59,6 +59,7 @@
       var ours = !!(prev && prev.id && prev.id === DDF.state.get("bridgedWs", null));
       var occupied = !!(prev && ((Array.isArray(prev.teams) && prev.teams.length) || prev.settings));
       if (occupied && !ours && !(opts && opts.replace)) return "ask";
+      if (opts && opts.dryRun) return "write";   /* connect.html asks before it writes (the write waits for Next) */
       var oldTeams = ours && Array.isArray(prev.teams) ? prev.teams : [];
       var teams = rec.teams.slice(0, 20).map(function (t, i) {
         var entries = (t.players || []).filter(function (p) { return p && p.key; }).map(function (p) {
@@ -125,6 +126,8 @@
       if (at >= 0) { src.me = at; src.rec.me = at; src.rec.own = at; DDF.state.set("pasted", src.rec); }
     }
     src.me = ownIndex(src);
+    /* a team picked on connect.html's read card, with another saved league here: ask now, not on a second pick */
+    if (src.kind === "pasted" && src.me >= 0 && !prev && !DDF.state.get("bridgeKeep", false) && bridge(src.rec, {dryRun: true}) === "ask") offerReplace(src.rec);
     box.innerHTML = src.teams.map(function (t, i) {
       var sel = i === src.me;
       return '<label class="setup-option ddf-pop ddf-lift' + (sel ? " selected" : "") + '"><input type="radio" name="team" value="' + esc(t.name) + '" data-i="' + i + '" required' + (sel ? " checked" : "") + "><span><strong>" + esc(t.name) + "</strong>"

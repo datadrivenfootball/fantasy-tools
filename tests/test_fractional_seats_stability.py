@@ -30,14 +30,32 @@ ESPN -1 put Hunter Luepke (no chart lists him) into the fill set, 0.24 to 1.53,
 with the allocation unchanged. Those players are held to FILL_STEP_BOUND
 instead; every other player keeps the 1.0 bound.
 
-Heavy (about two minutes on four cores, live inputs); runs in test-core (shard 2).
+JEG-1700 (Jeremy, 2026-11-25: "check it is expected, then pin the test's
+data"): the test reads a pinned input snapshot, not the live fixture. On the
+Week 12 rollover build (b4c6ab75d) Charlotte failed at 1.07: Darren Waller's
+ESPN -1 PPG (mean 6.29 -> 5.96) dropped him just under AJ Barner (5.98) at the
+TE fill cutoff; Barner entered the fill set (VP-2.4) with a CBS chart estimate
+of 4.0, ranked 13th next to Tyler Warren (12th, CBS native 5.0), so Warren's
+CBS lineup share fell 0.81 -> 0.66 and his DDF Value 5.71 -> 4.63. The seat
+mix was unchanged, the move is a step (0 at -0.75 PPG, -1.07 at -1.00), and
+it is the accepted JEG-1336 fill-set step passed on through the CBS chart, not
+a seat move or an engine fault. Whether such a step happens depends on which
+players sit at that week's fill cutoff, so on live data the test flipped with
+the week. The snapshot is the Week 11 build (main f5c86ad5b, every source on
+Week 11) read as of PINNED_TODAY; its worst move is 0.41 at Charlotte (324 espn
+-1 moved 3593). Refresh it only on purpose and record why here.
+
+Heavy (about two minutes on four cores); runs in test-core (shard 2).
 """
 from __future__ import annotations
 
+import gzip
 import os
 import sys
+import tempfile
 import unittest
 from concurrent.futures import ProcessPoolExecutor
+from datetime import date
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -59,7 +77,21 @@ LEAGUES = {
 }
 SETTINGS = [f"{sc}/{t}" for sc in VR.SCORINGS for t in VR.TEAM_COUNTS] + list(LEAGUES)
 
+PINNED = REPO / "tests" / "fixtures" / "fractional_seats_stability"
+PINNED_TODAY = date(2026, 11, 23)   # a day the Week 11 snapshot is current
+
 _INPUTS = None
+
+
+def _pinned_inputs():
+    """VR.Inputs from the pinned snapshot (gzipped fixture and players.json), as of PINNED_TODAY."""
+    tmp = Path(tempfile.mkdtemp(prefix="fractional-seats-"))
+    paths = {}
+    for name in ("comparison-sources-data.json", "players.json"):
+        paths[name] = tmp / name
+        paths[name].write_bytes(gzip.decompress((PINNED / f"{name}.gz").read_bytes()))
+    return VR.Inputs.load(fixture=paths["comparison-sources-data.json"], players=paths["players.json"],
+                          today=PINNED_TODAY)
 
 
 def _setting(inp, name):
@@ -119,7 +151,7 @@ def worst_move(name: str, sigma: float) -> tuple[float, str, int, float, str]:
     A fill-set step is a player some chart only estimates whose fill-set share changed (JEG-1336)."""
     global _INPUTS
     if _INPUTS is None:
-        _INPUTS = VR.Inputs.load()
+        _INPUTS = _pinned_inputs()
     inp = _INPUTS
     saved = VR.SEAT_SIGMA
     VR.SEAT_SIGMA = sigma
@@ -195,6 +227,12 @@ def _other_player_moves(before, after):
 
 
 class FractionalSeatStability(unittest.TestCase):
+    def test_the_pinned_snapshot_prices_players(self):
+        # Guards the pin: a snapshot read on a day it is stale prices nobody, and then
+        # every move is 0 and the bound passes on nothing.
+        values, _r, _sc = _values(_pinned_inputs(), "charlotte")
+        self.assertGreater(sum(v is not None for v in values.values()), 500)
+
     def test_no_other_player_moves_more_than_one(self):
         workers = max(1, min(len(SETTINGS), os.cpu_count() or 1))
         with ProcessPoolExecutor(max_workers=workers) as ex:

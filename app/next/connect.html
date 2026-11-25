@@ -54,8 +54,16 @@ body.connect{scrollbar-color:#176c4d #eef1ec;caret-color:#176c4d}.connect ::sele
 .connect[data-entry-provider="sleeper"]:not(.show-paste) #entry{display:none}
 .connect[data-entry-provider="sleeper"] .routes{grid-template-columns:minmax(0,1fr)!important}
 .connect .sleeper-paste{margin:8px 0 0;font-size:14px}.connect .sleeper-example{margin:6px 0 0;font-size:14px;color:#5c6a76;overflow-wrap:anywhere}.connect .sleeper-paste .link-button{min-height:44px}
-.connect #link-result.is-loading{color:#5c6a76}.connect #link-result.is-error{color:#8a3b12;background:#fbeee3;border-radius:8px;padding:10px 14px}.connect #link-result.is-ok{color:#176c4d;font-weight:600}
+.connect .link-platform{margin:10px 0 0;color:#176c4d;font-weight:600;font-size:14px}.connect .link-platform .link-button{min-height:44px}.connect #link-result.is-loading{color:#5c6a76}.connect #link-result.is-error{color:#8a3b12;background:#fbeee3;border-radius:8px;padding:10px 14px}.connect #link-result.is-ok{color:#176c4d;font-weight:600}
 .connect .entry-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:#f3f5f2;border:1px solid #dbe0dc;border-radius:10px;padding:12px 14px;margin:0 0 18px}.connect .entry-top p{margin:0;flex:1 1 280px;font-size:15px}.connect .entry-top-actions{display:flex;gap:10px;flex-wrap:wrap}.connect .entry-top .button,.connect .entry-fresh{min-height:44px;display:inline-flex;align-items:center}.connect .entry-fresh{background:#fff;border:1px solid #a83e12;color:#a83e12;border-radius:5px;padding:8px 13px;font-weight:600;cursor:pointer}.connect .replacing-line{margin:4px 0 0;font-size:14px;color:#5c6a76}
+.connect .team-pick{border:0;margin:18px 0 8px;padding:0;min-width:0}.connect .team-pick legend{padding:0;margin:0 0 10px}.connect .team-pick legend h3{margin:0}
+.connect .team-pick-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:8px}
+.connect .team-pick-option{display:flex;align-items:center;gap:10px;min-height:48px;padding:9px 12px;border:1px solid #dbe0dc;border-radius:10px;background:#fff;cursor:pointer;min-width:0}
+.connect .team-pick-option:hover{border-color:#176c4d}.connect .team-pick-option.selected{background:#e8f5ee;border-color:#176c4d;box-shadow:0 0 0 1px #176c4d}
+.connect .team-pick-option:focus-within{outline:3px solid #7fbf9d;outline-offset:2px}
+.connect .team-pick-list .team-pick-option{flex-direction:row;flex-wrap:nowrap;margin:0}.connect .team-pick-list .team-pick-text{flex:1 1 0}.connect .team-pick-list .team-pick-option input{display:inline-block;flex:0 0 18px;width:18px;height:18px;min-height:0;margin:0;padding:0;border:0;accent-color:#176c4d}
+.connect .team-pick-text{display:flex;flex-direction:column;min-width:0}.connect .team-pick-text strong{overflow-wrap:anywhere}.connect .team-pick-text small{color:#5c6a76;font-size:12.5px;line-height:1.3;overflow-wrap:anywhere}
+.connect .team-pick-help{margin:8px 0 0;font-size:14px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 html[data-device="phone"] .dv-desktop{display:none}html[data-device="desktop"] .dv-phone{display:none}
 .dv-toggle{display:none}html[data-device="phone"] .dv-toggle.to-desktop,html[data-device="desktop"] .dv-toggle.to-phone{display:inline-block}
@@ -169,7 +177,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <section class="step" id="step-1" aria-labelledby="step1-title">
 <h2 id="step1-title"><span class="step-num">Step 1</span>Open your rosters page</h2>
 <div class="routes" id="routes">
-<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID, and we'll give you the link to your rosters page.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p class="sleeper-example" id="sleeper-example" hidden>For example sleeper.com/leagues/1234567890123456 or just 1234567890123456.</p><p id="link-result" aria-live="polite"></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
+<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID, and we'll give you the link to your rosters page.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p class="sleeper-example" id="sleeper-example" hidden>For example sleeper.com/leagues/1234567890123456 or just 1234567890123456.</p><p id="link-platform" class="link-platform" role="status" hidden></p><p id="link-result" aria-live="polite"></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
 <div data-idhelp="espn"><p><strong>ESPN Fantasy app</strong></p><ol><li>Open your league in the ESPN Fantasy app.</li><li>Tap the <strong>League</strong> tab.</li><li>Tap <strong>League Info</strong>.</li><li>Check <strong>League ID</strong> under Basic Settings.</li></ol>
 <p>In a web address it is the number after <code>leagueId=</code>:</p><p class="id-example">fantasy.espn.com/football/league?leagueId=<strong>123456</strong></p>
 <div class="id-shots"><figure><a href="img/league-id/espn-app-league.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league.jpg" alt="ESPN Fantasy app, League tab: League Info is the first icon in the row under the league name" width="600" height="483" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League tab: tap League Info.</figcaption></figure><figure><a href="img/league-id/espn-app-league-info.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league-info.jpg" alt="ESPN Fantasy app, League Info screen: League ID is listed under Basic Settings" width="600" height="1062" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League ID under Basic Settings.</figcaption></figure></div></div>
@@ -207,6 +215,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <div class="row"><h2 id="recognition-title" tabindex="-1">Here's what we read from your paste</h2><button type="button" class="link-button" id="edit-team-names">Edit team names</button></div>
 <p class="muted" id="recognition-summary" role="status"></p>
 <p id="recognition-league" hidden></p>
+<fieldset class="team-pick" id="team-pick" hidden><legend><h3 id="team-pick-title">Which team is yours?</h3></legend><div class="team-pick-list" id="team-pick-list"></div><p class="muted team-pick-help">Each team's full list is below.</p></fieldset>
 <div id="recognition-teams"></div>
 <p id="recognition-partial" class="muted" hidden>Some lines were not matched. You can continue with the matched players.</p>
 <div data-ddf-caveats="entry"></div>
@@ -302,7 +311,7 @@ ALWAYS
 </script>
 </section>
 <div class="row advance-end"><a class="button" href="index.html">Back</a><a class="button primary" id="connect-next" href="setup.html" data-sticky-next data-back-href="index.html" data-back-label="Back" data-next-label="Next: confirm your team" data-summary="Paste your rosters to continue." data-disabled-reason="Paste your rosters to continue.">Next: confirm your team</a><span id="gate-reason" class="gate-reason" role="status"></span></div>
-</main><footer class="cn-foot">Data Driven Football</footer><script src="site.js"></script><!-- ddf-engine --><script src="v2/ddf-value-link.js"></script><script src="ddf-engine.js"></script><script src="v2/kdef-names.js"></script><script src="v2/roster-paste.js"></script><script src="rosterparse.js"></script><script src="league-paste.js"></script><script src="sleeper-import.js"></script><script src="connect-entry.js"></script><script src="caveats.js"></script><script>
+</main><footer class="cn-foot">Data Driven Football</footer><script src="site.js"></script><!-- ddf-engine --><script src="v2/ddf-value-link.js"></script><script src="ddf-engine.js"></script><script src="v2/kdef-names.js"></script><script src="v2/roster-paste.js"></script><script src="rosterparse.js"></script><script src="league-paste.js"></script><script src="sleeper-import.js"></script><script src="setup-entry.js"></script><script src="connect-entry.js"></script><script src="caveats.js"></script><script>
 (() => {
 const page = document.querySelector('main');
 page.querySelector('#manual-toggle').addEventListener('click', event => {
@@ -336,6 +345,8 @@ page.querySelectorAll('[data-provider]').forEach(button => {
  });
 });
 page.querySelector('#get-link').addEventListener('click', () => {
+ /* a link names its platform: follow it before building the address (connect-entry.js switches on input too) */
+ if (window.DDF && DDF.connectEntry && DDF.connectEntry.followLink) DDF.connectEntry.followLink();
  if (selectedProvider === 'sleeper') return;   /* JEG-1570: connect-entry.js loads the Sleeper league itself */
  const value = page.querySelector('#league-ref').value;
  const match = selectedProvider === 'espn' ? (value.match(/leagueId=(\d+)/) || value.match(/\d{5,}/))
@@ -518,13 +529,18 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
     var has=!!(linked||(kept&&Array.isArray(kept.teams)&&kept.teams.length>1));
     /* JEG-1696: a league kept from an earlier visit (the saved league) moves on too */
     if(!has){try{has=!!(DDF.leagueMeta&&DDF.leagueMeta.info())}catch(e){}}
-    ddfGate([document.getElementById('connect-next')],has,'Paste your rosters to continue.','gate-reason');
-    if(window.DDF&&DDF.actionBar&&has)DDF.actionBar.setSummary('Rosters added, next: confirm your team');
+    /* a team picked on the read card goes straight to League settings; otherwise Next picks the team on setup.html */
+    var nx=document.getElementById('connect-next'),pick=has&&window.DDF&&DDF.connectEntry&&DDF.connectEntry.teamChoice?DDF.connectEntry.teamChoice():null;
+    var toSettings=!!(pick&&!pick.askReplace);
+    if(nx){nx.setAttribute('data-href',toSettings?'settings.html':'setup.html');nx.setAttribute('data-next-label',toSettings?'Next: league settings':'Next: confirm your team');nx.textContent=nx.getAttribute('data-next-label')}
+    ddfGate([nx],has,'Paste your rosters to continue.','gate-reason');
+    if(window.DDF&&DDF.actionBar&&has)DDF.actionBar.setSummary(toSettings?'Your team: '+pick.name+'. Next: check your league settings.':pick?'Your team: '+pick.name+'. Next: confirm your team':'Rosters added. Pick your team above, or on the next page.');
   }
   if(ta)ta.addEventListener('input',upd);
   document.addEventListener('ddf:link',function(e){var d=e.detail||{};linked=!!(d.state&&!d.error&&d.source!=='none');upd()});
   if(manual)new MutationObserver(upd).observe(manual,{attributes:true,attributeFilter:['hidden']});
   document.addEventListener('ddf:pasted',upd);
+  document.addEventListener('ddf-teampick',upd);
   upd();
 })();
 </script></body></html>
