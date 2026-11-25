@@ -438,10 +438,6 @@ class TestIsolation(unittest.TestCase):
         self.assertIn("validationHold", json.loads(self.fixture_path.read_text())["sources"]["espn"])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestRecoveryHoldIsReindexed(unittest.TestCase):
     """JEG-1700 (Jeremy, 2026-11-25, "Re-index after a recovery hold"): a post-validate
     recovery hold restores the last published section, which was indexed on the
@@ -545,3 +541,23 @@ class TestRecoveryHoldIsReindexed(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "players.json is unavailable"):
             iso.isolate(self.repo, fail("CBS invalid values"), 9)
         self.assertEqual(self.fixture_path.read_bytes(), before)
+
+    def test_a_chart_the_anchor_cannot_index_declines_and_leaves_the_fixture(self):
+        # The central fail-closed branch: the restored section has a combo this run's ESPN leg
+        # lacks, so the re-index cannot run; recovery is declined and nothing is written.
+        self._stage_anchor_step(0.30)
+        doc = json.loads(self.fixture_path.read_text(encoding="utf-8"))
+        doc["sources"]["espn"]["combos"] = {"ppr_12": doc["sources"]["espn"]["combos"]["full_12"]}
+        self.fixture_path.write_text(json.dumps(doc), encoding="utf-8")
+        before = self.fixture_path.read_bytes()
+        status_path = self.repo / iso.STATUS_RELS[0]
+        status_before = status_path.read_bytes()
+        with self.assertRaisesRegex(ValueError, "could not be re-indexed on today's anchor"):
+            iso.isolate(self.repo, fail("CBS invalid values"), 9)
+        # Declined before anything is written: the caller records the failed validation and does not publish.
+        self.assertEqual(self.fixture_path.read_bytes(), before)
+        self.assertEqual(status_path.read_bytes(), status_before)
+
+
+if __name__ == "__main__":
+    unittest.main()
