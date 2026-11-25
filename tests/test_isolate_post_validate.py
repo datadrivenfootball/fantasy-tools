@@ -438,5 +438,126 @@ class TestIsolation(unittest.TestCase):
         self.assertIn("validationHold", json.loads(self.fixture_path.read_text())["sources"]["espn"])
 
 
+class TestRecoveryHoldIsReindexed(unittest.TestCase):
+    """JEG-1700 (Jeremy, 2026-11-25, "Re-index after a recovery hold"): a post-validate
+    recovery hold restores the last published section, which was indexed on the
+    anchor of the run that published it (JEG-1583). isolate() re-indexes it on this
+    run's ESPN leg, so the static-export held-chart checks (25% band) hold however far
+    the anchor stepped: real steps reach 29-33% (2026-10-17 rebuild) and week-long gaps 30%."""
+
+    SLUGS = {"qb-a": (1, "QB"), "qb-b": (2, "QB"), "rb-a": (3, "RB"), "rb-b": (4, "RB"),
+             "wr-a": (5, "WR"), "wr-b": (6, "WR"), "te-a": (7, "TE"), "te-b": (8, "TE")}
+    NATIVE = {"qb-a": 60, "qb-b": 40, "rb-a": 80, "rb-b": 50, "wr-a": 70, "wr-b": 45, "te-a": 30, "te-b": 20}
+    ESPN = {"qb-a": 30.0, "qb-b": 20.0, "rb-a": 40.0, "rb-b": 25.0, "wr-a": 35.0, "wr-b": 22.0,
+            "te-a": 15.0, "te-b": 10.0}
+
+    def _doc(self, espn_scale, cbs_native_scale=1.0):
+        from pipelines.reindex_published_fixture import reindex_fixture
+        doc = {"player_keys": {s: k for s, (k, _) in self.SLUGS.items()},
+               "sources": {
+                   "espn": {"combos": {"full_12": {"values": {s: v * espn_scale for s, v in self.ESPN.items()}}},
+                            "week_designated": "Week 8"},
+                   "cbs": {"combos": {"full_12": {"native": {s: v * cbs_native_scale for s, v in self.NATIVE.items()}}},
+                           "week_designated": "Week 8"}},
+               "source_validation": {"cbs": {"ok": cbs_native_scale == 1.0}, "espn": {"ok": True}}}
+        reindex_fixture(doc, self.players)
+        if cbs_native_scale != 1.0:
+            doc["sources"]["cbs"]["promoted_at"] = "2026-11-25T03:00:00Z"
+        return doc
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.repo = Path(self.temp.name)
+        self.players = {"players": [{"player_key": k, "pos": pos} for k, pos in self.SLUGS.values()]}
+        players_path = self.repo / "data/fixtures/current/players.json"
+        players_path.parent.mkdir(parents=True)
+        players_path.write_text(json.dumps(self.players), encoding="utf-8")
+        self.fixture_path = self.repo / chain.FIXTURE_REL
+        # Published: CBS indexed on last week's ESPN anchor.
+        self.fixture_path.write_text(json.dumps(self._doc(1.0)), encoding="utf-8")
+        subprocess.run(["git", "init", "-q"], cwd=self.repo, check=True)
+        subprocess.run(["git", "add", "."], cwd=self.repo, check=True)
+        subprocess.run(["git", "-c", "user.name=Test", "-c", "user.email=test@example.org",
+                        "commit", "-qm", "baseline"], cwd=self.repo, check=True)
+        status = {"success": True, "outcome": "green", "held": [], "held_detail": {},
+                  "sources": {"cbs": "promoted", "espn": "promoted"},
+                  "detail": {"cbs": {"status": "ok", "promoted": 1, "sections": 1},
+                             "espn": {"status": "ok", "promoted": 1, "sections": 1}}}
+        path = self.repo / iso.STATUS_RELS[0]
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps(status), encoding="utf-8")
+
+    def _stage_anchor_step(self, step):
+        # This run: ESPN's anchor stepped by `step` and a changed CBS save fails post-validate.
+        doc = self._doc(1.0 - step, cbs_native_scale=1.1)
+        directory = self.repo / chain.PROMOTIONS_REL
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "cbs-2026-11-25-promotion.json").write_text(json.dumps({
+            "source_key": "cbs", "promoted_at": doc["sources"]["cbs"]["promoted_at"], "review_verdict": "ready",
+            "section_after_sha256": chain._canonical_sha(doc["sources"]["cbs"])}))
+        self.fixture_path.write_text(json.dumps(doc), encoding="utf-8")
+
+    def _isolate_after_anchor_step(self, step):
+        self._stage_anchor_step(step)
+        self.assertEqual(iso.isolate(self.repo, fail("CBS invalid values"), 9), "cbs")
+        return json.loads(self.fixture_path.read_text(encoding="utf-8"))
+
+    def test_held_chart_sits_on_todays_anchor_after_a_30_percent_step(self):
+        from tests.test_static_export import held_pie_problems
+        doc = self._isolate_after_anchor_step(0.30)
+        cbs = doc["sources"]["cbs"]
+        combo = cbs["combos"]["full_12"]
+        self.assertEqual(cbs["validationHold"]["stage"], "post_validate")
+        self.assertEqual(combo["native"], self.NATIVE, "the published natives are kept")
+        today = sum(v * 0.70 for v in self.ESPN.values())
+        self.assertAlmostEqual(sum(combo["reindexed"].values()), today, delta=0.05)
+        self.assertEqual(held_pie_problems(doc, "cbs", "full_12", combo), [])
+        # The order the chart publishes is unchanged by the re-index.
+        order = lambda d: sorted(d, key=lambda s: -d[s])
+        self.assertEqual(order(combo["reindexed"]), order(self.NATIVE))
+        self.assertEqual(iso.confirm(self.repo), "cbs")
+
+    def test_without_the_reindex_the_band_would_reblock(self):
+        from tests.test_static_export import held_pie_problems
+        with mock.patch.object(iso, "_reindex_on_todays_anchor"):
+            doc = self._isolate_after_anchor_step(0.30)
+        combo = doc["sources"]["cbs"]["combos"]["full_12"]
+        self.assertTrue(any("within 25%" in p for p in held_pie_problems(doc, "cbs", "full_12", combo)))
+
+    def test_the_band_still_catches_a_halved_held_chart(self):
+        from tests.test_static_export import held_pie_problems
+        doc = self._isolate_after_anchor_step(0.30)
+        combo = doc["sources"]["cbs"]["combos"]["full_12"]
+        combo["reindexed"] = {s: v * 0.5 for s, v in combo["reindexed"].items()}
+        for t in combo["index_total"].values():
+            t["target_total"] *= 0.5
+        self.assertTrue(any("within 25%" in p for p in held_pie_problems(doc, "cbs", "full_12", combo)))
+
+    def test_a_chart_that_cannot_be_reindexed_declines_recovery(self):
+        self._stage_anchor_step(0.30)
+        before = self.fixture_path.read_bytes()
+        (self.repo / "data/fixtures/current/players.json").write_text("not json", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "players.json is unavailable"):
+            iso.isolate(self.repo, fail("CBS invalid values"), 9)
+        self.assertEqual(self.fixture_path.read_bytes(), before)
+
+    def test_a_chart_the_anchor_cannot_index_declines_and_leaves_the_fixture(self):
+        # The central fail-closed branch: the restored section has a combo this run's ESPN leg
+        # lacks, so the re-index cannot run; recovery is declined and nothing is written.
+        self._stage_anchor_step(0.30)
+        doc = json.loads(self.fixture_path.read_text(encoding="utf-8"))
+        doc["sources"]["espn"]["combos"] = {"ppr_12": doc["sources"]["espn"]["combos"]["full_12"]}
+        self.fixture_path.write_text(json.dumps(doc), encoding="utf-8")
+        before = self.fixture_path.read_bytes()
+        status_path = self.repo / iso.STATUS_RELS[0]
+        status_before = status_path.read_bytes()
+        with self.assertRaisesRegex(ValueError, "could not be re-indexed on today's anchor"):
+            iso.isolate(self.repo, fail("CBS invalid values"), 9)
+        # Declined before anything is written: the caller records the failed validation and does not publish.
+        self.assertEqual(self.fixture_path.read_bytes(), before)
+        self.assertEqual(status_path.read_bytes(), status_before)
+
+
 if __name__ == "__main__":
     unittest.main()

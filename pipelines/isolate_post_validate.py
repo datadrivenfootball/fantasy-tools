@@ -254,6 +254,7 @@ def isolate(repo: Path, log_text: str, week: int | None) -> str:
     kept["validationHold"] = {"reason": reason, "root": root, "week": week,
                               "stage": "post_validate"}
     next_fixture["sources"][root] = kept
+    _reindex_on_todays_anchor(repo, next_fixture, root)
     old_validation = baseline.get("source_validation", {})
     validation = next_fixture.setdefault("source_validation", {})
     if not isinstance(old_validation, dict) or not isinstance(validation, dict):
@@ -346,6 +347,35 @@ def isolate(repo: Path, log_text: str, week: int | None) -> str:
         suffix = f"; rollback incomplete: {'; '.join(rollback_errors)}" if rollback_errors else ""
         raise ValueError(f"source isolation failed: {exc}{suffix}") from exc
     return root
+
+
+def _reindex_on_todays_anchor(repo: Path, fixture: dict, root: str) -> None:
+    """Re-index a restored published chart against this run's ESPN leg, in place.
+
+    JEG-1700 (Jeremy, 2026-11-25, "Re-index after a recovery hold"): the kept
+    section is the last published one, indexed on the anchor of the run that
+    published it, and the chain's re-index stage (run_reindex_fixture) has
+    already run. Re-indexing it here, with the same one-factor rule, keeps a
+    held chart on today's anchor, so the static-export held-chart checks see a
+    chart consistent with today's ESPN pie however far the anchor moved.
+    Natives, order and the hold are unchanged; a chart that cannot be indexed
+    declines recovery (the chain then fails closed)."""
+    from reindex_published_fixture import PUBLISHED_SOURCES, reindex_fixture  # noqa: PLC0415
+    section = fixture["sources"].get(root)
+    if root not in PUBLISHED_SOURCES or not isinstance(section, dict):
+        return
+    if not any(isinstance(c, dict) and c.get("native") for c in (section.get("combos") or {}).values()):
+        return
+    try:
+        players = json.loads((repo / "data/fixtures/current/players.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"players.json is unavailable to re-index held {root}: {exc}") from exc
+    doc = {"player_keys": fixture.get("player_keys") or {},
+           "sources": {"espn": fixture["sources"].get("espn"), root: section}}
+    try:
+        reindex_fixture(doc, players)
+    except (SystemExit, KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"held {root} could not be re-indexed on today's anchor: {exc}") from exc
 
 
 def _write_status(repo: Path, status: dict) -> None:
