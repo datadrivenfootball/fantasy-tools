@@ -189,7 +189,7 @@ class ScoringButtonsTest(unittest.TestCase):
         page.click(".ddf-actionbar__next")
         page.wait_for_url(lambda u: u.endswith("setup.html") or u.endswith("settings.html"), timeout=30000)
         page.goto(f"{self.base}/settings.html", wait_until="networkidle", timeout=60000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()", timeout=60000)
         page.wait_for_timeout(400)
         self.assertEqual(page.eval_on_selector("#scoring", "e => e.value"), "Standard")
 
@@ -222,7 +222,7 @@ class ScoringButtonsTest(unittest.TestCase):
             page.click('.setup-option:has(input[value="Team 3"])')
             page.click(".ddf-actionbar__next:not([aria-disabled=true])")
             page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()", timeout=60000)
         self.assertEqual(page.evaluate("DDF.engine.settings().scoring"), "half_ppr", "Next applies the pick")
         page.goto(f"{self.base}/connect.html?edit=1", wait_until="networkidle", timeout=60000)
         page.wait_for_function(ENGINE_READY, timeout=60000)
@@ -232,7 +232,7 @@ class ScoringButtonsTest(unittest.TestCase):
         page.click("#scoring-pick [data-scoring=standard]")
         page.click("#entry-keep")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()", timeout=60000)
         self.assertEqual(page.evaluate("DDF.engine.settings().scoring"), "half_ppr", "Keep my league keeps Half PPR")
 
     # ---- 4 ----
@@ -270,7 +270,7 @@ class ScoringButtonsTest(unittest.TestCase):
             run.tap('.setup-option:has(input[value="Team 3"])', "Team 3")
             run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()", timeout=60000)
         page.wait_for_timeout(300)
         self.assertEqual(page.eval_on_selector("#scoring", "e => e.value"), "Half PPR", "the card's pick, no second tap")
         for key, want in (("wr", 3), ("bench", 5)):
@@ -280,7 +280,7 @@ class ScoringButtonsTest(unittest.TestCase):
                 run.tap(f'button[aria-label="{"Increase" if want > cur else "Decrease"} {label}"]', f"{key} to {want}")
         run.tap(".ddf-actionbar__next", "Looks right, continue")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 3, 5))
         self.assertEqual(page.errors, [])
