@@ -142,6 +142,20 @@
     });
   }
 
+  /* the league from ESPN's answers: lg carries settings, body carries teams with rosters (the same object when one
+     call asked for all three views, as ESPN's data view does) */
+  function fromLeague(lg, body, id, opts) {
+    opts = opts || {};
+    var blocks = asBlocks((body && body.teams) || []);
+    if (blocks.filter(function (b) { return b.text; }).length < 2) return {ok: false, code: "empty"};
+    var res = root.DDF.leaguePaste.fromBlocks(blocks, opts.rows || [], {table: opts.table, site: "espn", strategy: opts.strategy || "espn-api"});
+    if (!res.ok) return {ok: false, code: "empty"};
+    var name = lg && lg.settings && lg.settings.name;
+    res.league = {leagueName: name ? String(name).slice(0, 60) : null, leagueId: id ? String(id) : null, platform: "espn", confidence: 1};
+    res.fit = fitOf(lg);
+    return {ok: true, result: res, settings: settingsOf(lg)};
+  }
+
   function load(id, opts) {
     opts = opts || {};
     var f = opts.fetch || (root.fetch && root.fetch.bind(root));
@@ -161,21 +175,13 @@
       return getJSON(f, leagueUrl(season, id, ["mTeam", "mRoster"]), signal).then(function (got2) {
         if (got2.status === 401 || got2.status === 403) return {ok: false, code: "private", status: got2.status};
         if (got2.status === 404) return {ok: false, code: "notfound", season: season};
-        var teams = (got2.body && got2.body.teams) || [];
-        var blocks = asBlocks(teams);
-        if (blocks.filter(function (b) { return b.text; }).length < 2) return {ok: false, code: "empty"};
-        var res = root.DDF.leaguePaste.fromBlocks(blocks, opts.rows || [], {table: opts.table, site: "espn", strategy: "espn-api"});
-        if (!res.ok) return {ok: false, code: "empty"};
-        var name = lg.settings && lg.settings.name;
-        res.league = {leagueName: name ? String(name).slice(0, 60) : null, leagueId: String(id), platform: "espn", confidence: 1};
-        res.fit = fitOf(lg);
-        return {ok: true, result: res, settings: settingsOf(lg)};
+        return fromLeague(lg, got2.body, id, opts);
       });
     }).then(null, function () { return {ok: false, code: timedOut ? "timeout" : "network"}; });
     return Promise.race([work, budget]).then(function (out) { clearTimeout(timer); return out; });
   }
 
-  var api = {parseId: parseId, load: load, settingsOf: settingsOf, fitOf: fitOf, asBlocks: asBlocks, seasonNow: seasonNow,
+  var api = {parseId: parseId, load: load, fromLeague: fromLeague, settingsOf: settingsOf, fitOf: fitOf, asBlocks: asBlocks, seasonNow: seasonNow,
     leagueUrl: leagueUrl, MESSAGES: MESSAGES, TIMEOUT_MS: TIMEOUT_MS};
   root.DDF = root.DDF || {};
   root.DDF.espn = api;
