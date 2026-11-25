@@ -52,6 +52,7 @@ class Run:
 
     def __init__(self, page, width):
         self.page, self.width, self.taps, self.log, self.pages = page, width, 0, [], []
+        self.skipped_get_link = False
         page.on("framenavigated", lambda f: f == page.main_frame and self.pages.append(f.url.split("/")[-1].split("?")[0].split("#")[0]))
 
     def count(self, n, what):
@@ -74,6 +75,15 @@ class Run:
 
     def offsite(self):
         self.count(OFFSITE[self.width], "on the rosters page: select all, copy, back")
+
+    def get_link(self, what="Get rosters link"):
+        """Tap Get rosters link where it is shown. The ESPN and Yahoo quick wins (another league-entry change) show the
+        rosters link as soon as the box holds an ID and hide that button; then there is nothing to tap."""
+        if self.page.is_visible("#get-link"):
+            self.tap("#get-link", what)
+        else:
+            self.page.wait_for_selector("#link-result a.button")
+            self.skipped_get_link = True
 
     def entry_pages(self):
         seen = []
@@ -165,9 +175,9 @@ class PlatformLinkTest(unittest.TestCase):
                     self.assertEqual(page.text_content("#link-platform"), note)
                     self.assertTrue(page.is_visible("#link-platform"))
                     self.assertIsNone(page.get_attribute(f'[data-idhelp="{want}"]', "hidden"), "the ID help follows")
-                    run.tap("#get-link")
+                    run.get_link()
                     self.assertEqual(page.get_attribute("#link-result a.button", "href"), rosters)
-                    self.assertEqual(run.taps, 3, run.log)   # tap box, Paste, Get rosters link: no toggle tap
+                    self.assertEqual(run.taps, 2 if run.skipped_get_link else 3, run.log)   # tap box, Paste, (Get rosters link): no toggle tap
                     self.assertEqual(page.sleeper_calls, [], "a Yahoo or ESPN link never asks Sleeper")
                     self.assertNotIn("is-error", page.get_attribute("#link-result", "class") or "")
                     self.assert_page_ok(page)
@@ -177,7 +187,7 @@ class PlatformLinkTest(unittest.TestCase):
         page = self.connect(PHONE)
         self.assertEqual(self.provider(page), "espn", "ESPN stays the default")
         page.fill("#league-ref", YAHOO_LINK)
-        page.click("#get-link")
+        Run(page, PHONE).get_link()
         href = page.get_attribute("#link-result a.button", "href")
         self.assertEqual(href, YAHOO_ROSTERS)
         self.assertNotIn("espn", href)
@@ -209,7 +219,7 @@ class PlatformLinkTest(unittest.TestCase):
                     page.fill("#league-ref", "848938")
                     self.assertEqual(self.provider(page), start)
                     self.assertTrue(page.is_hidden("#link-platform"))
-                    page.click("#get-link")
+                    Run(page, width).get_link()
                     self.assertEqual(page.get_attribute("#link-result a.button", "href"), want)
                     self.assert_page_ok(page)
 
@@ -247,7 +257,7 @@ class PlatformLinkTest(unittest.TestCase):
         self.assertEqual(self.provider(page), "espn")
         run.paste("#league-ref", YAHOO_LINK, "paste the USO league link")
         self.assertEqual(self.provider(page), "yahoo", "the link sets Yahoo: no toggle tap")
-        run.tap("#get-link", "Get rosters link")
+        run.get_link()
         self.assertEqual(page.get_attribute("#link-result a.button", "href"), YAHOO_ROSTERS)
         run.count(1, "Open your rosters page")   # opens Yahoo in a new tab; not followed here
         run.offsite()
@@ -294,7 +304,7 @@ class PlatformLinkTest(unittest.TestCase):
                 run = self.uso_path(width)
                 pages = ["connect.html", "settings.html"] if run.card else ["connect.html", "setup.html", "settings.html"]
                 self.assertEqual(run.entry_pages(), pages)
-                want = USO_TAPS_BEFORE[width] - 1 - (1 if run.card else 0)   # the Yahoo toggle tap is gone
+                want = USO_TAPS_BEFORE[width] - 1 - (1 if run.card else 0) - (1 if run.skipped_get_link else 0)   # the Yahoo toggle tap is gone
                 self.assertEqual(run.taps, want, "\n".join(run.log))
 
 
