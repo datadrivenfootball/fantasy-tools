@@ -53,6 +53,65 @@ def all_source_keys(comparison):
     return [k for k, v in (comparison.get("sources") or {}).items()
             if isinstance(v, dict)]
 
+def overall_scale_problems(comparison):
+    """Each chart's top full_12 Indexed value against the index scale.
+
+    JEG-1700 (2026-11-24): the 38 floor applies to charts on the anchor's own
+    scale (ESPN, CBS ROS, Razzball: top 70). A chart indexed by one factor
+    (order_preserving_rescale) gets its scale from the ESPN pie over its own
+    players, and test_published_indexed_is_one_factor_on_the_anchor_pie
+    checks that exactly (every value is native x factor, and the indexed
+    total equals the anchor's total over the same players), so a scale
+    collapse there fails that test. Its top value is the chart's own shape:
+    USA Today's flat Nov 17 board (top native 81 over a 4710 total) sat at
+    38.6, then 37.4, 36.6 and 35.8 as ESPN's values over its players fell from
+    2242.7 to 2080.8, while its pie still matched exactly. Such a chart must
+    reproduce its top from its factor instead. A chart is one-factor by its
+    own fit, held or not: a review hold is a warning (AGENTS.md) and must not
+    move a chart under the anchor floor.
+
+    2026-10-08: each chart's top value, not Jahmyr Gibbs's (GAP-DATA-SNAPSHOT-PINS).
+    2026-10-16 JEG-667: min 45 -> 38 when fidelity holds gray out sources.
+    The overall max (68) catches a collapse of the whole scale.
+    """
+    problems = []
+    anchor_scale_tops = {}
+    all_tops = {}
+    for source, source_data in (comparison.get("sources") or {}).items():
+        if not isinstance(source_data, dict):
+            continue
+        combos = source_data.get("combos") or {}
+        combo = combos.get("full_12") or combos.get("full_12_qb1")
+        if not combo:
+            continue
+        values = combo.get("values") or combo.get("reindexed") or {}
+        priced = [v for v in values.values() if isinstance(v, (int, float))]
+        if not priced:
+            continue
+        top = max(priced)
+        all_tops[source] = top
+        fit = (combo.get("fit") or {}).get("order_preserving_rescale")
+        if fit:
+            native = [float(v) for v in (combo.get("native") or {}).values() if isinstance(v, (int, float))]
+            if not native:
+                problems.append(f"{source}: one-factor chart with no native values")
+            elif abs(top - max(native) * fit["factor"]) > 1e-6 * max(1.0, top):
+                problems.append(f"{source}: top Indexed {top:.4f} is not its top native x factor")
+            elif top <= 0:
+                problems.append(f"{source}: one-factor chart collapsed to zero")
+            continue
+        anchor_scale_tops[source] = top
+    if not anchor_scale_tops:
+        problems.append("no anchor-scale chart left to check")
+    else:
+        low = min(anchor_scale_tops, key=anchor_scale_tops.get)
+        if anchor_scale_tops[low] < 38:
+            problems.append(f"{low} top Indexed {anchor_scale_tops[low]:.2f} below 38 ({anchor_scale_tops})")
+    if all_tops and max(all_tops.values()) < 68:
+        problems.append(f"overall scale collapsed ({all_tops})")
+    return problems
+
+
 PUBLISHED_TOP_QB_COMBOS = {"usatoday": "full_12", "fantasycalc": "full_12_qb1",
                            "fantasypros": "full_12", "cbs": "full_12"}
 
@@ -700,53 +759,33 @@ class StaticExportTest(unittest.TestCase):
         self.assertIn("yAxisAuto", text)
 
     def test_top_indexed_values_preserve_high_overall_scale(self):
-        # JEG-1700 (2026-11-24): the floor below applies to charts on the
-        # anchor's own scale (ESPN, CBS ROS, Razzball: top 70). A chart
-        # indexed by one factor (order_preserving_rescale) gets its scale from
-        # the ESPN pie over its own players, and
-        # test_published_indexed_is_one_factor_on_the_anchor_pie checks that
-        # exactly (every value is native x factor, and the indexed total equals
-        # the anchor's total over the same players), so a scale collapse there
-        # fails that test. Its top value is then the chart's own shape: USA
-        # Today's flat Nov 17 board (top native 81 over a 4710 total) sat at
-        # 38.6, then 37.4, 36.6 and 35.8 as ESPN's values over its players
-        # fell from 2242.7 to 2080.8, while its pie still matched exactly.
-        # Here those charts must reproduce their top from the factor instead.
-        one_factor_charts = set(present_sources(
-            self.unheld, ("fantasycalc", "usatoday", "fantasypros", "cbs"), require_anchor=False))
-        anchor_scale_tops = {}
-        all_tops = {}
-        for source, source_data in self.comparison["sources"].items():
-            combo = source_data["combos"].get("full_12") or source_data["combos"].get("full_12_qb1")
-            if not combo:
-                continue
-            values = combo.get("values") or combo.get("reindexed") or {}
-            # 2026-10-08: each chart's top value, not Jahmyr Gibbs's -- the
-            # test is about the index scale, and pinning one player made it
-            # fail whenever his projection moved (GAP-DATA-SNAPSHOT-PINS).
-            priced = [v for v in values.values() if isinstance(v, (int, float))]
-            if not priced:
-                continue
-            top = max(priced)
-            all_tops[source] = top
+        self.assertEqual([], overall_scale_problems(self.comparison))
+
+    def test_scale_floor_follows_chart_type_not_hold_or_drift(self):
+        """JEG-1700: a one-factor chart whose top falls under 38 with its pie
+        intact (USA Today, Week 12) passes, held or not; anchor-scale charts
+        under 38 still fail."""
+        drift = copy.deepcopy(self.comparison)
+        usatoday = drift["sources"].get("usatoday") or {}
+        for combo in (usatoday.get("combos") or {}).values():
             fit = (combo.get("fit") or {}).get("order_preserving_rescale")
-            if source in one_factor_charts and fit:
-                native = [float(v) for v in (combo.get("native") or {}).values()
-                          if isinstance(v, (int, float))]
-                self.assertTrue(native, f"{source}: one-factor chart with no native values")
-                self.assertAlmostEqual(top, max(native) * fit["factor"], delta=1e-6 * max(1.0, top),
-                                       msg=f"{source}: top Indexed is not its top native x factor")
-                self.assertGreater(top, 0, f"{source}: one-factor chart collapsed to zero")
+            if not fit:
                 continue
-            anchor_scale_tops[source] = top
-        # 2026-09-30: thresholds updated for fresh ESPN pie (stale-pie inflation removed).
-        # 2026-10-16 JEG-667: min 45 -> 38 when fidelity holds gray out
-        # sources. Scale collapse is also caught by the max threshold (68).
-        self.assertTrue(anchor_scale_tops, "no anchor-scale chart left to check")
-        low = min(anchor_scale_tops, key=anchor_scale_tops.get)
-        self.assertGreaterEqual(anchor_scale_tops[low], 38,
-                                f"{low} top Indexed {anchor_scale_tops[low]:.2f} below 38 ({anchor_scale_tops})")
-        self.assertGreaterEqual(max(all_tops.values()), 68, f"overall scale collapsed ({all_tops})")
+            fit["factor"] = 35.78445859872612 / max(float(v) for v in combo["native"].values())
+            combo["reindexed"] = {k: float(combo["native"][k]) * fit["factor"] for k in combo["reindexed"]}
+        if not usatoday.get("combos"):
+            self.skipTest("no USA Today chart in this build")
+        self.assertEqual([], overall_scale_problems(drift))
+        drift["sources"]["usatoday"]["validationHold"] = {"reason": "JEG-1700 seeded hold"}
+        self.assertEqual([], overall_scale_problems(drift))
+
+        low = copy.deepcopy(self.comparison)
+        for source in ("espn", "cbsros", "razzball"):
+            for combo in ((low["sources"].get(source) or {}).get("combos") or {}).values():
+                key = "values" if combo.get("values") else "reindexed"
+                combo[key] = {k: (v * 0.4 if isinstance(v, (int, float)) else v)
+                              for k, v in (combo.get(key) or {}).items()}
+        self.assertTrue(any("below 38" in p for p in overall_scale_problems(low)))
 
     def test_player_table_supports_configurable_fields(self):
         text = (APP / "assets" / "comparison-dashboard.js").read_text(encoding="utf-8")
