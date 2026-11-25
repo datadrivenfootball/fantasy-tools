@@ -37,10 +37,10 @@ ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.eng
 HEADER_STEPS = ["1. League rosters", "2. Your team", "3. League settings"]
 PHONE, DESKTOP = 375, 1280
 OFFSITE = {PHONE: 4, DESKTOP: 3}
-# the USO path, measured with this harness: on main before the fix (Yahoo toggle first), and after
+# the USO path on main before this fix, measured with this harness (Yahoo toggle first): 20 taps on a phone, 19 on a
+# computer, 3 pages (connect, setup, settings). This fix takes the toggle tap off. The other league-entry changes take
+# their own share (the team picked on the read card: 1 tap and the team page), so the count holds in any merge order.
 USO_TAPS_BEFORE = {PHONE: 20, DESKTOP: 19}
-USO_TAPS_AFTER = {PHONE: 19, DESKTOP: 18}
-USO_PAGES = 3   # connect, setup, settings (the team page is where the path ends)
 
 
 def setUpModule():
@@ -255,11 +255,17 @@ class PlatformLinkTest(unittest.TestCase):
         page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
         self.assertIn("Found 12 teams", page.text_content("#recognition-summary"))
         self.assert_page_ok(page)
-        run.tap(".ddf-actionbar__next", "Next: confirm your team")
-        page.wait_for_url("**/setup.html", timeout=30000)
-        page.wait_for_selector(".setup-option")
-        run.tap('.setup-option:has(input[value="Team 3"])', "Team 3")
-        run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
+        card = page.locator("#team-pick-list").count() > 0
+        if card:   # the team is picked on the read card (another league-entry change); setup.html is skipped
+            run.tap('#team-pick-list .team-pick-option:has-text("Team 3")', "Team 3 on the card")
+            run.tap(".ddf-actionbar__next", "Next: league settings")
+        else:
+            run.tap(".ddf-actionbar__next", "Next: confirm your team")
+            page.wait_for_url("**/setup.html", timeout=30000)
+            page.wait_for_selector(".setup-option")
+            run.tap('.setup-option:has(input[value="Team 3"])', "Team 3")
+            run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
+        run.card = card
         page.wait_for_url("**/settings.html", timeout=30000)
         page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
         page.wait_for_timeout(300)
@@ -284,10 +290,10 @@ class PlatformLinkTest(unittest.TestCase):
         for width in (PHONE, DESKTOP):
             with self.subTest(width=width):
                 run = self.uso_path(width)
-                self.assertEqual(run.entry_pages(), ["connect.html", "setup.html", "settings.html"])
-                self.assertEqual(len(run.entry_pages()), USO_PAGES)
-                self.assertEqual(run.taps, USO_TAPS_AFTER[width], "\n".join(run.log))
-                self.assertEqual(run.taps, USO_TAPS_BEFORE[width] - 1, "the Yahoo toggle tap is gone")
+                pages = ["connect.html", "settings.html"] if run.card else ["connect.html", "setup.html", "settings.html"]
+                self.assertEqual(run.entry_pages(), pages)
+                want = USO_TAPS_BEFORE[width] - 1 - (1 if run.card else 0)   # the Yahoo toggle tap is gone
+                self.assertEqual(run.taps, want, "\n".join(run.log))
 
 
 if __name__ == "__main__":
