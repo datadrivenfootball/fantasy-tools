@@ -222,7 +222,11 @@ class FindWaiverAlternativeTest(unittest.TestCase):
                     self.assertTrue(all(c["note"] for c in demoted), f"{w}: a demoted card without the waiver note")
                     card = page.locator('[data-offer][data-waiver-demoted="1"]').first
                     note = card.locator("[data-waiver-note]").inner_text()
-                    self.assertRegex(note, r"^The best available (QB|RB|WR|TE)s?, .+, closes? \d+% of the gap this trade fills, without giving up .+\.")
+                    # ddf-why.js waiverLine: one position reads "The best available RB(s)", more than one
+                    # "The best available players at RB and WR" (the Week 12 data's first demoted card, JEG-1700).
+                    pos = r"(?:QB|RB|WR|TE)"
+                    self.assertRegex(note, rf"^The best available (?:{pos}s?|players at {pos}(?:, {pos})* and {pos}), .+, "
+                                           r"closes? \d+% of the gap this trade fills, without giving up .+\.")
                     summary = card.locator("details[data-why] > summary")
                     box = summary.bounding_box()
                     self.assertGreaterEqual(round(box["height"], 1), 44, f"{w}: Why button {box['height']}px")
