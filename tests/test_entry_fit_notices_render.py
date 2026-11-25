@@ -4,7 +4,7 @@ Before: an 18-team Sleeper league showed 12 teams with no notice (the site value
 size fell back to 12), and a Sleeper league's TE premium (extra points per catch for tight ends) was dropped without a
 word. Now:
 
-1. 18 teams: "Your league has 18 teams. Values are for 8 to 14 teams, so we use 14, the closest size." Settings use 14.
+1. 18 teams: "Your league has 18 teams. Values are for 8, 10, 12 or 14 teams, so we use 14." Settings use 14.
 2. TE premium 0.5: "Your league gives tight ends 0.5 extra points per catch. Values do not include that yet."
 3. Both at once: both lines. A league that fits (12 teams, no TE premium), a pasted league and no league: no notice.
 4. No tap added on the Sleeper path; no horizontal scroll at 375 and 1280; the entry header is unchanged.
@@ -131,10 +131,19 @@ class FitNoticeTest(unittest.TestCase):
         for width in (PHONE, DESKTOP):
             with self.subTest(width=width):
                 page = self.sleeper_to_settings(width, teams=18)
-                self.assertEqual(self.notice(page), ["Your league has 18 teams. Values are for 8 to 14 teams, so we use 14, the closest size."])
+                self.assertEqual(self.notice(page), ["Your league has 18 teams. Values are for 8, 10, 12 or 14 teams, so we use 14."])
                 self.assertEqual(page.input_value("#teams"), "14")
                 self.assertEqual(page.evaluate("DDF.engine.settings().teams"), 14)
                 self.assert_page_ok(page)
+
+    def test_odd_and_small_leagues_use_the_closest_size(self):
+        """Behavior change: a 4-team league used to get no team count from Sleeper (12 by default); now 8, and it says so.
+        A count between sizes rounds up (9 -> 10, 13 -> 14), Jeremy 2026-11-24."""
+        for teams, used in ((4, 8), (9, 10), (13, 14)):
+            with self.subTest(teams=teams):
+                page = self.sleeper_to_settings(PHONE, teams=teams)
+                self.assertEqual(self.notice(page), [f"Your league has {teams} teams. Values are for 8, 10, 12 or 14 teams, so we use {used}, the closest size at or above yours."])
+                self.assertEqual(page.input_value("#teams"), str(used))
 
     # ---- 2 ----
     def test_te_premium_is_named(self):
@@ -156,6 +165,16 @@ class FitNoticeTest(unittest.TestCase):
         page.goto(f"{self.base}/settings.html", wait_until="networkidle", timeout=60000)
         page.wait_for_timeout(500)
         self.assertTrue(page.is_hidden("#fit-notice"), "no league, no notice")
+
+    def test_a_link_with_an_odd_team_count_rounds_up(self):
+        """A page link's ?teams=9 used to be dropped (the league kept its own size); it now uses 10, like the import."""
+        for teams, used in (("9", 10), ("13", 14), ("18", 14), ("6", 8)):
+            with self.subTest(teams=teams):
+                page = self.page(DESKTOP)
+                page.goto(f"{self.base}/team.html#?scoring=ppr&teams={teams}", wait_until="networkidle", timeout=60000)
+                page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings && DDF.engine.settings().teams", timeout=60000)
+                page.wait_for_timeout(500)
+                self.assertEqual(page.evaluate("DDF.engine.settings().teams"), used)
 
     # ---- 4 ----
     def test_no_tap_added(self):

@@ -101,7 +101,8 @@ test("team names, defenses, unknown ids, settings", async () => {
 test("team counts outside 8 to 14 use the closest size; TE premium is reported, not valued", () => {
   const S = DDF.sleeper;
   const lg = n => ({total_rosters: n, roster_positions: ["QB", "RB", "WR", "TE", "BN"], scoring_settings: {rec: 1}});
-  assert.deepStrictEqual([6, 8, 9, 12, 13, 16, 18, 32].map(n => S.settingsOf(lg(n)).teams), [8, 8, 8, 12, 12, 14, 14, 14]);
+  // a count between sizes rounds up (9 -> 10, 11 -> 12, 13 -> 14); below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24)
+  assert.deepStrictEqual([4, 6, 8, 9, 10, 11, 12, 13, 16, 18, 32].map(n => S.settingsOf(lg(n)).teams), [8, 8, 8, 10, 10, 12, 12, 14, 14, 14, 14]);
   assert.strictEqual(S.fitOf(lg(12)), null, "a league that fits has nothing to say");
   assert.deepStrictEqual(S.fitOf(lg(18)), {teams: 18, usedTeams: 14});
   assert.deepStrictEqual(S.fitOf({total_rosters: 12, scoring_settings: {rec: 1, bonus_rec_te: 0.5}}), {tePremium: 0.5});

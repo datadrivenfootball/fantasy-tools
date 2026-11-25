@@ -174,6 +174,7 @@
   var STARTERS = ["QB", "RB", "WR", "TE", "FLEX", "SUPERFLEX", "K", "DST"];
   var BOUNDS = {QB: [1, 5], RB: [1, 5], WR: [1, 5], TE: [1, 5], FLEX: [1, 5], SUPERFLEX: [0, 2], K: [0, 3], DST: [0, 3], BENCH: [0, 14]};
   var TEAM_SIZES = [8, 10, 12, 14];
+  function sizeFor(n) { for (var i = 0; i < TEAM_SIZES.length; i++) if (TEAM_SIZES[i] >= n) return TEAM_SIZES[i]; return TEAM_SIZES[TEAM_SIZES.length - 1]; }
   function slotOf(line) {
     var t = String(line || "").trim(), m = LABEL_ALONE.exec(t) || LABEL_INLINE.exec(t);
     return m ? SLOT_OF[m[1]] : null;
@@ -198,6 +199,9 @@
       rostered: {perTeam: counts, total: counts.reduce(function (a, t) { return a + t.count; }, 0), max: most},
       teams: null, roster: {}, why: {}};
     if (partial) out.why.teams = "partial";
+    /* a size the values do not run (6 to 20 teams read): a count between sizes rounds up (9 -> 10), below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24), and the notice says so */
+    else if (TEAM_SIZES.indexOf(teams.length) < 0 && teams.length >= 6 && teams.length <= 20) { out.teams = sizeFor(teams.length); out.why.teams = "rounded"; }
+    /* 2 to 5 teams read is more often a partial copy than a whole league: the reader picks the size, as before */
     else if (TEAM_SIZES.indexOf(teams.length) < 0) out.why.teams = "unsupported";
     else out.teams = teams.length;
     STARTERS.concat(["BENCH"]).forEach(function (k) { out.roster[k] = null; });
@@ -382,16 +386,17 @@
         + ", while other teams show up to " + r.max + ". We left your team count (" + values.teams + ") and lineup as they were. Copy the whole rosters page again, or set them below.");
       return {show: true, lines: lines, rosterInferred: false};
     }
-    var unsupported = !!(ps.why && ps.why.teams === "unsupported");
+    var unsupported = !!(ps.why && ps.why.teams === "unsupported"), rounded = !!(ps.why && ps.why.teams === "rounded");
     if (!inferred.length && !unsupported) return {show: false, lines: [], rosterInferred: false};
     var even = per.length > 0 && per.every(function (t) { return t.count === r.max; });
     lines.push("We read " + plural(ps.teamsRead, "team", "teams") + " and " + plural(r.total, "player", "players") + " from your paste, "
       + (even ? r.max + " on each roster." : "up to " + r.max + " on a roster."));
     var did = [];
-    if (inferred.indexOf("teams") >= 0) did.push("set the team count to " + values.teams);
+    if (inferred.indexOf("teams") >= 0 && !rounded) did.push("set the team count to " + values.teams);
     if (lineup.length) did.push("guessed your lineup as " + lineupText(lineup, values) + (slots.indexOf("BENCH") >= 0 ? ", plus " + benchText(values.BENCH) : ""));
     else if (slots.indexOf("BENCH") >= 0) did.push("guessed " + benchText(values.BENCH));
     if (did.length) lines.push("We " + did.join(" and ") + ".");
+    if (rounded) lines.push("Values are for 8, 10, 12 or 14 teams, so we use " + ps.teams + (ps.teams >= ps.teamsRead ? ", the closest size at or above yours." : "."));
     if (unsupported) lines.push("We can value leagues of 8, 10, 12 or 14 teams, so the team count stays at " + values.teams + ". Pick the closest size below.");
     var left = FIELDS.slice(1).filter(function (f) { return inferred.indexOf(f) < 0 && (f !== "SUPERFLEX" || values[f] > 0); });
     if (slots.length && left.length) {

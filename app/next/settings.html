@@ -290,7 +290,8 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     const rec = c && c.source === 'pasted' ? DDF.state.get('pasted', null) : null, fit = rec && rec.fit;
     if (!fit) return;
     const lines = [];
-    if (fit.teams && fit.usedTeams) lines.push('Your league has ' + fit.teams + ' teams. Values are for 8 to 14 teams, so we use ' + fit.usedTeams + ', the closest size.');
+    if (fit.teams && fit.usedTeams) lines.push('Your league has ' + fit.teams + ' teams. Values are for 8, 10, 12 or 14 teams, so we use ' + fit.usedTeams
+      + (fit.usedTeams >= fit.teams ? ', the closest size at or above yours.' : '.'));
     if (fit.tePremium) lines.push('Your league gives tight ends ' + num(fit.tePremium) + ' extra ' + (fit.tePremium === 1 ? 'point' : 'points') + ' per catch. Values do not include that yet.');
     if (!lines.length) return;
     box.replaceChildren(...lines.map(t => { const p = document.createElement('p'); p.textContent = t; return p; }));

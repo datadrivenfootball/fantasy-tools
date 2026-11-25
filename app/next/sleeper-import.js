@@ -83,8 +83,10 @@
     return out;
   }
   var SIZES = [8, 10, 12, 14];
+  /* the size the values use: a count between sizes rounds up (9 -> 10), below 8 uses 8, above 14 uses 14 (Jeremy, 2026-11-24) */
   function closestSize(n) {
-    return SIZES.reduce(function (best, s) { return Math.abs(s - n) < Math.abs(best - n) ? s : best; }, SIZES[0]);
+    for (var i = 0; i < SIZES.length; i++) if (SIZES[i] >= n) return SIZES[i];
+    return SIZES[SIZES.length - 1];
   }
   /* what the league has that the values cannot reflect: a team count outside 8 to 14, TE premium (extra points per catch) */
   function fitOf(lg) {
