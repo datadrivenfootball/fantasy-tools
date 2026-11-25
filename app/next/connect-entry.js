@@ -382,8 +382,46 @@
     el.btn.classList.toggle("primary", sl);   /* one clear action on the Sleeper step */
     if (!sl) { document.body.classList.remove("show-paste"); sleeperSeq++; if (sleeperBusy) sleeperDone(el); }
     var out = $("link-result"); if (out) { out.textContent = ""; out.className = ""; }
+    platformNote("");
   }
   function linkMsg(text, kind) { var out = $("link-result"); if (!out) return; out.textContent = text; out.className = kind ? "is-" + kind : ""; }
+
+  /* ---------- the platform a pasted league link names ----------
+     A link says where the league is (espn.com, yahoo.com, sleeper.com or sleeper.app), so the toggle follows it: with
+     ESPN preselected, a Sleeper or Yahoo link used to build an ESPN rosters address from the wrong ID. A bare number says
+     nothing about the platform and keeps the toggle as set; one as long as a Sleeper ID gets a one-tap way to Sleeper. */
+  var PLATFORM_NAME = {espn: "ESPN", yahoo: "Yahoo", sleeper: "Sleeper"};
+  function platformOf(text) {
+    var t = String(text || "");
+    if (/(?:^|[^a-z0-9-])sleeper\.(?:com|app)\b/i.test(t)) return "sleeper";
+    if (/(?:^|[^a-z0-9-])espn\.com\b/i.test(t)) return "espn";
+    if (/(?:^|[^a-z0-9-])yahoo\.com\b/i.test(t)) return "yahoo";
+    return null;
+  }
+  function platformNote(html) {
+    var note = $("link-platform"); if (!note) return;
+    note.innerHTML = html || "";
+    note.hidden = !html;
+  }
+  function switchTo(p) {
+    var b = document.querySelector('button[data-provider="' + p + '"]');
+    if (b && provider() !== p) b.click();   /* the toggle's own handlers run: help, walkthrough, this page's copy */
+  }
+  function followLink() {
+    var el = wayEls(); if (!el) return;
+    var value = el.input.value, p = platformOf(value);
+    if (p && p !== provider()) {
+      switchTo(p);
+      platformNote("That is " + (p === "espn" ? "an " : "a ") + PLATFORM_NAME[p] + " link, so we switched to " + PLATFORM_NAME[p] + ".");
+      if (p === "sleeper") sleeperGo();
+      return;
+    }
+    if (!p && provider() !== "sleeper" && /^\s*\d{15,20}\s*$/.test(value)) {
+      platformNote("That number is as long as a Sleeper league ID. " + '<button type="button" class="link-button" data-switch-provider="sleeper">My league is on Sleeper</button>');
+      return;
+    }
+    if (!p || p === provider()) { var note = $("link-platform"); if (note && note.querySelector("[data-switch-provider]")) platformNote(""); }
+  }
   var sleeperSeq = 0;
   function sleeperDone(el) { sleeperBusy = false; el.btn.disabled = false; el.btn.removeAttribute("aria-busy"); }
   function sleeperGo() {
@@ -424,9 +462,17 @@
     });
     el.btn.addEventListener("click", function () { if (provider() === "sleeper") sleeperGo(); });
     el.input.addEventListener("keydown", function (e) { if (e.key === "Enter" && provider() === "sleeper") { e.preventDefault(); sleeperGo(); } });
-    el.input.addEventListener("paste", function () { if (provider() === "sleeper") setTimeout(sleeperGo, 0); });
+    /* a pasted link for another platform switches the toggle first (followLink), so Sleeper loads only while Sleeper is on */
+    el.input.addEventListener("paste", function () { if (provider() === "sleeper") setTimeout(function () { if (provider() === "sleeper") sleeperGo(); }, 0); });
     el.input.addEventListener("change", function () { if (provider() === "sleeper") sleeperGo(); });
-    el.input.addEventListener("input", function () { sleeperLast = null; });
+    el.input.addEventListener("input", function () { sleeperLast = null; followLink(); });
+    document.addEventListener("click", function (e) {
+      var b = e.target.closest && e.target.closest("[data-switch-provider]");
+      if (!b) return;
+      var p = b.getAttribute("data-switch-provider");
+      switchTo(p);
+      if (p === "sleeper") sleeperGo();
+    });
     $("sleeper-paste-instead").addEventListener("click", function () { document.body.classList.add("show-paste"); $("rosters").focus(); });
     applyProvider();
   }
@@ -473,5 +519,6 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
-  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo};
+  DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo,
+    platformOf: platformOf, followLink: followLink};
 })();

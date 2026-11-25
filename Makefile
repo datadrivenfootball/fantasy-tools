@@ -779,6 +779,8 @@ test-core:
 	python3 -m unittest tests.test_player_flags
 	python3 -m unittest tests.test_waivers_views
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
 	python3 -m unittest tests.test_v2_finder_trifit
 	python3 -m unittest tests.test_v2_finder_projection_noise
 	python3 -m unittest tests.test_v2_finder_triview_display
@@ -972,6 +974,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_producers_schedule_tidy
 	python3 -m unittest tests.test_verify_live
 	python3 -m unittest tests.test_v2_copy_names
+	# League entry (Jeremy, 2026-11-20): a pasted league link sets the platform; tap counts at 375px and desktop. Light (about 35 s), so in shard 1.
+	python3 -m unittest tests.test_entry_platform_link_render
 	node tests/test_v2_roster_paste.js
 	# Kickers and defenses in a paste are never read as another player (the Jason Sanders case, 2026-11-19).
 	node tests/test_kdef_paste_matching.js
