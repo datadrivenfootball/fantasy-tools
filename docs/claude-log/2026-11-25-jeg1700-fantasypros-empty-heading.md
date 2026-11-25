@@ -38,3 +38,12 @@ already skipped a whitespace-only heading, but zero-width characters and soft hy
 source's curves on the page, so the next deploy of main would hide FantasyPros. Fix: strip the same invisible
 characters before the empty check. Test: `tests/test_fidelity_pulse.py`
 `Parsers.test_empty_heading_keeps_the_position` (fails on main's reader; 58 pass with the fix).
+
+### Why USA Today Week 12 stayed off the live site (added 15:10 UTC)
+USA Today published Week 12 at 10:10 UTC; it was ingested at 12:35 and built into main at 13:48 (df072631,
+data-gate and rendered gate passed). The live site stayed on the 04:24 build because no deploy finished:
+test-core shard 1 now runs 22 to 30+ minutes with setup, and its job limit is 30. Deploy run 45627372353
+(df072631, a data commit that may deploy on its data checks) had shard 1 cut at 30:12; the run was then cancelled
+before its deploy job got a runner. Run 45630372379 (84be8ac2) hit the same limit at 14:55. Fix:
+`timeout-minutes: 45` for `validate-shard` (pages.yml) and `preview-shard` (preview.yml), within
+`test_ci_speedup_workflows`' bound of 45; that test's removal check names the new value.

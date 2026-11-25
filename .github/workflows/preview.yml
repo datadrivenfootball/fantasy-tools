@@ -244,7 +244,9 @@ jobs:
     needs: [docs-only, pr-state]
     if: needs.docs-only.outputs.docs_only != 'true' && needs.pr-state.outputs.run_expensive == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # JEG-1700 (2026-11-25): shard 1 ran 22 to 30+ minutes with setup on Week 12, so the 30-minute
+    # limit cancelled it; a timed-out shard cancels the run and its deploy, even for a data commit.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
