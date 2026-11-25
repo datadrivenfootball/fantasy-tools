@@ -89,6 +89,8 @@ class EntryStickyBarTest(unittest.TestCase):
                 page.fill("#rosters", (FIXTURES / "02-yahoo-markdown.txt").read_text(encoding="utf-8"))
                 page.click("#recognize-button")
                 page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+                self.assertEqual(nxt.get_attribute("aria-disabled"), "true", "greyed until the scoring is picked")
+                page.click("#scoring-pick [data-scoring=ppr]")  # League entry (2026-11-20): a paste asks its scoring on the read card
                 page.wait_for_function("() => document.querySelector('.ddf-actionbar__next').getAttribute('aria-disabled') === 'false'", timeout=5000)
                 self.assertEqual(page.evaluate(COUNT_NEXT), 1)
                 nxt.click()
