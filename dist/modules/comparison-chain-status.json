@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-26T16:18:47.241486+00:00",
+  "run_at": "2026-11-26T18:44:46.233719+00:00",
   "nfl_week": 12,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -14,12 +14,24 @@
   "success": true,
   "outcome": "published_with_holds",
   "held": [
-    "cbsros",
+    "fantasycalc",
     "fantasypros"
   ],
   "hold_severity": "red",
   "list_changes": {},
   "held_detail": {
+    "fantasycalc": {
+      "reason": "fidelity: scrape_validity",
+      "held_series": [
+        "fantasycalc"
+      ],
+      "sections": [
+        "fantasycalc"
+      ],
+      "detail": "player count dropped vs week 11: stored TE 28->25, chart TE 28->25",
+      "hold_severity": "red",
+      "week": 12
+    },
     "fantasypros": {
       "reason": "fidelity: publisher_vs_stored",
       "held_series": [
@@ -30,19 +42,6 @@
       ],
       "detail": "438/438 values match exactly across 6 columns; 0 value mismatches, 0 publisher players not stored, 32 stored players not on the page; parse notes: no table found for QB",
       "hold_severity": "red",
-      "week": 12
-    },
-    "cbsros": {
-      "reason": "fidelity: publisher_vs_stored",
-      "held_series": [
-        "cbsros",
-        "cbsros_vorp"
-      ],
-      "sections": [
-        "cbsros"
-      ],
-      "detail": "1089/1089 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 4 players at the page's last listed value swapped in or out (ties at the row cap: Carson Steele, Elijah Mitchell, Luke Schoonmaker, Max Klare); parse notes: RB: 2 players listed with another posi",
-      "hold_severity": "amber",
       "week": 12
     }
   },
@@ -240,7 +239,7 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "fantasypros": "fidelity: publisher_vs_stored",
-    "cbsros": "fidelity: publisher_vs_stored"
+    "fantasycalc": "fidelity: scrape_validity",
+    "fantasypros": "fidelity: publisher_vs_stored"
   }
 }
