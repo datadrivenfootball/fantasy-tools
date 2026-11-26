@@ -26,7 +26,7 @@
     "transformed_at": "2026-10-03T21:04:32.183609+00:00",
     "transformer": "pipelines/transform_batch70_to_comparison.py"
   },
-  "built_at": "2026-11-26T06:43:34.238301+00:00",
+  "built_at": "2026-11-26T09:43:46.687582+00:00",
   "display": {
     "aaron anderson": "Aaron Anderson",
     "aaron jones": "Aaron Jones",
@@ -3358,7 +3358,7 @@
       "name": "CBS",
       "native_unit": "CBS chart points (their ~5\u201347 scale)",
       "position_coverage": "QB/RB/WR/TE only \u2014 no K/DST coverage (not covered)",
-      "promoted_at": "2026-11-26T06:43:34Z",
+      "promoted_at": "2026-11-26T09:43:46Z",
       "promoted_from_review": "cbs-standard-12-section-review.json",
       "promotion_note": "Re-anchored from the retired Monday rail to the fixture ESPN leg. Native values vintage 2026-11-24T18:50:44+00:00; reindex mapping updated.",
       "provenance_note": "RB/WR/TE values are published per scoring column. QB values are IMPLIED: CBS publishes 1QB-4 / 1QB-6 / 2QB, so the 1QB-4 column is reused for every scoring mode. QBs with '--' in the 1QB columns carry 2QB-only value and are not covered in 1QB.",
@@ -3371,7 +3371,7 @@
         "snapshot_fetched_at": "2026-11-24T18:50:44+00:00",
         "snapshot_manifest": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/cbs/week-12/snapshot-manifest.json",
         "source": "cbs",
-        "source_pulled_at": "2026-11-26T06:42:05Z",
+        "source_pulled_at": "2026-11-26T09:42:11Z",
         "source_url": "https://www.cbssports.com/fantasy/football/news/dave-richards-week-12-trade-chart-rest-of-season-rankings-mike-evans-ashton-jeanty-gain-serious-steam/",
         "vintage_kind": "week_designated",
         "week_designated": 12
@@ -12577,7 +12577,16 @@
       "snapshot_id": "sha256:639493f27ab28cc57cfb18f58bb944ac83043df25be751b88b13ac9edaaecc32",
       "source_url": "https://www.cbssports.com/fantasy/football/stats/QB/2026/restofseason/projections/nonppr/",
       "vintage": "2026-11-26",
-      "week_designated": "rest of season"
+      "week_designated": "rest of season",
+      "validationHold": {
+        "reason": "fidelity: publisher_vs_stored",
+        "week": 12,
+        "root": "cbsros",
+        "stage": "publisher_vs_stored",
+        "identity": "2026-11-26@2026-11-26T03:26:05.301403Z",
+        "since": "2026-11-26T09:40:21.529404Z",
+        "hold_level": "amber"
+      }
     },
     "espn": {
       "claimed_settings": "ESPN season fantasy projections (Mike Clay model) where priced; ECR fills the rest. Valued through our pinned starter model.",
@@ -43592,7 +43601,7 @@
         "stale": false,
         "vintage": "2026-11-25"
       },
-      "fetched_at": "2026-11-26T06:43:32Z",
+      "fetched_at": "2026-11-26T09:43:45Z",
       "kind": "model projections, valued by our model",
       "lineage": {
         "raw_built_at": "2026-11-25T18:43:52Z",
@@ -45553,7 +45562,7 @@
       "name": "FantasyCalc",
       "native_unit": "FantasyCalc crowd value (their ~2\u201310,500 scale)",
       "position_coverage": "QB/RB/WR/TE only \u2014 no K/DST coverage (not covered)",
-      "promoted_at": "2026-11-26T06:43:26Z",
+      "promoted_at": "2026-11-26T09:43:41Z",
       "promoted_from_review": "fantasycalc-standard-12-qb1-section-review.json",
       "promotion_note": "Re-anchored from the retired Monday rail to the fixture ESPN leg. Native values vintage 2026-11-26T05:05:29+00:00; reindex mapping updated.",
       "provenance_note": "Weekly snapshot tied to the NFL week \u2014 pulled once per week, frozen for the week, never a live read. Refresh only with --refresh-fc --fc-week \"Week N\".",
@@ -45593,7 +45602,7 @@
         "snapshot_fetched_at": "2026-11-26T05:05:29+00:00",
         "snapshot_manifest": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/fantasycalc/week-12/snapshot-manifest.json",
         "source": "fantasycalc",
-        "source_pulled_at": "2026-11-26T06:42:02Z",
+        "source_pulled_at": "2026-11-26T09:42:09Z",
         "source_url": null,
         "vintage_kind": "week_designated",
         "week_designated": 12
@@ -47554,7 +47563,7 @@
       "name": "FantasyPros",
       "native_unit": "FantasyPros analyst-consensus chart points (~1.0\u201375.1 scale)",
       "position_coverage": "QB/RB/WR/TE only \u2014 no K/DST coverage (not covered)",
-      "promoted_at": "2026-11-26T06:43:28Z",
+      "promoted_at": "2026-11-26T09:43:42Z",
       "promoted_from_review": "fantasypros-standard-12-section-review.json",
       "promotion_note": "Re-anchored from the retired Monday rail to the fixture ESPN leg. Native values vintage 2026-11-25T04:01:04.753583+00:00; reindex mapping updated.",
       "provenance_note": "FantasyPros publishes one base Value column. It is treated as scoring-agnostic and reused across the three scoring combos; values are indexed with one factor per combo to the other charts' range, so its own order is kept (JEG-482).",
@@ -47567,7 +47576,7 @@
         "snapshot_fetched_at": "2026-11-25T04:01:04.753583+00:00",
         "snapshot_manifest": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/fantasypros/2026-11-24/snapshot-manifest.json",
         "source": "fantasypros",
-        "source_pulled_at": "2026-11-26T06:42:04Z",
+        "source_pulled_at": "2026-11-26T09:42:10Z",
         "source_url": "https://www.fantasypros.com/2026/09/fantasy-football-trade-value-chart-week-12-2026/",
         "vintage_kind": "week_designated",
         "week_designated": 12
@@ -63741,7 +63750,7 @@
       "name": "USA Today",
       "native_unit": "USA Today chart points (their ~0\u201370 scale)",
       "position_coverage": "QB/RB/WR/TE only \u2014 no K/DST coverage (not covered)",
-      "promoted_at": "2026-11-26T06:43:25Z",
+      "promoted_at": "2026-11-26T09:43:39Z",
       "promoted_from_review": "usatoday-standard-12-section-review.json",
       "promotion_note": "Re-anchored from the retired Monday rail to the fixture ESPN leg. Native values vintage 2026-11-25T00:00:00+00:00; reindex mapping updated.",
       "provenance_note": "RB/WR/TE values are published per scoring column. QB values are IMPLIED: USA Today publishes one QB column set (1QB / 6-pt-TD / Superflex), so the 1QB column is reused for every scoring mode.",
@@ -63754,7 +63763,7 @@
         "snapshot_fetched_at": "2026-11-25T00:00:00+00:00",
         "snapshot_manifest": "/home/runner/work/fantasy-tools/fantasy-tools/data/raw/sources/usatoday/2026-11-25/snapshot-manifest.json",
         "source": "usatoday",
-        "source_pulled_at": "2026-11-26T06:42:03Z",
+        "source_pulled_at": "2026-11-26T09:42:09Z",
         "source_url": "https://www.usatoday.com/story/sports/fantasy/football/2026/11/25/fantasy-football-trade-charts-week-12-rest-of-season-rankings/92954546007/",
         "vintage_kind": "week_designated",
         "week_designated": 12
