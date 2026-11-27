@@ -18,6 +18,10 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   `tests.test_eddf.JsParity`.
 - Evidence numbers in `docs/research/jeg-1735-eddf.md`: `tools/research/eddf_evidence.py` run on
   2026-11-27, written to `docs/research/data/jeg1735/evidence.json`.
+- `make validate` (local, exit 0) ran on the branch before the Tuesday-rule commit; `value_check compare
+  --rerun-engine --strict` (0 differences) and `check_rank_guard.py` (12 checks, 0 inversions) ran after it.
+  This PR touches no DDF code path. The Tuesday-rule commit was re-checked with `tests.test_eddf` and
+  `tests.test_validate_shards` only, not a second full `make validate`.
 - Makefile shard parity after adding the test to test-core and shard 2: `tests.test_validate_shards`.
 
 - Variants (per_expert default, site_once, grouped) and weights: `tests.test_eddf.Variants`.
@@ -33,13 +37,14 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   (seven files, all disabled registry rows).
 
 ### Claimed, not confirmed
+- CI: the PR is a draft, and the repo skips the expensive checks (preview, v2-render) on drafts, so
+  they show red by design; there is no green CI on this head. Marking it ready would make 10 ready
+  PRs against the cap of 8.
 - Hot files were not edited (value-model.js, value_reference.py, curve-widget.js, v2.js): the
   slot is held by PR 1332 (value-model.js) and PR 1473 (v2.js). Only new files plus Makefile,
   `docs/pipeline-rules.md`, `docs/README.md`.
 - Supabase `ros_rankings` was not read (anon key refused, no auth store read). Lists come from
   `pipelines/pull_ros_rankings.py` run on 2026-11-27. One list date only; no ranker history.
-- `make validate`, `value_check` at 0 and the rank guard at 0 inversions: see the PR for the run
-  result; this PR touches no DDF code path, so a red there is not from EDDF.
 - The JS engine hook, a live feed, and publishing any EDDF number: not built; each needs the slot
   and Jeremy's yes.
 - Five private evidence pages were published from `docs/research/data/jeg1735/*.json` by a
