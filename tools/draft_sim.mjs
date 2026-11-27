@@ -43,6 +43,13 @@ export const POLICIES = [
 ];
 const STARTERS = { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1 };
 const NOISE_SIGMA = 0.2;
+// Bots are not the engine's opponent model (review of f662c66): each bot has
+// its own market/platform blend (uniform 0-1; the model assumes 0.5) and its
+// own position tendencies (lognormal, sigma 0.1), drawn per draft.
+const TENDENCY_SIGMA = 0.1;
+// The noisy judge: each player's "true" value = DDF Value x lognormal(0.3),
+// drawn per draft and unseen by every bidder.
+const JUDGE_SIGMA = 0.3;
 
 // Deterministic per-(draft, team, player) random numbers: the same rival
 // noise in every policy.
@@ -166,8 +173,12 @@ export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 
       } else {
         const need = E.needFactor(t, pos[key]);
         const noise = Math.exp(NOISE_SIGMA * (gauss(seed, draft, t.id, key) - shift));
-        const room = model.roomPrice == null ? simLeague.minBid : model.roomPrice;
-        limit = Math.min(mb, Math.floor(room * noise * need + 1e-9));
+        const blend = uniform(seed, draft, t.id, "blend");
+        const tend = Math.exp(TENDENCY_SIGMA * gauss(seed, draft, t.id, pos[key], "tend"));
+        const mk = E.inflatedPrice(prices.market[key], cache.market.factor, simLeague.minBid);
+        const pl = E.inflatedPrice(prices.platform[key], cache.platform.factor, simLeague.minBid);
+        const room = mk != null && pl != null ? mk * (1 - blend) + pl * blend : (mk ?? pl ?? simLeague.minBid);
+        limit = Math.min(mb, Math.floor(room * noise * need * tend + 1e-9));
         if (t.id === nominator) limit = Math.max(limit, simLeague.minBid);
         bids.push({ id: t.id, limit: Math.max(0, limit) });
       }
@@ -205,8 +216,15 @@ export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 
   }
   const roster = rosters[me];
   const vals = prices.values;
+  // Independent judges: market dollars, and DDF Value with hidden noise.
+  const marketVals = prices.market;
+  const noisyVals = {};
+  Object.keys(vals).forEach(k => { noisyVals[k] = vals[k] * Math.exp(JUDGE_SIGMA * gauss(seed, draft, k, "judge")); });
   return {
     starterValue: starterValue(roster, pos, vals),
+    starterMarket: starterValue(roster, pos, marketVals),
+    starterNoisy: starterValue(roster, pos, noisyVals),
+    rosterMarket: roster.reduce((t, k) => t + (marketVals[k] || 0), 0),
     rosterValue: roster.reduce((t, k) => t + (vals[k] || 0), 0),
     starterDollars: starterValue(roster, pos, prices.ours),
     unspent: state.teams[me].budgetLeft - Object.values(state.teams[me].open).reduce((a, b) => a + b, 0) * simLeague.minBid,
@@ -222,6 +240,16 @@ export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 
   };
 }
 
+export const JUDGES = { ours: "starterValue", market: "starterMarket", noisy: "starterNoisy" };
+
+// Mean and standard error of the per-draft difference a - b (same seeds).
+function paired(a, b, f) {
+  const d = a.map((r, i) => r[f] - b[i][f]);
+  const m = d.reduce((t, x) => t + x, 0) / d.length;
+  const sd = Math.sqrt(d.reduce((t, x) => t + (x - m) ** 2, 0) / Math.max(1, d.length - 1));
+  return { mean: m, se: sd / Math.sqrt(d.length) };
+}
+
 function summarize(runs) {
   const mean = f => runs.reduce((t, r) => t + r[f], 0) / runs.length;
   const sd = f => { const m = mean(f); return Math.sqrt(runs.reduce((t, r) => t + (r[f] - m) ** 2, 0) / Math.max(1, runs.length - 1)); };
@@ -229,6 +257,7 @@ function summarize(runs) {
     drafts: runs.length,
     starterValue: mean("starterValue"), starterValueSd: sd("starterValue"),
     rosterValue: mean("rosterValue"), starterDollars: mean("starterDollars"),
+    starterMarket: mean("starterMarket"), starterNoisy: mean("starterNoisy"), rosterMarket: mean("rosterMarket"),
     unspent: mean("unspent"), pushWins: mean("pushWins"),
     aboveValue: mean("aboveValue"), aboveValueDollars: mean("aboveValueDollars"),
     aboveWalkAway: mean("aboveWalkAway"), drained: mean("drained"),
@@ -247,14 +276,21 @@ function main() {
   const prices = buildPrices({ league, fp: JSON.parse(fs.readFileSync(a.fp, "utf8")),
     vegas: JSON.parse(fs.readFileSync(a.vegas, "utf8")), espn: espnTable(JSON.parse(fs.readFileSync(a.espn, "utf8"))),
     ecr: ecrRanks(path.join(a["ecr-dir"], "ecr_half.html")) });
-  const results = {};
+  const results = {}, allRuns = {};
   POLICIES.forEach(policy => {
     const runs = [];
     for (let d = 0; d < drafts; d += 1) runs.push(simulate({ prices, league, policy, draft: d, seed }));
+    allRuns[policy.name] = runs;
     results[policy.name] = { ...summarize(runs), rule: policy.rule, factor: policy.factor };
   });
+  // Every policy minus B, under every judge (paired by seed).
+  const vsB = {};
+  POLICIES.forEach(p => {
+    vsB[p.name] = Object.fromEntries(Object.entries(JUDGES).map(([j, f]) => [j, paired(allRuns[p.name], allRuns.B, f)]));
+  });
   process.stdout.write(JSON.stringify({ generated: new Date().toISOString(), data: "2026 data", league,
-    drafts, seed, noiseSigma: NOISE_SIGMA, opponentDefaults: E.OPPONENT_DEFAULTS, results }, null, 1));
+    drafts, seed, noiseSigma: NOISE_SIGMA, tendencySigma: TENDENCY_SIGMA, judgeSigma: JUDGE_SIGMA,
+    opponentDefaults: E.OPPONENT_DEFAULTS, results, vsB }, null, 1));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) main();

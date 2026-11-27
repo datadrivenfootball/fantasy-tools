@@ -222,6 +222,27 @@ class FullLeagueBuild(unittest.TestCase):
         up = self._build(vegas={PROBE_RB: 2.0})["ours"][PROBE_RB]
         self.assertGreater(up - base, 1.0)
 
+    def test_vegas_equal_to_fp_leaves_ours_unchanged(self):
+        """Review of f662c66, blocker 1: Vegas lines equal to FantasyPros for a
+        subset of players must price exactly like FantasyPros carrying the
+        Vegas weight. Before the fill, a prop-only Vegas source moved players
+        with no prop (McCaffrey $58.8 -> $53.2) through its own replacement line."""
+        doc = _league_input()
+        fp = doc["projections"]["proj_a"]
+        some = [k for k in fp if doc["players"][k]["pos"] in ("RB", "WR")][:40]
+        with_vegas = dict(doc, projections={"fp": fp}, vegas={k: fp[k] for k in some},
+                          basisWeights={"market": 50, "projections": 25, "vegas": 25})
+        without = dict(doc, projections={"fp": fp}, basisWeights={"market": 50, "projections": 50, "vegas": 0})
+        a, b = self._build_doc(with_vegas)["ours"], self._build_doc(without)["ours"]
+        self.assertEqual(set(a), set(b))
+        for k in a:
+            self.assertAlmostEqual(a[k], b[k], places=9, msg=k)
+
+    def _build_doc(self, doc):
+        tmp = Path(tempfile.mkdtemp()) / "league.json"
+        tmp.write_text(json.dumps(doc))
+        return run("build", file=tmp)
+
     def test_market_change_still_moves_ours(self):
         base = self._build()["ours"][PROBE_RB]
         up = self._build(bump={"market": {PROBE_RB: 1.6}})["ours"][PROBE_RB]

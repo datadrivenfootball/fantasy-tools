@@ -156,7 +156,9 @@
 
   // input = {league, players: {key: {pos, name?}},
   //   projections: {sourceKey: {playerKey: stat line | season points}},
-  //   vegas: {playerKey: stat line from vegasStatLine} (optional),
+  //   vegas: {playerKey: stat line from vegasStatLine} (optional; players
+  //   without a prop take the vegasFallback projection's line, default the
+  //   first projection source),
   //   markets: {sourceKey: {playerKey: native value (dollars or chart value)}},
   //   lineupConfig: config/lineup_parameters.json (required: it sets DDF's
   //   bench share), basisWeights: {market, projections, vegas} (optional;
@@ -182,7 +184,20 @@
     Object.keys(input.projections || {}).forEach(function (src) {
       addProjection(src, input.projections[src], "projections");
     });
-    if (input.vegas && Object.keys(input.vegas).length) addProjection("vegas", input.vegas, "vegas");
+    // Vegas covers only the players with props (about 113 of 399 in 2026).
+    // A source that lists only them would get its own replacement line from
+    // the weakest prop player and its own full share of the pie, distorting
+    // ours even when every line agrees with FantasyPros (review of f662c66).
+    // So Vegas covers the same pool as the fallback projection: a player
+    // without a prop takes that projection's line.
+    if (input.vegas && Object.keys(input.vegas).length) {
+      var fbKey = input.vegasFallback || Object.keys(input.projections || {})[0];
+      var fb = fbKey ? input.projections[fbKey] : null;
+      var vegasTable = {};
+      if (fb) Object.keys(fb).forEach(function (k) { vegasTable[k] = fb[k]; });
+      Object.keys(input.vegas).forEach(function (k) { vegasTable[k] = input.vegas[k]; });
+      addProjection("vegas", vegasTable, "vegas");
+    }
     Object.keys(input.markets || {}).forEach(function (src) {
       var vals = {};
       var table = input.markets[src];
@@ -496,8 +511,11 @@
     var w1 = rivals.length ? rivals[0].estimate : 0;
     var w2 = rivals.length > 1 ? rivals[1].estimate : (rivals.length ? minBid : 0);
     var clearing = rivals.length ? Math.min(w1, w2 + minBid) : null;
+    // The most any rival who can roster him could bid (not the max bid of
+    // the rival with the highest estimate).
+    var topMax = rivals.reduce(function (m, r) { return Math.max(m, r.maxBid); }, 0);
     return { pos: pos, roomPrice: room, rivals: rivals, w1: w1, w2: w2, clearing: clearing,
-      topRivalMaxBid: rivals.length ? rivals[0].maxBid : 0, opts: opts };
+      topRivalMaxBid: topMax, opts: opts };
   }
 
   // Our value of him to our roster as it stands: his inflated price when he
@@ -531,12 +549,19 @@
     var myMax = maxBid(me, state.league);
     var canBid = canRoster(me, model.pos) && myMax >= minBid;
     var costToWin = model.rivals.length ? model.w1 + minBid : minBid;
-    var cls = !model.rivals.length ? "uncontested"
+    var cls = !canBid ? "no slot"
+      : !model.rivals.length ? "uncontested"
       : rv.value >= costToWin + opts.targetMargin ? "target"
       : rv.value <= costToWin - opts.targetMargin ? "fade" : "neutral";
     var cap = Math.min(myMax, model.topRivalMaxBid - minBid);
     var a = row.pushFloor;
+    // Buy limit: the most we pay to own him (may exceed every rival's max
+    // bid: then we simply win). Push floor B: the same, but never past the
+    // best rival max - $1, since above that no rival can top us and the bid
+    // is a purchase, not a push.
     var base = canBid && rv.buyLimit >= minBid ? rv.buyLimit : null;
+    var pushB = base == null ? null : Math.min(base, model.topRivalMaxBid - minBid);
+    if (pushB != null && pushB < minBid) pushB = null;
     var cBest = base, cDetail = null;
     if (canBid && model.rivals.length && cls !== "target") {
       var sd = Math.max(1, opts.sigma * model.w1);
@@ -554,7 +579,7 @@
     }
     return { key: key, classification: cls, costToWin: costToWin, clearing: model.clearing,
       w1: model.w1, w2: model.w2, rosterValue: rv.value, buyLimit: rv.buyLimit, walkAway: row.walkAway,
-      pushFloor: { A: a, B: base, C: cBest }, candidateC: cDetail, rivals: model.rivals.length,
+      pushFloor: { A: a, B: pushB, C: cBest }, candidateC: cDetail, rivals: model.rivals.length,
       roomPrice: model.roomPrice };
   }
 

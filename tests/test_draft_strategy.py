@@ -71,6 +71,31 @@ class PushFloorCandidates(unittest.TestCase):
             if r["candidateC"]:
                 self.assertLessEqual(r["candidateC"]["expectedLoss"], 1 + 1e-9, r["key"])
 
+    LATE = ("{league:{teams:2,budget:30,minBid:1,slots:{RB:2,WR:1}},me:'us',"
+            "teams:[{id:'us',budgetLeft:20,open:{RB:1,WR:1}},{id:'them',budgetLeft:3,open:{RB:1}}],"
+            "available:['x'],pos:{x:'RB'},prices:{ours:{x:2},market:{x:2}}}")
+
+    def test_buy_limit_separate_from_push_floor_b(self):
+        """Review of f662c66, item 4: in the late probe our buy limit is $4,
+        but no rival can top $3, so push floor B stops at $2."""
+        pf = _cjs(f"E.pushFloors({self.LATE},'x')")
+        self.assertEqual((pf["buyLimit"], pf["pushFloor"]["B"]), (4, 2))
+
+    def test_top_rival_max_bid_is_the_room_max(self):
+        # Rival r1 has the highest estimate (need 1) but r2 has more money (bench only).
+        st = ("{league:{teams:3,budget:60,minBid:1,slots:{RB:1,BN:2}},me:'us',teams:["
+              "{id:'us',budgetLeft:24,open:{RB:1}},{id:'r1',budgetLeft:12,open:{RB:1}},"
+              "{id:'r2',budgetLeft:40,open:{BN:1}}],available:['x','y','z'],pos:{x:'RB',y:'RB',z:'RB'},"
+              "prices:{ours:{x:10,y:20,z:20},market:{x:10,y:20,z:20}}}")
+        # Market factor (24+12+40-3)/(9+19+19) = 1.55: room price for x = $14.98,
+        # so r1's estimate is $12 (its max) and r2's is 0.6 x 14.98 = $8.99.
+        m = _cjs(f"E.opponentModel({st},'x')")
+        self.assertEqual(m["rivals"][0]["id"], "r1")
+        self.assertEqual(m["topRivalMaxBid"], 40)
+
+    def test_no_slot_classification(self):
+        self.assertEqual(_cjs("E.pushFloors(st(),'P7').classification"), "no slot")
+
     def test_bench_only_player_worth_half_to_us(self):
         # A has no RB slot and no bench: worth 0 to us. Give A a bench slot only.
         got = _cjs("E.pushFloors(st({teams:[{id:'A',budgetLeft:15,open:{BN:3}},W.teams[1],W.teams[2]]}),'P7')")

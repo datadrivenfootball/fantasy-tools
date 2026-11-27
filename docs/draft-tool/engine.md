@@ -26,9 +26,14 @@ browser; only the recurring data (the daily pull) comes from Supabase.
   points / 17), scored with the league's own scoring (`fantasyPoints`).
 - Vegas enters as one more projection: `vegasStatLine` takes the season prop
   lines (pass/rush/receiving yards and TDs, receptions) and fills any stat
-  without a prop from the FantasyPros line for the same player. A player with
-  no prop is left out of the Vegas source and the build's fill-in handles him,
-  as it does for any source that skips a player.
+  without a prop from the FantasyPros line for the same player. **A player
+  with no prop takes his FantasyPros line** in the Vegas source, so Vegas
+  covers the same pool as FantasyPros. (Review of f662c66: a Vegas source
+  listing only the ~113 prop players drew its replacement line from the
+  weakest prop player and gave its whole pie to them, so ours moved even
+  when every line agreed with FantasyPros; McCaffrey, no prop, $58.8 to
+  $53.2. Test `test_vegas_equal_to_fp_leaves_ours_unchanged`: Vegas equal to
+  FantasyPros prices exactly like FantasyPros carrying the Vegas weight.)
 - Market values enter as a `chart` source; with the live `charts` split they
   set the position split of the pie.
 - **The blend.** DDF Value's default basis averages the chart sources only
@@ -83,7 +88,7 @@ available players, and the three pre-draft price maps.
 | Inflated price | `$1 + (price - $1) x factor` |
 | Max bid (per team) | `money left - $1 x (open slots - 1)` |
 | Walk-away | Our inflated price rounded down to whole dollars, capped at our max bid and at the best max bid among rivals who can roster him + $1 (no rival can force us past that). $1 when he is outside our priced pool but we have a slot; $0 when we have no slot. |
-| Push floor | Below. |
+| Push floor | Below. **What the board does today:** `board()` / `boardRow()` show push floor rule A and walk-aways on the room inflation factor. The candidates below are in `pushFloors()` and personal inflation is `state.ourFactor = "personal"`; neither is the board default until Jeremy decides. |
 
 The inflation factor itself is not bounded: late in a draft it can be large
 (review probe: $20 and 2 open slots against a rival with $3 for 1 slot and
@@ -137,50 +142,74 @@ player at a price we are glad to pay. Above roster value, the loss is
 - **A (first draft):** lowest of walk-away, market - $1, best rival max - $1.
   Stops at market - $1 even when we would gladly pay more. It also uses the
   league price, not roster value, so it can overpay for a bench-only player.
-- **B (recommended): our roster value.** Bid to exactly what he is worth to
-  our roster as it stands, on every player. In an English auction this is
-  the strongest safe push: the winner pays at least our value, and getting
-  stuck never costs anything.
+- **B: our roster value.** Bid to exactly what he is worth to our roster as
+  it stands, on every player. In an English auction this is the strongest
+  safe push: the winner pays at least our value, and getting stuck never
+  costs anything. Two numbers, kept apart: the **buy limit** (roster value,
+  capped at walk-away) is what we bid when we would own him, and may exceed
+  every rival's max bid (then we simply win); **push floor B** is the buy
+  limit capped at the best rival max bid - $1, because above that no rival
+  can top us and the bid is a purchase, not a push (late probe: buy limit
+  $4, push floor B $2).
 - **C: roster value plus a bounded overreach.** On fades and neutrals, go
   above roster value only while `(chance the top rival tops us) x (dollars
   drained) x 0.5` beats `(chance we are stuck) x (overpay)`, and keep the
   expected overpay under $1 per player. The 0.5 says a rival's wasted dollar
   is worth half of one of ours.
 
-**Simulation** (300 seeded drafts per policy, 12 teams, Jeremy's league
-settings at $200, 2026 data; rivals bid their need-weighted room price with
-+/-20% noise centred so rooms pay market on average; same seeds for every
-policy). Starter and roster value are DDF Value points (higher is better):
+**Simulation** (`tools/draft_sim.mjs`, 300 seeded drafts per policy, seed
+2, re-run 2026-11-27 after the review of f662c66). 12 teams, Jeremy's league
+settings at $200, 2026 data. Rival bots bid their need-weighted room price
+with +/-20% noise centred so rooms pay market on average, and they are not
+the engine's opponent model: each bot has its own market/platform blend
+(uniform 0-1; the model assumes 0.5) and its own position tendencies
+(+/-10%). Same seeds for every policy.
 
-| Policy | Starter value | Roster value | Unspent | Above roster value, per draft | Drained from rivals |
+Our starting lineup is scored by three judges, so no result rests on our own
+values alone: **ours** (DDF Value), **market** (market dollars), and
+**noisy** (DDF Value times a hidden +/-30% per player per draft that no
+bidder sees). Mean per draft:
+
+| Policy | Ours | Market | Noisy | Unspent | Bench buys at starter price |
 | --- | --- | --- | --- | --- | --- |
-| Walk-away, room inflation (first engine) | 159.6 | 216.2 | $70 | 5.0 ($20) | $12 |
-| Walk-away, personal inflation | 229.1 | 282.2 | $0 | 5.1 ($20) | $15 |
-| A, personal | 229.9 | 282.6 | $0 | 5.0 ($19) | $15 |
-| **B, personal** | **233.5** | 281.1 | $0 | **0** | $14 |
-| C, personal | 233.3 | 274.7 | $0 | 2.1 ($4) | $15 |
+| Walk-away, room inflation (first engine) | 164.9 | 124.6 | 177.2 | $55 | 5.0 ($24) |
+| Walk-away, personal inflation | 216.5 | 182.3 | 227.7 | $0 | 5.2 ($20) |
+| A, personal | 218.0 | 184.2 | 229.6 | $0 | 5.0 ($19) |
+| B (buy limit), personal | 221.4 | 186.5 | 231.8 | $1 | 0 |
+| C, personal | 220.6 | 186.2 | 231.9 | $0 | 2.6 ($6) |
+
+Each policy minus B, paired by seed (mean +/- standard error):
+
+| Policy | Ours judge | Market judge | Noisy judge |
+| --- | --- | --- | --- |
+| Walk-away, room inflation | -56.5 +/- 1.7 | -62.0 +/- 1.9 | -54.6 +/- 2.6 |
+| Walk-away, personal | -4.9 +/- 0.6 | -4.3 +/- 0.6 | -4.1 +/- 1.0 |
+| A, personal | -3.4 +/- 0.5 | -2.4 +/- 0.5 | -2.3 +/- 1.0 |
+| C, personal | -0.9 +/- 0.2 | -0.4 +/- 0.3 | +0.1 +/- 0.5 |
+
+"Bench buys at starter price" counts players we won above their value to our
+roster as it stood; B is 0 by construction (it bids that value), so it is
+reported, not used to rank.
 
 What it shows:
 
-1. **Spending our money matters most.** The room's inflation sinks as rivals
-   overpay for stars, so walk-aways built on it shrink while our cash sits
-   unused ($70 left over, worth nothing). A personal factor (our surplus
-   dollars against our share of the open slots, `inflation().personalFactor`)
-   spends it: +70 starter points. This is the biggest finding.
-2. **B beats A and plain walk-away** by about 4 starter points with less
-   spread, and never buys a bench player at a starter's price (A and
-   walk-away do so about 5 times a draft, about $20).
-3. **Pushing past our value (C) buys nothing.** It drains about $2 more per
-   draft but gets stuck 2 times a draft and loses 6 roster points.
+1. **Spending our money matters most.** Under every judge, personal
+   inflation is worth 52-58 starter points: the room's inflation sinks as
+   rivals overpay for stars, our walk-aways shrink, and $55 is left unused.
+2. **B beats A and plain walk-away under all three judges,** by more than
+   two standard errors (A: 2.3-3.4 points; walk-away: 4.1-4.9).
+3. **B and C tie** under the independent judges (market -0.4 +/- 0.3, noisy
+   +0.1 +/- 0.5); C only loses under our own values. Pushing past our value
+   neither helps nor clearly hurts, and it gets us stuck 2.6 times a draft.
 
-Recommendation: **B with personal inflation.** The push floor is our roster
-value; the board shows it in place of walk-away when they differ (bench-only
-players). Personal inflation is an option today (`state.ourFactor =
-"personal"`); the engine default stays the room factor so the hand-checked
-worked example below holds. Limits: rival bots are simple (no tendencies, no
-strategic nominations, no team-specific budgets beyond money left), and
-values are scored with our own DDF Value, which favours strategies that buy
-what ours likes.
+Recommendation (Jeremy decides; the board keeps rule A and the room factor
+until then): **B with personal inflation.** Limits: bots do not nominate
+strategically; one league shape; the noisy judge still centres on DDF Value.
+(The reviewer's probe on the earlier code, 100 drafts on seed 2, found
+B - A = -1.7 +/- 0.9 under the market judge; this run, after the Vegas fill
+and with misspecified bots, finds B ahead by 2.4 +/- 0.5. The sign depends
+on the setup, so treat B's edge over A as modest and worth re-checking with
+the USO auction and real-room tendencies.)
 
 ## Worked example (hand-checked; the test matches it to the dollar)
 

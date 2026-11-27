@@ -113,8 +113,13 @@ in three layouts: a market header then name / "O 4100.5" lines; a
 "Player Over 104.5 Receptions -115". It uses the over line (the under only
 when there is no over), ignores odds and page chrome, and refuses a line for
 an unknown player, a number outside a plausible season range, a season
-other than `--season`, two different over lines for the same player and
-market, or any over/under it cannot read.
+other than `--season` anywhere the page says "season", a page that never
+says "season" (weekly or game lines), two different over (or under) lines
+for the same player and market, or any over/under it cannot read. Markets it
+does not read are refused, and lines under them are listed, never stored
+under the previous market: combined (rush + rec), longest play, attempts,
+carries, targets, completions, interceptions, sacks, fumbles, points,
+leaders and awards. Numbers with thousands separators ("3,875.5") are read.
 
 Storage: `public.draft_vegas_lines` (applied 2026-11-27 on Jeremy's yes;
 public read, server-only write; one snapshot per date, the same for every

@@ -86,6 +86,44 @@ class FailsClosed(unittest.TestCase):
     def test_empty_paste_is_not_ok(self):
         self.assertFalse(parse("Home\nLive\nBet Slip")["ok"])
 
+    # Review of f662c66, blocker 2: each of these returned ok=true before.
+    def test_combined_rush_rec_yards_refused(self):
+        r = self._bad("Rush + Rec Yards Regular Season\nBijan Robinson\nO 1900.5", "combined market")
+        self.assertNotIn(1900.5, [x["line"] for x in r["rows"]])
+
+    def test_combined_rush_rec_tds_refused(self):
+        self._bad("Rushing & Receiving TDs Regular Season\nBijan Robinson\nO 12.5", "combined market")
+
+    def test_longest_reception_refused(self):
+        self._bad("Longest Reception Regular Season\nJa'Marr Chase\nO 62.5", "longest-play market")
+
+    def test_unknown_header_resets_the_market(self):
+        # Without the reset, 255.5 attempts would be stored as rushing yards.
+        r = self._bad("Regular Season Rushing Attempts\nBijan Robinson\nO 255.5", "attempts market")
+        self.assertEqual([x["line"] for x in r["rows"] if x["key"] == "201"], [1350.5])
+
+    def test_targets_refused(self):
+        self._bad("Regular Season Targets\nJa'Marr Chase\nO 150.5", "targets market")
+
+    def test_interceptions_thrown_refused(self):
+        self._bad("Interceptions Thrown Regular Season\nJosh Allen\nO 11.5", "interceptions market")
+
+    def test_weekly_page_refused(self):
+        r = parse("Week 12 Player Props\nReceiving Yards\nJa'Marr Chase\nO 85.5\n-115")
+        self.assertFalse(r["ok"])
+        self.assertTrue(any("never says" in e["reason"] for e in r["errors"]))
+
+    def test_last_season_line_refused(self):
+        self._bad("2025 Regular Season\nRegular Season Receiving Yards\nJa'Marr Chase\nO 1375.5", "season 2025 is not 2026")
+
+    def test_conflicting_unders_refused(self):
+        self._bad("Regular Season Receiving Touchdowns\nJa'Marr Chase\nUnder 11.5", "two different under lines")
+
+    def test_thousands_separator(self):
+        r = parse(SAMPLE.replace("O 3875.5", "O 3,875.5"))
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertIn(3875.5, [x["line"] for x in r["rows"] if x["key"] == "102"])
+
 
 class SnapshotTool(unittest.TestCase):
     def _run(self, text, extra=()):
