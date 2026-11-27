@@ -1,6 +1,6 @@
 """JEG-1570: connect.html with Sleeper selected loads the league from its link or ID (Sleeper API answered by fixtures).
 
-1. Sleeper view: one field ("Sleeper league link or ID") with the league ID help; no paste step, no rosters-page
+1. Sleeper view: one field ("Sleeper username or league ID") with the league ID help; no paste step, no rosters-page
    button, no copy-the-page tutorial; the paste box stays one tap away. ESPN and Yahoo views unchanged.
 2. A league ID loads every team: recognition card, "We found: <name>, N teams, M players", ddf:pasted (source sleeper,
    suggestedName, leagueId on the device), league settings saved for settings.html, the sticky Next enabled, setup lists
@@ -101,8 +101,8 @@ class SleeperEntryTest(unittest.TestCase):
                 self.assertTrue(page.is_visible("#entry"), "ESPN: paste step shown")
                 espn_label = page.text_content("label[for=league-ref]")
                 page.click('[data-provider="sleeper"]')
-                self.assertEqual(page.text_content("label[for=league-ref]"), "Sleeper league link or ID")
-                self.assertEqual(page.text_content("#get-link"), "Load my league")
+                self.assertEqual(page.text_content("label[for=league-ref]"), "Sleeper username or league ID")
+                self.assertEqual(page.text_content("#get-link"), "Find my league")
                 self.assertTrue(page.is_hidden("#entry"), "no paste step")
                 self.assertTrue(page.is_hidden("#step1-title .step-num"), "one step, no numbering")
                 self.assertTrue(page.text_content("#step1-title").endswith("Add your Sleeper league"))
@@ -144,14 +144,17 @@ class SleeperEntryTest(unittest.TestCase):
         self.assertEqual(page.text_content("#recognition-title"), "Here's what we read from Sleeper")
         self.assertTrue(page.is_hidden("#edit-team-names"), "Sleeper team names come from the league; no rename box")
         self.assertTrue(all(t["players"] for t in kept["teams"]))
+        # the league's settings reach the saved settings on Next (as the picked scoring does, #1536), not on load
         saved = page.evaluate("JSON.parse(localStorage.getItem('ddf.v2.league-settings'))")
-        self.assertEqual(saved["scoring"], "half_ppr")
+        self.assertNotEqual((saved or {}).get("scoring"), "half_ppr", "nothing is saved before Next")
+        self.assertEqual(kept["importSettings"]["scoring"], "half_ppr", "kept on the league until Next")
         page.wait_for_function("() => document.querySelector('.ddf-actionbar__next').getAttribute('aria-disabled') === 'false'", timeout=5000)
         self.assertTrue(all("api.sleeper.app/v1/" in u for u in page.calls), page.calls)
         self.assertEqual(len([u for u in page.calls if "api.sleeper.app" in u]), 4)
         self.assertEqual(self.overflow(page), 0)
         page.click(".ddf-actionbar__next")
         page.wait_for_url("**/setup.html", timeout=20000)
+        self.assertEqual(page.evaluate("JSON.parse(localStorage.getItem('ddf.v2.league-settings')).scoring"), "half_ppr", "Next saves the league's settings")
         self.assertEqual(page.input_value("#league-name"), "Gridiron Test League")
         self.assertEqual(len(page.locator("input[name=team]").all()), 4)
         self.assertEqual(page.errors, [])
@@ -185,7 +188,7 @@ class SleeperEntryTest(unittest.TestCase):
         page.click('[data-provider="sleeper"]')
         page.fill("#league-ref", "not a league")
         page.click("#get-link")
-        self.assertIn("could not find a Sleeper league ID", page.text_content("#link-result"))
+        self.assertIn("could not find a Sleeper username or league ID", page.text_content("#link-result"))
         self.assertEqual(page.calls, [], "no call without an ID")
 
 
