@@ -90,7 +90,7 @@ function espnTable(doc) {
   }));
 }
 
-function buildPrices({ league, fp, vegas, espn, ecr }) {
+function buildPrices({ league, fp, vegas, espn, ecr, weights }) {
   // league.ecr names the published format closest to the league's scoring.
   const scoringKey = league.ecr === "standard" ? "std" : "ppr";
   const players = {}, fpStats = {}, byName = new Map();
@@ -115,14 +115,14 @@ function buildPrices({ league, fp, vegas, espn, ecr }) {
   const fpMarketRaw = E.rankImpliedDollars(ecrByKey, curve);
   const platformRaw = {};
   espnSkill.forEach(p => { const k = byName.get(p.name); if (k && p[scoringKey] != null) platformRaw[k] = p[scoringKey]; });
-  const build = E.ddfDraftValues({ league, players, projections: { fp: fpStats, vegas: vegasStats },
-    markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP });
+  const build = E.ddfDraftValues({ league, players, projections: { fp: fpStats }, vegas: vegasStats,
+    markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP, basisWeights: weights });
   return {
     players, byName,
     ours: E.ourPrices(build.values, league),
     market: E.rescaleDollars(fpMarketRaw, league),
     platform: E.rescaleDollars(platformRaw, league),
-    method: build.pipeline.method,
+    method: build.pipeline.method, basis: build.basis,
     coverage: { fp: Object.keys(fpStats).length, vegas: Object.keys(vegasStats).length,
       ecr: Object.keys(ecrByKey).length, platform: Object.keys(platformRaw).length },
   };
@@ -174,7 +174,7 @@ function backtest(name, sales, league, inputs) {
       rows[i][f] = p ? E.inflatedPrice(p, inf.factor, sh.minBid) : sh.minBid;
     });
   });
-  return { name, league, method: prices.method, coverage: prices.coverage,
+  return { name, league, method: prices.method, basis: prices.basis, coverage: prices.coverage,
     sales: sales.length, keepers: keepers.length, keeperDollars: keptMoney,
     scored: rows.length, unmatched, inflationAtStart: factors,
     error: Object.fromEntries(["ours", "market", "platform"].map(f => [f, summarize(rows, f)])),
@@ -185,6 +185,20 @@ function backtest(name, sales, league, inputs) {
       return [f, summarize(rows, f, pred > 0 ? paid / pred : 1)];
     })),
     rows };
+}
+
+// Blend weight settings for the sensitivity table (percent: market,
+// FantasyPros projections, Vegas). The first is the engine default.
+const WEIGHT_SETTINGS = [
+  { label: "default", weights: null },
+  { label: "market only (DDF trade-chart basis)", weights: { market: 100, projections: 0, vegas: 0 } },
+  { label: "70 / 15 / 15", weights: { market: 70, projections: 15, vegas: 15 } },
+  { label: "50 / 25 / 25", weights: { market: 50, projections: 25, vegas: 25 } },
+  { label: "34 / 33 / 33", weights: { market: 34, projections: 33, vegas: 33 } },
+];
+
+function oursOnly(rep) {
+  return { error: rep.error.ours, errorScaled: rep.errorScaled.ours };
 }
 
 function main() {
@@ -212,8 +226,24 @@ function main() {
   // test (rooms anchor on the values shown), so the platform column is left out.
   delete espnRep.error.platform; delete espnRep.errorScaled.platform;
   reports.push(espnRep);
+  // Sensitivity: ours at each blend weight setting, every auction.
+  const sensitivity = WEIGHT_SETTINGS.map(ws => {
+    const per = {};
+    a.auction.forEach(spec => {
+      const [name, rest] = spec.split("=");
+      const [salesFile, leagueFile] = rest.split(":");
+      const league = readJson(leagueFile);
+      per[name] = oursOnly(backtest(name, readJson(salesFile), league,
+        { fp, vegas, espn, ecr: ecrFor(league.ecr), weights: ws.weights }));
+    });
+    per["ESPN 2026 average auction values"] = oursOnly(backtest("espn", aavSales, espnLeague,
+      { fp, vegas, espn, ecr: ecrFor("ppr"), weights: ws.weights }));
+    return { label: ws.label, weights: ws.weights || E.DRAFT_BASIS_WEIGHTS, results: per };
+  });
   const ecrMeta = ["standard", "half", "ppr"].map(sc => { const e = ecrFor(sc); return { scoring: e.scoring, year: e.year, lastUpdated: e.lastUpdated }; });
-  process.stdout.write(JSON.stringify({ generated: new Date().toISOString(), data: "2026 data", ecr: ecrMeta, reports }, null, 1));
+  process.stdout.write(JSON.stringify({ generated: new Date().toISOString(), data: "2026 data", ecr: ecrMeta,
+    curveNote: "ours (market chart) and market map FantasyPros ranks onto ESPN's published dollar curve, so against ESPN's own average prices they are not independent of ESPN",
+    reports, sensitivity }, null, 1));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) main();

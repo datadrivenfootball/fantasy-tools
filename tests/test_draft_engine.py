@@ -135,7 +135,7 @@ class GuardsCatchMutations(unittest.TestCase):
         self.assertNotEqual(worked_mismatches(board, fixture()["auction"]["expected"]), [])
 
 
-def _league_input(scoring="half", lineup=True):
+def _league_input(scoring="half", lineup=True, bump=None, vegas=False):
     """A synthetic 10-team league: 40 QB, 80 RB, 90 WR, 40 TE with a
     decreasing projection, two projection sources and one market."""
     players, p1, p2, mkt = {}, {}, {}, {}
@@ -148,7 +148,12 @@ def _league_input(scoring="half", lineup=True):
             pts = top * (0.985 ** i) - i * 0.6
             p1[k] = pts
             p2[k] = pts * (1.03 if i % 2 else 0.97)
+            if bump and k in bump.get("proj", {}):
+                p1[k] *= bump["proj"][k]
+                p2[k] *= bump["proj"][k]
             mkt[k] = max(0.0, 60.0 * (0.94 ** (i * (1.0 if pos in ("RB", "WR") else 1.6))))
+            if bump and k in bump.get("market", {}):
+                mkt[k] *= bump["market"][k]
     doc = {
         "league": {"teams": 10, "budget": 200, "minBid": 1, "scoring": scoring,
                    "slots": {"QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "K": 1, "DST": 1, "BN": 6}},
@@ -156,9 +161,14 @@ def _league_input(scoring="half", lineup=True):
         "projections": {"proj_a": p1, "proj_b": p2},
         "markets": {"market_a": mkt},
     }
+    if vegas is not False:
+        doc["vegas"] = {k: v * (vegas or {}).get(k, 1.0) for k, v in p1.items() if players[k]["pos"] in ("RB", "WR")}
     if lineup:
         doc["lineupConfig"] = json.loads(LINEUP.read_text())
     return doc
+
+
+PROBE_RB = "1061"  # RB20 of the synthetic league: inside the priced pool, not a star
 
 
 class FullLeagueBuild(unittest.TestCase):
@@ -187,9 +197,35 @@ class FullLeagueBuild(unittest.TestCase):
         vals = [out["values"][k] for k in order]
         self.assertEqual(vals, sorted(vals, reverse=True))
 
-    def test_slices_fallback_without_lineup_config(self):
-        out = self._build(lineup=False)
-        self.assertEqual(out["method"], "slices")
+    def test_lineup_config_is_required(self):
+        with self.assertRaises(subprocess.CalledProcessError):
+            self._build(lineup=False)
+
+    def test_basis_blends_market_projections_and_vegas(self):
+        out = self._build(vegas={})
+        self.assertEqual(out["basis"]["mode"], "blend")
+        w = out["basis"]["weights"]
+        self.assertEqual(set(w), {"proj_a", "proj_b", "market_a", "vegas"})
+        self.assertAlmostEqual(w["proj_a"] + w["proj_b"], 25)
+        self.assertAlmostEqual(w["market_a"], 50)
+        self.assertAlmostEqual(w["vegas"], 25)
+
+    def test_projection_change_moves_ours(self):
+        """Review finding 1 (2026-11-27): with the charts-only default basis a
+        1.6x projection moved this RB $0.00."""
+        base = self._build()["ours"][PROBE_RB]
+        up = self._build(bump={"proj": {PROBE_RB: 1.6}})["ours"][PROBE_RB]
+        self.assertGreater(up - base, 3.0)
+
+    def test_vegas_change_moves_ours(self):
+        base = self._build(vegas={})["ours"][PROBE_RB]
+        up = self._build(vegas={PROBE_RB: 2.0})["ours"][PROBE_RB]
+        self.assertGreater(up - base, 1.0)
+
+    def test_market_change_still_moves_ours(self):
+        base = self._build()["ours"][PROBE_RB]
+        up = self._build(bump={"market": {PROBE_RB: 1.6}})["ours"][PROBE_RB]
+        self.assertGreater(up - base, 1.0)
 
 
 class ScoringAndInputs(unittest.TestCase):
@@ -218,6 +254,76 @@ class ScoringAndInputs(unittest.TestCase):
         # 1 team, $20, 2 slots: surplus 18; raw 31 and 11 -> weights 30, 10 -> 1+13.5, 1+4.5
         got = self._eval("E.rescaleDollars({a:31,b:11,c:1},{teams:1,budget:20,slots:{RB:1,WR:1}})")
         self.assertEqual(got, {"a": 14.5, "b": 5.5})
+
+
+class ReviewCases(unittest.TestCase):
+    """Cases from the Opus math review of 2026-11-27 (PR 1556 at f8123a4)."""
+
+    def _eval(self, expr):
+        js = f"const E=require('./app/draft/draft-engine.js');process.stdout.write(JSON.stringify({expr}))"
+        out = subprocess.run([_node(), "-e", js], capture_output=True, text=True, cwd=ROOT)
+        if out.returncode:
+            errs = [ln for ln in out.stderr.splitlines() if "Error" in ln]
+            return {"error": errs[0] if errs else "failed"}
+        return json.loads(out.stdout)
+
+    LATE = ("{league:{teams:2,budget:30,minBid:1,slots:{RB:2,WR:1}},me:'us',"
+            "teams:[{id:'us',budgetLeft:20,open:{RB:1,WR:1}},{id:'them',budgetLeft:3,open:{RB:1}}],"
+            "available:['x'],pos:{x:'RB'},prices:{ours:{x:2},market:{x:2}}}")
+
+    def test_late_draft_walk_away_capped_by_rival_max(self):
+        """Finding 2: $20 and 2 open slots vs a rival with $3 for 1 slot, one $2
+        player left. Factor is 20 and inflated ours is $21, but no rival can
+        bid past $3, so walk-away is $4 and the push floor is $2."""
+        b = self._eval(f"E.board({self.LATE})")
+        self.assertAlmostEqual(b["inflation"]["ours"]["factor"], 20)
+        row = b["rows"][0]
+        self.assertEqual((row["walkAway"], row["pushFloor"], row["rivalCeiling"]), (4, 2, 3))
+
+    def test_walk_away_one_dollar_when_no_rival_can_roster(self):
+        st = self.LATE.replace("open:{RB:1}}", "open:{WR:0}}")
+        row = self._eval(f"E.board({st}).rows[0]")
+        self.assertEqual((row["walkAway"], row["pushFloor"]), (1, None))
+
+    def test_walk_away_one_dollar_outside_priced_pool(self):
+        st = self.LATE.replace("ours:{x:2}", "ours:{}")
+        self.assertEqual(self._eval(f"E.board({st}).rows[0].walkAway"), 1)
+
+    def test_plain_count_open_is_refused(self):
+        st = self.LATE.replace("open:{RB:1,WR:1}", "open:2")
+        self.assertIn("per-slot", self._eval(f"E.board({st})").get("error", ""))
+
+    def test_ir_slot_is_not_a_draft_slot(self):
+        self.assertEqual(self._eval("E.maxBid({budgetLeft:10,open:{BN:2,IR:1}},{teams:1,budget:10,slots:{BN:2}})"), 9)
+
+    def test_inflation_is_one_at_draft_start_with_k_and_dst(self):
+        """Finding 3: K and DST slots are $1 slots, not valued ones."""
+        js = ("(()=>{const L={teams:2,budget:20,minBid:1,slots:{RB:1,WR:1,K:1,DST:1}};"
+              "const w={a:9,b:7,c:5,d:3,e:1};const p=E.pricesFromWeights(w,L);"
+              "const o=()=>({RB:1,WR:1,K:1,DST:1});"
+              "return E.inflation({league:L,teams:[{id:1,budgetLeft:20,open:o()},{id:2,budgetLeft:20,open:o()}],"
+              "available:Object.keys(w),pos:{a:'RB',b:'WR',c:'RB',d:'WR',e:'RB'}},p).factor})()")
+        self.assertAlmostEqual(self._eval(js), 1.0, places=9)
+
+    def test_slot_eligibility(self):
+        cases = [("{FLEX:1}", "RB", True), ("{FLEX:1}", "TE", True), ("{FLEX:1}", "QB", False),
+                 ("{SUPERFLEX:1}", "QB", True), ("{SUPERFLEX:1}", "WR", True), ("{BN:1}", "QB", True),
+                 ("{WR:1}", "RB", False), ("{K:1}", "K", True), ("{K:1}", "RB", False), ("{IR:2}", "RB", False)]
+        for open_, pos, want in cases:
+            self.assertEqual(self._eval(f"E.canRoster({{open:{open_}}},'{pos}')"), want, (open_, pos))
+
+    def test_pool_is_exactly_teams_times_valued_slots(self):
+        """1 team, $10, RB + WR (+ K, not valued): pool 2, surplus 10 - 3 = 7.
+        x = 1 + 3/5 x 7 = 5.2, y = 1 + 2/5 x 7 = 3.8, z unpriced. A pool one
+        too large would price z and give x 1 + 3/6 x 7 = 4.5."""
+        got = self._eval("E.pricesFromWeights({x:3,y:2,z:1},{teams:1,budget:10,slots:{RB:1,WR:1,K:1}})")
+        self.assertEqual(set(got), {"x", "y"})
+        self.assertAlmostEqual(got["x"], 5.2, places=9)
+        self.assertAlmostEqual(got["y"], 3.8, places=9)
+
+    def test_yahoo_presets_differ_only_on_interceptions(self):
+        got = self._eval("['half','yahoo_half'].map(s=>E.fantasyPoints({ints:10,rec:10},s))")
+        self.assertEqual(got, [-15, -5])
 
 
 class NotLive(unittest.TestCase):

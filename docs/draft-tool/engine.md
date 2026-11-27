@@ -13,7 +13,7 @@ browser; only the recurring data (the daily pull) comes from Supabase.
 
 | Price | Built from | Function |
 | --- | --- | --- |
-| Ours (DDF draft value) | Projections (FantasyPros season projections, Vegas props) and market values, through the existing value build `ValueModel.runValuePipeline` | `ddfDraftValues`, then `ourPrices` |
+| Ours (DDF draft value) | Market values, FantasyPros season projections and Vegas props, blended by the existing value build `ValueModel.runValuePipeline` | `ddfDraftValues`, then `ourPrices` |
 | Market | FantasyPros consensus rank mapped onto a dollar curve, plus any market dollar source (ESPN average auction value), rescaled to the league | `rankImpliedDollars`, `blendDollars`, `rescaleDollars` |
 | Platform | The dollars ESPN, Yahoo or Sleeper shows in its draft room, rescaled to the league | `rescaleDollars` |
 
@@ -29,12 +29,26 @@ browser; only the recurring data (the daily pull) comes from Supabase.
   without a prop from the FantasyPros line for the same player. A player with
   no prop is left out of the Vegas source and the build's fill-in handles him,
   as it does for any source that skips a player.
-- Market values enter as a `chart` source. With the live `charts` split,
-  the market sets the position split of the pie and the projections set each
-  player's value above replacement, the same as DDF Value on the trade chart.
+- Market values enter as a `chart` source; with the live `charts` split they
+  set the position split of the pie.
+- **The blend.** DDF Value's default basis averages the chart sources only
+  (JEG-1073), so on that basis a player's own projections or Vegas lines do
+  not move ours (review, 2026-11-27: a 1.6x projection moved a test RB
+  $15.04 to $15.04). Jeremy, 2026-11-27: "Our values are going to be informed
+  by market + vegas projected performance outcomes, calculated up in to DDF
+  draft values." So ours uses the value build's own `blend` basis (VP-6.3,
+  `basisConfig`): the weighted mean of each source's Adjusted value, over the
+  sources that price the player. No new math.
+- **One named setting:** `DRAFT_BASIS_WEIGHTS` = market 50, FantasyPros
+  projections 25, Vegas 25 (percent; each group's weight is split evenly
+  across its sources). A caller can pass `basisWeights`. The backtest
+  sensitivity table and the A/B/C decision are in `backtest.md`. Test: a
+  1.6x projection now moves the test RB $15.73 to $25.43; 2x Vegas $16.39 to
+  $27.64; 1.6x market $15.73 to $21.68.
 - The live page's expected-starts parameters (`config/lineup_parameters.json`)
-  set the bench share, so ours uses DDF's bench share by default. At draft
-  time the window opens at week 1 (`preseasonLineup`).
+  set the bench share, so ours uses DDF's bench share. `lineupConfig` is
+  required: without it the build would fall back to a fixed 15% share. At
+  draft time the window opens at week 1 (`preseasonLineup`).
 - Overrides replace a player's DDF Value after the build.
 
 The result is DDF Value, a share of a fixed pie, read from
@@ -58,16 +72,27 @@ player's dollars above the minimum keep their share of the league's surplus.
 
 ## Live auction math
 
-State: each team's money left and open slots (a count, or a count per slot
-type), the available players, and the three pre-draft price maps.
+State: each team's money left and open slots as counts per slot type (QB,
+RB, WR, TE, FLEX, SUPERFLEX, K, DST, BN; a plain count is refused because it
+cannot tell K/DST slots from valued ones; IR and other keys are ignored), the
+available players, and the three pre-draft price maps.
 
 | Quantity | Definition |
 | --- | --- |
 | Inflation factor | `(money left - $1 x open slots) / (value left)`, where value left is the sum of `price - $1` over the best available players who fill the open valued slots. Computed separately for ours, market and platform. Inflation = factor - 1. |
 | Inflated price | `$1 + (price - $1) x factor` |
 | Max bid (per team) | `money left - $1 x (open slots - 1)` |
-| Walk-away | Our inflated price rounded down to whole dollars, capped at our max bid. $0 when we have no slot that can take the player. |
+| Walk-away | Our inflated price rounded down to whole dollars, capped at our max bid and at the best max bid among rivals who can roster him + $1 (no rival can force us past that). $1 when he is outside our priced pool but we have a slot; $0 when we have no slot. |
 | Push floor | Below. |
+
+The inflation factor itself is not bounded: late in a draft it can be large
+(review probe: $20 and 2 open slots against a rival with $3 for 1 slot and
+one $2 player left gives a factor of 20). The rival cap on walk-away is what
+keeps the bid sane there ($4 in that probe); the factor is still shown as is.
+
+Scoring presets: `standard`, `half`, `ppr` use ESPN's defaults
+(interception -2); `yahoo_standard`, `yahoo_half`, `yahoo_ppr` use Yahoo's
+(-1). Any per-stat override can be passed instead of a preset.
 
 ### Push floor
 
@@ -146,6 +171,12 @@ caps P6's push, the walk-away caps P5's push, the missing slot zeroes P7.
 **Variant (rival cap).** Same money and counts, but only B has an open QB
 slot (B: QB, WR; C: RB, WR, TE). P5's best rival is now B at $13, so his
 push floor is min(13, 18, 12) = **$12**.
+
+The review cases (tests `ReviewCases`) add the late-draft probe (walk-away
+$4, push floor $2), the outside-pool $1 walk-away, per-slot and IR handling,
+a draft-start inflation of exactly 1.0 with K and DST slots, FLEX,
+superflex and bench eligibility, and a pool-size check that fails if the
+pool is one player too large.
 
 The test also proves it can fail: three mutations (max bid without the $1
 reserve, push floor without the rival cap, inflation over the whole board)
