@@ -118,7 +118,7 @@ class SettingsLineTest(unittest.TestCase):
             self.tap(page, ".setup-option >> nth=1", "your team")
             self.tap(page, ".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(500)
         return page
 
@@ -162,7 +162,7 @@ class SettingsLineTest(unittest.TestCase):
         self.assertTrue(page.is_visible("#imp-RB"))
         page.click(".ddf-actionbar__next")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"], s["roster"]["SUPERFLEX"]), ("half_ppr", 12, 4, 5, 1))
         self.assertEqual(page.errors, [])
@@ -171,7 +171,7 @@ class SettingsLineTest(unittest.TestCase):
         page = self.sleeper_to_settings(PHONE)
         page.click(".ddf-actionbar__next")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"], s["roster"]["SUPERFLEX"]), ("half_ppr", 12, 3, 5, 1))
 
@@ -196,7 +196,7 @@ class SettingsLineTest(unittest.TestCase):
         page.click(".ddf-actionbar__next")
         page.wait_for_url("**/team.html", timeout=30000)
         page.goto(page.url.replace("team.html", "settings.html"), wait_until="networkidle", timeout=60000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(500)
         self.assertEqual(page.input_value("#teams"), "10")
         self.assertTrue(page.is_hidden("#settings-summary"), "not every value is Sleeper's now: the form stays open")
