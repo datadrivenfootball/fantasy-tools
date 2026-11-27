@@ -1,0 +1,409 @@
+// DDF draft tool price engine, Phase 0 (JEG-1667). Pure functions, no DOM,
+// no network: runs in the browser (window.DraftEngine) and under Node
+// (require). Not loaded by any live page.
+//
+// What it does (spec: docs/draft-tool/engine.md):
+//   1. Scoring: season stat lines -> fantasy points for the league's scoring.
+//   2. Vegas: season-long player prop lines -> a stat line (missing stats
+//      filled from a projection), so Vegas enters as one more projection.
+//   3. Ours (DDF draft value): the existing value build,
+//      ValueModel.runValuePipeline, run at the league's setting with the
+//      live page's expected-starts parameters (DDF bench share). No math is
+//      forked: this file only shapes inputs and reads blended DDF Value.
+//   4. Dollars: DDF Value (or any weight) -> auction dollars for the league's
+//      teams, budget and roster, and a snake rank.
+//   5. Market and platform prices: raw published dollars (or a published
+//      rank mapped onto a dollar curve) rescaled to the league.
+//   6. Live auction math: inflation, max bid per team, walk-away price and
+//      push floor.
+(function (root) {
+  "use strict";
+
+  var ValueModel = root.ValueModel;
+  if (!ValueModel && typeof require === "function") {
+    ValueModel = require("../trade-value-chart/assets/value-model.js");
+  }
+
+  var VERSION = "draft-engine/0";
+  var SKILL_POSITIONS = ["QB", "RB", "WR", "TE"];
+  var MIN_BID_POSITIONS = ["K", "DST"];
+  var SEASON_GAMES = 17;
+  var EPS = 1e-9;
+
+  // ---------------------------------------------------------------- scoring
+  // Per-stat points. Yahoo and ESPN defaults differ only on interceptions.
+  var SCORING_BASE = {
+    pass_yds: 0.04, pass_tds: 4, ints: -2, rush_yds: 0.1, rush_tds: 6,
+    rec: 0, rec_yds: 0.1, rec_tds: 6, fum_lost: -2
+  };
+  var SCORING_PRESETS = {
+    standard: Object.assign({}, SCORING_BASE),
+    half: Object.assign({}, SCORING_BASE, { rec: 0.5 }),
+    ppr: Object.assign({}, SCORING_BASE, { rec: 1 })
+  };
+  var STAT_KEYS = Object.keys(SCORING_BASE);
+
+  function scoringRules(scoring) {
+    if (typeof scoring === "string") {
+      if (!SCORING_PRESETS[scoring]) throw new Error("unknown scoring preset " + scoring);
+      return SCORING_PRESETS[scoring];
+    }
+    return Object.assign({}, SCORING_BASE, scoring || {});
+  }
+
+  function fantasyPoints(stats, scoring) {
+    var rules = scoringRules(scoring);
+    var pts = 0;
+    STAT_KEYS.forEach(function (k) {
+      var v = Number(stats && stats[k]);
+      if (isFinite(v)) pts += v * rules[k];
+    });
+    return pts;
+  }
+
+  // ------------------------------------------------------------------ Vegas
+  // Season-long prop markets (DraftKings "Player Futures", FanDuel "Regular
+  // Season") -> stat keys. A prop line is the book's median, not its mean.
+  var VEGAS_MARKETS = {
+    season_pass_yds: "pass_yds", season_pass_tds: "pass_tds", season_rush_yds: "rush_yds",
+    season_rush_tds: "rush_tds", season_receptions: "rec", season_rec_yds: "rec_yds",
+    season_rec_tds: "rec_tds"
+  };
+
+  // lines: {market: line}. fallback: a projection's stat line for the same
+  // player; stats with no prop take the fallback's value. Returns null when
+  // the player has no prop at all (Vegas has no opinion on him).
+  function vegasStatLine(lines, fallback) {
+    var out = {}, covered = [];
+    STAT_KEYS.forEach(function (k) { out[k] = Number(fallback && fallback[k]) || 0; });
+    Object.keys(lines || {}).forEach(function (market) {
+      var stat = VEGAS_MARKETS[market];
+      var v = Number(lines[market]);
+      if (stat && isFinite(v)) { out[stat] = v; covered.push(stat); }
+    });
+    if (!covered.length) return null;
+    out.covered = covered;
+    return out;
+  }
+
+  // ----------------------------------------------------------------- league
+  // league = {teams, budget, minBid?, scoring, slots: {QB, RB, WR, TE, FLEX,
+  // SUPERFLEX, K, DST, BN}}. IR slots are filled after the draft and ignored.
+  function leagueShape(league) {
+    var s = league.slots || {};
+    var n = function (k) { return Math.max(0, Math.floor(Number(s[k]) || 0)); };
+    var rosterSize = SKILL_POSITIONS.concat(MIN_BID_POSITIONS, ["FLEX", "SUPERFLEX", "BN"])
+      .reduce(function (t, k) { return t + n(k); }, 0);
+    var minBidSlots = n("K") + n("DST");
+    return {
+      teams: Math.floor(Number(league.teams)),
+      budget: Number(league.budget),
+      minBid: league.minBid == null ? 1 : Number(league.minBid),
+      rosterSize: rosterSize,
+      minBidSlotsPerTeam: minBidSlots,
+      valuedSlotsPerTeam: rosterSize - minBidSlots,
+      slots: { QB: n("QB"), RB: n("RB"), WR: n("WR"), TE: n("TE"), FLEX: n("FLEX"),
+        SUPERFLEX: n("SUPERFLEX"), K: n("K"), DST: n("DST"), BN: n("BN") }
+    };
+  }
+
+  // The value build's setting for this league (VP setting shape).
+  function pipelineSetting(league) {
+    var sh = leagueShape(league);
+    return {
+      teams: sh.teams,
+      slots: { QB: sh.slots.QB, RB: sh.slots.RB, WR: sh.slots.WR, TE: sh.slots.TE },
+      flex: sh.slots.FLEX,
+      superflex: sh.slots.SUPERFLEX,
+      bench_per_team: sh.slots.BN
+    };
+  }
+
+  // Preseason expected-starts parameters: the live page's lineup config with
+  // the window opened at week 1 (the whole season is ahead at draft time).
+  function preseasonLineup(lineupConfig, contentWeek) {
+    if (!lineupConfig) return null;
+    return ValueModel.resolveLineupParameters(lineupConfig,
+      { content_week: contentWeek == null ? 1 : contentWeek });
+  }
+
+  // ------------------------------------------------------- ours: DDF values
+  // input = {league, players: {key: {pos, name?}},
+  //   projections: {sourceKey: {playerKey: stat line | season points}},
+  //   markets: {sourceKey: {playerKey: native value (dollars or chart value)}},
+  //   lineupConfig (config/lineup_parameters.json; null = fixed 15% bench
+  //   share slices), overrides: {playerKey: DDF value} (optional)}.
+  // Projections enter the value build as "projection" sources in points per
+  // game; markets as "chart" sources. Returns {values: {key: DDF Value},
+  // pipeline}.
+  function ddfDraftValues(input) {
+    var league = input.league;
+    var sources = {};
+    Object.keys(input.projections || {}).forEach(function (src) {
+      var vals = {};
+      var table = input.projections[src];
+      Object.keys(table).forEach(function (k) {
+        var row = table[k];
+        var pts = typeof row === "number" ? row : fantasyPoints(row, league.scoring);
+        if (isFinite(pts)) vals[k] = pts / SEASON_GAMES;
+      });
+      sources[src] = { family: "projection", status: "included", values: vals, label: src };
+    });
+    Object.keys(input.markets || {}).forEach(function (src) {
+      var vals = {};
+      var table = input.markets[src];
+      Object.keys(table).forEach(function (k) {
+        var v = Number(table[k]);
+        if (isFinite(v)) vals[k] = v;
+      });
+      sources[src] = { family: "chart", status: "included", values: vals, label: src };
+    });
+    var players = {};
+    Object.keys(input.players).forEach(function (k) {
+      var p = input.players[k];
+      if (SKILL_POSITIONS.indexOf(p.pos) !== -1) players[k] = { pos: p.pos, name: p.name };
+    });
+    var pipeline = ValueModel.runValuePipeline({
+      setting: pipelineSetting(league),
+      players: players,
+      sources: sources,
+      lineup: input.lineupConfig === undefined ? null : preseasonLineup(input.lineupConfig, input.contentWeek)
+    });
+    var values = {};
+    Object.keys(pipeline.rows || {}).forEach(function (k) {
+      var entry = pipeline.rows[k].ddfByVersion && pipeline.rows[k].ddfByVersion.blended;
+      var v = entry ? entry.value : null;
+      if (typeof v === "number" && isFinite(v)) values[k] = v;
+    });
+    Object.keys(input.overrides || {}).forEach(function (k) {
+      var v = Number(input.overrides[k]);
+      if (isFinite(v) && v >= 0) values[k] = v;
+    });
+    return { values: values, pipeline: pipeline };
+  }
+
+  // ---------------------------------------------------------------- dollars
+  function sortedKeys(weights) {
+    return Object.keys(weights).sort(function (a, b) {
+      var d = weights[b] - weights[a];
+      return d !== 0 ? d : (a < b ? -1 : a > b ? 1 : 0);
+    });
+  }
+
+  // weights {key: w >= 0} -> {key: dollars}. The league's top N players by
+  // weight (N = teams x valued roster slots) split the surplus dollars
+  // (every dollar above the $1-per-slot floor, K and DST included in the
+  // floor) in proportion to weight, on top of the minimum bid. Players past
+  // N, or with weight 0, get no price. Sum of prices + minBid x (empty pool
+  // slots + K/DST slots) = teams x budget.
+  function pricesFromWeights(weights, league) {
+    var sh = leagueShape(league);
+    var poolSize = sh.teams * sh.valuedSlotsPerTeam;
+    var surplus = sh.teams * sh.budget - sh.teams * sh.rosterSize * sh.minBid;
+    var pool = sortedKeys(weights).filter(function (k) { return weights[k] > 0; }).slice(0, poolSize);
+    var total = pool.reduce(function (t, k) { return t + weights[k]; }, 0);
+    var out = {};
+    pool.forEach(function (k) { out[k] = sh.minBid + (total > 0 ? weights[k] / total * surplus : 0); });
+    return out;
+  }
+
+  // Ours in dollars: DDF Value is a share of a fixed pie, so it splits the
+  // surplus directly.
+  function ourPrices(ddfValues, league) { return pricesFromWeights(ddfValues, league); }
+
+  // Market or platform dollars quoted for a reference league (FantasyPros
+  // and ESPN quote 12 or 10 teams, $200) rescaled to this league: each
+  // player's dollars above the minimum keep their share of the surplus.
+  function rescaleDollars(rawDollars, league) {
+    var sh = leagueShape(league);
+    var w = {};
+    Object.keys(rawDollars).forEach(function (k) {
+      var v = Number(rawDollars[k]);
+      if (isFinite(v)) w[k] = Math.max(0, v - sh.minBid);
+    });
+    return pricesFromWeights(w, league);
+  }
+
+  // A published rank (FantasyPros ECR, ADP) has no dollars: the player at
+  // rank r takes the r-th highest dollar value of a reference curve (a dollar
+  // list from any source, e.g. ESPN's published values). rankMap {key: rank}.
+  function rankImpliedDollars(rankMap, curveDollars) {
+    var curve = curveDollars.slice().sort(function (a, b) { return b - a; });
+    var keys = Object.keys(rankMap).sort(function (a, b) { return rankMap[a] - rankMap[b]; });
+    var out = {};
+    keys.forEach(function (k, i) { if (i < curve.length) out[k] = curve[i]; });
+    return out;
+  }
+
+  // Snake rank: order by draft value, ties broken by key.
+  function snakeRanks(values) {
+    var out = {};
+    sortedKeys(values).forEach(function (k, i) { out[k] = i + 1; });
+    return out;
+  }
+
+  // Average of several dollar maps (market = FantasyPros + other sources).
+  function blendDollars(maps) {
+    var sum = {}, cnt = {};
+    maps.forEach(function (m) {
+      Object.keys(m).forEach(function (k) {
+        var v = Number(m[k]);
+        if (!isFinite(v)) return;
+        sum[k] = (sum[k] || 0) + v; cnt[k] = (cnt[k] || 0) + 1;
+      });
+    });
+    var out = {};
+    Object.keys(sum).forEach(function (k) { out[k] = sum[k] / cnt[k]; });
+    return out;
+  }
+
+  // --------------------------------------------------------- live auction
+  // state = {league, me: teamId, teams: [{id, budgetLeft, open}], available:
+  //   [playerKey], pos: {playerKey: pos}, prices: {ours, market, platform}}
+  // open is either a count of open roster slots or {QB, RB, WR, TE, FLEX,
+  // SUPERFLEX, K, DST, BN} counts. prices are pre-draft league dollars.
+  function openCount(open) {
+    if (typeof open === "number") return Math.max(0, open);
+    return Object.keys(open || {}).reduce(function (t, k) { return t + Math.max(0, Number(open[k]) || 0); }, 0);
+  }
+  function openMinBidSlots(open) {
+    if (typeof open === "number") return 0;
+    return MIN_BID_POSITIONS.reduce(function (t, k) { return t + Math.max(0, Number((open || {})[k]) || 0); }, 0);
+  }
+
+  function canRoster(team, pos) {
+    var o = team.open;
+    if (typeof o === "number") return o > 0;
+    o = o || {};
+    var has = function (k) { return (Number(o[k]) || 0) > 0; };
+    if (has(pos) || has("BN")) return true;
+    if (["RB", "WR", "TE"].indexOf(pos) !== -1 && has("FLEX")) return true;
+    return SKILL_POSITIONS.indexOf(pos) !== -1 && has("SUPERFLEX");
+  }
+
+  // Most a team can bid and still fill every other open slot at the minimum.
+  function maxBid(team, league) {
+    var minBid = leagueShape(league).minBid;
+    var open = openCount(team.open);
+    return open > 0 ? team.budgetLeft - minBid * (open - 1) : 0;
+  }
+
+  // Inflation for one price map: surplus dollars still in the room divided
+  // by surplus value still on the board, where value counts only the best
+  // available players who will fill the open valued slots (K and DST slots
+  // are minimum-bid slots). factor 1.25 = every remaining player costs 25%
+  // more above the minimum than his pre-draft price.
+  function inflation(state, priceMap) {
+    var league = state.league;
+    var minBid = leagueShape(league).minBid;
+    var moneyLeft = 0, openTotal = 0, openValued = 0;
+    state.teams.forEach(function (t) {
+      var o = openCount(t.open);
+      moneyLeft += t.budgetLeft; openTotal += o; openValued += o - openMinBidSlots(t.open);
+    });
+    var surplusLeft = moneyLeft - openTotal * minBid;
+    var avail = state.available.filter(function (k) {
+      return MIN_BID_POSITIONS.indexOf(state.pos[k]) === -1 && isFinite(priceMap[k]);
+    }).sort(function (a, b) { return priceMap[b] - priceMap[a] || (a < b ? -1 : 1); });
+    var valueLeft = avail.slice(0, openValued).reduce(function (t, k) {
+      return t + Math.max(0, priceMap[k] - minBid);
+    }, 0);
+    var factor = valueLeft > 0 ? surplusLeft / valueLeft : null;
+    return { moneyLeft: moneyLeft, openSlots: openTotal, openValuedSlots: openValued,
+      surplusLeft: surplusLeft, valueLeft: valueLeft, factor: factor,
+      inflation: factor == null ? null : factor - 1 };
+  }
+
+  function inflatedPrice(price, factor, minBid) {
+    if (!isFinite(price) || price <= 0 || factor == null) return null;
+    return minBid + Math.max(0, price - minBid) * factor;
+  }
+
+  function teamById(state, id) {
+    for (var i = 0; i < state.teams.length; i += 1) if (state.teams[i].id === id) return state.teams[i];
+    throw new Error("no team " + id);
+  }
+
+  // The board row for one available player. All bids are whole dollars.
+  //   walkAway: the most we pay = our inflated price rounded down, capped at
+  //     our max bid; 0 when we cannot roster him or he has no DDF price.
+  //   pushFloor: the highest bid we make on a player to make another team
+  //     pay (docs/draft-tool/engine.md "Push floor"): the lowest of
+  //       (a) walkAway: if nobody tops us we own him at a price we accept;
+  //       (b) market clearing price - 1: below the price the room is
+  //           expected to pay, so a rival still tops us;
+  //       (c) the best rival max bid - 1 among rivals with a slot for him:
+  //           someone must be able to top us.
+  //     null when that is below the minimum bid (do not push).
+  function boardRow(state, key, cache) {
+    var league = state.league;
+    var minBid = leagueShape(league).minBid;
+    var c = cache || boardCache(state);
+    var me = teamById(state, state.me);
+    var pos = state.pos[key];
+    var p = state.prices;
+    var ours = p.ours ? p.ours[key] : undefined;
+    var market = p.market ? p.market[key] : undefined;
+    var platform = p.platform ? p.platform[key] : undefined;
+    var oursInfl = inflatedPrice(ours, c.ours.factor, minBid);
+    var marketInfl = c.market ? inflatedPrice(market, c.market.factor, minBid) : null;
+    var platformInfl = c.platform ? inflatedPrice(platform, c.platform.factor, minBid) : null;
+    var myMax = maxBid(me, league);
+    var walkAway = 0;
+    if (canRoster(me, pos) && oursInfl != null) walkAway = Math.min(myMax, Math.floor(oursInfl + EPS));
+    var rivalCeiling = 0;
+    state.teams.forEach(function (t) {
+      if (t.id !== state.me && canRoster(t, pos)) rivalCeiling = Math.max(rivalCeiling, maxBid(t, league));
+    });
+    var pushFloor = null;
+    if (walkAway >= minBid && marketInfl != null) {
+      var b = Math.min(walkAway, Math.floor(marketInfl + EPS) - 1, rivalCeiling - 1);
+      pushFloor = b >= minBid ? b : null;
+    }
+    return { key: key, pos: pos, ours: ours, market: market, platform: platform,
+      oursInflated: oursInfl, marketInflated: marketInfl, platformInflated: platformInfl,
+      walkAway: walkAway, pushFloor: pushFloor, myMaxBid: myMax, rivalCeiling: rivalCeiling };
+  }
+
+  function boardCache(state) {
+    var p = state.prices;
+    return { ours: inflation(state, p.ours || {}),
+      market: p.market ? inflation(state, p.market) : null,
+      platform: p.platform ? inflation(state, p.platform) : null };
+  }
+
+  // Whole board: inflation per price, max bid per team, a row per player.
+  function board(state) {
+    var cache = boardCache(state);
+    var maxBids = {};
+    state.teams.forEach(function (t) { maxBids[t.id] = maxBid(t, state.league); });
+    return { version: VERSION, inflation: cache, maxBids: maxBids,
+      rows: state.available.map(function (k) { return boardRow(state, k, cache); }) };
+  }
+
+  var DraftEngine = {
+    VERSION: VERSION,
+    SCORING_PRESETS: SCORING_PRESETS,
+    VEGAS_MARKETS: VEGAS_MARKETS,
+    fantasyPoints: fantasyPoints,
+    vegasStatLine: vegasStatLine,
+    leagueShape: leagueShape,
+    pipelineSetting: pipelineSetting,
+    preseasonLineup: preseasonLineup,
+    ddfDraftValues: ddfDraftValues,
+    pricesFromWeights: pricesFromWeights,
+    ourPrices: ourPrices,
+    rescaleDollars: rescaleDollars,
+    rankImpliedDollars: rankImpliedDollars,
+    blendDollars: blendDollars,
+    snakeRanks: snakeRanks,
+    canRoster: canRoster,
+    maxBid: maxBid,
+    inflation: inflation,
+    inflatedPrice: inflatedPrice,
+    boardRow: boardRow,
+    board: board
+  };
+  root.DraftEngine = DraftEngine;
+  if (typeof module !== "undefined" && module.exports) module.exports = DraftEngine;
+})(typeof globalThis !== "undefined" ? globalThis : this);

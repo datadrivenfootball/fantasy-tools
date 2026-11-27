@@ -1,0 +1,66 @@
+{
+  "schema": "draft-worked-example/1",
+  "ticket": "JEG-1667",
+  "note": "Hand-checked worked example for the draft engine (app/draft/draft-engine.js). Every expected number is derived by hand in docs/draft-tool/engine.md 'Worked example'; the test compares to the dollar. Players and prices are invented.",
+  "pricing": {
+    "league": {"teams": 2, "budget": 10, "minBid": 1, "slots": {"RB": 1, "WR": 1, "BN": 1}},
+    "weights": {"a": 30, "b": 20, "c": 10, "d": 5, "e": 5, "f": 0},
+    "expected_prices": {"a": 7, "b": 5, "c": 3, "d": 2, "e": 2},
+    "expected_empty_pool_slots": 1
+  },
+  "auction": {
+    "league": {"teams": 3, "budget": 30, "minBid": 1, "slots": {"QB": 1, "RB": 1, "WR": 1, "TE": 1}},
+    "me": "A",
+    "sold": [
+      {"key": "P1", "pos": "RB", "team": "A", "price": 15},
+      {"key": "P2", "pos": "WR", "team": "B", "price": 10},
+      {"key": "P3", "pos": "QB", "team": "B", "price": 6},
+      {"key": "P4", "pos": "TE", "team": "C", "price": 1}
+    ],
+    "teams": [
+      {"id": "A", "budgetLeft": 15, "open": {"QB": 1, "WR": 1, "TE": 1}},
+      {"id": "B", "budgetLeft": 14, "open": {"RB": 1, "TE": 1}},
+      {"id": "C", "budgetLeft": 29, "open": {"QB": 1, "RB": 1, "WR": 1}}
+    ],
+    "players": {
+      "P5": {"pos": "QB", "ours": 12, "market": 16},
+      "P6": {"pos": "WR", "ours": 10, "market": 8},
+      "P7": {"pos": "RB", "ours": 8, "market": 11},
+      "P8": {"pos": "TE", "ours": 6, "market": 4},
+      "P9": {"pos": "WR", "ours": 6, "market": 5},
+      "P10": {"pos": "RB", "ours": 2, "market": 1},
+      "P11": {"pos": "TE", "ours": 2, "market": 2},
+      "P12": {"pos": "QB", "ours": 2, "market": 1},
+      "P13": {"pos": "WR", "ours": 2, "market": 1}
+    },
+    "expected": {
+      "moneyLeft": 58, "openSlots": 8, "surplusLeft": 50,
+      "ours": {"valueLeft": 40, "factor": 1.25, "inflation": 0.25},
+      "market": {"valueLeft": 40, "factor": 1.25},
+      "maxBids": {"A": 13, "B": 13, "C": 27},
+      "rows": {
+        "P5": {"oursInflated": 14.75, "marketInflated": 19.75, "walkAway": 13, "rivalCeiling": 27, "pushFloor": 13},
+        "P6": {"oursInflated": 12.25, "marketInflated": 9.75, "walkAway": 12, "rivalCeiling": 27, "pushFloor": 8},
+        "P7": {"oursInflated": 9.75, "marketInflated": 13.5, "walkAway": 0, "rivalCeiling": 27, "pushFloor": null},
+        "P8": {"oursInflated": 7.25, "marketInflated": 4.75, "walkAway": 7, "rivalCeiling": 13, "pushFloor": 3},
+        "P9": {"oursInflated": 7.25, "marketInflated": 6.0, "walkAway": 7, "rivalCeiling": 27, "pushFloor": 5},
+        "P10": {"oursInflated": 2.25, "marketInflated": 1.0, "walkAway": 0, "rivalCeiling": 27, "pushFloor": null},
+        "P11": {"oursInflated": 2.25, "marketInflated": 2.25, "walkAway": 2, "rivalCeiling": 13, "pushFloor": 1},
+        "P12": {"oursInflated": 2.25, "marketInflated": 1.0, "walkAway": 2, "rivalCeiling": 27, "pushFloor": null},
+        "P13": {"oursInflated": 2.25, "marketInflated": 1.0, "walkAway": 2, "rivalCeiling": 27, "pushFloor": null}
+      }
+    },
+    "variant_rival_cap": {
+      "note": "Same money and slot counts; only which slots are open changes. Only B can now roster a QB, so P5's push floor stops at B's max bid less $1.",
+      "teams": [
+        {"id": "A", "budgetLeft": 15, "open": {"QB": 1, "WR": 1, "TE": 1}},
+        {"id": "B", "budgetLeft": 14, "open": {"QB": 1, "WR": 1}},
+        {"id": "C", "budgetLeft": 29, "open": {"RB": 1, "WR": 1, "TE": 1}}
+      ],
+      "expected_rows": {
+        "P5": {"walkAway": 13, "rivalCeiling": 13, "pushFloor": 12},
+        "P6": {"walkAway": 12, "rivalCeiling": 27, "pushFloor": 8}
+      }
+    }
+  }
+}

@@ -147,6 +147,9 @@ test-unit-modules:
 	# JEG-1049: the daily/on-demand edge drift workflow stays read-only and keeps the checker's exit code.
 	python3 -m unittest tests.test_edge_drift_workflow
 	python3 -m unittest tests.test_ddf_state
+	# JEG-1667: draft tool Phase 0 engine (worked example to the dollar) and daily-pull parsers (node, no browser).
+	python3 -m unittest tests.test_draft_engine
+	python3 -m unittest tests.test_draft_pull_parse
 	# JEG-1543: the answers version shows no source name or source number and the same DDF Value (needs dist/answers).
 	python3 -m unittest tests.test_answers_site
 	# JEG-1334: fractional flex and bench seats helper (option B, JEG-1286).
