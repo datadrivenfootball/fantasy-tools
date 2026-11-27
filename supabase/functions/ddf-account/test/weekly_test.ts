@@ -331,3 +331,14 @@ Deno.test("review fixes 2: advice uses the current time; a game in progress keep
   assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
   assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T12:00:00Z" }).weeks, [13, 14, 15, 16]);
 });
+
+Deno.test("recommendations: who else a pickup helps, with their FAAB (context, not a bid)", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const r = W.recommendations(lg, wk, "470.l.1.t.1", {});
+  const fa = r.adds.find((a: { name: string }) => a.name === "FA WR");
+  assert(fa.rivals.length > 0);
+  assert(fa.rivals.every((x: { team_key: string; gain: number; faab: number }) => x.team_key !== "470.l.1.t.1" && x.gain >= 1 && x.faab === 50));
+  for (let i = 1; i < fa.rivals.length; i++) assert(fa.rivals[i - 1].gain >= fa.rivals[i].gain);
+  assertEquals(r.me, { faab: 50, waiver_priority: 1, faab_budget: 100 });
+});

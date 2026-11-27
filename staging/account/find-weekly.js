@@ -151,6 +151,16 @@
       ? gainCell(weighted, "For your games left", isNum(total) ? pts(total) + " over the weeks left" : null)
       : gainCell(total, "Weekly points, weeks left", isNum(weighted) ? signed(weighted) + " for your games left" : null);
   }
+  /* who else this pickup helps, with their FAAB and waiver priority: context for a bid, never a bid */
+  function rivalsLine(a) {
+    var me = (state.rec && state.rec.me) || {}, rv = a.rivals || [];
+    var money = function (x) { return isNum(x) ? "$" + Math.round(x) : "FAAB unknown"; };
+    var mine = "You have " + money(me.faab) + (isNum(me.waiver_priority) ? ", waiver priority " + me.waiver_priority : "") + ".";
+    if (!rv.length) return el("p", {class: "fw-rivals", text: "No other team's lineup gains a point or more from him. " + mine});
+    return el("p", {class: "fw-rivals", text: "Also helps: " + rv.map(function (r) {
+      return r.name + " +" + r.gain.toFixed(1) + " (" + money(r.faab) + (isNum(r.waiver_priority) ? ", priority " + r.waiver_priority : "") + ")";
+    }).join("; ") + ". " + mine}));
+  }
   function addCard(a) {
     return el("article", {class: "pkg fw-card", "data-fw-add": a.player_id},
       el("div", {class: "pk-main"},
@@ -158,10 +168,11 @@
           el("div", {class: "pk-side"}, el("small", {text: "You drop"}), el("b", {text: a.drop ? a.drop.name : "Nobody (open roster spot)"})),
           el("span", {class: "pk-arrow", "aria-hidden": "true", text: "→"}),
           el("div", {class: "pk-side"}, el("small", {text: "You add"}), el("b", {text: a.name + " · " + a.pos}))),
-        el("div", {class: "pk-meta"}, el("span", {class: "ptag wv", text: "Waivers"}),
+        /* the league data does not say waivers or free agent, so the tag says only that he is on no roster */
+        el("div", {class: "pk-meta"}, el("span", {class: "ptag wv", text: "Available"}),
           a.status ? el("span", {class: "ptag", text: a.status}) : null,
           isNum(a.percent_owned) ? el("span", {class: "fit", text: "Rostered in " + Math.round(a.percent_owned) + "%"}) : null),
-        addChips(a)),
+        addChips(a), rivalsLine(a)),
       headline(a, "add"));
   }
   function staging(page) { var S = window.DDFStaging; return S && typeof S.url === "function" ? S.url(page) : null; } /* the staging copy of a page */

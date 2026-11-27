@@ -741,6 +741,20 @@
         drop: drop ? {player_id: drop.player_id, name: drop.name} : null, gain_by_week: g.by, total_gain: g.total, weighted_gain: g.weighted};
     }).filter(function (a) { return a.total_gain !== null && a.total_gain >= 0.5; })
       .sort(function (a, b) { return b.total_gain - a.total_gain; }).slice(0, opts.maxAdds || 12);
+    // Who else this pickup helps, and the FAAB they have left: context for a bid, not a bid. Gain = what he adds to
+    // that team's best lineups over the same weeks (no drop counted), weekly projections only.
+    var others = (summary.teams || []).filter(function (t) { return t.team_key !== me.team_key; }).map(function (t) {
+      var b = {}; weeks.forEach(function (w) { b[w] = teamWeek(summary, weekly, t.roster, w, slots).total; });
+      return {t: t, base: b};
+    });
+    adds.forEach(function (a) {
+      var fa = (summary.free_agents || []).filter(function (f) { return f.player_id === a.player_id; })[0];
+      a.rivals = others.map(function (o) {
+        var g = 0, ok = true;
+        weeks.forEach(function (w) { var t = teamWeek(summary, weekly, o.t.roster.concat([fa]), w, slots).total; if (t === null || o.base[w] === null) ok = false; else g += t - o.base[w]; });
+        return ok ? {team_key: o.t.team_key, name: o.t.name, gain: r1(g), faab: num(o.t.faab_remaining), waiver_priority: num(o.t.waiver_priority)} : null;
+      }).filter(function (x) { return x && x.gain >= 1; }).sort(function (x, y) { return y.gain - x.gain; }).slice(0, 3);
+    });
     // trades: one for one with each other team, both sides' weekly lineups; kept when I gain and they do not lose much
     var trades = [];
     (summary.teams || []).forEach(function (t) {
@@ -775,7 +789,8 @@
     var dl = summary.settings && summary.settings.trade_deadline;
     if (trades.length && dl && dl.date) moves.push({week: null, kind: "trade", text: "Trade window: best idea " + trades[0].give[0].name + " for " + trades[0].get[0].name + " (" + (trades[0].my_total > 0 ? "+" : "") + trades[0].my_total + " over the weeks left)", gain: trades[0].my_total, when: "by " + dl.date + " (trade deadline)", when_sort: 0});
     moves.sort(function (a, b) { return a.when_sort - b.when_sort; });
-    return {weeks: weeks, weight: weight, adds: adds, trades: trades, moves_in_time: moves};
+    return {weeks: weeks, weight: weight, adds: adds, trades: trades, moves_in_time: moves,
+      me: {faab: num(me.faab_remaining), waiver_priority: num(me.waiver_priority), faab_budget: num((summary.settings || {}).faab_budget)}};
   }
   function playsMe(summary, myKey, otherKey, weeks) {
     var hit = (summary.schedule || []).filter(function (w) { return weeks.indexOf(w.week) >= 0 && (w.matchups || []).some(function (m) { return m.team_keys && m.team_keys.indexOf(myKey) >= 0 && m.team_keys.indexOf(otherKey) >= 0; }); })[0];
