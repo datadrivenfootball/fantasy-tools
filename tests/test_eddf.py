@@ -140,6 +140,15 @@ class Variants(unittest.TestCase):
         v = self.go("grouped")["values"][1]
         self.assertAlmostEqual(v["value"], (100 + 98 + 100) / 3)
 
+    def test_chart_floor_keeps_the_charts_at_half_when_rankers_would_outweigh_them(self):
+        parts = {"x": 1, "y": 1, "a": 1, "b": 1, "d": 1, "e": 1}
+        groups = {k: k for k in "abde"}
+        w = eddf.source_weights(parts, groups, "chart_floor", 0.5)
+        self.assertAlmostEqual(w["x"] + w["y"], sum(w[k] for k in "abde"))  # charts hold half
+        self.assertAlmostEqual(w["a"], 0.5)
+        few = eddf.source_weights({"x": 1, "y": 1, "a": 1}, {"a": "a"}, "chart_floor", 0.5)
+        self.assertEqual(few, {"x": 1.0, "y": 1.0, "a": 1.0})  # already above the floor: one vote each
+
     def test_unknown_variant_is_refused(self):
         with self.assertRaises(ValueError):
             self.go("loudest")

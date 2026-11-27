@@ -157,15 +157,17 @@ def ranker_status(ranker: dict, vintage: str | None, as_of: date, stale_days: in
     return {"id": ranker["id"], "in": True, "reason": f"fresh: updated {vintage}, {age} days old"}
 
 
-VARIANTS = ("per_expert", "site_once", "grouped")
+VARIANTS = ("per_expert", "site_once", "grouped", "chart_floor")
 
 
-def source_weights(parts: dict, groups: dict, variant: str) -> dict:
+def source_weights(parts: dict, groups: dict, variant: str, chart_floor: float = 0.5) -> dict:
     """Weight of each source present for one player. `parts` is {source id: value}; ids in
     `groups` are rankers, the rest are charts (weight 1 each).
     per_expert: every ranker one vote (Jeremy, 2026-11-28, the primary variant).
     site_once:  rankers of one group share one vote (a site's lists count once between them).
-    grouped:    all rankers together are one source; the charts keep one vote each."""
+    grouped:    all rankers together are one source; the charts keep one vote each.
+    chart_floor: one vote per expert until the charts' share of the weight would fall under
+                `chart_floor` (default one half); then the rankers share the rest equally."""
     if variant not in VARIANTS:
         raise ValueError(f"unknown EDDF variant {variant!r}")
     w = {k: 1.0 for k in parts}
@@ -179,6 +181,11 @@ def source_weights(parts: dict, groups: dict, variant: str) -> dict:
     elif variant == "grouped":
         for k in ranked:
             w[k] = 1.0 / len(ranked)
+    elif variant == "chart_floor" and ranked:
+        n_c = len(parts) - len(ranked)
+        if n_c and n_c / len(parts) < chart_floor:
+            for k in ranked:
+                w[k] = (n_c * (1 - chart_floor) / chart_floor) / len(ranked)
     return w
 
 
@@ -211,7 +218,7 @@ def eddf(chart_adjusted: dict, lists: dict, vintages: dict, anchor_history: list
         parts = {c: m[pk] for c, m in chart_adjusted.items() if m.get(pk) is not None}
         parts.update({rid: v[pk] for rid, v in implied.items() if pk in v})
         if parts:
-            w = source_weights(parts, groups, variant)
+            w = source_weights(parts, groups, variant, cfg.get("chart_floor", 0.5))
             values[pk] = {"value": sum(w[k] * parts[k] for k in parts) / sum(w.values()),
                           "count": len(parts), "sources": sorted(parts)}
     rescale = None
@@ -230,7 +237,7 @@ def eddf(chart_adjusted: dict, lists: dict, vintages: dict, anchor_history: list
     if variant == "per_expert":
         chart_share = (n_c / (n_c + n_r)) if n_c + n_r else None
     else:
-        w_all = source_weights({**{c: 0 for c in chart_adjusted}, **{r: 0 for r in implied}}, groups, variant)
+        w_all = source_weights({**{c: 0 for c in chart_adjusted}, **{r: 0 for r in implied}}, groups, variant, cfg.get("chart_floor", 0.5))
         tot = sum(w_all.values())
         chart_share = (n_c / tot) if tot else None
     return {"values": values,

@@ -108,7 +108,7 @@ Robustness (mean over the three charts, Half PPR, 15 shared permutations for the
 reported EDDF as 14 to 26% less moved by a scrambled chart. One permutation is far too noisy (the
 top few values dominate the mean change). Averaged over 15 permutations shared by every variant,
 the gain was 0 to 4% before the rescale and is 8 to 10% after it (PPR 2.11 to 1.93, Half 2.12 to
-1.93, standard 2.14 to 1.95), with about +0.01 to +0.02 in rank correlation. Part of the later
+1.93, standard 2.14 to 1.95), with about +0.01 to +0.02 in rank correlation. Most of the later
 gain is the rescale pinning EDDF's total to the unscrambled DDF total while the scrambled anchors
 shift the raw EDDF total. Earlier chat and Linear figures are superseded. Dropping one chart now
 moves EDDF's values about as much as DDF's (0.25 vs 0.24 in Half PPR) and keeps the order slightly
@@ -126,7 +126,9 @@ players priced by one source only: 0 (DDF), 1 to 3 (EDDF, ranker-only players).
 `variants.json`, same harness and inputs. none = DDF Value; per_expert = every list one vote
 (Jeremy's choice, the default); site_once = a publisher's lists share one vote (only the three
 FantasyPros staff lists share a group); grouped = all lists averaged into one source beside the
-charts. Half PPR (PPR and standard are within a few hundredths):
+charts. A fifth, `chart_floor`, keeps the charts at no less than half the weight (one vote per expert
+until the rankers would outweigh them; shown in the candidate study below). Half PPR (PPR and
+standard are within a few hundredths):
 
 | variant | LOO rho | LOO rho, ranked | LOO MAE | scramble MAE / rho | drop-one MAE / rho | week-change MAE | chart weight | priced |
 | -- | -- | -- | -- | -- | -- | -- | -- | -- |
@@ -152,25 +154,79 @@ view nine times. grouped keeps the charts in charge and adds the ranker view onc
 his; this PR builds per_expert as the default and ships site_once and grouped as options in
 `eddf.py` (`variant=`).
 
-## Candidate sources (disabled, study only)
+## Candidate sources: the consensus study (Jeremy, 2026-11-28)
 
-`candidates.json`, `candidate_study.json`, `tools/research/eddf_candidates.py`. Seven files from
-the consensus session. Each is a candidate row, never enabled by this PR. Half PPR unless noted;
-the "rho vs feed mean" is against the fresh feed lists under the Tuesday rule:
+`study.json`, `candidates.json`, `candidate_study.json`; `tools/research/eddf_candidates.py` and
+`eddf_study.py`. Candidate rows are enabled only inside the harness; the registry rows stay
+`enabled: false`. Each candidate at the scoring the file states (the pegging as catalogued), under
+the Tuesday rule, on the same consensus metrics as the variants above:
 
-- Wolf (Roto Street Journal): the same analyst and date as the Wolf list already in the feed
-  (`fp-wolf-of-roto-street`), so it would double count him; scoring unstated.
-- Rotoballer (Mariano), 172 non-QB players priced: the most chart-like (0.952 with the feed mean).
-- GWTTKB (PPR, model-based) and StickToTheModel (PPR, top 30 per position): near the feed mean
-  (0.944, 0.934). They list few players.
-- Razzball ROS points and FanDuel projections: the most different views (0.884 and 0.807 with the
-  feed mean). They add the most independent information and the largest loss of agreement with a
-  held-out chart on the players they rank (rho 0.925 to 0.822, 0.928 to 0.800). Model files, ranked
-  by points; FanDuel's scoring is inferred and undated.
-- Footballguys (QBs only): prices nothing while QBs are excluded.
+| candidate | kind | pegging | dated | usable on 27 Nov |
+| -- | -- | -- | -- | -- |
+| Wolf, Roto Street Journal | analyst | scoring unstated, used for all three | 24 Nov | no: duplicates the Wolf list already in the feed (same analyst, same date) |
+| Rotoballer (Mariano) | analyst | half PPR and PPR lists | 25 Nov | yes in Half PPR and PPR, 172 non-QB players priced |
+| GWTTKB | model | PPR 1QB 12-team | 23 Nov | no: a Monday date, stale under the Tuesday rule |
+| Razzball projections | model | points for standard, half, PPR | 26 Nov | yes in all three, 464 non-QB players priced |
+| FanDuel Research | model | half PPR inferred, not stated | read date, no date on page | yes in Half PPR only, 520 priced; scoring inferred and undated |
+| StickToTheModel | model | PPR only, top 30 per position | 24 Nov | yes in PPR only, 90 priced |
+| Footballguys (Kluge) | analyst | QBs only | 24 Nov | no: QBs are excluded, so it prices nothing |
 
-None of this decides a weight; it shows which views carry information the charts and the staff
-lists do not.
+Source sets (Half PPR; PPR and standard in `study.json`): feed = the 9 fresh FantasyPros-feed lists;
++analyst adds Rotoballer; +models adds Razzball and FanDuel; +all usable adds all three. Leave-one-
+chart-out rank correlation against the held-out chart, with a bootstrap 95% interval of the
+difference from DDF (200 resamples of players):
+
+| set | fresh lists | none (DDF) | per_expert | site_once | grouped | chart_floor 50% |
+| -- | -- | -- | -- | -- | -- | -- |
+| feed | 9 | 0.919 | 0.803 [-0.129, -0.100] | 0.803 | 0.805 | 0.804 |
+| +analyst | 10 | 0.919 | 0.803 [-0.134, -0.099] | 0.803 | 0.805 | 0.804 |
+| +models | 11 | 0.919 | 0.740 [-0.200, -0.163] | 0.740 | 0.743 | 0.742 |
+| +all usable | 12 | 0.919 | 0.740 [-0.196, -0.162] | 0.740 | 0.743 | 0.742 |
+
+Other metrics, Half PPR (none = DDF): scramble-one-chart mean change 2.12; drop-one 0.24; weekly
+change 0.51; priced 669.
+
+| set and variant | LOO MAE | scramble | drop-one | week change | chart weight | priced |
+| -- | -- | -- | -- | -- | -- | -- |
+| feed, per_expert | 0.81 | 1.93 | 0.25 | 0.39 | 25% | 674 |
+| feed, grouped | 0.72 | 1.97 | 0.20 | 0.43 | 75% | 674 |
+| feed, chart_floor | 0.73 | 1.89 | 0.21 | 0.39 | 50% | 674 |
+| +models, per_expert | 0.82 | 1.65 | 0.20 | 0.34 | 21% | 718 |
+| +models, grouped | 0.72 | 1.74 | 0.18 | 0.42 | 75% | 718 |
+| +models, chart_floor | 0.73 | 1.60 | 0.18 | 0.36 | 50% | 718 |
+
+Independence among the fresh lists (pair rank correlation, effective independent views):
+feed 0.925 and 1.07; +analyst 0.921 and 1.08; +models 0.883 and 1.12. The models are the only added
+views that differ from the feed, and even with them the lists are about 1.1 independent views.
+Dispersion (SD of a player's value among the lists): 3.64 for the feed, 4.54 with the models, against
+2.24 among the three charts.
+
+**Reading.** No candidate set improves agreement with a held-out chart; the interval of the
+difference excludes zero for every variant and set. Weights change the size of the error, not the
+rank agreement: grouped and chart_floor cut the leave-one-chart-out MAE (0.72 and 0.73 against
+0.81) while rank correlation stays within 0.003 of per_expert, so the rank loss comes from the
+rankers' view itself, not from how many votes it gets. The models are the most independent views and
+the most robust to a scrambled chart (1.65 vs 2.12 for DDF, per_expert) and steadier (0.34 vs 0.51),
+and they cost the most agreement (0.740 vs 0.803).
+
+**One list date.** Supabase `ros_rankings` was not readable from this session and the puller reads
+only the pages as they are today, so there is no second date; re-running it later would add one, a
+re-run today only repeats these dates. Nothing here tests rankers over time. The bootstrap above
+puts an interval on each agreement difference across players, which says the result is not a few
+players, not that it holds on another week. A second date should be added by a session or job with
+`ros_rankings` access, or by re-running the puller after the next Tuesday reset.
+
+**Recommendation (numbers above; Jeremy chooses).** Enable none of the seven for now:
+- Rotoballer: usable and harmless (rho unchanged at 0.803, effective views 1.076 vs 1.071), but it
+  adds no measurable information; enable only if Jeremy wants one more named analyst.
+- Razzball: the one candidate that adds an independent view and robustness; if any is enabled,
+  this one, as its own group, at PPR, Half PPR and standard. It lowers agreement with the charts.
+- FanDuel: not until its scoring and date are stated (inferred half PPR, no update date) and it
+  costs the most agreement; StickToTheModel (90 players, PPR only) and GWTTKB (stale on the Tuesday
+  rule) have too little to weigh; Wolf is a duplicate; Footballguys prices nothing.
+- Weight: per_expert (Jeremy's ruling) gives the charts 25% and ties to the feed's one view; for
+  the same rank agreement and lower error, `chart_floor` at 50% or `grouped` are the options, shown
+  here, not substituted.
 
 ## League value total (rescaled, Jeremy 2026-11-28)
 
@@ -220,7 +276,7 @@ Built as Jeremy ruled (one per expert, primary, Tuesday reset). Keep EDDF off. O
 per_expert is steadier week to week (0.39 vs 0.51 mean weekly change in Half PPR; partly built in, because the lists are held fixed and only the charts move) and prices a few
 more players, but it tracks the charts less closely (leave-one-chart-out rho 0.803 vs 0.919), the
 fresh lists are about one independent view carrying 75% of the weight, and a scrambled chart moves
-it 8 to 10% less than DDF (partly the rescale). The Tuesday reset also means the ranker side empties after each reset and
+it 8 to 10% less than DDF (mostly the rescale). The Tuesday reset also means the ranker side empties after each reset and
 refills as analysts update. Options for Jeremy to choose from, none substituted here: keep
 per_expert; site_once (small effect today); grouped (the ranker view once beside the charts), which
 keeps the charts-only agreement; or a floor share for the charts.

@@ -41,6 +41,10 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   1e-6 in every scoring and team count (8 to 16 teams, on the reference's own Adjusted rows), in
   every variant, with order unchanged; the JS twin and the parity fixture agree. Evidence reruns after
   the rescale changed the numbers (scramble gain 8 to 10%, weekly change 0.39 in Half PPR).
+- Consensus study on the candidates (Jeremy, 2026-11-28): `tools/research/eddf_study.py` ->
+  `study.json` (candidates enabled only in the harness, registry rows stay disabled; source sets x five
+  variants; bootstrap interval on each leave-one-chart-out difference; one list date). New variant
+  `chart_floor` pinned by `tests.test_eddf`. Wording fix: the scramble gain is mostly the rescale.
 - Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
   (seven files, all disabled registry rows).
 
