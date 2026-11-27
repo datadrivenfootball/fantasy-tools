@@ -73,8 +73,29 @@ Deno.test("Sleeper pull reads settings, rosters, standings, schedule, deadline, 
   assert(wk(11).length > 0 && wk(11).every((p) => p === null));
   assertEquals(summary.my_team_key, "10"); // fixture user u1 owns roster 10
   assertEquals(summary.pulled_at, "2026-11-27T12:00:00.000Z");
+  // The current week (10) has real scores: live, not final.
+  assert(summary.schedule[9].matchups.every((m) => m.status === "live"));
+  assert(summary.schedule[8].matchups.every((m) => m.status === "final"));
   // A rostered id with no name stays null and is listed, never guessed.
   assert(summary.missing.some((m) => m.path === "teams[].roster[].name"));
+});
+
+Deno.test("Sleeper: an unstarted current week and a missing FAAB spend are null, never 0 or the full budget", async () => {
+  const { live, fetch } = await sleeperFetch();
+  const rosters = structuredClone(live.rosters);
+  delete rosters[0].settings.waiver_budget_used;
+  const zeroWeek = (live.matchups["10"] as { points: number }[]).map((m) => ({ ...m, points: 0 }));
+  const f = async (u: string | URL) => {
+    const url = String(u);
+    if (url.endsWith("/rosters")) return jsonRes(rosters);
+    if (url.endsWith("/matchups/10")) return jsonRes(zeroWeek);
+    return fetch(u);
+  };
+  const { summary } = await pullSleeper(f, live.league.league_id, "u1", async () => ({}));
+  assert(summary.schedule[9].matchups.every((m) => m.status === "not_started" && m.points.every((p) => p === null)));
+  const t = summary.teams.find((x) => x.team_key === String(rosters[0].roster_id))!;
+  assertEquals(t.faab_remaining, null);
+  assert(summary.missing.some((m) => m.path === "teams[].faab_remaining"));
 });
 
 // ---------- ESPN ----------
@@ -157,6 +178,20 @@ Deno.test("Yahoo pull reads settings, standings, FAAB, waivers, rosters and team
   assert(seen.every((s) => s.auth === "Bearer tok" && s.url.includes("format=json")));
 });
 
+Deno.test("Yahoo: a preevent matchup has no score even in the current week", async () => {
+  const yf = yahooFetch();
+  const f = async (u: string | URL, init?: RequestInit) => {
+    const r = await yf.f(u, init);
+    if (!/scoreboard;week=1/.test(String(u))) return r;
+    const body = await r.json();
+    body.fantasy_content.league[1].scoreboard["0"].matchups["0"].matchup.status = "preevent";
+    return jsonRes(body);
+  };
+  const { summary } = await pullYahoo(f, "tok", yf.fx.lk);
+  assertEquals(summary.schedule[0].matchups[0].points, [null, null]);
+  assertEquals(summary.schedule[0].matchups[0].status, "not_started");
+});
+
 Deno.test("Yahoo 403 (app not approved yet) says so", async () => {
   const { fx, f } = yahooFetch(403);
   const e = await assertRejects(() => pullYahoo(f, "tok", fx.lk));
@@ -179,9 +214,10 @@ function makeDeps(overrides: Partial<Deps> = {}) {
   store.allow.add("me@example.com");
   const logs: string[] = [];
   const deleted: string[] = [];
-  const users: Record<string, { id: string; email: string }> = {
-    "jwt-me": { id: "11111111-1111-4111-8111-111111111111", email: "me@example.com" },
-    "jwt-other": { id: "22222222-2222-4222-8222-222222222222", email: "other@example.com" },
+  const users: Record<string, { id: string; email: string; email_confirmed: boolean }> = {
+    "jwt-me": { id: "11111111-1111-4111-8111-111111111111", email: "me@example.com", email_confirmed: true },
+    "jwt-other": { id: "22222222-2222-4222-8222-222222222222", email: "other@example.com", email_confirmed: true },
+    "jwt-unconfirmed": { id: "33333333-3333-4333-8333-333333333333", email: "me@example.com", email_confirmed: false },
   };
   const deps: Deps = {
     store,
@@ -211,6 +247,8 @@ Deno.test("signed out is 401, a user not on the allowlist is 403", async () => {
   const h = makeApp(deps);
   assertEquals((await call(h, "GET", "/me")).status, 401);
   assertEquals((await call(h, "GET", "/me", "jwt-other")).status, 403);
+  assertEquals((await call(h, "GET", "/me", "jwt-unconfirmed")).status, 403); // allowlisted address, not confirmed
+  assertEquals((await call(h, "GET", "/leagues/not-a-uuid", "jwt-me")).status, 404); // never a 500 from Postgres
   const ok = await call(h, "GET", "/me", "jwt-me");
   assertEquals(ok.status, 200);
   assertEquals(ok.headers.get("access-control-allow-origin"), "https://datadrivenfootball.github.io");
@@ -266,8 +304,21 @@ Deno.test("Yahoo OAuth: state is single-use, tokens are sealed, nothing secret i
   const state = auth.searchParams.get("state")!;
   const cb = await h(new Request(`${BASE}/yahoo/callback?code=CODE-1&state=${state}`));
   assertEquals(cb.status, 302);
-  assertEquals(cb.headers.get("location"), "https://datadrivenfootball.github.io/ddf-staging/#yahoo=connected");
-  assertEquals((await h(new Request(`${BASE}/yahoo/callback?code=CODE-1&state=${state}`))).status, 400);
+  const loc = cb.headers.get("location")!;
+  assert(loc.startsWith("https://datadrivenfootball.github.io/ddf-staging/#yahoo=finish&h="));
+  const handoff = new URLSearchParams(loc.split("#")[1]).get("h")!;
+  assertEquals((await h(new Request(`${BASE}/yahoo/callback?code=CODE-1&state=${state}`))).status, 400); // state is single-use
+  // The callback attached nothing: tokens wait for the same signed-in DDF user.
+  assertEquals(store.conns.length, 0);
+  store.allow.add("other@example.com");
+  assertEquals((await call(h, "POST", "/yahoo/finish", "jwt-other", { handoff })).status, 403);
+  assertEquals(store.conns.length, 0);
+  // That attempt consumed the handoff, so a fresh start is needed.
+  assertEquals((await call(h, "POST", "/yahoo/finish", "jwt-me", { handoff })).status, 400);
+  const again = new URL((await (await call(h, "POST", "/yahoo/start", "jwt-me", { return_to: "https://datadrivenfootball.github.io/ddf-staging/" })).json()).url).searchParams.get("state")!;
+  const cb2 = await h(new Request(`${BASE}/yahoo/callback?code=CODE-1&state=${again}`));
+  const handoff2 = new URLSearchParams(cb2.headers.get("location")!.split("#")[1]).get("h")!;
+  assertEquals((await call(h, "POST", "/yahoo/finish", "jwt-me", { handoff: handoff2 })).status, 200);
   const conn = store.conns[0];
   assertEquals([conn.platform, conn.external_id], ["yahoo", "GUID1"]);
   const stored = new TextDecoder().decode(conn.secret_ciphertext!);
@@ -278,7 +329,7 @@ Deno.test("Yahoo OAuth: state is single-use, tokens are sealed, nothing secret i
   const pulled = await (await call(h, "POST", "/leagues", "jwt-me", { connection_id: conn.id, league_key: yf.fx.lk })).json();
   assertEquals(pulled.league.my_team_key, yf.fx.lk + ".t.2");
   assert(yf.seen.every((s) => s.auth === "Bearer ACCESS-123"));
-  assert(logs.every((l) => !/ACCESS-123|REFRESH-456|CODE-1|csecret/.test(l) && !l.includes(state)));
+  assert(logs.every((l) => !/ACCESS-123|REFRESH-456|CODE-1|csecret/.test(l) && !l.includes(state) && !l.includes(handoff2)));
 });
 
 Deno.test("expired Yahoo tokens refresh and are re-sealed", async () => {

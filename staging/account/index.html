@@ -107,9 +107,10 @@
         <h3 style="margin-top:22px">Confirm your league settings</h3>
         <p class="muted"><small>Read from the platform. Once you confirm, these drive DDF for this league. <span id="fit-note"></span></small></p>
         <form id="settings-form">
-          <label class="field">Scoring<select id="s-scoring"><option value="ppr">PPR</option><option value="half_ppr">Half PPR</option><option value="standard">Standard</option></select></label>
-          <label class="field">Teams DDF values<select id="s-teams"><option>8</option><option>10</option><option>12</option><option>14</option></select></label>
-          <label class="field" style="font-weight:600"><input type="checkbox" id="s-sf" style="display:inline;width:auto;margin-right:8px">Superflex</label>
+          <label class="field">Scoring<select id="s-scoring"><option value="" id="s-scoring-none">Choose</option><option value="ppr">PPR</option><option value="half_ppr">Half PPR</option><option value="standard">Standard</option></select></label>
+          <label class="field">Teams DDF values<select id="s-teams"><option value="">Choose</option><option>8</option><option>10</option><option>12</option><option>14</option></select></label>
+          <label class="field">Superflex<select id="s-sf"><option value="">Choose</option><option value="no">No</option><option value="yes">Yes</option></select></label>
+          <p class="muted"><small id="unread-note"></small></p>
           <div class="roster-grid" id="s-roster"></div>
           <div class="cluster" style="margin-top:14px"><button class="primary" type="submit">Confirm settings</button><span class="muted" id="confirmed-at"></span></div>
         </form>
@@ -130,9 +131,9 @@
       <button type="button" class="danger" id="delete-account">Delete my DDF account</button>
     </section>
   </section>
-  <p class="footer">Staging build for testing sign-in and league connections. Not the live site. Standings and schedules shown here stay private.</p>
+  <p class="footer">Staging build for testing sign-in and league connections. Not the live site. Standings and schedules shown here stay private. You stay signed in only in this tab.</p>
 </main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
 <script src="app.js"></script>
 </body>
 </html>

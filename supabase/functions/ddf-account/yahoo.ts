@@ -2,7 +2,7 @@
 // Since 2026-07-22 Yahoo approves each app before its Fantasy API answers (JEG-1151);
 // before approval every Fantasy call returns 403 and this module says so.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Matchup, Missing, num, pts, settleWeek, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const AUTH = "https://api.login.yahoo.com/oauth2/request_auth";
 const TOKEN = "https://api.login.yahoo.com/oauth2/get_token";
@@ -134,6 +134,7 @@ export function yahooDdfSettings(settings: J, numTeams: number | null): DdfSetti
   return out;
 }
 
+const YAHOO_STATUS: Record<string, Matchup["status"]> = { preevent: "not_started", midevent: "live", postevent: "final" };
 const WAIVER: Record<string, string> = { R: "rolling", FR: "reverse_standings", continual: "continual" };
 
 export async function pullYahoo(f: Fetch, token: string, leagueKey: string, now = new Date()) {
@@ -206,19 +207,24 @@ export async function pullYahoo(f: Fetch, token: string, leagueKey: string, now 
     batch.forEach((fc, j) => {
       rawBoards.push(fc);
       const sb = fc ? ymerge(ymerge(fc.league[1]).scoreboard) : null;
-      const matchups = yitems(sb?.["0"]?.matchups ?? sb?.matchups, "matchup").map((m: J) => {
+      const given: (Matchup["status"] | null)[] = [];
+      const matchups: Matchup[] = yitems(sb?.["0"]?.matchups ?? sb?.matchups, "matchup").map((m: J) => {
         const sides = yitems(m?.["0"]?.teams ?? m?.teams, "team").map(ymerge);
+        given.push(YAHOO_STATUS[String(m.status)] ?? null);
         return {
           team_keys: sides.map((s: J) => String(s.team_key)),
-          // Yahoo sends 0.00 before a week is played: not a score.
-          points: sides.map((s: J) => (curWeek === null || weeks[i + j] <= curWeek ? pts(s.team_points?.total) : null)),
+          points: sides.map((s: J) => pts(s.team_points?.total)),
           projected_points: sides.map((s: J) => pts(s.team_projected_points?.total)),
           is_playoffs: String(m.is_playoffs) === "1",
+          status: "live" as const,
         };
       });
+      // Yahoo's matchup status (preevent / midevent / postevent) decides; 0.00 before kickoff is not a score.
+      settleWeek(weeks[i + j], curWeek, matchups, given);
       schedule.push({ week: weeks[i + j], matchups });
     });
   }
+  if (curWeek === null) miss.add("current_week", "Yahoo returned no current_week; scores rely on each matchup's status");
   if (rawBoards.some((b) => b === null)) miss.add("schedule", "some Yahoo scoreboard weeks did not load");
 
   // Probe (JEG-1732): does Yahoo expose per-player weekly projections? Recorded, never fatal.

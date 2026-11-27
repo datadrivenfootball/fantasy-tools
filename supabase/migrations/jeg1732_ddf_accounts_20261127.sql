@@ -41,6 +41,19 @@ create table if not exists ddf_accounts.oauth_states (
   expires_at  timestamptz not null default now() + interval '10 minutes'
 );
 
+-- Yahoo tokens parked between the OAuth callback and POST /yahoo/finish (10 minutes):
+-- the callback never attaches tokens to an account (review of PR #1558, CSRF).
+create table if not exists ddf_accounts.oauth_handoffs (
+  id                text primary key,
+  user_id           uuid not null references auth.users (id) on delete cascade,
+  platform          text not null check (platform in ('yahoo')),
+  external_id       text not null,
+  secret_ciphertext bytea not null,
+  secret_iv         bytea not null,
+  token_expires_at  timestamptz,
+  expires_at        timestamptz not null default now() + interval '10 minutes'
+);
+
 create table if not exists ddf_accounts.leagues (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid not null references auth.users (id) on delete cascade,
@@ -70,6 +83,7 @@ create table if not exists ddf_accounts.platform_cache (
 alter table ddf_accounts.allowlist      enable row level security;
 alter table ddf_accounts.connections    enable row level security;
 alter table ddf_accounts.oauth_states   enable row level security;
+alter table ddf_accounts.oauth_handoffs enable row level security;
 alter table ddf_accounts.leagues        enable row level security;
 alter table ddf_accounts.platform_cache enable row level security;
 revoke all on all tables in schema ddf_accounts from public, anon, authenticated;

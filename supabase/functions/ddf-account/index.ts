@@ -21,7 +21,7 @@ const handle = makeApp({
   fetch: (u, i) => fetch(u, i),
   authUser: async (jwt) => {
     const { data, error } = await admin.auth.getUser(jwt);
-    return error || !data?.user ? null : { id: data.user.id, email: data.user.email ?? null };
+    return error || !data?.user ? null : { id: data.user.id, email: data.user.email ?? null, email_confirmed: Boolean(data.user.email_confirmed_at) };
   },
   deleteAuthUser: async (id) => {
     const { error } = await admin.auth.admin.deleteUser(id);

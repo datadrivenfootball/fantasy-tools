@@ -6,7 +6,9 @@
   var PUBLISHABLE_KEY = "sb_publishable_pzHxlyPf-jZFpStnejUUsQ_OaYuj4j7"; /* public by design */
   var FN = window.DDF_STAGING_FN || SUPABASE_URL + "/functions/v1/ddf-account"; /* override only in the local test harness */
   var HERE = location.origin + location.pathname;
-  var sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {auth: {flowType: "implicit", detectSessionInUrl: true, persistSession: true}});
+  /* The session lives in this tab's sessionStorage, not localStorage: the origin is shared with the public
+     site (datadrivenfootball.github.io), and other tabs on it cannot read another tab's sessionStorage. */
+  var sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {auth: {flowType: "implicit", detectSessionInUrl: true, persistSession: true, storage: window.sessionStorage}});
   var $ = function (id) { return document.getElementById(id); };
   var state = {me: null, league: null, view: "plain"};
 
@@ -156,16 +158,20 @@
       if (t.team_key === lg.my_team_key) o.selected = true;
       sel.appendChild(o);
     });
-    var conf = lg.confirmed_settings || s.settings.ddf || {scoring: "ppr", superflex: false};
-    $("s-scoring").value = conf.scoring;
-    $("s-teams").value = String(conf.teams || 12);
-    $("s-sf").checked = !!conf.superflex;
+    /* Only what the platform gave (or the user confirmed) is filled in; anything else is blank and must be chosen. */
+    var conf = lg.confirmed_settings || s.settings.ddf || {};
+    var unread = [];
+    $("s-scoring").value = conf.scoring || ""; if (!conf.scoring) unread.push("scoring");
+    $("s-teams").value = conf.teams ? String(conf.teams) : ""; if (!conf.teams) unread.push("team count");
+    $("s-sf").value = typeof conf.superflex === "boolean" ? (conf.superflex ? "yes" : "no") : ""; if (typeof conf.superflex !== "boolean") unread.push("superflex");
     var grid = $("s-roster");
     grid.textContent = "";
     ROSTER_KEYS.forEach(function (k) {
-      var v = conf.roster ? conf.roster[k] : "";
+      var v = conf.roster ? conf.roster[k] : null;
       grid.appendChild(el("label", {}, k === "DST" ? "DEF" : k === "BENCH" ? "Bench" : k, el("input", {type: "number", min: "0", max: k === "K" || k === "DST" ? "3" : "20", id: "r-" + k, value: v == null ? "" : String(v)})));
     });
+    if (!conf.roster) unread.push("roster slots");
+    $("unread-note").textContent = unread.length ? "Not read from " + s.platform + ": " + unread.join(", ") + ". Choose these before confirming." : "";
     var fit = s.settings.fit;
     $("fit-note").textContent = fit ? ("DDF can't reflect everything here: " + Object.keys(fit).map(function (k) { return k + " " + JSON.stringify(fit[k]); }).join(", ") + ".") : "";
     $("confirmed-at").textContent = lg.confirmed_at ? "Confirmed " + when(lg.confirmed_at) : "Not confirmed yet";
@@ -181,11 +187,14 @@
     say("Saved your team.", "ok"); openLeague(j.league);
   }));
   $("settings-form").addEventListener("submit", busy(null, async function () {
-    var roster = {}, any = false;
-    ROSTER_KEYS.forEach(function (k) { var v = $("r-" + k).value; if (v !== "") any = true; roster[k] = Number(v || 0); });
-    var settings = {scoring: $("s-scoring").value, superflex: $("s-sf").checked, teams: Number($("s-teams").value)};
+    var missing = [], roster = {};
+    if (!$("s-scoring").value) missing.push("scoring");
+    if (!$("s-teams").value) missing.push("team count");
+    if (!$("s-sf").value) missing.push("superflex");
+    ROSTER_KEYS.forEach(function (k) { var v = $("r-" + k).value.trim(); if (v === "") missing.push(k === "DST" ? "DEF" : k); else roster[k] = Number(v); });
+    if (missing.length) throw new Error("Choose " + missing.join(", ") + " before confirming.");
+    var settings = {scoring: $("s-scoring").value, superflex: $("s-sf").value === "yes", teams: Number($("s-teams").value), roster: roster};
     if (settings.superflex && state.league.summary.settings.ddf && state.league.summary.settings.ddf.superflexSlots) settings.superflexSlots = state.league.summary.settings.ddf.superflexSlots;
-    if (any) settings.roster = roster;
     var j = await api("POST", "/leagues/" + state.league.id + "/confirm", {settings: settings});
     say("Settings confirmed.", "ok"); openLeague(j.league); await loadMe();
   }));
@@ -234,7 +243,7 @@
     s.teams.slice().sort(function (a, b) { return (a.standings.rank || 99) - (b.standings.rank || 99); }).forEach(function (t) {
       var st = t.standings;
       body.appendChild(el("tr", {class: t.team_key === mine ? "mine" : ""}, el("td", {text: st.rank == null ? "—" : String(st.rank)}), el("td", {text: t.name}),
-        el("td", {text: st.wins == null ? "—" : st.wins + "-" + st.losses + "-" + (st.ties || 0)}), el("td", {class: "number", text: st.points_for == null ? "—" : String(st.points_for)}),
+        el("td", {text: st.wins == null ? "—" : st.wins + "-" + st.losses + "-" + (st.ties == null ? "—" : st.ties)}), el("td", {class: "number", text: st.points_for == null ? "—" : String(st.points_for)}),
         el("td", {class: "number", text: st.points_against == null ? "—" : String(st.points_against)}), el("td", {class: "number", text: t.faab_remaining == null ? "—" : String(t.faab_remaining)}),
         el("td", {class: "number", text: t.waiver_priority == null ? "—" : String(t.waiver_priority)})));
     });
@@ -291,7 +300,15 @@
     try { await loadMe(); } catch (err) { say(err.message, "err"); }
   }
   var h = new URLSearchParams(location.hash.slice(1));
-  if (h.get("yahoo") === "connected") say("Yahoo connected. Press Leagues next to Yahoo to pick a league.", "ok");
+  var handoff = h.get("yahoo") === "finish" ? h.get("h") : null;
+  if (handoff) {
+    /* The callback parked the Yahoo tokens; they attach only to the DDF account signed in here. */
+    history.replaceState(null, "", HERE);
+    (async function () {
+      try { await api("POST", "/yahoo/finish", {handoff: handoff}); say("Yahoo connected. Press Leagues next to Yahoo to pick a league.", "ok"); await loadMe(); }
+      catch (err) { say(err.message, "err"); }
+    })();
+  }
   else if (h.get("yahoo") === "error") say("Yahoo did not connect (" + (h.get("code") || "error") + "). Try again.", "err");
   else if (h.get("error_description")) say(h.get("error_description"), "err");
   if (h.get("yahoo")) history.replaceState(null, "", HERE);

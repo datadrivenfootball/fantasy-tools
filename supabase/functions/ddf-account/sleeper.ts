@@ -1,6 +1,6 @@
 // Sleeper: public API, no credentials (https://docs.sleeper.com). Read-only.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Matchup, Missing, num, pts, settleWeek, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const API = "https://api.sleeper.app/v1/";
 
@@ -140,7 +140,8 @@ export async function pullSleeper(f: Fetch, leagueId: string, sleeperUserId: str
         points_against: fa === null ? null : Math.round((fa + (num(s.fpts_against_decimal) ?? 0) / 100) * 100) / 100,
         rank: null, rank_source: null,
       },
-      faab_remaining: budget !== null ? budget - (int(s.waiver_budget_used, 0, 100000) ?? 0) : null,
+      // a missing spent amount is unknown, not 0 (so remaining is unknown, not the full budget)
+      faab_remaining: budget !== null && int(s.waiver_budget_used, 0, 100000) !== null ? budget - int(s.waiver_budget_used, 0, 100000)! : null,
       waiver_priority: int(s.waiver_position, 1, 99),
       roster: ids.map((pid) => ({
         player_id: pid,
@@ -154,6 +155,7 @@ export async function pullSleeper(f: Fetch, leagueId: string, sleeperUserId: str
   });
   deriveRanks(teams, "derived: wins, then points for (Sleeper's default order)");
   if (!teams.length) miss.add("teams", "Sleeper returned no rosters");
+  if (budget !== null && teams.some((t) => t.faab_remaining === null)) miss.add("teams[].faab_remaining", "Sleeper returned no waiver_budget_used for some teams");
   if (budget === null && waiverType === "faab") miss.add("settings.faab_budget", "Sleeper did not return waiver_budget");
   if (teams.length && teams.every((t) => t.waiver_priority === null)) miss.add("teams[].waiver_priority", "Sleeper returned no waiver_position");
   if (allIds.some((id) => !nameMap[id])) miss.add("teams[].roster[].name", "some Sleeper player ids are not in Sleeper's player list");
@@ -166,20 +168,19 @@ export async function pullSleeper(f: Fetch, leagueId: string, sleeperUserId: str
   sources.push(`sleeper:league/matchups/1..${weeks}`);
   // Weeks after the current one are not played yet: Sleeper sends 0 there, which is not a score.
   const curWeek = int(state?.week, 0, 22);
-  const played = (w: number) => curWeek === null || w <= curWeek;
-  if (curWeek === null) miss.add("current_week", "Sleeper state/nfl returned no week, so future scores cannot be told from zeros");
+  if (curWeek === null) miss.add("current_week", "Sleeper state/nfl returned no week; unplayed weeks are told apart only by all-zero scores");
   const schedule = matchupRows.map((rows, i) => {
     const groups: Record<string, J[]> = {};
     for (const m of Array.isArray(rows) ? rows : []) if (m && m.matchup_id != null) (groups[m.matchup_id] ||= []).push(m);
-    return {
-      week: i + 1,
-      matchups: Object.values(groups).map((g) => ({
-        team_keys: g.map((m) => String(m.roster_id)),
-        points: g.map((m) => (played(i + 1) ? pts(m.points) : null)),
-        projected_points: g.map(() => null),
-        is_playoffs: false,
-      })),
-    };
+    const matchups: Matchup[] = Object.values(groups).map((g) => ({
+      team_keys: g.map((m) => String(m.roster_id)),
+      points: g.map((m) => pts(m.points)),
+      projected_points: g.map(() => null),
+      is_playoffs: false,
+      status: "live",
+    }));
+    settleWeek(i + 1, curWeek, matchups);
+    return { week: i + 1, matchups };
   });
   if (matchupRows.some((r) => r === null)) miss.add("schedule", "some Sleeper matchup weeks did not load");
 

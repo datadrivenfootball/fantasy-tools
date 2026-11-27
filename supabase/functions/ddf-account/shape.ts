@@ -47,6 +47,7 @@ export type Matchup = {
   points: (number | null)[];
   projected_points: (number | null)[]; // team-level, platform's own; null where the platform has none
   is_playoffs: boolean;
+  status: "final" | "live" | "not_started";
 };
 
 export type LeagueSummary = {
@@ -99,6 +100,19 @@ export function pts(x: unknown): number | null {
 export function int(x: unknown, lo = -Infinity, hi = Infinity): number | null {
   const n = num(x);
   return n !== null && Math.floor(n) === n && n >= lo && n <= hi ? n : null;
+}
+
+// Platforms send 0 for a week that has not kicked off. A week counts as not started when it is
+// after the current week, or when every score in it is 0 or missing; its scores become null.
+// A platform's own matchup status (Yahoo) wins when given.
+export function settleWeek(week: number, curWeek: number | null, ms: Matchup[], platformStatus: (Matchup["status"] | null)[] = []) {
+  const allZero = ms.every((m) => m.points.every((p) => !p));
+  ms.forEach((m, i) => {
+    const given = platformStatus[i] ?? null;
+    m.status = given ?? ((curWeek !== null && week > curWeek) || allZero ? "not_started"
+      : curWeek !== null && week < curWeek ? "final" : "live");
+    if (m.status === "not_started") m.points = m.points.map(() => null);
+  });
 }
 
 export class Missing {

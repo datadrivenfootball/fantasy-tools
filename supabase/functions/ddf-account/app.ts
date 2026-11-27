@@ -12,7 +12,7 @@ import { SIZES, type DdfSettings } from "./shape.ts";
 import { type Connection, publicConnection, type Store } from "./store.ts";
 import { authorizeUrl, exchangeCode, pullYahoo, refreshTokens, yahooConfig, yahooLeagues, type YahooTokens } from "./yahoo.ts";
 
-export type AuthUser = { id: string; email: string | null };
+export type AuthUser = { id: string; email: string | null; email_confirmed: boolean };
 export type Deps = {
   store: Store;
   fetch: Fetch;
@@ -27,6 +27,7 @@ export type Deps = {
 };
 
 const SLEEPER_CACHE = "sleeper_players_v1";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = 86400000;
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
@@ -133,6 +134,7 @@ export function makeApp(d: Deps) {
   async function route(req: Request, user: AuthUser, parts: string[]): Promise<Response> {
     const [a, b, c] = parts;
     const m = req.method;
+    if ((a === "connections" || a === "leagues") && b && !UUID.test(b)) throw new AppError(404, "not_found", "That is not on your account.");
     if (m === "GET" && a === "me") {
       const conns = await d.store.connections(user.id);
       return json({
@@ -166,6 +168,14 @@ export function makeApp(d: Deps) {
       const state = randomToken();
       await d.store.putState(state, user.id, "yahoo", back);
       return json({ url: authorizeUrl(cfg, state) });
+    }
+    if (m === "POST" && a === "yahoo" && b === "finish") {
+      const { handoff } = await body<{ handoff: string }>(req);
+      const h = handoff ? await d.store.takeHandoff(String(handoff)) : null;
+      if (!h) throw new AppError(400, "yahoo_handoff_expired", "That Yahoo sign-in expired. Press Connect Yahoo again.");
+      if (h.user_id !== user.id) throw new AppError(403, "yahoo_handoff_other_user", "That Yahoo sign-in was started by another DDF account.");
+      const conn = await d.store.upsertConnection({ user_id: user.id, platform: "yahoo", external_id: h.external_id, display_name: "Yahoo", secret_ciphertext: h.secret_ciphertext, secret_iv: h.secret_iv, token_expires_at: h.token_expires_at });
+      return json({ connection: publicConnection(conn) });
     }
     if (a === "connections" && b) {
       const conn = await d.store.connection(user.id, b);
@@ -235,12 +245,15 @@ export function makeApp(d: Deps) {
     const cfg = yahooConfig(d.env, d.functionsBase);
     if (!cfg) return back("yahoo_not_configured", false);
     try {
+      // Review finding 1 (CSRF): the callback never attaches tokens to an account. It parks them,
+      // sealed, under a one-time handoff id that only this browser sees; POST /yahoo/finish then
+      // stores them only for the same signed-in DDF user who pressed Connect Yahoo.
       const t = await exchangeCode(d.fetch, cfg, code, d.now().getTime());
       const key = await d.tokenKey();
-      const owner = { user_id: st.user_id, platform: "yahoo" as const };
-      const s = await seal(key, t, aad(owner));
-      await d.store.upsertConnection({ ...owner, external_id: t.guid || "yahoo", display_name: "Yahoo", secret_ciphertext: s.ciphertext, secret_iv: s.iv, token_expires_at: new Date(t.expires_at).toISOString() });
-      return back("", true);
+      const s = await seal(key, t, aad({ user_id: st.user_id, platform: "yahoo" }));
+      const handoff = randomToken();
+      await d.store.putHandoff({ id: handoff, user_id: st.user_id, platform: "yahoo", external_id: t.guid || "yahoo", secret_ciphertext: s.ciphertext, secret_iv: s.iv, token_expires_at: new Date(t.expires_at).toISOString() });
+      return new Response(null, { status: 302, headers: { location: `${st.return_to}#yahoo=finish&h=${handoff}` } });
     } catch (e) {
       return back(e instanceof AppError ? e.code : "error", false);
     }
@@ -262,7 +275,8 @@ export function makeApp(d: Deps) {
         const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
         const user = jwt ? await d.authUser(jwt) : null;
         if (!user) throw new AppError(401, "signed_out", "Sign in to DDF first.");
-        if (!user.email || !(await d.store.isAllowed(user.email))) throw new AppError(403, "not_allowlisted", "This staging build is limited to invited accounts.");
+        // Review finding 7: an allowlisted address counts only once its owner has confirmed it.
+        if (!user.email || !user.email_confirmed || !(await d.store.isAllowed(user.email))) throw new AppError(403, "not_allowlisted", "This staging build is limited to invited accounts.");
         res = await route(req, user, rest);
       }
     } catch (e) {

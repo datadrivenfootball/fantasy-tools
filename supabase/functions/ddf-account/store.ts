@@ -33,6 +33,16 @@ export type League = {
   pulled_at: string;
 };
 
+export type Handoff = {
+  id: string;
+  user_id: string;
+  platform: "yahoo";
+  external_id: string;
+  secret_ciphertext: Uint8Array;
+  secret_iv: Uint8Array;
+  token_expires_at: string | null;
+};
+
 export interface Store {
   isAllowed(email: string): Promise<boolean>;
   connections(userId: string): Promise<Connection[]>;
@@ -42,6 +52,8 @@ export interface Store {
   deleteConnection(userId: string, id: string): Promise<boolean>;
   putState(state: string, userId: string, platform: "yahoo", returnTo: string): Promise<void>;
   takeState(state: string): Promise<{ user_id: string; platform: string; return_to: string } | null>;
+  putHandoff(h: Handoff): Promise<void>;
+  takeHandoff(id: string): Promise<Handoff | null>;
   upsertLeague(l: Omit<League, "id" | "confirmed_settings" | "confirmed_at">): Promise<League>;
   leagues(userId: string): Promise<Omit<League, "raw" | "summary">[]>;
   league(userId: string, id: string): Promise<League | null>;
@@ -102,6 +114,15 @@ export class PgStore implements Store {
     const r = await this.sql`delete from ddf_accounts.oauth_states where state = ${state} and expires_at > now() returning user_id, platform, return_to`;
     return r[0] ?? null;
   }
+  async putHandoff(h: Handoff) {
+    await this.sql`delete from ddf_accounts.oauth_handoffs where expires_at < now()`;
+    await this.sql`insert into ddf_accounts.oauth_handoffs (id, user_id, platform, external_id, secret_ciphertext, secret_iv, token_expires_at)
+      values (${h.id}, ${h.user_id}, ${h.platform}, ${h.external_id}, ${h.secret_ciphertext}, ${h.secret_iv}, ${h.token_expires_at})`;
+  }
+  async takeHandoff(id: string) {
+    const r = await this.sql`delete from ddf_accounts.oauth_handoffs where id = ${id} and expires_at > now() returning *`;
+    return r[0] ? { ...r[0], secret_ciphertext: u8(r[0].secret_ciphertext)!, secret_iv: u8(r[0].secret_iv)! } as Handoff : null;
+  }
   async upsertLeague(l: Parameters<Store["upsertLeague"]>[0]) {
     const r = await this.sql`
       insert into ddf_accounts.leagues (user_id, connection_id, platform, league_key, season, name, my_team_key, summary, raw, pulled_at)
@@ -136,6 +157,7 @@ export class PgStore implements Store {
   async deleteUserData(userId: string) {
     await this.sql`delete from ddf_accounts.connections where user_id = ${userId}`;
     await this.sql`delete from ddf_accounts.oauth_states where user_id = ${userId}`;
+    await this.sql`delete from ddf_accounts.oauth_handoffs where user_id = ${userId}`;
   }
   async cacheGet(key: string) {
     return (await this.sql`select body, fetched_at from ddf_accounts.platform_cache where key = ${key}`)[0] ?? null;
@@ -151,6 +173,7 @@ export class MemoryStore implements Store {
   conns: Connection[] = [];
   states: { state: string; user_id: string; platform: string; return_to: string; expires: number }[] = [];
   lgs: League[] = [];
+  handoffs: (Handoff & { expires: number })[] = [];
   cache = new Map<string, { body: unknown; fetched_at: string }>();
   private n = 0;
   private id() { return `00000000-0000-4000-8000-${String(++this.n).padStart(12, "0")}`; }
@@ -184,6 +207,13 @@ export class MemoryStore implements Store {
     const [s] = this.states.splice(i, 1);
     return s;
   }
+  async putHandoff(h: Handoff) { this.handoffs.push({ ...h, expires: Date.now() + 600000 }); }
+  async takeHandoff(id: string) {
+    const i = this.handoffs.findIndex((h) => h.id === id && h.expires > Date.now());
+    if (i < 0) return null;
+    const [{ expires: _e, ...h }] = this.handoffs.splice(i, 1);
+    return h;
+  }
   async upsertLeague(l: Parameters<Store["upsertLeague"]>[0]) {
     const cur = this.lgs.find((x) => x.user_id === l.user_id && x.platform === l.platform && x.league_key === l.league_key);
     if (cur) { Object.assign(cur, { ...l, my_team_key: cur.my_team_key ?? l.my_team_key }); return cur; }
@@ -210,6 +240,7 @@ export class MemoryStore implements Store {
     this.conns = this.conns.filter((c) => c.user_id !== userId);
     this.lgs = this.lgs.filter((l) => !ids.has(l.connection_id));
     this.states = this.states.filter((s) => s.user_id !== userId);
+    this.handoffs = this.handoffs.filter((h) => h.user_id !== userId);
   }
   async cacheGet(key: string) { return this.cache.get(key) ?? null; }
   async cachePut(key: string, body: unknown) { this.cache.set(key, { body, fetched_at: new Date().toISOString() }); }

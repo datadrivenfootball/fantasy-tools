@@ -1,7 +1,7 @@
 // ESPN: public leagues by league ID, no cookies (private leagues need the later
 // browser-extension step). Read-only.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, int, LeagueSummary, Missing, num, pts, settleWeek, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const API = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/";
 
@@ -107,7 +107,9 @@ export function summarizeEspn(lg: J, id: string, season: number, now = new Date(
         rank: int(t.playoffSeed, 1, 64) ?? int(t.rankCalculatedFinal, 1, 64),
         rank_source: t.playoffSeed ? "espn:teams.playoffSeed" : t.rankCalculatedFinal ? "espn:teams.rankCalculatedFinal" : null,
       },
-      faab_remaining: budget !== null ? budget - (int(t.transactionCounter?.acquisitionBudgetSpent, 0, 100000) ?? 0) : null,
+      // a missing spent amount is unknown, not 0
+      faab_remaining: budget !== null && int(t.transactionCounter?.acquisitionBudgetSpent, 0, 100000) !== null
+        ? budget - int(t.transactionCounter?.acquisitionBudgetSpent, 0, 100000)! : null,
       waiver_priority: int(t.waiverRank, 1, 64),
       roster: (t.roster?.entries || []).map((e: J) => {
         const p = e.playerPoolEntry?.player || {};
@@ -123,6 +125,7 @@ export function summarizeEspn(lg: J, id: string, season: number, now = new Date(
     };
   });
   if (!teams.length) miss.add("teams", "ESPN returned no teams");
+  if (budget !== null && teams.some((t) => t.faab_remaining === null)) miss.add("teams[].faab_remaining", "ESPN returned no acquisitionBudgetSpent for some teams");
   if (teams.length && teams.every((t) => t.waiver_priority === null)) miss.add("teams[].waiver_priority", "ESPN returned no waiverRank");
 
   // Matchups after the current one are not played yet: ESPN sends 0 there, which is not a score.
@@ -134,11 +137,14 @@ export function summarizeEspn(lg: J, id: string, season: number, now = new Date(
     const sides = [m.home, m.away].filter(Boolean);
     (byWeek[wk] ||= { week: wk, matchups: [] }).matchups.push({
       team_keys: sides.map((x: J) => String(x.teamId)),
-      points: sides.map((x: J) => (curWeek === null || wk <= curWeek ? pts(x.totalPoints) : null)),
+      points: sides.map((x: J) => pts(x.totalPoints)),
       projected_points: sides.map((x: J) => pts(x.totalProjectedPointsLive)),
       is_playoffs: Boolean(m.playoffTierType && m.playoffTierType !== "NONE"),
+      status: "live",
     });
   }
+  for (const w of Object.values(byWeek)) settleWeek(w.week, curWeek, w.matchups);
+  if (curWeek === null) miss.add("current_week", "ESPN returned no currentMatchupPeriod; unplayed weeks are told apart only by all-zero scores");
   const pos = s.rosterSettings?.lineupSlotCounts || {};
   const summary: LeagueSummary = {
     shape: SUMMARY_VERSION,
