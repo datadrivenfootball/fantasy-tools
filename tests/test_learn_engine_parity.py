@@ -508,7 +508,10 @@ class LearnEngineParity(unittest.TestCase):
                 shares[s] = shares.get(s, 0) + wt
             tot = sum(shares.values())
             line = sum(w / tot * max((work[s - 1] + work[s]) / 2 if len(work) > s else work[s - 1], eng["waiver"]) for s, w in shares.items())
-            want = f"weighted by those shares, {line:.2f}" if len(shares) > 1 else f"= {line:.2f} ({next(iter(shares))} RB starters)"
+            # JEG-1727: with several allocations the page states the engine's line when the weighted sum agrees with it
+            # (checked to 1e-6 below); with one it states that allocation's own midpoint.
+            want = (f"weighted by those shares, {js_fixed(eng['starterLine'], 2)}" if len(shares) > 1
+                    else f"= {js_fixed(line, 2)} ({next(iter(shares))} RB starters)")
             if abs(line - eng["starterLine"]) > 1e-6 or want not in worked["RB starter line"]["how"]:
                 errors.append(f"{tag}: starter line {worked['RB starter line']['how']!r}, want {want!r} (engine {eng['starterLine']})")
             # Chart spread rate and its rank band.
@@ -578,7 +581,7 @@ class LearnEngineParity(unittest.TestCase):
                 overflow = page.evaluate("() => document.documentElement.scrollWidth > innerWidth + 1")
                 got.append((src, eng, intro, worked, trace, overflow))
             browser.close()
-        u = lambda v, s: f"{round(v):,}" if s == "fantasycalc" else f"{v:.2f}"
+        u = lambda v, s: f"{round(v):,}" if s == "fantasycalc" else js_fixed(v, 2)  # the page's toFixed(2), ties included
         for src, eng, intro, worked, trace, overflow in got:
             pos, reads = eng["pos"], eng["reads"]
             tot = sum(r["weight"] for r in reads)
@@ -597,7 +600,10 @@ class LearnEngineParity(unittest.TestCase):
                 # JEG-1583: the page names one count when every allocation rosters the same number (numbers.js).
                 span = f"{lo} rostered, read at {pos}{lo + 1}" if lo == hi else f"{lo} to {hi} rostered, read at {pos}{lo + 1} to {pos}{hi + 1}"
                 self.assertIn(f"weighted over the {eng['n']} league allocations ({span}", how, src)
-                self.assertIn(f") = {u(line, src)}", how, src)
+                # JEG-1727: the weighted line is stated as the engine's figure (the row's own value), which `line` matches to
+                # 9 places above; formatting `line` itself reads a 2 dp tie off the summation order (Week 12: eight reads of
+                # 0.325 summed to 0.32499999999999996 on the page and to 0.325 in Python 3.12's compensated sum).
+                self.assertIn(f") = {u(eng['waiver'], src)}", how, src)
             self.assertNotIn("the engine’s line is", how, src)
             # R6-OP-02: N′ = the starters plus the D'Hondt bench seats.
             cs = eng["cs"]
