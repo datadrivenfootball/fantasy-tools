@@ -328,7 +328,10 @@
         g.stake = {playoffs: spots ? sp : null, seed: ss, top_seed: tp === null ? null : r3(tp), seed_basis: key2 === "bye" ? "first-round bye" : "1st seed"};
         var p = g.win.ddf;
         var s1 = Math.abs(sp || 0), s2 = Math.abs(ss || 0);
-        g.type = s1 < 0.02 && s2 < 0.02 ? "free" : s2 > s1 && s2 >= 0.05 ? "seed_game" : (p !== null && p >= 0.75) || s1 < 0.05 ? "bankable" : "must_win";
+        // framework §3b: free = stake about 0; seed game = moves the seed more than the odds of getting in;
+        // bankable = 75%+ or a low stake; must-win = high stake and 35-65%; favored 65-75%; uphill under 35%
+        g.type = s1 < 0.02 && s2 < 0.02 ? "free" : s2 > s1 && s2 >= 0.05 ? "seed_game"
+          : (p !== null && p >= 0.75) || s1 < 0.05 ? "bankable" : p === null ? "must_win" : p > 0.65 ? "favored" : p < 0.35 ? "uphill" : "must_win";
         myWinP.push(p);
       }
       if (g.high_score.chance >= 0.08) g.goals.push("high_score");
@@ -392,9 +395,15 @@
     sources.push("K and DEF: ESPN weekly projections, read live" + (src.kdef ? " " + src.kdef.slice(0, 16).replace("T", " ") + " UTC" : "") + ".");
     sources.push("Win chance: DDF, from both best lineups and a weekly spread of " + sd + " points per team (" + spread.basis + "). Yahoo's number is shown beside it.");
     sources.push("Season and bracket: " + acc.n.toLocaleString("en-US") + " simulated runs, games independent; tiebreak points for.");
-    if (summary.source && summary.source.kind === "flaim") sources.push("League data via Flaim (stand-in until Yahoo is approved), pulled " + summary.pulled_at + ".");
+    if (summary.source && summary.source.kind === "flaim") sources.push("League data via Flaim (stand-in until Yahoo is approved).");
     (weekly.unmatched || []).forEach(function (u) { missing.push({what: u.name, reason: u.reason}); });
-    Object.keys(weekly.players || {}).forEach(function (id) { var p = weekly.players[id]; if (p.match === "team" || p.match === "team_name") missing.push({what: p.name, reason: "Matched to ESPN by NFL team" + (p.match === "team_name" ? " and name" : "") + " (no shared id for " + p.pos + ")"}); });
+    var byTeam = 0;
+    Object.keys(weekly.players || {}).forEach(function (id) {
+      var p = weekly.players[id];
+      if (p.match === "team" || p.match === "team_name") byTeam++;
+      else if (p.match === "name") missing.push({what: p.name, reason: "Matched to ESPN by name only; ESPN files him " + ((p.weeks && Object.keys(p.weeks).map(function (w) { return p.weeks[w].note; }).filter(Boolean)[0]) || "under another team").replace(/^ESPN lists him /, "") + ""});
+    });
+    if (byTeam) missing.push({what: "Kickers and defenses", reason: byTeam + " matched to ESPN by NFL team (no id is shared across platforms for K and DEF)"});
     if (!spots) missing.push({what: "Playoff format", reason: "Playoff teams not in the league data"});
 
     return {
@@ -422,7 +431,7 @@
       }
     }
     // watch: a starter listed Q or D
-    mine.starters.forEach(function (s) {
+    if (w === cur) mine.starters.forEach(function (s) { // an injury designation is this week's news only
       if (!s.player_id || !/^(Q|D|GTD)$/i.test(String(s.status || ""))) return;
       var without = lineup(slots, roster.filter(function (e) { return e.player_id !== s.player_id; }).map(function (e) { return playerWeek(weekly, e, w); }));
       var sub = without.starters.filter(function (x) { return x.player_id && mine.starters.every(function (y) { return y.player_id !== x.player_id; }); })[0];
@@ -437,7 +446,7 @@
         if (p.points === null) return null;
         var l = lineup(slots, base.concat([p]));
         return l.total === null ? null : {fa: fa, p: p, gain: l.total - mine.total};
-      }).filter(function (x) { return x && x.gain >= 1; }).sort(function (a, b) { return b.gain - a.gain; });
+      }).filter(function (x) { return x && x.gain >= 2; }).sort(function (a, b) { return b.gain - a.gain; });
       var shown = {};
       cands.forEach(function (c) {
         if (shown[c.p.pos] || out.filter(function (o) { return o.kind === "add"; }).length >= 2) return;

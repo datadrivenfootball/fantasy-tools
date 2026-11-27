@@ -2,7 +2,7 @@
 // Hermetic tests for the weekly read (weekly.ts) and the staging planner (staging/account/weekly.js), JEG-1736.
 //   deno test --allow-read supabase/functions/ddf-account/test/
 import { assert, assertAlmostEquals, assertEquals } from "jsr:@std/assert@1";
-import { buildWeekly, leagueWeeks, type KdefRow, type ScheduleGame, type WarehouseRow, type XwalkRow } from "../weekly.ts";
+import { buildWeekly, fetchEspnKdef, leagueWeeks, type KdefRow, type ScheduleGame, type WarehouseRow, type XwalkRow } from "../weekly.ts";
 
 const ROOT = new URL("../../../../", import.meta.url);
 await import(new URL("staging/account/weekly.js", ROOT).href);
@@ -212,4 +212,14 @@ Deno.test("recommendations: adds and trades ranked by weekly gain, moves in time
   for (let i = 1; i < r.moves_in_time.length; i++) assert(r.moves_in_time[i - 1].when_sort <= r.moves_in_time[i].when_sort);
   const g = W.recommendations(lg, wk, "470.l.1.t.1", { plan, sort: "games" });
   for (let i = 1; i < g.trades.length; i++) assert((g.trades[i - 1].my_weighted || 0) >= (g.trades[i].my_weighted || 0));
+});
+
+Deno.test("ESPN K/DEF read keeps this season's weekly projections only (ESPN also sends last season's)", async () => {
+  const body = { players: [{ player: { id: -16019, fullName: "Giants D/ST", defaultPositionId: 16, proTeamId: 19, stats: [
+    { scoringPeriodId: 15, statSourceId: 1, statSplitTypeId: 1, seasonId: 2026, appliedTotal: 8.1 },
+    { scoringPeriodId: 15, statSourceId: 1, statSplitTypeId: 1, seasonId: 2025, appliedTotal: 4.44 },
+    { scoringPeriodId: 15, statSourceId: 0, statSplitTypeId: 1, seasonId: 2025, appliedTotal: 5 },
+  ] } }] };
+  const got = await fetchEspnKdef(async () => new Response(JSON.stringify(body), { status: 200 }), 2026, new Date("2026-11-27T12:00:00Z"));
+  assertEquals(got.players, [{ espn_id: "-16019", name: "Giants D/ST", pos: "DEF", team: "NYG", weeks: { 15: 8.1 } }]);
 });

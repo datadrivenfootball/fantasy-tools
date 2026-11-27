@@ -13,7 +13,8 @@ const { MemoryStore } = await import(`file://${REPO}/supabase/functions/ddf-acco
 const { importTokenKey } = await import(`file://${REPO}/supabase/functions/ddf-account/crypto.ts`);
 const live = JSON.parse(await Deno.readTextFile(`${REPO}/tests/fixtures/sleeper-live/full.json`));
 const j = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json" } });
-const ORIGIN = "http://localhost:8791";
+const PORT = Number(Deno.env.get("PORT") || 8791);
+const ORIGIN = `http://localhost:${PORT}`;
 const store = new MemoryStore(); store.allow.add("tester@example.com");
 const fetchFx = async (u: string | URL, init?: RequestInit) => {
   const url = String(u);
@@ -59,7 +60,7 @@ const stub = (html: string) => html.replace(
 const page = stub(await Deno.readTextFile(`${REPO}/staging/account/index.html`));
 const appJs = await Deno.readTextFile(`${REPO}/staging/account/app.js`);
 const css = await Deno.readTextFile(`${REPO}/staging/account/connect-page.css`);
-Deno.serve({ port: 8791 }, (req) => {
+Deno.serve({ port: PORT }, (req) => {
   const p = new URL(req.url).pathname;
   if (p.startsWith("/functions/v1/ddf-account")) return handle(req);
   if (p === "/ddf-staging/connect-page.css") return new Response(css, { headers: { "content-type": "text/css" } });

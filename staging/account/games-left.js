@@ -58,7 +58,7 @@
       : d.toLocaleDateString(undefined, {month: "short", day: "numeric", timeZone: "UTC"});
   }
   function whenFull(iso) { var d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"}); }
-  var TYPES = {must_win: "Must-win", bankable: "Bankable", seed_game: "Seed game", free: "Free", playoff: "Playoff"};
+  var TYPES = {must_win: "Must-win", bankable: "Bankable", favored: "Favored", uphill: "Uphill", seed_game: "Seed game", free: "Free", playoff: "Playoff"};
   var GOAL_SHORT = {high_score: "High score", record: "Record", seed: "Seed", playoffs: "Playoffs"};
   var KINDS = {start: "Start", add: "Add", watch: "Watch", bye: "Bye"};
   var STATUS = {midevent: "In progress", live: "In progress", postevent: "Final", final: "Final"};
@@ -206,7 +206,7 @@
     if (!opp && (g.likely || []).length) oppCell.appendChild(el("small", {text: "Likely: " + g.likely.map(function (l) {
       return (l.name || "Unknown team") + (isNum(l.p) ? " " + pctText(l.p) : "") + (isNum(l.total) ? " (" + l.total.toFixed(1) + ")" : "");
     }).join(", ")}));
-    if (g.status && !/^(upcoming|scheduled|pre|preevent)$/i.test(g.status)) oppCell.appendChild(el("small", {class: "mono", text: STATUS[String(g.status).toLowerCase()] || String(g.status).replace(/_/g, " ")}));
+    if (g.status && !/^(upcoming|scheduled|pre|preevent|not_started)$/i.test(g.status)) oppCell.appendChild(el("small", {class: "mono", text: STATUS[String(g.status).toLowerCase()] || String(g.status).replace(/_/g, " ")}));
 
     var theirsWhy = g.theirs ? "No lineup total: no projections for their starters" : (why || "The opponent is not known yet");
     var line = el("td", {class: "line"}, lab("You – them"),

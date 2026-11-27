@@ -137,15 +137,22 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
     const out: Record<string, Cell> = {};
     if (p.pos === "K" || p.pos === "DEF") {
       const list = kdefTeam.get(p.pos + "|" + teamCode(p.nfl_team)) || [];
-      const k: KdefRow | undefined = list.length === 1 ? list[0] : list.find((x) => lastName(x.name) === lastName(p.name));
-      const match = !k ? null : list.length === 1 ? "team" : "team_name";
+      let k: KdefRow | undefined = list.length === 1 ? list[0] : list.find((x) => lastName(x.name) === lastName(p.name));
+      let match: string | null = !k ? null : list.length === 1 ? "team" : "team_name";
+      // a kicker ESPN files under another team (or none): the same full name at the same position
+      if (!k && p.pos === "K") {
+        const norm = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "");
+        k = (kd?.players || []).find((x) => x.pos === "K" && norm(x.name) === norm(p.name));
+        if (k) match = "name";
+      }
+      const kNote = k && match === "name" ? `ESPN lists him ${k.team ? "with " + k.team : "without a team"}` : null;
       if (!kd) { unmatched.push({ player_id: p.player_id, name: p.name, reason: "ESPN's K/DEF projections could not be read just now" }); }
       else if (!k) { unmatched.push({ player_id: p.player_id, name: p.name, reason: `No ESPN ${p.pos === "K" ? "kicker" : "D/ST"} found for ${p.nfl_team ?? "an unknown team"}` }); }
       for (const w of weeks) {
         const bye = isBye(p.nfl_team, w);
         const v = k ? num(k.weeks[String(w)]) : null;
         out[w] = bye ? { points: 0, source: k ? "espn_live" : null, bye, note: "BYE" }
-          : v !== null ? { points: Math.round(v * 100) / 100, source: "espn_live", bye, note: null }
+          : v !== null ? { points: Math.round(v * 100) / 100, source: "espn_live", bye, note: kNote }
           : { points: null, source: null, bye, note: k ? "ESPN gave no projection this week" : "Not matched to ESPN" };
       }
       players[p.player_id] = { name: p.name, pos: p.pos, nfl_team: p.nfl_team, sleeper_id: null, espn_id: k?.espn_id ?? null, match, weeks: out };
@@ -192,7 +199,7 @@ export async function fetchXwalk(f: Fetch): Promise<XwalkRow[]> {
 
 // ESPN's weekly projections for every K and D/ST, all weeks in one read (statSourceId 1 = projection).
 export async function fetchEspnKdef(f: Fetch, season: number, now: Date): Promise<{ as_of: string; players: KdefRow[] }> {
-  const filter = { players: { filterSlotIds: { value: [17, 16] }, limit: 120, sortPercOwned: { sortPriority: 1, sortAsc: false } } };
+  const filter = { players: { filterSlotIds: { value: [17, 16] }, limit: 250, sortPercOwned: { sortPriority: 1, sortAsc: false } } };
   const url = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${season}/segments/0/leaguedefaults/3?view=kona_player_info`;
   const got = await getJSON(f, url, { headers: { "x-fantasy-filter": JSON.stringify(filter), accept: "application/json" } }, "ESPN");
   const players: KdefRow[] = [];
