@@ -147,15 +147,27 @@
   //   "market"      no projection: market value, mapped into DDF units
   var SOURCE_LABELS = ["vegas", "vegas+proj", "proj", "market"];
   var VEGAS_STATS = Object.keys(VEGAS_MARKETS).map(function (m) { return VEGAS_MARKETS[m]; });
+  // The stats that score for each position. A player with props but no
+  // projection is priced from his props only when they cover all of these;
+  // otherwise the market prices him (review of bc19862: a receiving-yards
+  // prop alone priced Ja'Marr Chase at $6.9 against a $67 market).
+  var POSITION_STATS = {
+    QB: ["pass_yds", "pass_tds", "rush_yds", "rush_tds"],
+    RB: ["rush_yds", "rush_tds", "rec", "rec_yds", "rec_tds"],
+    WR: ["rec", "rec_yds", "rec_tds"],
+    TE: ["rec", "rec_yds", "rec_tds"]
+  };
 
   // One player's stat line by source order. vegas: a vegasStatLine result
   // (stats + covered) or a plain stat line (every stat present counts).
   function mergeStatLine(vegas, proj) {
-    var covered = vegas ? (vegas.covered || STAT_KEYS.filter(function (k) { return isFinite(Number(vegas[k])); })) : [];
+    // A null or missing stat is missing, never a Vegas 0 (review of bc19862).
+    var has = function (k) { return vegas && vegas[k] !== null && vegas[k] !== undefined && vegas[k] !== "" && isFinite(Number(vegas[k])); };
+    var covered = vegas ? (vegas.covered || STAT_KEYS.filter(has)).filter(has) : [];
     var out = {}, fromVegas = 0, relevant = 0;
     STAT_KEYS.forEach(function (k) {
       var pv = proj && isFinite(Number(proj[k])) ? Number(proj[k]) : 0;
-      var useV = covered.indexOf(k) !== -1 && isFinite(Number(vegas[k]));
+      var useV = covered.indexOf(k) !== -1;
       out[k] = useV ? Number(vegas[k]) : pv;
       // Only stats Vegas has a market for decide the label (no book posts
       // season fumbles, so those always come from the projection).
@@ -164,6 +176,23 @@
     });
     var source = !fromVegas ? "proj" : (!proj || fromVegas >= relevant ? "vegas" : "vegas+proj");
     return { line: out, source: source };
+  }
+
+  // DDF values for market-only players: market dollars above the minimum
+  // bid times (DDF Value / market surplus) over the players priced by both.
+  function marketFallbackValues(values, mkt, floor, wanted) {
+    var sumV = 0, sumM = 0, out = {};
+    Object.keys(values).forEach(function (k) {
+      var mv = Number(mkt[k]);
+      if (isFinite(mv) && mv > floor) { sumV += values[k]; sumM += mv - floor; }
+    });
+    var ratio = sumM > 0 ? sumV / sumM : 0;
+    Object.keys(mkt).forEach(function (k) {
+      if (!wanted(k)) return;
+      var mv = Number(mkt[k]);
+      if (isFinite(mv) && mv > floor && ratio > 0) out[k] = (mv - floor) * ratio;
+    });
+    return out;
   }
 
   // input = {league, players: {key: {pos, name?}},
@@ -196,6 +225,17 @@
     Object.keys(keys).forEach(function (k) {
       if (!skill[k]) return;
       var row = proj[k];
+      if (row === undefined || row === null) {
+        var vl = vegas[k], need = POSITION_STATS[skill[k].pos] || [];
+        var cov = mergeStatLine(vl, null);
+        var all = need.every(function (st) {
+          return vl && vl[st] !== null && vl[st] !== undefined && isFinite(Number(vl[st])) && (!vl.covered || vl.covered.indexOf(st) !== -1);
+        });
+        if (!all) return; // no projection and partial props: the market fallback prices him
+        var vpts = fantasyPoints(cov.line, league.scoring);
+        if (isFinite(vpts)) { ppg[k] = vpts / SEASON_GAMES; source[k] = "vegas"; }
+        return;
+      }
       var pts;
       if (typeof row === "number") { pts = row; source[k] = "proj"; }
       else {
@@ -219,22 +259,16 @@
       var v = entry ? entry.value : null;
       if (typeof v === "number" && isFinite(v)) values[k] = v;
     });
-    // Market fallback: players with neither a projection nor a prop. Their
-    // market value is mapped into DDF units with the ratio of DDF Value to
-    // market value over the players priced by both.
+    // Market fallback: players with no projection and no usable props.
+    // Market values are dollars; the dollars above the minimum bid are mapped
+    // into DDF units with the ratio of DDF Value to market surplus over the
+    // players priced by both, so his price lands on his market price
+    // (review of bc19862: mapping whole dollars put him about 7% under).
     var mktKey = Object.keys(input.markets || {})[0];
     var mkt = mktKey ? input.markets[mktKey] : {};
-    var sumV = 0, sumM = 0;
-    Object.keys(values).forEach(function (k) {
-      var mv = Number(mkt[k]);
-      if (isFinite(mv) && mv > 0) { sumV += values[k]; sumM += mv; }
-    });
-    var ratio = sumM > 0 ? sumV / sumM : 0;
-    Object.keys(mkt).forEach(function (k) {
-      if (!skill[k] || source[k]) return;
-      var mv = Number(mkt[k]);
-      if (isFinite(mv) && mv > 0 && ratio > 0) { values[k] = mv * ratio; source[k] = "market"; }
-    });
+    var fill = marketFallbackValues(values, mkt, leagueShape(league).minBid,
+      function (k) { return skill[k] && !source[k]; });
+    Object.keys(fill).forEach(function (k) { values[k] = fill[k]; source[k] = "market"; });
     Object.keys(input.overrides || {}).forEach(function (k) {
       var v = Number(input.overrides[k]);
       if (isFinite(v) && v >= 0) values[k] = v;
@@ -268,6 +302,16 @@
     var total = pool.reduce(function (t, k) { return t + weights[k]; }, 0);
     var out = {};
     pool.forEach(function (k) { out[k] = sh.minBid + (total > 0 ? weights[k] / total * surplus : 0); });
+    return out;
+  }
+
+  // Board prices from a ddfDraftValues build: ours in dollars plus the source
+  // of every price, so each board row carries where its price came from.
+  // market / platform: league dollars (rescaleDollars) or omitted.
+  function boardPrices(build, league, market, platform) {
+    var out = { ours: pricesFromWeights(build.values, league), source: Object.assign({}, build.source || {}) };
+    if (market) out.market = market;
+    if (platform) out.platform = platform;
     return out;
   }
 
@@ -453,7 +497,7 @@
       var pb = Math.min(buyLimit, rivalCeiling - minBid);
       pushFloor = pb >= minBid ? pb : null;
     }
-    var src = state.priceSource ? state.priceSource[key] || null : null;
+    var src = (state.priceSource && state.priceSource[key]) || (p.source && p.source[key]) || null;
     return { key: key, pos: pos, source: src, ours: ours, market: market, platform: platform,
       oursInflated: oursInfl, oursInflatedRoom: oursInflRoom, ourFactor: usePersonal ? "personal" : "room",
       marketInflated: marketInfl, platformInflated: platformInfl,
@@ -666,6 +710,8 @@
     ddfDraftValues: ddfDraftValues,
     pricesFromWeights: pricesFromWeights,
     ourPrices: ourPrices,
+    boardPrices: boardPrices,
+    marketFallbackValues: marketFallbackValues,
     rescaleDollars: rescaleDollars,
     rankImpliedDollars: rankImpliedDollars,
     blendDollars: blendDollars,

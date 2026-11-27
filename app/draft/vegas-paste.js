@@ -27,10 +27,12 @@
   ];
 
   // Plausible season ranges; a line outside is refused, not clipped.
+  // Floors sit above any single-game line (review of bc19862: a game prop of
+  // 55.5 receiving yards or 6.5 receptions passed the old season floors).
   var RANGES = {
-    season_pass_yds: [500, 6000], season_pass_tds: [2, 60], season_rush_yds: [50, 2500],
-    season_rush_tds: [0.5, 25], season_receptions: [5, 160], season_rec_yds: [50, 2300],
-    season_rec_tds: [0.5, 20]
+    season_pass_yds: [1500, 6000], season_pass_tds: [8, 60], season_rush_yds: [200, 2500],
+    season_rush_tds: [1.5, 25], season_receptions: [15, 160], season_rec_yds: [200, 2300],
+    season_rec_tds: [1.5, 20]
   };
 
   var NAME_ALIASES = { "kenny gainwell": "kenneth gainwell" };
@@ -51,8 +53,8 @@
   // range and would be stored as the wrong stat (reviews of f662c66, f0fcfb1).
   var REFUSED = [
     { re: /\b(1st|2nd|first|second)\s+half\b|\bhalf\b|\bquarter\b|\b[1-4](st|nd|rd|th)\s+q(uarter)?\b|\bq[1-4]\b/i, why: "half or quarter market" },
-    { re: /\bplayoffs?\b|\bpost-?season\b|\bincl\.?(?=\s|$)|\bincluding\b/i, why: "market that includes the playoffs" },
-    { re: /\bweek\b|\bwk\s*\d|\bgame\b|\btonight\b|\bvs\.?\s|\s@\s/i, why: "weekly or game market" },
+    { re: /\bplayoffs?\b|\bpost[- ]?season\b|\bincl\.?(?=\s|$)|\bincluding\b/i, why: "market that includes the playoffs" },
+    { re: /\bweeks?\b|\bwk\s*\d|\bgames?\b|\bper game\b|\btonight\b|\bvs\.?\s|\s@\s/i, why: "weekly or game market" },
     { re: /\blong(est)?\b/i, why: "longest-play market" },
     { re: /\battempts?\b|\batt\b|\bcarries\b/i, why: "attempts market" },
     { re: /\btargets?\b/i, why: "targets market" },
@@ -65,7 +67,7 @@
   var STATLIKE = /\b(yards?|yds|touchdowns?|tds?|receptions?|catches|attempts?|att|carries|targets?|completions?|interceptions?|ints?|longest|sacks?|fumbles?|tackles?|points|passing|rushing|receiving)\b/i;
   // A line that starts a weekly or game section (no stat named): everything
   // under it is refused until the next market header.
-  var SECTION_BREAK = /\bweek\s*\d+\b|\bgame lines\b|\bgame props\b|\btonight\b|\b(sunday|monday|thursday|saturday) (night|games?)\b|\b[A-Z][a-z]+ (vs\.?|@) [A-Z][a-z]+\b/i;
+  var SECTION_BREAK = /\bweeks?\b|\bgame lines\b|\bgame props\b|\btonight\b|\b(sunday|monday|thursday|saturday) (night|games?)\b|\b[A-Z][a-z]+ (vs\.?|@) [A-Z][a-z]+\b/i;
   var SEASON = /\bseason\b|\bseason[- ]long\b|\bfull[- ]season\b/i;
 
   function count(res, t) { return res.reduce(function (n, re) { return n + (re.test(t) ? 1 : 0); }, 0); }
@@ -91,7 +93,11 @@
   var OU_ONLY = new RegExp("^(o|over|u|under)\\s*" + NUM + "(?![\\d,])", "i");
   var OU_INLINE = new RegExp("^(.+?)\\s+(o|over|u|under)\\s*" + NUM + "(?![\\d,])(.*)$", "i");
   var ODDS_ONLY = /^\(?[+\-−]\d{2,4}\)?$/;
-  var TEAM_POS_ONLY = /^[A-Z]{2,4}(\s*[-–·•|]\s*(QB|RB|WR|TE))?$|^(QB|RB|WR|TE)$/;
+  // "CIN - WR" under a name is a team/position line and keeps the player.
+  // A bare "CIN" or "JSN" does not: it may stand for another player.
+  var TEAM_POS_ONLY = /^[A-Z]{2,4}\s*[-–·•|]\s*(QB|RB|WR|TE)$|^(QB|RB|WR|TE)$/;
+  var SIDE_ONLY = /^(o|over|u|under)$/i;
+  var NUM_ONLY = /^(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d{1,5}(?:\.\d+)?)$/;
   var HAS_DIGIT = /\d/;
   var toNum = function (s) { return Number(String(s).replace(/,/g, "")); };
   // "Jaxon Smith-Njigba (SEA)", "Josh Allen - BUF" -> the bare name.
@@ -118,6 +124,7 @@
     // The current section: its market (or why it is refused), whether it
     // carries a season marker, and the selected player.
     var market = null, refused = null, sectionSeason = false, player = null, pendingName = null;
+    var pendingSide = null; // FanDuel style: "Over" on one line, "1375.5" on the next
 
     function err(i, t, reason) { errors.push({ lineNo: i + 1, text: t, reason: reason }); }
     function lookup(t) { return byName[normName(stripTeam(t))]; }
@@ -144,7 +151,16 @@
       var t = raw.replace(/−/g, "-").replace(/\s+/g, " ").trim();
       if (!t) return;
       if (ODDS_ONLY.test(t)) return;
+      if (pendingSide) {
+        var side = pendingSide; pendingSide = null;
+        if (NUM_ONLY.test(t)) t = side + " " + t;
+        else err(i - 1, side, "over/under with no line after it");
+      }
+      if (SIDE_ONLY.test(t)) { pendingSide = t; return; }
       var yr = /©|copyright/i.test(t) ? null : t.match(/\b(20\d\d)\b/);
+      // Two-digit season labels: "25/26 Regular Season" is the 2025 season.
+      var yr2 = yr ? null : t.match(/\b(\d{2})\s*[\/–-]\s*(\d{2})\b/);
+      if (!yr && yr2 && SEASON.test(t) && +yr2[2] === (+yr2[1] + 1) % 100) yr = [yr2[0], String(2000 + Number(yr2[1]))];
       if (yr && season && Number(yr[1]) !== season) {
         err(i, t, "season " + yr[1] + " is not " + season);
         startSection({ refused: "another season" }, t);
@@ -160,7 +176,8 @@
         return;
       }
       if (!inl && SECTION_BREAK.test(t)) { startSection({ refused: "weekly or game section" }, t); player = null; return; }
-      if (!inl && SEASON.test(t) && !HAS_DIGIT.test(t.replace(/\b20\d\d\b/g, "")) && market) { sectionSeason = true; return; }
+      // Only a market header can mark its section as season-long; a menu
+      // line ("Season Futures", "Game | Season Futures") never can.
       var ou = t.match(OU_ONLY);
       if (ou) {
         if (refused) { err(i, t, "not read, " + refused); return; }
@@ -170,20 +187,12 @@
         record(i, t, player, market, ou[1], toNum(ou[2]));
         return;
       }
-      if (inl) {
-        var nm = inl[1].replace(/\s[-–|:]\s.*$/, "");
-        var k = lookup(nm);
-        var restHdr = headerOf(inl[4]) || headerOf(inl[1]);
-        if (!k) { err(i, t, "unknown player: " + nm); return; }
-        if (restHdr && restHdr.refused) { err(i, t, restHdr.refused); return; }
-        if (refused) { err(i, t, "not read, " + refused); return; }
-        var m2 = restHdr ? restHdr.market : market;
-        if (!m2) { err(i, t, "no market for this line"); return; }
-        if (!(sectionSeason || (restHdr && restHdr.season))) { err(i, t, "market has no season marker (weekly or game lines?)"); return; }
-        record(i, t, k, m2, inl[2], toNum(inl[3]));
-        return;
-      }
+      // One line holding player, over/under and number ("Jameson Williams
+      // Over 55.5 Receiving Yards -110") is how single-game props print, so
+      // it is refused; season markets list the player and the line apart.
+      if (inl) { err(i, t, "one-line prop (looks like a single-game line)"); player = null; return; }
       if (TEAM_POS_ONLY.test(t)) return;
+      if (/^[A-Z]{2,4}$/.test(t)) { player = null; pendingName = { text: t, lineNo: i + 1 }; ignored += 1; return; }
       if (HAS_DIGIT.test(t) && /\b(o|over|u|under)\b/i.test(t)) { err(i, t, "unreadable over/under line"); player = null; return; }
       var key = lookup(t);
       if (key) { player = key; pendingName = null; return; }
@@ -194,6 +203,7 @@
       ignored += 1;
     });
 
+    if (pendingSide) err(lines.length - 1, pendingSide, "over/under with no line after it");
     Object.keys(found).forEach(function (id) {
       var f = found[id];
       if (f.over !== null && f.under !== null && Math.abs(f.over - f.under) > OU_GAP * Math.min(f.over, f.under)) {

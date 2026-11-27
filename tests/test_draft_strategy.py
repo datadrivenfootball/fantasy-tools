@@ -120,6 +120,15 @@ class PushFloorCandidates(unittest.TestCase):
               "available:['x'],pos:{x:'RB'},prices:{ours:{x:6},market:{x:6}}}")
         self.assertEqual(_cjs(f"E.pushFloors({st},'x').classification"), "no money")
 
+    def test_board_rows_carry_price_source(self):
+        """Third review (bc19862), item 7: the source reached the row only
+        when the caller set state.priceSource."""
+        js = ("(()=>{const L={teams:2,budget:30,minBid:1,slots:{RB:1,WR:1}};"
+              "const P=E.boardPrices({values:{x:10,y:5},source:{x:'vegas',y:'proj'}},L,{x:9,y:6});"
+              "const b=E.board({league:L,me:'a',teams:[{id:'a',budgetLeft:30,open:{RB:1,WR:1}},{id:'b',budgetLeft:30,open:{RB:1,WR:1}}],"
+              "available:['x','y'],pos:{x:'RB',y:'WR'},prices:P});return b.rows.map(r=>[r.key,r.source])})()")
+        self.assertEqual(_cjs(js), [["x", "vegas"], ["y", "proj"]])
+
     def test_no_slot_classification(self):
         self.assertEqual(_cjs("E.pushFloors(st(),'P7').classification"), "no slot")
 

@@ -281,6 +281,46 @@ class FullLeagueBuild(unittest.TestCase):
         self.assertEqual(set(a), set(b))
         self.assertEqual(max(abs(a[k] - b[k]) for k in a), 0)
 
+    # Third review (bc19862), item 6: a prop but no projection.
+    def test_partial_props_without_projection_use_market(self):
+        fp = self._fp()
+        wr = "1131"  # WR11
+        partial = {wr: {"rec_yds": fp[wr]["rec_yds"], "covered": ["rec_yds"]}}
+        out = self._build(no_proj=(wr,), vegas=partial)
+        self.assertEqual(out["source"][wr], "market")
+        market_only = self._build(no_proj=(wr,))
+        self.assertAlmostEqual(out["ours"][wr], market_only["ours"][wr], places=9)
+
+    def test_full_position_props_without_projection_use_vegas(self):
+        fp = self._fp()
+        wr = "1131"
+        full = {wr: {"rec": 90.0, "rec_yds": fp[wr]["rec_yds"], "rec_tds": 7.5, "covered": ["rec", "rec_yds", "rec_tds"]}}
+        out = self._build(no_proj=(wr,), vegas=full)
+        self.assertEqual(out["source"][wr], "vegas")
+        self.assertGreater(out["ours"][wr], 1.0)
+
+    def test_null_in_a_plain_vegas_line_is_missing(self):
+        fp = self._fp()
+        rb = fp[PROBE_RB]
+        with_null = {PROBE_RB: {"rush_yds": rb["rush_yds"], "rec_yds": None, "rush_tds": None}}
+        out = self._build(vegas=with_null)
+        self.assertEqual(out["source"][PROBE_RB], "vegas+proj")
+        self.assertAlmostEqual(out["ours"][PROBE_RB], self._build()["ours"][PROBE_RB], places=9)
+
+    # Item 7: the market fallback lands on the market price.
+    def test_market_fallback_maps_dollars_above_the_floor(self):
+        """Projected players a and b have DDF values in proportion to their
+        market dollars above $1, so market-only c must land on exactly his
+        market price. The old whole-dollar mapping gave 11 x 40/42 = 10.48."""
+        js = ("const E=require('./app/draft/draft-engine.js');"
+              "const v=E.marketFallbackValues({a:30,b:10},{a:31,b:11,c:11},1,k=>k==='c');"
+              "const L={teams:1,budget:63,slots:{RB:1,WR:1,TE:1}};"
+              "process.stdout.write(JSON.stringify({v:v,ours:E.pricesFromWeights({a:30,b:10,c:v.c},L),mkt:E.rescaleDollars({a:31,b:11,c:11},L)}))")
+        out = json.loads(subprocess.run([_node(), "-e", js], capture_output=True, text=True, check=True, cwd=ROOT).stdout)
+        self.assertAlmostEqual(out["v"]["c"], 10.0, places=9)
+        for k in ("a", "b", "c"):
+            self.assertAlmostEqual(out["ours"][k], out["mkt"][k], places=9)
+
     def test_stale_or_rejected_vegas_falls_back_to_projection(self):
         fp = self._fp()
         props = {PROBE_RB: {"rush_yds": 0.0, "rec_yds": 0.0, "covered": ["rush_yds", "rec_yds"]}}

@@ -170,6 +170,45 @@ class FailsClosed(unittest.TestCase):
     def test_over_and_under_far_apart(self):
         self._bad("Regular Season Receiving Yards\nAmon-Ra St. Brown\nU 1300.5", "more than 5% apart")
 
+    # Third review (bc19862): each probe below returned ok=true or stored a
+    # wrong line at bc19862.
+    def test_menu_line_cannot_make_a_weekly_section_seasonal(self):
+        for page in ("Receiving Yards\nGame | Season Futures\nJa'Marr Chase\nO 85.5\nReceptions\nSeason Futures\nJa'Marr Chase\nO 6.5",
+                     "Receiving Yards\nSeason Futures\nJa'Marr Chase\nO 85.5",
+                     "Receiving Yards\nPrices for the regular season are posted separately\nJa'Marr Chase\nO 85.5"):
+            r = parse(page)
+            self.assertFalse(r["ok"], page)
+            self.assertEqual(r["rows"], [], page)
+
+    def test_one_line_game_prop_in_a_season_section_refused(self):
+        r = self._bad("Regular Season Receiving Yards\nJa'Marr Chase Over 55.5 Receiving Yards -110", "one-line prop")
+        self.assertEqual(self._stored(r, "301", "season_rec_yds"), [1375.5])
+
+    def test_season_floors_refuse_game_sized_lines(self):
+        self._bad("Regular Season Receiving Yards\nBijan Robinson\nO 55.5", "outside")
+        self._bad("Regular Season Receptions\nBijan Robinson\nO 6.5", "outside")
+
+    def test_first_n_games_refused(self):
+        self._bad("Receiving Yards - First 4 Games of Regular Season\nJa'Marr Chase\nO 300.5", "weekly or game market")
+
+    def test_regular_plus_post_season_refused(self):
+        self._bad("Receiving Yards Regular + Post Season\nJa'Marr Chase\nO 1450.5", "includes the playoffs")
+
+    def test_two_digit_season_label_checked(self):
+        self._bad("Receiving Yards - 25/26 Regular Season\nJa'Marr Chase\nO 1375.5", "season 2025 is not 2026")
+
+    def test_opening_week_section_refused(self):
+        self._bad("Regular Season Receiving Yards\nOpening Week Specials\nBijan Robinson\nO 285.5", "weekly or game section")
+
+    def test_bare_team_or_initials_line_clears_the_player(self):
+        r = self._bad("Regular Season Receiving Touchdowns\nJa'Marr Chase\nCIN\nJSN\nO 8.5", "unknown player: JSN")
+        self.assertEqual(self._stored(r, "301", "season_rec_tds"), [10.5])
+
+    def test_split_over_and_number_lines_are_read(self):
+        # The sample prints St. Brown's receptions as "Over" then "101.5".
+        self.assertEqual(self._stored(parse(SAMPLE), "302", "season_receptions"), [101.5])
+        self._bad("Regular Season Receiving Yards\nBijan Robinson\nOver\n-110", "no line after it")
+
     def test_thousands_separator(self):
         r = parse(SAMPLE.replace("O 3875.5", "O 3,875.5"))
         self.assertTrue(r["ok"], r["errors"])

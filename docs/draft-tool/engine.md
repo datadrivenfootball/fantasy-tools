@@ -217,13 +217,11 @@ assumes ours and market are equally accurate.
 
 Decided 2026-11-27: personal inflation is the board default ("Personal by
 default (Recommended)") and the board's push floor is B ("Roster value
-(Recommended)"). Limits: bots do not nominate
-strategically; one league shape; the noisy judge still centres on DDF Value.
-(The reviewer's probe on the earlier code, 100 drafts on seed 2, found
-B - A = -1.7 +/- 0.9 under the market judge; this run, after the Vegas fill
-and with misspecified bots, finds B ahead by 2.4 +/- 0.5. The sign depends
-on the setup, so treat B's edge over A as modest and worth re-checking with
-the USO auction and real-room tendencies.)
+(Recommended)"). Limits: bots do not nominate strategically; one league
+shape; the truth world assumes ours and market are equally accurate. Under
+the market judge B now trails A (A - B = +9.5 +/- 0.5 in the table above), so
+B's edge rests on the truth judge and should be re-checked with the USO
+auction and real-room tendencies.
 
 ## Worked example (hand-checked; the test matches it to the dollar)
 

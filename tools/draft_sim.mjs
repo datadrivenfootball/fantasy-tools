@@ -9,7 +9,8 @@
 // League: Jeremy's 2026 auction league settings (12 teams, half PPR with
 // Yahoo scoring, QB/2RB/3WR/TE/FLEX/K/DEF/5 bench). Budget $200 is assumed.
 // K and DEF are $1 slots: their $2 is taken off each budget up front.
-// Prices: the engine's ours (blend 50/25/25), market (FantasyPros 2026 ECR on
+// Prices: the engine's ours (by availability: Vegas prop per stat, else the
+// FantasyPros projection, else market), market (FantasyPros 2026 ECR on
 // ESPN's curve) and platform (ESPN 2026 values), all 2026 data.
 //
 // Rivals: each rival's limit for a player = room price now (engine opponent
