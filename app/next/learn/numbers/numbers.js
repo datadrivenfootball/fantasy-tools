@@ -462,10 +462,13 @@
       var t = g.next ? '(' + who(g.last, g.starters) + ' + ' + who(g.next, g.starters + 1) + ') ÷ 2 = ' + plain(g.mid) : who(g.last, g.starters) + ', the last player listed';
       return t + (g.floored ? ', under the waiver line, so ' + plain(g.line) : '');
     };
+    /* JEG-1727: when the weighted sum agrees with the engine's line, state the engine's figure (the row's own value):
+       summation order can leave the sum one ulp under a 2 dp tie (0.32499999999999996 for eight reads of 0.325) and
+       print a different figure from the row and from every read it averages. */
+    var ok = Math.abs(L.line - w.starterLine) <= 1e-6 * Math.max(1, Math.abs(w.starterLine));
     var body = L.groups.length === 1 ? one(L.groups[0]) + ' (' + L.groups[0].starters + ' ' + pos + ' starters)'
       : L.groups.map(function (g) { return pct(g.share) + ' of the league allocations have ' + g.starters + ' ' + pos + ' starters: ' + one(g); }).join('; ') +
-        '; weighted by those shares, ' + plain(L.line);
-    var ok = Math.abs(L.line - w.starterLine) <= 1e-6 * Math.max(1, Math.abs(w.starterLine));
+        '; weighted by those shares, ' + plain(ok ? w.starterLine : L.line);
     return body + (ok ? '' : '; the engine’s line is ' + plain(w.starterLine));
   }
   /* R6-OP-01: the waiver line's derivation, read from each league allocation's own list (learn-engine.js
@@ -480,6 +483,9 @@
       if (proj) return pos + x.lo + '–' + pos + x.hi + ', mean ' + plain(x.waiver);
       return pos + (x.rostered + 1) + ' ' + nameOf(x.key) + (x.estimated ? '(est.) ' : '') + plain(x.value);
     };
+    /* JEG-1727: as lineText, the agreeing weighted line is stated as the engine's figure, so a 2 dp tie cannot print
+       0.32 under reads and a row of 0.33. */
+    var ok = Math.abs(L.line - w.waiver) <= 1e-6 * Math.max(1, Math.abs(w.waiver));
     var h = L.heavy, many = L.reads.length > 1;
     var body = one(h) + (many ? ' at the heaviest allocation (' + h.rostered + ' ' + pos + 's rostered)' : ' (' + h.rostered + ' ' + pos + 's rostered)');
     if (many) {
@@ -489,9 +495,8 @@
       var keys = L.reads.map(function (x) { return x.key; });
       var same = !proj && keys.every(function (k) { return k && k === keys[0]; });
       body += '; weighted over the ' + L.reads.length + ' league allocations (' + (lo === hi ? lo : lo + ' to ' + hi) + ' rostered, read at ' + seats +
-        (same && lo !== hi ? ', the same player in each allocation’s own list' : '') + ') = ' + plain(L.line);
+        (same && lo !== hi ? ', the same player in each allocation’s own list' : '') + ') = ' + plain(ok ? w.waiver : L.line);
     }
-    var ok = Math.abs(L.line - w.waiver) <= 1e-6 * Math.max(1, Math.abs(w.waiver));
     return body + (ok ? '' : '; the engine’s line is ' + plain(w.waiver));
   }
   function nameOf(key) { var p = byKey[key]; return p ? p.name + ' ' : ''; }
