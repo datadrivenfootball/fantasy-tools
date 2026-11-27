@@ -29,7 +29,7 @@ export type Deps = {
 
 const SLEEPER_CACHE = "sleeper_players_v1";
 const XWALK_CACHE = "player_id_xwalk_v1"; // Sleeper + Dynasty Daddy ids, daily
-const KDEF_CACHE = "espn_kdef_weekly_v1:"; // + season, every 6 hours
+const KDEF_CACHE = "espn_kdef_weekly_v2:"; // v2 keeps the stat lines // + season, every 6 hours
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = 86400000;
 

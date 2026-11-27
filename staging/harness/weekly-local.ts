@@ -23,7 +23,7 @@ const weekly = await buildWeekly(snap, {
     rows = (await q(`with latest as (select distinct on (source) run_id, source, as_of from public.source_projection_runs
         where source in ('espn','sleeper') and season = ${season} order by source, as_of desc)
       select w.source, l.as_of, w.target_week, w.source_player_id, w.sleeper_id, w.team, w.position,
-        w.points_std::float8 as points_std, w.points_half_ppr::float8 as points_half_ppr, w.points_ppr::float8 as points_ppr
+        w.points_std::float8 as points_std, w.points_half_ppr::float8 as points_half_ppr, w.points_ppr::float8 as points_ppr, w.stats
       from public.source_weekly_projections w join latest l on l.run_id = w.run_id and l.source = w.source
       where w.target_week >= ${from} and ((w.source = 'espn' and w.source_player_id = any(${lit(e)})) or (w.source = 'sleeper' and w.sleeper_id = any(${lit(s)})))`))
       .map((r: Record<string, unknown>) => ({ ...r, as_of: new Date(String(r.as_of).replace(" ", "T").replace(/\+00$/, "Z")).toISOString() }));

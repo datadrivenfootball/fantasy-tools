@@ -131,7 +131,7 @@
   function playerRow(p, slot) {
     var meta = [p.pos, p.nfl_team].filter(Boolean).join(" · ");
     var who = el("td", {class: "who"}, el("b", {text: p.name || "Unknown player"}), p.status ? el("span", {class: "st", text: p.status}) : null,
-      el("small", {}, meta, p.source ? el("span", {class: "src", title: "Projection source", text: SOURCES[p.source] || p.source}) : null));
+      el("small", {}, meta, p.source ? el("span", {class: "src" + (p.rescored === false ? " src-default" : ""), title: p.source_label || "Projection source", text: p.source_tag || SOURCES[p.source] || p.source}) : null));
     var pts;
     if (p.bye) pts = el("span", {class: "st bye", text: "BYE"});
     else if (isNum(p.points)) pts = p.points.toFixed(1);
@@ -175,15 +175,16 @@
     var goalLabel = {};
     (plan.goals || []).forEach(function (g) { goalLabel[g.id] = GOAL_SHORT[g.id] || g.label || g.id; });
     var sec = el("section", {"aria-labelledby": "gl-games-t"}, el("h2", {id: "gl-games-t", text: "Game by game"}),
-      el("p", {class: "muted", text: "Each side's total is its best legal lineup on this week's projections. Tap a game to see both lineups."}));
+      el("p", {class: "muted", text: "Each side's total is its best legal lineup on this week's projections. Tap a game to see both lineups."}),
+      plan.win_note ? el("p", {class: "fine gl-how", text: plan.win_note}) : null);
     var table = el("table", {class: "gl-games"}, el("thead", {}, el("tr", {},
       el("th", {scope: "col", text: "Wk"}), el("th", {scope: "col", text: "Opponent"}), el("th", {scope: "col", text: "You – them"}), el("th", {scope: "col", text: "Win chance"}),
-      el("th", {scope: "col", text: "Type"}), el("th", {scope: "col", text: "Goals in play"}), el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
+      el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
     [["regular", "Regular season"], ["playoffs", "Playoffs"]].forEach(function (ph) {
       var games = (plan.games || []).filter(function (g) { return (g.phase || "regular") === ph[0]; });
       if (!games.length) return;
       var body = el("tbody");
-      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "8", scope: "rowgroup", text: ph[1]})));
+      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "6", scope: "rowgroup", text: ph[1]})));
       games.forEach(function (g) { gameRows(plan, g, goalLabel).forEach(function (r) { body.appendChild(r); }); });
       table.appendChild(body);
     });
@@ -217,19 +218,12 @@
 
     var winCell = el("td", {class: "win"}, lab("Win chance"),
       el("div", {class: "big"}, pct(win.ddf, g.theirs ? "No DDF win chance for this game" : "No DDF win chance until the opponent is known")),
-      el("small", {text: "DDF (weekly projections)"}),
-      el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo"));
+      el("small", {text: "From weekly projections"}),
+      el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo's number"));
 
-    var chips = el("div", {class: "chips"});
-    (g.goals || []).forEach(function (gid) {
-      var t = goalLabel[gid] || GOAL_SHORT[gid] || gid;
-      chips.appendChild(el("span", {class: "gchip", text: gid === "high_score" && hs && isNum(hs.chance) ? t + " " + pctText(hs.chance) : t}));
-    });
-    var goalsCell = el("td", {class: "goals"}, lab("Goals in play"), chips);
-    if (!(g.goals || []).length) chips.appendChild(el("span", {class: "muted", text: "None"}));
-    var hsLine = el("small", {}, "High score: ", hs ? pct(hs.chance, "No high-score chance for this week") : na("No high-score chance for this week"));
+    /* goals live in the header (Jeremy, 2026-11-27); the week's high-score chance moves to the opened row */
+    var hsLine = el("span", {}, "Weekly high score: ", hs ? pct(hs.chance, "No high-score chance for this week") : na("No high-score chance for this week"));
     if (hs && isNum(hs.my_rank)) hsLine.appendChild(document.createTextNode(" · you project " + ordinal(hs.my_rank) + (isNum(hs.of) ? " of " + hs.of : "")));
-    goalsCell.appendChild(hsLine);
 
     var movesCell = el("td", {class: "moves" + ((g.moves || []).length ? "" : " none")});
     if ((g.moves || []).length) {
@@ -246,10 +240,9 @@
     var btn = el("button", {type: "button", class: "gl-toggle", "aria-expanded": "false", "aria-controls": id}, el("span", {class: "lbl", text: "Show both lineups, week " + g.week}));
     var row = el("tr", {class: "game"},
       el("td", {class: "wk"}, el("small", {text: "Wk"}), String(g.week)), oppCell, line, winCell,
-      el("td", {class: "typ"}, g.type ? el("span", {class: "type " + (TYPES[g.type] ? g.type : "free"), text: TYPES[g.type] || g.type}) : null),
-      goalsCell, movesCell, el("td", {class: "tog"}, btn));
+      movesCell, el("td", {class: "tog"}, btn));
 
-    var facts = el("p", {class: "gl-detail-facts"});
+    var facts = el("p", {class: "gl-detail-facts"}, hsLine);
     if (hs && hs.top) facts.appendChild(el("span", {}, "Projected top score: ", el("b", {text: (hs.top.name || "—") + " "}), el("b", {class: "mono"}, one(hs.top.total))));
     if (g.yahoo_proj) facts.appendChild(el("span", {}, "Yahoo projects ", el("b", {class: "mono"}, one(g.yahoo_proj.mine), " – ", one(g.yahoo_proj.theirs))));
     var st = g.stake || {};
@@ -257,7 +250,7 @@
     var stakes = [isNum(st.playoffs) ? "playoff odds " + pts(st.playoffs) : null, isNum(st.seed) ? (st.seed_basis || "seed") + " odds " + pts(st.seed) : null,
       isNum(st.top_seed) && st.seed_basis !== "1st seed" ? "1st seed odds " + pts(st.top_seed) : null].filter(Boolean);
     if (stakes.length) facts.appendChild(el("span", {}, "A win instead of a loss: ", el("b", {text: stakes.join(", ")})));
-    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "8"}, facts.childNodes.length ? facts : null,
+    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "6"}, facts.childNodes.length ? facts : null,
       el("div", {class: "gl-lineups"}, renderLineup(g.mine, "Your lineup", "No lineup for your team this week."),
         renderLineup(g.theirs, opp ? opp.name : "Their lineup", g.opp_note || "The opponent is not known yet, so there is no lineup to show."))));
 

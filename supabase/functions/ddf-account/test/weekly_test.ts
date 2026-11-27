@@ -2,6 +2,7 @@
 // Hermetic tests for the weekly read (weekly.ts) and the staging planner (staging/account/weekly.js), JEG-1736.
 //   deno test --allow-read supabase/functions/ddf-account/test/
 import { assert, assertAlmostEquals, assertEquals } from "jsr:@std/assert@1";
+import { leagueRules, rescore } from "../scoring.ts";
 import { buildWeekly, etIso, fetchEspnKdef, leagueWeeks, type KdefRow, type ScheduleGame, type WarehouseRow, type XwalkRow } from "../weekly.ts";
 
 const ROOT = new URL("../../../../", import.meta.url);
@@ -91,9 +92,9 @@ Deno.test("weekly read: ids join, ESPN first then Sleeper, byes are BYE, K/DEF f
   assertEquals(qb.sleeper_id, "s101");
   assertEquals(qb.weeks[13].source, "espn");
   assertAlmostEquals(qb.weeks[13].points, 20 * 1.15, 1e-9);
-  assertEquals(wk.players["470.p.103"].weeks[14], { points: 7.5, source: "sleeper", bye: false, note: null }); // no ESPN row that week
-  assertEquals(wk.players["470.p.106"].weeks[14], { points: 0, source: "espn", bye: true, note: "BYE" }); // MIA bye
-  assertEquals(wk.players["470.p.107"].weeks[13], { points: 8, source: "espn_live", bye: false, note: null });
+  assertEquals(wk.players["470.p.103"].weeks[14], { points: 7.5, source: "sleeper", bye: false, note: null, rescored: false }); // no ESPN row that week
+  assertEquals(wk.players["470.p.106"].weeks[14], { points: 0, source: "espn", bye: true, note: "BYE", rescored: false }); // MIA bye
+  assertEquals(wk.players["470.p.107"].weeks[13], { points: 8, source: "espn_live", bye: false, note: null, rescored: false });
   assertEquals(wk.players["470.p.107"].match, "team_name"); // the team's ESPN kicker with the same last name
   assertEquals(wk.players["470.p.108"].match, "team"); // one D/ST per team
   assertEquals(wk.players["470.p.108"].espn_id, "-16016");
@@ -151,7 +152,7 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   // all four teams make a 4-spot bracket, so week 13 cannot move the playoff odds: it is about the seed
   assertEquals(plan.sim.playoff_p, 1);
   assertEquals(g13.stake.playoffs, 0);
-  assert(["seed_game", "free"].includes(g13.type), g13.type);
+  assertEquals(g13.type, null); // game types are off the page until JEG-1737 defines them
   assert(!g13.goals.includes("playoffs"));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "add"), "FA WR (16) beats the team's WRc in week 13");
   assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && m.text === "Add FA K (K, 12.0); drop K1"), "FA K 12 beats K1 8, and K1 is then the free drop");
@@ -222,7 +223,7 @@ Deno.test("ESPN K/DEF read keeps this season's weekly projections only (ESPN als
     { scoringPeriodId: 15, statSourceId: 0, statSplitTypeId: 1, seasonId: 2025, appliedTotal: 5 },
   ] } }] };
   const got = await fetchEspnKdef(async () => new Response(JSON.stringify(body), { status: 200 }), 2026, new Date("2026-11-27T12:00:00Z"));
-  assertEquals(got.players, [{ espn_id: "-16019", name: "Giants D/ST", pos: "DEF", team: "NYG", weeks: { 15: 8.1 } }]);
+  assertEquals(got.players.map((x) => ({ ...x, lines: undefined })), [{ espn_id: "-16019", name: "Giants D/ST", pos: "DEF", team: "NYG", weeks: { 15: 8.1 }, lines: undefined }]);
 });
 
 Deno.test("review fixes: a kicker needs his name, an empty ESPN read fails, kickoff times are Eastern", async () => {
@@ -269,4 +270,61 @@ Deno.test("review fixes: the live week counts the score so far plus the open slo
   const wk2 = await buildWeekly(short, deps(short));
   const p2 = W.plan(short, wk2, { runs: 500 });
   assertEquals(p2.sim.title_p, null);
+});
+
+const USO_RULES = [["4", 0.04], ["5", 4], ["6", -1], ["9", 0.1], ["10", 6], ["11", 0.5], ["12", 0.1], ["13", 6], ["15", 6], ["16", 2], ["18", -2], ["19", 3], ["20", 3], ["21", 3], ["22", 4], ["23", 5], ["29", 1], ["32", 1], ["33", 2], ["34", 2], ["35", 6], ["36", 2], ["37", 2], ["49", 6], ["50", 10], ["51", 7], ["52", 4], ["53", 1], ["54", 0], ["55", -1], ["56", -4]]
+  .map(([statId, value]) => ({ statId, value, displayName: "s" + statId }));
+
+Deno.test("rescoring: ESPN and Sleeper stat lines and ESPN K/DEF lines with the league's own settings (hand-checked)", () => {
+  const r = leagueRules({ settings: { scoring_raw: USO_RULES } })!;
+  // Josh Allen, ESPN, week 13: 258.6496*.04 + 1.555*4 - .8029 + 30.4064*.1 + .7576*6 = 23.35 (ESPN standard said 22.55: Int -2)
+  const allen = rescore("espn", { passing_yards: 258.6496, passing_tds: 1.555, interceptions: 0.8029, rushing_yards: 30.4064, rushing_tds: 0.7576, receptions: 0, receiving_yards: 0, receiving_tds: 0 }, r)!;
+  assertAlmostEquals(allen.points, 23.35, 0.01);
+  assert(allen.missing.includes("s16") && allen.missing.includes("s18")); // ESPN's line has no 2-pt or fumbles
+  const sl = rescore("sleeper", { pass_yd: 251.69, pass_td: 1.32, pass_int: 0.81, rush_yd: 31.52, rush_td: 0.89, fum_lost: 0.19, pass_2pt: 0.1, rush_2pt: 0.07 }, r)!;
+  assertAlmostEquals(sl.points, 251.69 * 0.04 + 1.32 * 4 - 0.81 + 3.152 + 0.89 * 6 - 0.38 + 0.34, 0.01);
+  // Jason Sanders, week 15: .463*5 + .611*4 + 1.303*3 + 2.384 = 11.05 (ESPN default 10.73 charges missed FGs)
+  assertAlmostEquals(rescore("K", { 74: 0.463, 77: 0.611, 80: 1.303, 85: 0.322, 86: 2.384, 88: 0.049 }, r)!.points, 11.05, 0.01);
+  // Giants D/ST, week 15 (ESPN default 8.1): sacks, INT, fumbles, TDs, safety, blocks, return TDs and points-allowed bands
+  const g = { 89: 0.016, 90: 0.07, 91: 0.235, 92: 0.2, 93: 0.007, 94: 0.093, 95: 0.677, 96: 0.464, 97: 0.112, 98: 0.016, 99: 3.765, 101: 0.008, 102: 0.025, 121: 0.145, 122: 0.185, 123: 0.11, 124: 0.035, 125: 0.004 };
+  assertAlmostEquals(rescore("DEF", g, r)!.points, 8.73, 0.02);
+  assertEquals(leagueRules({ settings: { scoring_raw: null } }), null);
+});
+
+Deno.test("rescoring: the weekly read marks every number rescored or not, and says so", async () => {
+  const lg = league();
+  const plain = await buildWeekly(lg, deps(lg));
+  assertEquals(plain.scoring_basis.rescored, false);
+  assert(/not your league's/.test(plain.scoring_basis.text));
+  (lg.settings as Record<string, unknown>).scoring_raw = USO_RULES;
+  const d = deps(lg);
+  const rows0 = d.rows;
+  d.rows = async (...a: Parameters<typeof rows0>) => (await rows0(...a)).map((x) => ({ ...x, stats: x.source === "espn" ? { receptions: 2, receiving_yards: 20 } : null }));
+  const wk = await buildWeekly(lg, d);
+  assertEquals(wk.scoring_basis.rescored, true);
+  assertEquals(wk.players["470.p.102"].weeks[13], { points: 3, source: "espn", bye: false, note: null, rescored: true }); // 2*.5 + 20*.1
+  assertEquals(wk.players["470.p.107"].weeks[13].rescored, false); // the fake ESPN K has no stat line: default scoring, labelled
+});
+
+Deno.test("review fixes 2: advice uses the current time; a game in progress keeps the rest of its projection; other pages skip the live week", async () => {
+  const lg = league();
+  lg.current_week = 13;
+  const m = lg.schedule[1].matchups[0];
+  m.status = "live"; m.points = [40, 10];
+  lg.pulled_at = "2026-11-29T17:30:00Z";
+  const wk = await buildWeekly(lg, deps(lg));
+  wk.kickoffs = { 13: { KC: "2026-11-29T18:00:00Z", BUF: "2026-11-29T21:00:00Z", MIA: "2026-11-29T21:00:00Z", DAL: "2026-11-29T21:00:00Z", MIN: "2026-11-29T21:00:00Z", NYJ: "2026-11-29T21:00:00Z", LV: "2026-11-29T21:00:00Z" } };
+  // pulled before KC kicked off, viewed while KC plays: KC players are not movable any more, so no advice names them
+  const p = W.plan(lg, wk, { runs: 500, now: "2026-11-29T18:30:00Z" });
+  const g = p.games[0];
+  assert(g.moves.every((mv: { text: string }) => !/QB1|WR1a|TE1/.test(mv.text)), JSON.stringify(g.moves));
+  // pulled mid-game (KC 1 hour in): the rest of their projections still count
+  lg.pulled_at = "2026-11-29T19:00:00Z";
+  const q = W.plan(lg, wk, { runs: 500, now: "2026-11-29T19:00:00Z" });
+  const left = 2.5 / 3.5, kc = (20 + 15 + 9) * 1.15;
+  assertAlmostEquals(q.games[0].mine.still_to_come, 13.8 + 16.1 + 12.65 + 8 + 6 + kc * left, 0.1);
+  // cover, trade impact and recommendations count from next week once the current week has kicked off
+  assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
+  assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
+  assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T12:00:00Z" }).weeks, [13, 14, 15, 16]);
 });

@@ -9,23 +9,25 @@
 //  - Byes from the nflverse schedule (latest run): bye = true, points 0, shown as BYE.
 import { getJSON, type Fetch } from "./errors.ts";
 import { PRO_TEAM } from "./espn.ts";
+import { leagueRules, rescore, rulesNotes } from "./scoring.ts";
 
 // deno-lint-ignore no-explicit-any
 type J = any;
 export type WarehouseRow = {
   source: "espn" | "sleeper"; as_of: string; target_week: number; source_player_id: string; sleeper_id: string | null;
   team: string | null; position: string | null; points_std: number | null; points_half_ppr: number | null; points_ppr: number | null;
+  stats?: Record<string, number> | null;
 };
 export type ScheduleGame = { week: number; home_team: string; away_team: string; as_of: string; gameday?: string | null; gametime?: string | null };
 export type XwalkRow = [sleeper: string | null, espn: string | null, yahoo: string | null, name: string, pos: string | null, team: string | null];
-export type KdefRow = { espn_id: string; name: string; pos: "K" | "DEF"; team: string | null; weeks: Record<string, number> };
+export type KdefRow = { espn_id: string; name: string; pos: "K" | "DEF"; team: string | null; weeks: Record<string, number>; lines?: Record<string, Record<string, number>> };
 export type WeeklyDeps = {
   rows: (season: number, fromWeek: number, espnIds: string[], sleeperIds: string[]) => Promise<WarehouseRow[]>;
   schedule: (season: number) => Promise<ScheduleGame[]>;
   xwalk: () => Promise<XwalkRow[]>;
   kdef: (season: number) => Promise<{ as_of: string; players: KdefRow[] } | null>;
 };
-export type Cell = { points: number | null; source: "espn" | "sleeper" | "espn_live" | null; bye: boolean; note: string | null };
+export type Cell = { points: number | null; source: "espn" | "sleeper" | "espn_live" | null; bye: boolean; note: string | null; rescored?: boolean };
 
 const SKILL = new Set(["QB", "RB", "WR", "TE"]);
 // nflverse codes; Yahoo/Sleeper/ESPN spellings mapped onto them.
@@ -78,6 +80,16 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
   const col = pointsCol(scoring) as "points_std" | "points_half_ppr" | "points_ppr";
   const weeks = leagueWeeks(summary);
   const people = leaguePlayers(summary);
+  // the league's own scoring rules (Yahoo statModifiers); without them every number is the source's default scoring
+  const rules = leagueRules(summary);
+  const missingStats = new Set<string>();
+  const scored = (kind: "espn" | "sleeper" | "K" | "DEF", stats: Record<string, number> | null | undefined, fallback: number | null) => {
+    if (!rules) return { points: fallback, rescored: false };
+    const r = rescore(kind, stats, rules);
+    if (!r) return { points: fallback, rescored: false };
+    r.missing.forEach((m) => missingStats.add(`${kind === "espn" ? "ESPN" : kind === "sleeper" ? "Sleeper" : "ESPN " + kind}: ${m}`));
+    return { points: r.points, rescored: true };
+  };
   const unmatched: { player_id: string; name: string; reason: string }[] = [];
 
   // ---- identity ----
@@ -163,9 +175,11 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
       else if (!k) { unmatched.push({ player_id: p.player_id, name: p.name, reason: `No ESPN ${p.pos === "K" ? "kicker" : "D/ST"} found for ${p.nfl_team ?? "an unknown team"}` }); }
       for (const w of weeks) {
         const bye = isBye(p.nfl_team, w);
-        const v = k ? num(k.weeks[String(w)]) : null;
-        out[w] = bye ? { points: 0, source: k ? "espn_live" : null, bye, note: "BYE" }
-          : v !== null ? { points: Math.round(v * 100) / 100, source: "espn_live", bye, note: kNote }
+        const v0 = k ? num(k.weeks[String(w)]) : null;
+        const sc = k && v0 !== null ? scored(p.pos as "K" | "DEF", k.lines?.[String(w)], Math.round(v0 * 100) / 100) : { points: null, rescored: false };
+        const v = sc.points;
+        out[w] = bye ? { points: 0, source: k ? "espn_live" : null, bye, note: "BYE", rescored: !!rules }
+          : v !== null ? { points: v, source: "espn_live", bye, note: kNote, rescored: sc.rescored }
           : { points: null, source: null, bye, note: k ? "ESPN gave no projection this week" : "Not matched to ESPN" };
       }
       players[p.player_id] = { name: p.name, pos: p.pos, nfl_team: p.nfl_team, sleeper_id: null, espn_id: k?.espn_id ?? null, match, weeks: out };
@@ -176,15 +190,20 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
       const bye = isBye(p.nfl_team, w);
       const e = id?.espn_id ? espnAt.get(id.espn_id + "|" + w) : undefined;
       const s = id?.sleeper_id ? sleeperAt.get(id.sleeper_id + "|" + w) : undefined;
-      const ev = e ? num(e[col]) : null, sv = s ? num(s[col]) : null;
-      if (bye) out[w] = { points: 0, source: ev !== null ? "espn" : sv !== null ? "sleeper" : null, bye, note: "BYE" };
-      else if (ev !== null) out[w] = { points: ev, source: "espn", bye, note: null };
-      else if (sv !== null) out[w] = { points: sv, source: "sleeper", bye, note: null };
+      const e0 = e ? num(e[col]) : null, s0 = s ? num(s[col]) : null;
+      const es = e0 !== null ? scored("espn", e!.stats, e0) : null, ss = s0 !== null ? scored("sleeper", s!.stats, s0) : null;
+      const ev = es ? es.points : null, sv = ss ? ss.points : null;
+      if (bye) out[w] = { points: 0, source: ev !== null ? "espn" : sv !== null ? "sleeper" : null, bye, note: "BYE", rescored: !!rules };
+      else if (ev !== null) out[w] = { points: ev, source: "espn", bye, note: null, rescored: es!.rescored };
+      else if (sv !== null) out[w] = { points: sv, source: "sleeper", bye, note: null, rescored: ss!.rescored };
       else out[w] = { points: null, source: null, bye, note: !id ? "Not matched by id" : !SKILL.has(p.pos || "") ? `No weekly projection for ${p.pos}` : "No ESPN or Sleeper row this week" };
     }
     players[p.player_id] = { name: p.name, pos: p.pos, nfl_team: p.nfl_team, sleeper_id: id?.sleeper_id ?? null, espn_id: id?.espn_id ?? null, match: id?.match ?? null, weeks: out };
   }
-  return { shape: "ddf-league-weekly/0", season, scoring, weeks, as_of: asOf, players, unmatched, byes, kickoffs };
+  const scoring_basis = rules
+    ? { rescored: true, text: "Every weekly number is the source's projected stat line rescored with your league's scoring settings.", missing: [...missingStats].sort(), notes: rulesNotes(rules) }
+    : { rescored: false, text: `Your league's scoring settings are not in the league data, so these are each source's default ${scoring.replace("_", "-").toUpperCase()} scoring, not your league's.`, missing: [], notes: [] };
+  return { shape: "ddf-league-weekly/0", season, scoring, scoring_basis, weeks, as_of: asOf, players, unmatched, byes, kickoffs };
 }
 
 // ---- live sources (fetched by the function, cached in platform_cache) ----
@@ -220,9 +239,13 @@ export async function fetchEspnKdef(f: Fetch, season: number, now: Date): Promis
     const p = e.player || {};
     const pos = p.defaultPositionId === 5 ? "K" : p.defaultPositionId === 16 ? "DEF" : null;
     if (!pos) continue;
-    const weeks: Record<string, number> = {};
-    for (const s of p.stats || []) if (s.statSourceId === 1 && s.statSplitTypeId === 1 && s.seasonId === season && typeof s.appliedTotal === "number") weeks[String(s.scoringPeriodId)] = s.appliedTotal;
-    players.push({ espn_id: String(p.id), name: String(p.fullName || ""), pos, team: PRO_TEAM[p.proTeamId] ?? null, weeks });
+    const weeks: Record<string, number> = {}, lines: Record<string, Record<string, number>> = {};
+    for (const s of p.stats || []) {
+      if (s.statSourceId !== 1 || s.statSplitTypeId !== 1 || s.seasonId !== season || typeof s.appliedTotal !== "number") continue;
+      weeks[String(s.scoringPeriodId)] = s.appliedTotal;
+      if (s.stats && typeof s.stats === "object") lines[String(s.scoringPeriodId)] = s.stats; // the stat line, for league rescoring
+    }
+    players.push({ espn_id: String(p.id), name: String(p.fullName || ""), pos, team: PRO_TEAM[p.proTeamId] ?? null, weeks, lines });
   }
   if (!players.length) throw new Error("ESPN returned no kickers or defenses"); // never cache an empty read as a success
   return { as_of: now.toISOString(), players };
