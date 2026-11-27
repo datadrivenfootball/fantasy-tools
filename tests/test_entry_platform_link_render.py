@@ -279,7 +279,7 @@ class PlatformLinkTest(unittest.TestCase):
             run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         run.card = card
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(300)
         if page.eval_on_selector("#scoring", "e => e.value") != "Half PPR":
             run.tap('[aria-labelledby=lbl-scoring] button[data-value="Half PPR"]', "Half PPR")
@@ -291,7 +291,7 @@ class PlatformLinkTest(unittest.TestCase):
             self.assertEqual(int(page.input_value(f"#lineup-{key}")), want)
         run.tap(".ddf-actionbar__next", "Looks right, continue")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 3, 5))
         self.assertEqual(page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted')).me"), 2, "Team 3 is yours")
