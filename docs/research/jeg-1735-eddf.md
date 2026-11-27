@@ -19,6 +19,7 @@ wired), `config/eddf_sources.json` (registry), `tests/test_eddf.py`.
 - 2026-11-28, "A": amend `docs/pipeline-rules.md` section 7 so an off-by-default EDDF stage may
   read the rankings; wire the JS engine only after PR 1332 merges or the hot-file slot is released.
 - 2026-11-28 (candidates, multiple choice): enable Razzball (all three scorings), Rotoballer (Half PPR and PPR) and StickToTheModel (PPR, 90 players) in the registry; FanDuel stays disabled until its scoring and date are stated; Wolf (duplicate), Footballguys (QBs only) and GWTTKB (stale on the Tuesday rule; re-check after the next Tuesday reset) stay disabled. The study had recommended none for now; Jeremy chose otherwise, to add more points of view.
+- 2026-11-27 (relayed by the lead session, multiple choice): fit per-position curves (QBs still excluded) as a follow-up on the same draft; report tight-end bias before and after and the leave-one-chart-out numbers; keep the rescale and DDF byte-identical with the stage off. Hold release: no wiring or display, the PR stays a draft, unmerged and off by default until Jeremy reviews the evidence and the second ranker date after the Tuesday reset (on or after Wed 2 Dec).
 - 2026-11-28, "One per expert": each expert list is its own vote, the primary variant. The
   variants below are shown for comparison, not substituted.
 
@@ -42,8 +43,9 @@ the player.
   every list is stale until analysts update, and EDDF then equals DDF on the charts alone.
 - Implied value: anchors are players whose chart-mean value moved under 10% of its mean over the
   last three weekly pulls (chart values only, so the curve never fits itself); a non-increasing
-  isotonic curve of anchor value on the ranker's overall rank, pooled across positions, per scoring;
-  every ranked player gets curve(rank). QBs are excluded (`exclude_positions`, switch in the config).
+  isotonic curve of anchor value on the ranker's overall rank, one curve per position (QBs excluded;
+  a position with fewer than 6 anchors uses the pooled curve; `curve_mode: pooled` restores the
+  first design), per scoring; every ranked player gets curve(rank). QBs are excluded (`exclude_positions`, switch in the config).
 - Available only at 12 teams, one QB. Superflex and other team counts are reported unavailable
   (`eddf.available`) until a fit against DDF values at that setting is tested.
 
@@ -59,7 +61,67 @@ the player.
   14-day rule alone the count was 14 fresh; the Tuesday rule drops five more.
 - Anchors per scoring: 520 (PPR), 522 (Half), 522 (standard).
 
-## The registry as enabled (2026-11-28): what it costs and what it buys
+## Per-position curves (the shipped default): what changed
+
+Pooled curves were the first design; one curve over RB, WR and TE pulled tight ends and some running
+backs off the charts (the reviewer measured tight ends 2.4 to 6.5 points under DDF among the top
+players). Jeremy's ruling: fit one curve per position, QBs still excluded. Everything else is
+unchanged: the enabled registry, one vote per expert, the rescale to the DDF total, DDF untouched
+with the stage off. The pooled results are kept in `docs/research/data/jeg1735/pooled_curve/` and
+`curve_compare.json` (both modes side by side). Every number in the sections below this one that
+says "pooled curve" is the before; this section is the after.
+
+**Agreement with a held-out chart improves** (leave-one-chart-out rank correlation, as enabled, one
+vote per expert):
+
+| scoring | DDF | pooled curve | per-position curves |
+| -- | -- | -- | -- |
+| PPR | 0.908 | 0.807 | 0.833 |
+| Half PPR | 0.919 | 0.752 | 0.811 |
+| Standard | 0.926 | 0.756 | 0.806 |
+
+MAE against the held-out chart: PPR 0.738 (DDF), 0.851 pooled, 0.830 per-position; Half 0.733, 0.796,
+0.840; standard 0.775, 0.976, 0.915. DDF vs EDDF rank correlation rises to 0.891 (PPR), 0.858 (Half),
+0.859 (standard) from 0.859, 0.800, 0.796.
+
+**Position bias** (mean EDDF minus DDF over the 100 players with the highest DDF Value; `curve_compare.json`
+also has every player both price):
+
+| position | scoring | pooled | per-position |
+| -- | -- | -- | -- |
+| RB | PPR / Half / standard | -2.37 / -1.88 / +1.19 | -0.05 / -0.33 / +0.55 |
+| WR | PPR / Half / standard | +1.94 / +2.04 / -0.38 | +0.41 / +1.20 / -0.53 |
+| TE | PPR / Half / standard | -2.46 / -2.53 / -6.54 | -3.38 / -3.47 / -3.56 |
+
+Running backs and wide receivers come back close to the charts. **The tight-end bias is not fixed**:
+it gets worse in PPR and Half PPR (-2.5 to -3.4 and -3.5) and better in standard (-6.5 to -3.6). A
+per-position curve already prices each tight end on tight ends' own anchors, so what remains is the
+rankers' own view: the experts rank tight ends lower overall than the charts value them (Brock Bowers,
+DDF rank 17 in Half PPR, EDDF rank 48; value 35.3 to 17.6). The curve shape cannot correct a rank the
+lists give.
+
+**Costs of the change** (Half PPR, one vote per expert): a scrambled chart now moves values 2.48
+against 2.12 for DDF (1.83 with the pooled curve), `grouped` 1.96 and `chart_floor` 2.05; dropping one
+chart moves them 0.33 against 0.24 for DDF (0.24 pooled), 0.24 under `grouped`; the largest
+single-player move is 17.7 points (10.7 pooled); top-24 overlap with DDF is 22 in Half PPR, 19 in
+PPR and 21 in standard. Week-over-week change is 0.36 against 0.51 (0.37 pooled). Independence is
+unchanged: 11 fresh lists, 1.10 effective views, 79% of the weight.
+
+| variant (Half PPR, as enabled, per-position curves) | LOO rho | LOO rho, ranked | LOO MAE | scramble MAE / rho | drop-one MAE / rho | week-change MAE | chart weight |
+| -- | -- | -- | -- | -- | -- | -- | -- |
+| none (DDF) | 0.919 | 0.924 | 0.73 | 2.12 / 0.696 | 0.24 / 0.980 | 0.51 | 100% |
+| per_expert | 0.811 | 0.831 | 0.84 | 2.48 / 0.667 | 0.33 / 0.986 | 0.36 | 21% |
+| site_once | 0.811 | 0.831 | 0.83 | 2.43 / 0.670 | 0.33 / 0.986 | 0.39 | 25% |
+| grouped | 0.811 | 0.831 | 0.72 | 1.96 / 0.663 | 0.24 / 0.985 | 0.42 | 75% |
+| chart_floor 50% | 0.811 | 0.831 | 0.75 | 2.05 / 0.673 | 0.26 / 0.986 | 0.37 | 50% |
+
+**Reading.** Per-position curves recover about half of the agreement lost to the lists (Half PPR
+0.752 to 0.811 against 0.919 for DDF) and remove the running-back and wide-receiver bias, but they
+cost robustness to a scrambled or dropped chart, because each position's curve rests on fewer anchors,
+and they leave the tight-end gap, which comes from the rankers' own ranks. The weights again change
+the error, not the rank agreement.
+
+## The registry as enabled (2026-11-28), pooled curve: what it costs and what it buys
 
 This section is the shipped registry: the 21 feed rows plus Razzball, Rotoballer and StickToTheModel
 at the scorings they support, rescaled to the DDF total, one vote per expert unless stated. Every
@@ -114,7 +176,7 @@ have updated, then `tools/research/eddf_prepare.py`, `eddf_candidates.py`, `eddf
 `eddf_variants.py` and `eddf_study.py` on the new lists and compare each metric with this date.
 A session or job with `ros_rankings` access would add the daily snapshots since 2026-10-29 at once.
 
-## Weight consequence (feed lists only)
+## Weight consequence (feed lists only, pooled curve)
 
 With 3 charts and 8 to 9 fresh rankers the charts carry 25 to 27% of the weight. Moving from DDF
 to EDDF with random subsets of the fresh rankers (mean abs value change against DDF in points,
@@ -133,7 +195,7 @@ Most of the change arrives with the first three rankers. Pooling all rankers int
 differs from one-vote-each by 0.34 to 0.40 points with rank correlation of 0.999 or more: the choice
 matters for weight share and for what happens when a source drops, not for today's values.
 
-## Evidence on real Adjusted values, feed lists only (QBs excluded, the default; Tuesday rule)
+## Evidence on real Adjusted values, feed lists only, pooled curve (QBs excluded; Tuesday rule)
 
 Leave one chart out: predict the held-out chart's Adjusted value from the other two charts (DDF
 estimate) or from the other two plus the fresh rankers (EDDF). Anchors use the other two charts
@@ -180,7 +242,7 @@ a test of rankers over time: one list date exists in this run.
 Coverage: DDF prices 669 players, EDDF 674 (five players the rankers list and no chart prices);
 players priced by one source only: 0 (DDF), 1 to 3 (EDDF, ranker-only players).
 
-## Variants side by side, feed lists only (Jeremy, 2026-11-28: "One per expert" is primary)
+## Variants side by side, feed lists only, pooled curve (Jeremy, 2026-11-28: "One per expert" is primary)
 
 `variants.json`, same harness and inputs. none = DDF Value; per_expert = every list one vote
 (Jeremy's choice, the default); site_once = a publisher's lists share one vote (only the three
@@ -215,7 +277,7 @@ his; this PR builds per_expert as the default and ships site_once and grouped as
 
 ## Candidate sources: the consensus study (Jeremy, 2026-11-28)
 
-*Superseded in its recommendation by Jeremy's ruling later on 2026-11-28 (see Decisions and the section on the registry as enabled): Razzball, Rotoballer and StickToTheModel are now enabled. The study's numbers stand.*
+*The tables in this section are the pooled-curve run (`pooled_curve/study.json`); the per-position rerun is `study.json` and moves every rank correlation up (Half PPR, one vote per expert: feed 0.839, +analyst 0.840, +models 0.788, against 0.803, 0.803, 0.740 pooled; DDF 0.919), with every bootstrap interval of the difference from DDF still excluding zero and the same order of the sets. Superseded in its recommendation by Jeremy's ruling later on 2026-11-28 (see Decisions and the section on the registry as enabled): Razzball, Rotoballer and StickToTheModel are now enabled. The study's numbers stand.*
 
 `study.json`, `candidates.json`, `candidate_study.json`; `tools/research/eddf_candidates.py` and
 `eddf_study.py`. Candidate rows are enabled only inside the harness; the registry rows stay
@@ -309,10 +371,11 @@ only departures. The weight sits with close to one view, not with eleven.
 ## Before and after
 
 `before_after_<scoring>.csv`: every player with a DDF or EDDF value, both values, ranks and source
-counts. Spearman DDF vs EDDF over the 669 common players, as enabled: 0.859 (PPR), 0.800 (Half), 0.796
-(standard); top-24 overlap 22, 22, 20; largest single-player move 9.7, 10.7, 15.3 points.
-Half PPR top: Gibbs 83.97 to 82.16, Robinson 66.10 to 67.67, McCaffrey 69.76 to 66.03,
-Smith-Njigba 67.60 to 65.59, Walker 66.10 to 59.20 (the csv files are the as-enabled run).
+counts. Spearman DDF vs EDDF over the 669 common players, as enabled with per-position curves: 0.891 (PPR),
+0.858 (Half), 0.859 (standard); top-24 overlap 19, 22, 21; largest single-player move 17.4, 17.7, 16.7
+points (Brock Bowers, TE). Half PPR top: Gibbs 83.97 to 82.09, Robinson 66.10 to 71.45, McCaffrey
+69.76 to 69.44, Smith-Njigba 67.60 to 65.72, Walker 66.10 to 61.16. The csv files in
+`docs/research/data/jeg1735/` are this run; the pooled-curve run is in `pooled_curve/`.
 
 ## Limits
 
@@ -333,13 +396,15 @@ Smith-Njigba 67.60 to 65.59, Walker 66.10 to 59.20 (the csv files are the as-ena
 
 ## Recommendation
 
-Built as Jeremy ruled: one per expert primary, the Tuesday reset, the rescale, and Razzball,
-Rotoballer and StickToTheModel enabled (the candidate study had recommended none for now; he chose to
-add points of view, and the cost is shown above). Keep the EDDF stage off. As enabled, per_expert
-costs agreement with a held-out chart (Half PPR rho 0.752 vs 0.919 for DDF) and buys steadier weekly
-values (0.37 vs 0.51, partly built in), a scrambled chart moves it less (mostly the rescale), and
-the lists are about 1.1 independent views holding 79% of the weight. Weights change the error, not the
-rank agreement: grouped and chart_floor give a mean error of 0.71 and 0.72 against 0.80 at the same
-rho. Options for Jeremy, none substituted here: keep per_expert; site_once (no visible effect);
-grouped; or chart_floor (the charts keep at least half the weight). FanDuel and GWTTKB are re-checked
-after the next Tuesday reset, and the second list date is planned for 2 Dec.
+Built as Jeremy ruled: one per expert primary, the Tuesday reset, the rescale, Razzball, Rotoballer
+and StickToTheModel enabled, per-position curves (QBs excluded), release held. Keep the EDDF stage
+off. As enabled with per-position curves, per_expert costs agreement with a held-out chart (Half PPR
+rho 0.811 vs 0.919 for DDF; 0.752 with the pooled curve), buys steadier weekly values (0.36 vs 0.51,
+partly built in), and costs robustness to a scrambled or dropped chart (2.48 vs 2.12 and 0.33 vs 0.24).
+The 11 fresh lists are about 1.10 independent views holding 79% of the weight, and tight ends sit 3.4
+to 3.6 below DDF among the top players because the rankers rank them lower. Weights change the error,
+not the rank agreement: grouped and chart_floor give 0.72 and 0.75 against 0.84 at the same rho, and
+restore most of the scramble and drop-one robustness (1.96 and 2.05; 0.24 and 0.26). Options for
+Jeremy, none substituted here: keep per_expert; site_once (no visible effect); grouped; chart_floor.
+Release is held until he reviews this and the second list date (on or after Wed 2 Dec). FanDuel and
+GWTTKB are re-checked after the next Tuesday reset.

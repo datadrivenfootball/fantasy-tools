@@ -56,13 +56,26 @@
   }
 
   function impliedValues(ranks, anchors, posOf, cfg) {
-    var excl = cfg.exclude_positions, xs = [], ys = [];
+    var excl = cfg.exclude_positions, fit = [];
     Object.keys(anchors).forEach(function (pk) {
-      if (ranks[pk] !== undefined && excl.indexOf(posOf[pk]) < 0) { xs.push(ranks[pk]); ys.push(anchors[pk]); }
+      if (ranks[pk] !== undefined && excl.indexOf(posOf[pk]) < 0) fit.push([pk, ranks[pk], anchors[pk]]);
     });
-    if (xs.length < cfg.min_anchors) return {};
-    var f = isotonicNonincreasing(xs, ys), out = {};
-    Object.keys(ranks).forEach(function (pk) { if (excl.indexOf(posOf[pk]) < 0) out[pk] = f(ranks[pk]); });
+    if (fit.length < cfg.min_anchors) return {};
+    var pooled = isotonicNonincreasing(fit.map(function (f) { return f[1]; }), fit.map(function (f) { return f[2]; }));
+    var curves = {};
+    if (cfg.curve_mode !== "pooled") {
+      var minPos = cfg.min_position_anchors === undefined ? 6 : cfg.min_position_anchors, byPos = {};
+      fit.forEach(function (f) { (byPos[posOf[f[0]]] = byPos[posOf[f[0]]] || []).push(f); });
+      Object.keys(byPos).forEach(function (pos) {
+        if (byPos[pos].length >= minPos) {
+          curves[pos] = isotonicNonincreasing(byPos[pos].map(function (f) { return f[1]; }), byPos[pos].map(function (f) { return f[2]; }));
+        }
+      });
+    }
+    var out = {};
+    Object.keys(ranks).forEach(function (pk) {
+      if (excl.indexOf(posOf[pk]) < 0) out[pk] = (curves[posOf[pk]] || pooled)(ranks[pk]);
+    });
     return out;
   }
 

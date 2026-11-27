@@ -13,8 +13,9 @@ Rank-implied value of one ranker, in one scoring:
   1. Anchors: players whose chart value moved under `anchor_stability` of its mean over the
      last `anchor_weeks` weekly chart pulls. Chart values only, never a curve value, so the
      curve is never fitted to itself.
-  2. Curve: non-increasing isotonic regression of anchor value on the ranker's overall rank,
-     pooled across positions, clipped outside the anchors' rank range.
+  2. Curve: non-increasing isotonic regression of anchor value on the ranker's overall rank, one
+     curve per position (`curve_mode`, default per_position; pooled across positions is the option),
+     clipped outside the anchors' rank range.
   3. Every ranked player of a non-excluded position gets curve(rank). Positions in
      `exclude_positions` (default QB: a pooled curve made QBs worse) get no implied value.
 
@@ -117,14 +118,24 @@ def stable_anchors(history: list[dict], stability: float, floor_frac: float) -> 
 
 
 def implied_values(ranks: dict, anchors: dict, pos_of: dict, cfg: dict) -> dict:
-    """{player_key: implied value} for one ranker, one scoring. `ranks` is
-    {player_key: overall rank}. Empty when fewer than `min_anchors` anchors are ranked."""
+    """{player_key: implied value} for one ranker, one scoring. `ranks` is {player_key: overall
+    rank}. Empty when fewer than `min_anchors` anchors are ranked.
+    curve_mode "per_position" (default; Jeremy, 2026-11-27): one curve per position fitted on that
+    position's anchors, so a pooled curve no longer pulls tight ends below the charts; a position with
+    fewer than `min_position_anchors` anchors uses the pooled curve. "pooled" is the first design:
+    one curve for every non-excluded position."""
     excl = set(cfg["exclude_positions"])
-    fit = [(ranks[pk], v) for pk, v in anchors.items() if pk in ranks and pos_of.get(pk) not in excl]
+    fit = [(pk, ranks[pk], v) for pk, v in anchors.items() if pk in ranks and pos_of.get(pk) not in excl]
     if len(fit) < cfg["min_anchors"]:
         return {}
-    f = isotonic_nonincreasing([r for r, _ in fit], [v for _, v in fit])
-    return {pk: f(r) for pk, r in ranks.items() if pos_of.get(pk) not in excl}
+    pooled = isotonic_nonincreasing([r for _, r, _ in fit], [v for _, _, v in fit])
+    curves = {}
+    if cfg.get("curve_mode", "per_position") == "per_position":
+        for pos in {pos_of[pk] for pk, _, _ in fit}:
+            pts = [(r, v) for pk, r, v in fit if pos_of[pk] == pos]
+            if len(pts) >= cfg.get("min_position_anchors", 6):
+                curves[pos] = isotonic_nonincreasing([r for r, _ in pts], [v for _, v in pts])
+    return {pk: curves.get(pos_of.get(pk), pooled)(r) for pk, r in ranks.items() if pos_of.get(pk) not in excl}
 
 
 def week_reset(as_of: date, weekday: int | None) -> date | None:

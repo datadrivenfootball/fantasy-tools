@@ -114,6 +114,58 @@ class Rules(unittest.TestCase):
         self.assertFalse(eddf.available({"teams": 10, "superflex": 0})[0])
 
 
+class CurveMode(unittest.TestCase):
+    """Jeremy, 2026-11-27: per-position curves (QBs still excluded); pooled stays as the option."""
+    POS2 = {i: ("RB" if i <= 6 else "TE") for i in range(1, 13)}
+    ANCH = {i: (100.0 - 5 * i if i <= 6 else 90.0 - 2 * (i - 6)) for i in range(1, 13)}  # TEs sit above the RBs ranked ahead of them
+    RK = {i: float(i) for i in range(1, 13)}
+    CFG = {"exclude_positions": ["QB"], "min_anchors": 4, "min_position_anchors": 3}
+
+    def test_per_position_fits_each_position_on_its_own_anchors(self):
+        iv = eddf.implied_values(self.RK, self.ANCH, self.POS2, {**self.CFG, "curve_mode": "per_position"})
+        for i, v in self.ANCH.items():
+            self.assertAlmostEqual(iv[i], v, places=9)  # each position's anchors are already monotone
+
+    def test_pooled_curve_is_one_curve_for_every_position(self):
+        iv = eddf.implied_values(self.RK, self.ANCH, self.POS2, {**self.CFG, "curve_mode": "pooled"})
+        self.assertAlmostEqual(iv[7], iv[7])
+        self.assertNotAlmostEqual(iv[7], self.ANCH[7], places=3)  # pooled pulls the TE off its own anchor
+        self.assertTrue(all(iv[a] >= iv[b] for a, b in zip(range(1, 12), range(2, 13))))
+
+    def test_default_is_per_position_and_few_anchors_fall_back_to_the_pooled_curve(self):
+        iv = eddf.implied_values(self.RK, self.ANCH, self.POS2, self.CFG)
+        self.assertAlmostEqual(iv[8], self.ANCH[8], places=9)
+        few = eddf.implied_values(self.RK, self.ANCH, self.POS2, {**self.CFG, "min_position_anchors": 7})
+        pooled = eddf.implied_values(self.RK, self.ANCH, self.POS2, {**self.CFG, "curve_mode": "pooled"})
+        self.assertEqual(few, pooled)
+
+    def test_qb_stays_excluded_in_both_modes(self):
+        pos = {**self.POS2, 1: "QB"}
+        for mode in ("pooled", "per_position"):
+            self.assertNotIn(1, eddf.implied_values(self.RK, self.ANCH, pos, {**self.CFG, "curve_mode": mode}))
+
+    def test_per_position_removes_most_of_the_rb_and_wr_bias_on_real_values(self):
+        sys.path.insert(0, str(ROOT / "tools/research"))
+        import eddf_evidence as E
+        import value_reference as vr
+        cfg = eddf.load_config()
+        self.assertEqual(cfg["curve_mode"], "per_position")
+        inp = vr.Inputs.load(vr.FIXTURE, vr.PLAYERS)
+        hist = vr.History(vr.REPO / "data/history")
+        wm, charts, pos_of, _, _ = E.adjusted_by_week(inp, hist, "half_ppr", [12, 11, 10])
+        lists, vint = E.load_lists("half_ppr")
+        ddf = eddf.chart_only({c: wm[12][c] for c in charts}, pos_of)
+        top = sorted(ddf, key=lambda p: -ddf[p])[:100]
+        bias = {}
+        for mode in ("pooled", "per_position"):
+            res = E.run_eddf({**cfg, "curve_mode": mode}, charts, wm, lists, vint, pos_of, date(2026, 11, 27), "half_ppr", [12, 11, 10])
+            e = {pk: v["value"] for pk, v in res["values"].items()}
+            bias[mode] = {pos: sum(e[p] - ddf[p] for p in top if pos_of[p] == pos) / sum(1 for p in top if pos_of[p] == pos)
+                          for pos in ("RB", "WR")}
+        for pos in ("RB", "WR"):
+            self.assertLess(abs(bias["per_position"][pos]), abs(bias["pooled"][pos]), pos)
+
+
 class Variants(unittest.TestCase):
     CFGV = {**CFG, "rankers": [{"id": "a", "scoring": ["half_ppr"], "group": "G"},
                                {"id": "b", "scoring": ["half_ppr"], "group": "G"},
