@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DDF account (staging)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/next/styles.css">
+<style>
+  body{font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;color:#12202c}
+  .eyebrow,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+  main{max-width:880px}
+  header .brand{font-size:15px;overflow-wrap:anywhere}
+  .stage{display:inline-block;margin-left:10px;font:600 11px "IBM Plex Mono",monospace;letter-spacing:.1em;background:#e96528;color:#fff;border-radius:4px;padding:3px 7px;vertical-align:middle}
+  .steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:8px 0 20px}
+  .steps li{padding:5px 9px;border-radius:4px;background:var(--neutral);font:12px "IBM Plex Mono",monospace}
+  .steps li[aria-current=step]{background:var(--selected);color:var(--primary);font-weight:700}
+  .steps li.done{color:var(--primary)}
+  .steps li.done::before{content:"✓ "}
+  label.field{display:block;margin:10px 0;font-weight:600}
+  label.field input,label.field select{display:block;margin-top:6px;width:100%;max-width:420px;padding:11px 12px;border:1px solid #bec8c1;border-radius:8px;background:#fff;font-weight:400}
+  .roster-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-width:520px}
+  .roster-grid label{font-size:13px;font-weight:600}
+  .roster-grid input{display:block;width:100%;margin-top:4px}
+  .msg{padding:12px 14px;border-radius:8px;margin:12px 0;font-size:14px}
+  .msg.err{background:var(--attention);color:var(--attention-text)}
+  .msg.ok{background:var(--selected);color:var(--primary)}
+  .msg:empty{display:none}
+  .list{list-style:none;padding:0;margin:10px 0}
+  .list li{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--border)}
+  .list li:last-child{border-bottom:0}
+  pre{white-space:pre-wrap;word-break:break-word;background:#0f1f1a;color:#d7ecd9;padding:14px;border-radius:8px;font:12px/1.5 "IBM Plex Mono",monospace;max-height:70vh;overflow:auto}
+  td.number,th.number{text-align:right}
+  tr.mine td{background:#e8f5ee;font-weight:650}
+  .kv{display:grid;grid-template-columns:minmax(120px,38%) 1fr;gap:6px 14px;font-size:14px}
+  .kv dt{color:var(--muted)}
+  .kv dd{margin:0;font-weight:600}
+  button[disabled]{opacity:.55;cursor:not-allowed}
+  .danger{border-color:#a83e12;color:#a83e12}
+  @media(max-width:760px){.roster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}td,th{padding:9px 7px}}
+</style>
+</head>
+<body>
+<header><div class="header-inner"><div class="brand">DATA DRIVEN FOOTBALL<span class="stage">STAGING</span><small>Account and league connections</small></div></div></header>
+<main>
+  <p class="eyebrow">Private test build · JEG-1732</p>
+  <ol class="steps" id="steps">
+    <li data-step="signin">Sign in</li><li data-step="connect">Connect</li><li data-step="league">Pick league</li><li data-step="team">Your team</li><li data-step="settings">Confirm settings</li><li data-step="view">Your league</li>
+  </ol>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
+
+  <section class="card" id="signin" hidden>
+    <h1>Sign in to DDF</h1>
+    <p>We email you a link. No password. DDF never asks for your Yahoo, ESPN or Sleeper password.</p>
+    <form id="email-form">
+      <label class="field">Email<input type="email" id="email" autocomplete="email" required placeholder="you@example.com"></label>
+      <div class="cluster"><button class="primary" type="submit">Email me a sign-in link</button></div>
+    </form>
+    <p class="muted"><small>Opened the link in a different browser than this one? It still works: the link signs you in wherever it opens.</small></p>
+    <hr style="border:0;border-top:1px solid var(--border);margin:20px 0">
+    <button type="button" id="google">Sign in with Google</button>
+  </section>
+
+  <section id="app" hidden>
+    <div class="row"><p class="muted" style="margin:0">Signed in as <strong id="who"></strong></p><button type="button" id="signout">Sign out</button></div>
+
+    <section class="card" id="connect">
+      <h2>Connect a platform</h2>
+      <p class="muted"><small>DDF only reads. It never changes your lineup, waivers or trades.</small></p>
+      <h3>Sleeper</h3>
+      <form id="sleeper-form" class="cluster"><input id="sleeper-user" placeholder="Sleeper username" autocapitalize="off" autocomplete="off" required><button class="primary" type="submit">Find my leagues</button></form>
+      <h3 style="margin-top:22px">Yahoo</h3>
+      <p class="muted" id="yahoo-note"><small>Official Yahoo sign-in.</small></p>
+      <button type="button" id="yahoo">Connect Yahoo</button>
+      <h3 style="margin-top:22px">ESPN (public leagues)</h3>
+      <form id="espn-form" class="cluster"><input id="espn-id" placeholder="League link or league ID" autocomplete="off" required><input id="espn-season" type="number" min="2018" max="2100" placeholder="Season" style="width:100px"><button type="submit">Connect</button></form>
+      <p class="muted"><small>Private ESPN leagues need the DDF browser extension (a later step).</small></p>
+    </section>
+
+    <section class="card" id="conns">
+      <h2>Your connections</h2>
+      <ul class="list" id="conn-list"></ul>
+    </section>
+
+    <section class="card" id="picker" hidden>
+      <h2>Pick a league</h2>
+      <ul class="list" id="league-options"></ul>
+    </section>
+
+    <section class="card" id="leagues">
+      <h2>Your leagues</h2>
+      <ul class="list" id="league-list"></ul>
+    </section>
+
+    <section class="card" id="league" hidden>
+      <div class="row"><div><p class="eyebrow" id="lg-platform"></p><h2 id="lg-name" style="margin:0"></h2><p class="muted" style="margin:4px 0 0"><small id="lg-pulled"></small></p></div>
+        <div class="cluster"><button type="button" id="refresh">Refresh now</button><button type="button" id="close-league">Close</button></div></div>
+
+      <div id="team-step">
+        <h3 style="margin-top:22px">Which team is yours?</h3>
+        <form id="team-form" class="cluster"><select id="team-select" aria-label="Your team"></select><button class="primary" type="submit">This is my team</button></form>
+      </div>
+
+      <div id="settings-step">
+        <h3 style="margin-top:22px">Confirm your league settings</h3>
+        <p class="muted"><small>Read from the platform. Once you confirm, these drive DDF for this league. <span id="fit-note"></span></small></p>
+        <form id="settings-form">
+          <label class="field">Scoring<select id="s-scoring"><option value="ppr">PPR</option><option value="half_ppr">Half PPR</option><option value="standard">Standard</option></select></label>
+          <label class="field">Teams DDF values<select id="s-teams"><option>8</option><option>10</option><option>12</option><option>14</option></select></label>
+          <label class="field" style="font-weight:600"><input type="checkbox" id="s-sf" style="display:inline;width:auto;margin-right:8px">Superflex</label>
+          <div class="roster-grid" id="s-roster"></div>
+          <div class="cluster" style="margin-top:14px"><button class="primary" type="submit">Confirm settings</button><span class="muted" id="confirmed-at"></span></div>
+        </form>
+      </div>
+
+      <div id="view-step">
+        <div class="row" style="margin-top:26px"><h3 style="margin:0">Pulled from the platform</h3>
+          <div class="cluster"><button type="button" data-view="plain" aria-pressed="true">Plain</button><button type="button" data-view="json" aria-pressed="false">JSON</button><button type="button" id="raw">Raw platform data</button></div></div>
+        <div id="plain"></div>
+        <pre id="json" hidden></pre>
+      </div>
+      <div class="cluster" style="margin-top:22px"><button type="button" class="danger" id="delete-league">Remove this league</button></div>
+    </section>
+
+    <section class="card">
+      <h2>Account</h2>
+      <p class="muted"><small>Deleting your account removes every connection, stored token and pulled league. It cannot be undone.</small></p>
+      <button type="button" class="danger" id="delete-account">Delete my DDF account</button>
+    </section>
+  </section>
+  <p class="footer">Staging build for testing sign-in and league connections. Not the live site. Standings and schedules shown here stay private.</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

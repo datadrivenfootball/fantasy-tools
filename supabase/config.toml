@@ -9,3 +9,8 @@ verify_jwt = false
 
 [functions.mcp]
 verify_jwt = false
+
+# JEG-1732: signed-in staging. The function checks the Supabase user JWT itself;
+# the Yahoo OAuth callback arrives without one.
+[functions.ddf-account]
+verify_jwt = false
