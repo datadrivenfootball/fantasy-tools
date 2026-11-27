@@ -76,35 +76,47 @@ players x Standard and PPR).
 4. **ESPN** is an unofficial public endpoint (no sign-in, no bot block).
    Low risk, but undocumented and can change.
 
-## Vegas season player props: licensed feeds and the paste path
+## Vegas season player props: pasted by Jeremy
 
-Searched 2026-11-27. No provider's published plan clearly states that it
-carries NFL regular-season player stat totals (passing, rushing and
-receiving yards and TDs, receptions). Ask each for a sample of the
-DraftKings/FanDuel "season totals" markets before buying. Prices are as
-published, or as reported by third parties where marked.
+Jeremy, 2026-11-27: "I'll paste the lines." No scraping and no
+bot-protection workarounds. A licensed odds feed (TheRundown, The Odds API,
+SportsDataIO, OpticOdds) remains an option if pasting gets tedious; none
+confirmed season player stat totals in its published plans.
 
-| Provider | Season player props | Price | Notes |
-| --- | --- | --- | --- |
-| TheRundown (therundown.io) | Its docs list season-long NFL yardage under futures; futures are "early access" on Ultra and up | Ultra $399/mo on one page, $599/mo on its pricing page (conflict); player props from $69/mo (Starter) | Self-serve; closest match found |
-| The Odds API (the-odds-api.com) | Futures/outrights for selected competitions; player season totals not confirmed | Free 500 credits; $30 (20K), $59 (100K), $119 (5M), $249 (15M) per month | Cheapest self-serve; credits per market x region |
-| SportsDataIO | Futures and props, including season win totals; separate props/futures endpoints and key | Not published (contact) | Enterprise; history moves to a warehouse after 30 days |
-| OpticOdds / OddsJam | Outrights and player props for NFL | Not published; one third-party review reports about $5,000/mo (unverified) | Enterprise |
-| Prop Professor (enterprise) | Futures boards per league | From $500/mo (published) | Coverage of season stat totals not stated |
+Parser: `app/draft/vegas-paste.js` (pure, runs in the browser or Node).
+Snapshot tool: `tools/draft_vegas_paste.mjs`. Tests:
+`tests/test_draft_vegas_paste.py`. One pasted snapshot is dated and is the
+same for every league; it has the row shape of the 2026-09-12 export, so it
+feeds ours through the same path (`--vegas` in the backtest and simulator;
+`vegas` in `DraftEngine.ddfDraftValues`, through `vegasStatLine`).
 
-**Paste path (no license, no scraping).** Preseason, Jeremy (or any user)
-opens a sportsbook's NFL season player props page in their own browser
-(DraftKings "Player Futures", FanDuel "Regular Season" player stats), selects
-all, copies and pastes into the tool. A parser (Phase 1, not built) reads
-lines of the form "Player, market, over/under line" for the seven markets in
-`VEGAS_MARKETS` and feeds `vegasStatLine`. The paste is the user's own copy
-for their own use; nothing is fetched by us. Optional: Jeremy pastes once a
-week from May to Week 1 and the pull stores it as recurring data.
+### How to paste
 
-Sources: [TheRundown player props API](https://therundown.io/player-props-api),
-[TheRundown pricing](https://therundown.io/pricing/api),
-[The Odds API](https://the-odds-api.com/),
-[SportsDataIO betting data](https://sportsdata.io/betting-data),
-[OpticOdds NFL API](https://opticodds.com/sports/nfl),
-[Prop Professor enterprise](https://www.propprofessor.com/enterprise),
-[odds API comparison (SportsGameOdds)](https://sportsgameodds.com/comparing-odds-api-providers/).
+1. In your own browser, open a sportsbook's NFL **season** player props:
+   DraftKings "Player Futures" or FanDuel "Regular Season" player stats. One
+   market per page is fine (for example "Regular Season Receiving Yards").
+2. Select all (Cmd+A), copy (Cmd+C), and paste into a text file, one or more
+   markets in one file. Keep the market header ("Regular Season Passing
+   Yards") in what you copy; the parser reads the market from it.
+3. Run:
+   `node tools/draft_vegas_paste.mjs --in paste.txt --players <FantasyPros projection export> --season 2026 --date YYYY-MM-DD --out <folder>`
+   (`--date` = the day you copied the lines; `--season` = the season the
+   lines are for).
+4. If it prints "Saved N lines", the snapshot is
+   `<folder>/vegas_<date>.json`. If it prints "Not saved", fix or remove the
+   listed lines (or add a missing player name) and run it again. Nothing is
+   saved while any line is unreadable.
+
+What it reads: passing, rushing and receiving yards and TDs, and receptions,
+in three layouts: a market header then name / "O 4100.5" lines; a
+"Player - Regular Season Passing Yards" header then Over / Under; or one line
+"Player Over 104.5 Receptions -115". It uses the over line (the under only
+when there is no over), ignores odds and page chrome, and refuses a line for
+an unknown player, a number outside a plausible season range, a season
+other than `--season`, two different over lines for the same player and
+market, or any over/under it cannot read.
+
+Storage: the shared Supabase table for pasted snapshots
+(`supabase/migrations/draft_vegas_lines_20261127.sql`, `draft_vegas_lines`)
+is written but **not applied**; it needs Jeremy's yes (the 2026-11-27 yes
+covered the draft-pull deploy only). Until then a snapshot is a file.
