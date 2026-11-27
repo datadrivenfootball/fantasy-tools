@@ -25,7 +25,7 @@ app/trade-value-chart/assets/eddf-model.js; tests/fixtures/eddf_parity.json pins
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Iterable
 
@@ -126,9 +126,20 @@ def implied_values(ranks: dict, anchors: dict, pos_of: dict, cfg: dict) -> dict:
     return {pk: f(r) for pk, r in ranks.items() if pos_of.get(pk) not in excl}
 
 
+def week_reset(as_of: date, weekday: int | None) -> date | None:
+    """The most recent `weekday` (Monday = 0) on or before `as_of`: the day the prior week's
+    games are in the books and every list from before it is a week old."""
+    if weekday is None:
+        return None
+    return as_of - timedelta(days=(as_of.weekday() - weekday) % 7)
+
+
 def ranker_status(ranker: dict, vintage: str | None, as_of: date, stale_days: int,
-                  scoring: str) -> dict:
-    """Why a ranker is in or out: {id, in, reason}."""
+                  scoring: str, reset_weekday: int | None = None) -> dict:
+    """Why a ranker is in or out: {id, in, reason}.
+    A list goes stale at the early-morning Tuesday reset (Jeremy, 2026-11-27: "Ranks should go
+    stale every Tuesday early morning after the prior weeks games were played"): fresh only if its
+    own source_vintage is on or after the most recent reset day. `stale_days` is the backstop."""
     if not ranker.get("enabled", True):
         return {"id": ranker["id"], "in": False, "reason": "disabled in the registry"}
     if scoring not in ranker["scoring"]:
@@ -136,6 +147,10 @@ def ranker_status(ranker: dict, vintage: str | None, as_of: date, stale_days: in
     if vintage is None:
         return {"id": ranker["id"], "in": False, "reason": "no list read"}
     age = (as_of - date.fromisoformat(vintage)).days
+    reset = week_reset(as_of, reset_weekday)
+    if reset is not None and date.fromisoformat(vintage) < reset:
+        return {"id": ranker["id"], "in": False,
+                "reason": f"stale: list updated {vintage}, before the {reset.isoformat()} weekly reset"}
     if age > stale_days:
         return {"id": ranker["id"], "in": False, "reason": f"stale: list updated {vintage}, {age} days old (limit {stale_days})"}
     return {"id": ranker["id"], "in": True, "reason": f"fresh: updated {vintage}, {age} days old"}
@@ -180,7 +195,7 @@ def eddf(chart_adjusted: dict, lists: dict, vintages: dict, anchor_history: list
     anchors = stable_anchors(anchor_history, cfg["anchor_stability"], cfg["anchor_floor_frac"])
     status, implied = [], {}
     for r in cfg["rankers"]:
-        st = ranker_status(r, vintages.get(r["id"]), as_of, cfg["stale_days"], scoring)
+        st = ranker_status(r, vintages.get(r["id"]), as_of, cfg["stale_days"], scoring, cfg.get("stale_weekday"))
         if st["in"]:
             vals = implied_values(lists.get(r["id"], {}), anchors, pos_of, cfg)
             if not vals:

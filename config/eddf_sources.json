@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides.",
+ "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides. stale_weekday 1 = Tuesday: a list is fresh only if updated on or after the most recent Tuesday (Jeremy, 2026-11-27); stale_days stays as a backstop.",
  "stale_days": 14,
  "anchor_weeks": 3,
  "anchor_stability": 0.1,
@@ -401,5 +401,6 @@
    "candidate": true,
    "group": "cand-footballguys-qb"
   }
- ]
+ ],
+ "stale_weekday": 1
 }

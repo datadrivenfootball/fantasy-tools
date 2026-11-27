@@ -137,7 +137,8 @@ def main():
         vint = {r: dd[scoring]["vintage"] for r, dd in base_lists.items() if scoring in dd}
         clists = {r: {int(pk): v for pk, v in dd[scoring]["ranks"].items()} for r, dd in cands.items() if scoring in dd}
         cvint = {r: dd[scoring]["vintage"] for r, dd in cands.items() if scoring in dd}
-        fresh = [r["id"] for r in cfg["rankers"] if r["id"] in vint and (as_of - date.fromisoformat(vint[r["id"]])).days <= cfg["stale_days"]]
+        fresh = [r["id"] for r in cfg["rankers"] if r["id"] in vint and eddf.ranker_status(
+            r, vint[r["id"]], as_of, cfg["stale_days"], scoring, cfg.get("stale_weekday"))["in"]]
         fp_mean = {}
         anchors = eddf.stable_anchors([E.chart_mean({k: wm[w][k] for k in charts}) for w in weeks], cfg["anchor_stability"], cfg["anchor_floor_frac"])
         impl0 = {r: eddf.implied_values(lists[r], anchors, pos_of, cfg) for r in fresh}

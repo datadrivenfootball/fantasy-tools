@@ -65,6 +65,23 @@ class Rules(unittest.TestCase):
         self.assertIn("stale", status["b"]["reason"])
         self.assertEqual(keep["values"][1]["sources"], ["a", "x", "y"])
 
+    def test_weekly_tuesday_reset_makes_older_lists_stale(self):
+        cfg = {**CFG, "stale_weekday": 1}   # 27 Nov 2026 is a Friday: the reset was Tue 24 Nov
+        res = run(cfg=cfg, vint={"a": "2026-11-24", "b": "2026-11-23"})  # both inside the 14-day backstop
+        status = {s["id"]: s for s in res["report"]["rankers"]}
+        self.assertTrue(status["a"]["in"])
+        self.assertFalse(status["b"]["in"])
+        self.assertIn("weekly reset", status["b"]["reason"])
+
+    def test_the_reset_day_itself_counts_the_new_week(self):
+        cfg = {**CFG, "stale_weekday": 1}
+        tue = eddf.ranker_status({"id": "a", "scoring": ["half_ppr"]}, "2026-11-24", date(2026, 11, 24), 14, "half_ppr", 1)
+        mon_list = eddf.ranker_status({"id": "a", "scoring": ["half_ppr"]}, "2026-11-23", date(2026, 11, 24), 14, "half_ppr", 1)
+        self.assertTrue(tue["in"])
+        self.assertFalse(mon_list["in"])  # the Monday list predates Tuesday's reset
+        self.assertEqual(eddf.week_reset(date(2026, 11, 24), 1), date(2026, 11, 24))
+        self.assertEqual(eddf.week_reset(date(2026, 11, 23), 1), date(2026, 11, 17))
+
     def test_ranker_without_this_scoring_is_out_with_a_reason(self):
         s = {x["id"]: x for x in run(vint={"c": "2026-11-26"}, lists={"c": RANKS}, scoring="half_ppr")["report"]["rankers"]}
         self.assertFalse(s["c"]["in"])

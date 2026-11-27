@@ -23,8 +23,12 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
 - Variants (per_expert default, site_once, grouped) and weights: `tests.test_eddf.Variants`.
 - Correction inside the session: the first scramble-robustness figure (EDDF 14 to 26% less moved)
   came from one random permutation; `tools/research/eddf_variants.py` and `eddf_evidence.py` now
-  average 15 shared permutations and show 3 to 8%. Both numbers are in this branch's history only
+  average 15 shared permutations and show about 0 to 4% under the Tuesday rule (3 to 8% under the first 14-day run). Both numbers are in this branch's history only
   as this note; the write-up carries the corrected one.
+- Tuesday reset (Jeremy, 2026-11-27): `tests.test_eddf` pins that a list dated before the most recent
+  Tuesday is stale inside the 14-day backstop and that a Tuesday-dated list is fresh; the JS twin
+  and `tests/fixtures/eddf_parity.json` (regenerated) agree. Evidence reruns: 9 fresh lists in Half
+  PPR instead of 14; the numbers in `docs/research/jeg-1735-eddf.md` are the Tuesday-rule run.
 - Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
   (seven files, all disabled registry rows).
 

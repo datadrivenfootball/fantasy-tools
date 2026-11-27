@@ -68,10 +68,17 @@
 
   function dayNumber(iso) { return Math.floor(Date.parse(iso + "T00:00:00Z") / 86400000); }
 
-  function rankerStatus(ranker, vintage, asOf, staleDays, scoring) {
+  // Monday = 0, as in Python's date.weekday(); 1970-01-01 was a Thursday (3).
+  function weekdayOf(iso) { return (dayNumber(iso) + 3) % 7; }
+
+  function rankerStatus(ranker, vintage, asOf, staleDays, scoring, resetWeekday) {
     if (ranker.enabled === false) return { id: ranker.id, in: false };
     if (ranker.scoring.indexOf(scoring) < 0) return { id: ranker.id, in: false };
     if (vintage === null || vintage === undefined) return { id: ranker.id, in: false };
+    if (resetWeekday !== null && resetWeekday !== undefined) {
+      var reset = dayNumber(asOf) - ((weekdayOf(asOf) - resetWeekday + 7) % 7);
+      if (dayNumber(vintage) < reset) return { id: ranker.id, in: false };
+    }
     return { id: ranker.id, in: dayNumber(asOf) - dayNumber(vintage) <= staleDays };
   }
 
@@ -81,7 +88,7 @@
     var anchors = stableAnchors(anchorHistory, cfg.anchor_stability, cfg.anchor_floor_frac);
     var implied = {}, status = [];
     cfg.rankers.forEach(function (r) {
-      var st = rankerStatus(r, vintages[r.id], asOf, cfg.stale_days, scoring);
+      var st = rankerStatus(r, vintages[r.id], asOf, cfg.stale_days, scoring, cfg.stale_weekday);
       if (st.in) {
         var vals = impliedValues(lists[r.id] || {}, anchors, posOf, cfg);
         if (!Object.keys(vals).length) st = { id: r.id, in: false }; else implied[r.id] = vals;
