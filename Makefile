@@ -720,6 +720,8 @@ test-core:
 	# JEG-1567: every published HTML file is noindex while site_noindex.SITE_NOINDEX is True (needs the built dist/).
 	python3 -m unittest tests.test_site_noindex
 	python3 -m unittest tests.test_spec_reference_value_pipeline
+	# JEG-1735: EDDF alternate value version (off by default): Python reference and JS twin parity.
+	python3 -m unittest tests.test_eddf
 	# JEG-1057: the engine side of the worked example. It ran in no target, so
 	# #867 regenerated the fixture for the new defaults and this went red unseen.
 	python3 -m unittest tests.test_value_pipeline_engine
@@ -1042,6 +1044,8 @@ test-core-shard-2:
 	python3 -m unittest tests.test_v2_phone_context_row_render
 	python3 -m unittest tests.test_v2_phone_trade_rows_render
 	python3 -m unittest tests.test_spec_reference_value_pipeline
+	# JEG-1735: EDDF alternate value version (off by default): Python reference and JS twin parity.
+	python3 -m unittest tests.test_eddf
 	python3 -m unittest tests.test_value_pipeline_engine
 	# JEG-1335: a 1 PPG fringe change moves no other player more than 1.0 DDF Value.
 	python3 -m unittest tests.test_fractional_seats_stability

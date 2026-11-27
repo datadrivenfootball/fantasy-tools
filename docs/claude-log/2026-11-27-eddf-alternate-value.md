@@ -1,0 +1,43 @@
+## 2026-11-27 - EDDF alternate value version (JEG-1735, part of JEG-1733)
+
+Contract: build EDDF, an off-by-default alternate value version (equal-weight mean of the charts'
+Adjusted values plus one rank-implied value per fresh ranker), with a registry, Python reference,
+JS twin, tests and evidence on real Adjusted values. DDF Value must not change. Jeremy, 2026-11-27:
+"every stable source is a separate EQUAL-WEIGHT source in the average, NOT pooled into one 1/5th
+source"; answered "A" (relayed by the lead session) to amend `docs/pipeline-rules.md` section 7 and
+to wire the JS engine only after PR 1332 merges or the hot-file slot is released.
+
+### Verified (check named)
+- Isotonic curve, anchors, stale boundary (14 in, 15 out), QB switch, equal weight with each ranker
+  its own source, chart-down and all-stale cases, registry rows, 12-team/1-QB availability:
+  `tests.test_eddf` (16 tests).
+- DDF Value unchanged: `tests.test_eddf.DdfUnchanged` recomputes the visible-chart mean from the
+  reference's own Adjusted rows (half PPR, 12 teams) and matches `ddf.blended` to 9 places, and
+  asserts `value_reference.py` never mentions eddf.
+- JS twin equals the Python module on `tests/fixtures/eddf_parity.json` (node, 9 places):
+  `tests.test_eddf.JsParity`.
+- Evidence numbers in `docs/research/jeg-1735-eddf.md`: `tools/research/eddf_evidence.py` run on
+  2026-11-27, written to `docs/research/data/jeg1735/evidence.json`.
+- Makefile shard parity after adding the test to test-core and shard 2: `tests.test_validate_shards`.
+
+- Variants (per_expert default, site_once, grouped) and weights: `tests.test_eddf.Variants`.
+- Correction inside the session: the first scramble-robustness figure (EDDF 14 to 26% less moved)
+  came from one random permutation; `tools/research/eddf_variants.py` and `eddf_evidence.py` now
+  average 15 shared permutations and show 3 to 8%. Both numbers are in this branch's history only
+  as this note; the write-up carries the corrected one.
+- Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
+  (seven files, all disabled registry rows).
+
+### Claimed, not confirmed
+- Hot files were not edited (value-model.js, value_reference.py, curve-widget.js, v2.js): the
+  slot is held by PR 1332 (value-model.js) and PR 1473 (v2.js). Only new files plus Makefile,
+  `docs/pipeline-rules.md`, `docs/README.md`.
+- Supabase `ros_rankings` was not read (anon key refused, no auth store read). Lists come from
+  `pipelines/pull_ros_rankings.py` run on 2026-11-27. One list date only; no ranker history.
+- `make validate`, `value_check` at 0 and the rank guard at 0 inversions: see the PR for the run
+  result; this PR touches no DDF code path, so a red there is not from EDDF.
+- The JS engine hook, a live feed, and publishing any EDDF number: not built; each needs the slot
+  and Jeremy's yes.
+- Five private evidence pages were published from `docs/research/data/jeg1735/*.json` by a
+  scratch script that is not in the repo.
+- The relayed "A" and the 2026-11-28 "One per expert" ruling came through the lead session, not typed here.

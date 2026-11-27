@@ -1,0 +1,405 @@
+{
+ "version": 1,
+ "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides.",
+ "stale_days": 14,
+ "anchor_weeks": 3,
+ "anchor_stability": 0.1,
+ "anchor_floor_frac": 0.05,
+ "min_anchors": 8,
+ "exclude_positions": [
+  "QB"
+ ],
+ "rankers": [
+  {
+   "id": "fp-aaron-st-denis",
+   "outlet": "Fantasy Sports Advice Network via FantasyPros",
+   "analyst": "Aaron St Denis (Fantasy Sports Advice Network)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/aaron-st-denis.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-aaron-st-denis"
+  },
+  {
+   "id": "fp-andrew-erickson",
+   "outlet": "FantasyPros via FantasyPros",
+   "analyst": "Andrew Erickson (FantasyPros)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/andrew-erickson.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "FantasyPros"
+  },
+  {
+   "id": "fp-brad-beatson",
+   "outlet": "Bandit Fantasy Football via FantasyPros",
+   "analyst": "Brad Beatson (Bandit Fantasy Football)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/bandit.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-brad-beatson"
+  },
+  {
+   "id": "fp-chris-dell",
+   "outlet": "The Fantasy Edge via FantasyPros",
+   "analyst": "Chris Dell (The Fantasy Edge)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/christopher-dell.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-chris-dell"
+  },
+  {
+   "id": "fp-david-heilman",
+   "outlet": "Dynasty Trade Calculator via FantasyPros",
+   "analyst": "David Heilman (Dynasty Trade Calculator)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/david-heilman.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-david-heilman"
+  },
+  {
+   "id": "fp-derek-brown",
+   "outlet": "FantasyPros via FantasyPros",
+   "analyst": "Derek Brown (FantasyPros)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/derek-brown.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "FantasyPros"
+  },
+  {
+   "id": "fp-james-emrick-wilson",
+   "outlet": "The Armchair Sports Corner via FantasyPros",
+   "analyst": "James Emrick-Wilson (The Armchair Sports Corner)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/james-emrick-wilson.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-james-emrick-wilson"
+  },
+  {
+   "id": "fp-jeff-boggis",
+   "outlet": "Fantasy Football Empire via FantasyPros",
+   "analyst": "Jeff Boggis (Fantasy Football Empire)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/jeff-boggis.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-jeff-boggis"
+  },
+  {
+   "id": "fp-jonathan-stone",
+   "outlet": "Stone Cold Fantasy via FantasyPros",
+   "analyst": "Jonathan Stone (Stone Cold Fantasy)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/jonathan-stone.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-jonathan-stone"
+  },
+  {
+   "id": "fp-justin-fuhr",
+   "outlet": "Pro Football Mania via FantasyPros",
+   "analyst": "Justin Fuhr (Pro Football Mania)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/justin-fuhr.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-justin-fuhr"
+  },
+  {
+   "id": "fp-kelly-smelser",
+   "outlet": "Punch Drunk Wonderland via FantasyPros",
+   "analyst": "Kelly Smelser (Punch Drunk Wonderland)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/kelly-smelser.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-kelly-smelser"
+  },
+  {
+   "id": "fp-kev-wheeler",
+   "outlet": "Wheel Route FF via FantasyPros",
+   "analyst": "Kev Wheeler (Wheel Route FF)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/kevin-wheeler.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-kev-wheeler"
+  },
+  {
+   "id": "fp-kyle-yates",
+   "outlet": "Yates Fantasy Football via FantasyPros",
+   "analyst": "Kyle Yates (Yates Fantasy Football)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/kyle-yates.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-kyle-yates"
+  },
+  {
+   "id": "fp-matheus-chaves",
+   "outlet": "NFL Fantasy BR via FantasyPros",
+   "analyst": "Matheus Chaves (NFL Fantasy BR)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/fantasy-br.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-matheus-chaves"
+  },
+  {
+   "id": "fp-mike-maher",
+   "outlet": "BettingPros via FantasyPros",
+   "analyst": "Mike Maher (BettingPros)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/mike-maher.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-mike-maher"
+  },
+  {
+   "id": "fp-owen-maccarrick",
+   "outlet": "Chop Fantasy Football via FantasyPros",
+   "analyst": "Owen MacCarrick (Chop Fantasy Football)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/owen-maccarrick.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-owen-maccarrick"
+  },
+  {
+   "id": "fp-pat-fitzmaurice",
+   "outlet": "FantasyPros via FantasyPros",
+   "analyst": "Pat Fitzmaurice (FantasyPros)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/pat-fitzmaurice.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "FantasyPros"
+  },
+  {
+   "id": "fp-ryan-linkletter",
+   "outlet": "Blitz Sports Media via FantasyPros",
+   "analyst": "Ryan Linkletter (Blitz Sports Media)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/ryanlinkletter.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-ryan-linkletter"
+  },
+  {
+   "id": "fp-tal-malachovsky",
+   "outlet": "The Fantasy Scout via FantasyPros",
+   "analyst": "Tal Malachovsky (The Fantasy Scout)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/tal-malachovsky.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-tal-malachovsky"
+  },
+  {
+   "id": "fp-ted-chmyz",
+   "outlet": "Fantasy Football Bots via FantasyPros",
+   "analyst": "Ted Chmyz (Fantasy Football Bots)",
+   "scoring": [
+    "half_ppr",
+    "ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/tedchmyz.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-ted-chmyz"
+  },
+  {
+   "id": "fp-wolf-of-roto-street",
+   "outlet": "Roto Street Journal via FantasyPros",
+   "analyst": "Wolf of Roto Street (Roto Street Journal)",
+   "scoring": [
+    "half_ppr",
+    "standard"
+   ],
+   "url": "https://www.fantasypros.com/nfl/rankings/wolf-of-roto-street.php?type=ros&scoring={SCORING}",
+   "how_read": "ros_rankings: source fantasypros_expert_ros, analyst as above (pipelines/pull_ros_rankings.py)",
+   "enabled": true,
+   "group": "fp-wolf-of-roto-street"
+  },
+  {
+   "id": "cand-rsj-wolf",
+   "outlet": "Roto Street Journal (The Wolf), own site",
+   "kind": "analyst",
+   "scoring": [
+    "ppr",
+    "half_ppr",
+    "standard"
+   ],
+   "url": "https://www.rotostreetjournal.com/",
+   "how_read": "psv list, drop the ECR column; duplicates fp-wolf-of-roto-street (same analyst, same date) (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-rsj-wolf"
+  },
+  {
+   "id": "cand-rotoballer",
+   "outlet": "Rotoballer (Nick Mariano)",
+   "kind": "analyst",
+   "scoring": [
+    "ppr",
+    "half_ppr"
+   ],
+   "url": "https://www.rotoballer.com/",
+   "how_read": "csv, two lists by scoring, top 200 (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-rotoballer"
+  },
+  {
+   "id": "cand-gwttkb",
+   "outlet": "GWTTKB board",
+   "kind": "model",
+   "scoring": [
+    "ppr"
+   ],
+   "url": "",
+   "how_read": "csv, PPR 1QB 12-team, model-based, independence unconfirmed (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-gwttkb"
+  },
+  {
+   "id": "cand-razzball",
+   "outlet": "Razzball projections",
+   "kind": "model",
+   "scoring": [
+    "ppr",
+    "half_ppr",
+    "standard"
+   ],
+   "url": "https://razzball.com/",
+   "how_read": "csv ROS points, ranked by points (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-razzball"
+  },
+  {
+   "id": "cand-fanduel",
+   "outlet": "FanDuel Research projections",
+   "kind": "model",
+   "scoring": [
+    "half_ppr"
+   ],
+   "url": "",
+   "how_read": "csv, overall_rank given, half PPR inferred, no update date (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-fanduel"
+  },
+  {
+   "id": "cand-stm",
+   "outlet": "StickToTheModel",
+   "kind": "model",
+   "scoring": [
+    "ppr"
+   ],
+   "url": "",
+   "how_read": "csv ROS points, top 30 per position, ranked by points (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-stm"
+  },
+  {
+   "id": "cand-footballguys-qb",
+   "outlet": "Footballguys (Dave Kluge), QBs only",
+   "kind": "analyst",
+   "scoring": [
+    "ppr",
+    "half_ppr",
+    "standard"
+   ],
+   "url": "https://www.footballguys.com/",
+   "how_read": "csv QBs only; prices nothing while QBs are excluded (tools/research/eddf_candidates.py)",
+   "enabled": false,
+   "candidate": true,
+   "group": "cand-footballguys-qb"
+  }
+ ]
+}
