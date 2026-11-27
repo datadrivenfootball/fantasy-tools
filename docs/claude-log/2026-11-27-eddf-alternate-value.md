@@ -45,6 +45,12 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   `study.json` (candidates enabled only in the harness, registry rows stay disabled; source sets x five
   variants; bootstrap interval on each leave-one-chart-out difference; one list date). New variant
   `chart_floor` pinned by `tests.test_eddf`. Wording fix: the scramble gain is mostly the rescale.
+- Candidates enabled (Jeremy, 2026-11-28): `tests.test_eddf.EnabledCandidates` pins Razzball, Rotoballer
+  and StickToTheModel on at only the scorings they list, FanDuel, Wolf, Footballguys and GWTTKB off,
+  the rescale summing to the DDF total in every scoring and variant with the enabled registry, ties
+  sharing the average rank, QBs without an implied value, and `value_reference.py` never mentioning eddf.
+  Evidence reruns as enabled: Half PPR leave-one-chart-out 0.752 vs 0.919 for DDF.
+  FanDuel page read 2026-11-27 (WebFetch): no scoring, date or author stated.
 - Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
   (seven files, all disabled registry rows).
 

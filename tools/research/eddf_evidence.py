@@ -35,6 +35,19 @@ SCORINGS = ["ppr", "half_ppr", "standard"]
 WEEKS_BACK = 3
 
 
+def load_lists(scoring):
+    """({ranker_id: {player_key: rank}}, {ranker_id: vintage}) at one scoring: the FantasyPros-feed
+    lists and the candidate files (candidates.json). A ranker with no list at this scoring is simply
+    absent here, never given another scoring's list; the registry decides who is enabled."""
+    out, vint = {}, {}
+    for fname in ("lists.json", "candidates.json"):
+        for rid, d in json.loads((OUT / fname).read_text()).items():
+            if scoring in d:
+                out[rid] = {int(k): v for k, v in d[scoring]["ranks"].items()}
+                vint[rid] = d[scoring]["vintage"]
+    return out, vint
+
+
 def ranks_of(vals):
     order = sorted(range(len(vals)), key=lambda i: vals[i])
     r = [0.0] * len(vals)
@@ -118,8 +131,7 @@ def main(argv=None):
     rng = random.Random(7)
     report = {"as_of": args.as_of, "config": {k: v for k, v in cfg.items() if k != "rankers"}, "scorings": {}}
     for scoring in SCORINGS:
-        lists = {rid: {int(pk): r for pk, r in d[scoring]["ranks"].items()} for rid, d in raw.items() if scoring in d}
-        vint = {rid: d[scoring]["vintage"] for rid, d in raw.items() if scoring in d}
+        lists, vint = load_lists(scoring)
         cw = vr.freshness(inp)["current_week"]
         weeks = [cw - i for i in range(WEEKS_BACK)]
         wm, charts, pos_of, _, excluded = adjusted_by_week(inp, hist, scoring, weeks)

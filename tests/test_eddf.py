@@ -202,6 +202,76 @@ class Rescale(unittest.TestCase):
                                        msg=f"{scoring} {teams} teams")
 
 
+class EnabledCandidates(unittest.TestCase):
+    """The registry as shipped: enabled rows only at the scorings they support, disabled rows out."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "tools/research"))
+        import eddf_evidence as E
+        cls.E, cls.cfg = E, eddf.load_config()
+
+    def status(self, scoring):
+        lists, vint = self.E.load_lists(scoring)
+        return {r["id"]: eddf.ranker_status(r, vint.get(r["id"]), date(2026, 11, 27), self.cfg["stale_days"], scoring,
+                                            self.cfg.get("stale_weekday")) for r in self.cfg["rankers"]}
+
+    def test_enabled_sources_appear_only_at_their_scorings(self):
+        s = {sc: self.status(sc) for sc in ("ppr", "half_ppr", "standard")}
+        self.assertTrue(s["ppr"]["cand-rotoballer"]["in"] and s["half_ppr"]["cand-rotoballer"]["in"])
+        self.assertFalse(s["standard"]["cand-rotoballer"]["in"])
+        self.assertIn("standard", s["standard"]["cand-rotoballer"]["reason"])
+        self.assertTrue(s["ppr"]["cand-stm"]["in"])
+        self.assertFalse(s["half_ppr"]["cand-stm"]["in"] or s["standard"]["cand-stm"]["in"])
+        self.assertTrue(all(s[sc]["cand-razzball"]["in"] for sc in s))
+
+    def test_disabled_rows_are_out_at_every_scoring(self):
+        for sc in ("ppr", "half_ppr", "standard"):
+            st = self.status(sc)
+            for rid in ("cand-fanduel", "cand-rsj-wolf", "cand-footballguys-qb", "cand-gwttkb"):
+                self.assertFalse(st[rid]["in"], f"{rid} {sc}")
+                self.assertIn("disabled", st[rid]["reason"])
+
+    def test_a_source_missing_a_scoring_has_no_list_there(self):
+        lists, _ = self.E.load_lists("standard")
+        self.assertNotIn("cand-rotoballer", lists)
+        self.assertNotIn("cand-stm", lists)
+        self.assertIn("cand-razzball", lists)
+
+    def test_ties_share_the_average_rank_and_qbs_get_no_implied_value(self):
+        import eddf_candidates as C
+        self.assertEqual(C.rank_by_points([(1, 10.0), (2, 10.0), (3, 8.0)]), {1: 1.5, 2: 1.5, 3: 3.0})
+        lists, vint = self.E.load_lists("half_ppr")
+        # a model list prices players it ranks only, and a QB never gets an implied value
+        pos = {1: "QB", 2: "RB", 3: "WR"}
+        iv = eddf.implied_values({1: 1.0, 2: 2.0, 3: 3.0}, {2: 50.0, 3: 40.0, 1: 90.0}, pos,
+                                 {**self.cfg, "min_anchors": 2})
+        self.assertEqual(set(iv), {2, 3})
+
+    def test_stage_off_leaves_value_reference_alone(self):
+        text = (ROOT / "pipelines/value_reference.py").read_text()
+        self.assertNotIn("eddf", text)
+
+    def test_rescale_holds_with_the_enabled_registry_in_every_scoring_and_variant(self):
+        import value_reference as vr
+        inp = vr.Inputs.load(vr.FIXTURE, vr.PLAYERS)
+        for scoring in ("ppr", "half_ppr", "standard"):
+            lists, vint = self.E.load_lists(scoring)
+            s = vr.Setting(inp, scoring, 12, 0)
+            st, rows = s.state(), s.result()["rows"]
+            charts = [k for k in st["included"] if vr.FAMILY[k] == "chart" and k not in st["hidden"]]
+            adj = {c: {pk: r["adjusted"][c] for pk, r in rows.items() if r["adjusted"].get(c) is not None} for c in charts}
+            ddf_total = sum(r["ddf"]["blended"]["value"] for r in rows.values() if r["ddf"]["blended"]["value"] is not None)
+            for variant in eddf.VARIANTS:
+                res = eddf.eddf(adj, lists, vint, [eddf.chart_only(adj, rows)] * 3, {pk: r["pos"] for pk, r in rows.items()},
+                                self.cfg, date(2026, 11, 27), scoring, variant)
+                used = {s_["id"] for s_ in res["report"]["rankers"] if s_["in"]}
+                self.assertIn("cand-razzball", used)
+                self.assertNotIn("cand-fanduel", used)
+                self.assertAlmostEqual(sum(v["value"] for v in res["values"].values()), ddf_total, delta=1e-6,
+                                       msg=f"{scoring} {variant}")
+
+
 class Registry(unittest.TestCase):
     def test_registry_has_the_three_staff_rankers_each_separate(self):
         cfg = eddf.load_config()
@@ -228,10 +298,17 @@ class Registry(unittest.TestCase):
         self.assertNotIn("b", res["values"][1]["sources"])
         self.assertEqual(res["values"][1]["sources"], ["a", "x", "y"])
 
-    def test_registry_candidates_are_all_disabled(self):
-        for r in eddf.load_config()["rankers"]:
-            if r.get("candidate"):
-                self.assertIs(r["enabled"], False, r["id"])
+    def test_registry_enabled_and_disabled_candidates_as_ruled(self):
+        # Jeremy, 2026-11-28: Razzball, Rotoballer and StickToTheModel on; FanDuel (scoring and date
+        # not stated), Wolf (duplicate), Footballguys (QBs only), GWTTKB (stale) stay off.
+        rows = {r["id"]: r for r in eddf.load_config()["rankers"]}
+        for rid in ("cand-razzball", "cand-rotoballer", "cand-stm"):
+            self.assertIs(rows[rid]["enabled"], True, rid)
+        for rid in ("cand-fanduel", "cand-rsj-wolf", "cand-footballguys-qb", "cand-gwttkb"):
+            self.assertIs(rows[rid]["enabled"], False, rid)
+        self.assertEqual(rows["cand-razzball"]["scoring"], ["ppr", "half_ppr", "standard"])
+        self.assertEqual(rows["cand-rotoballer"]["scoring"], ["ppr", "half_ppr"])
+        self.assertEqual(rows["cand-stm"]["scoring"], ["ppr"])
 
     def test_duplicate_ids_are_refused(self):
         import tempfile

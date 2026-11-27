@@ -18,6 +18,7 @@ wired), `config/eddf_sources.json` (registry), `tests/test_eddf.py`.
   games were played." Built as the stale rule (below); the 14-day window stays as a backstop.
 - 2026-11-28, "A": amend `docs/pipeline-rules.md` section 7 so an off-by-default EDDF stage may
   read the rankings; wire the JS engine only after PR 1332 merges or the hot-file slot is released.
+- 2026-11-28 (candidates, multiple choice): enable Razzball (all three scorings), Rotoballer (Half PPR and PPR) and StickToTheModel (PPR, 90 players) in the registry; FanDuel stays disabled until its scoring and date are stated; Wolf (duplicate), Footballguys (QBs only) and GWTTKB (stale on the Tuesday rule; re-check after the next Tuesday reset) stay disabled. The study had recommended none for now; Jeremy chose otherwise, to add more points of view.
 - 2026-11-28, "One per expert": each expert list is its own vote, the primary variant. The
   variants below are shown for comparison, not substituted.
 
@@ -29,7 +30,10 @@ the player.
 
 - Registry: `config/eddf_sources.json`, one row per ranker (id, outlet, analyst, scoring list, url,
   how read, enabled). 21 rows: every expert list in the ROS feed, plus 7 candidate rows
-  (`candidate: true`, `enabled: false`). Adding a ranker is one row.
+  (`candidate: true`); since 2026-11-28 three are enabled (Razzball, Rotoballer, StickToTheModel) and
+  four stay off (FanDuel, Wolf, Footballguys, GWTTKB). A source is simply absent at a scoring it does
+  not list: Rotoballer has no standard list, StickToTheModel has PPR only, and nothing is borrowed from
+  another scoring. Adding a ranker is one row.
 - Stale rule: a list is fresh only if its own `source_vintage` is on or after the most recent
   Tuesday (`stale_weekday: 1`), the reset after the prior week's games; a Tuesday-dated list counts
   as the new week, a Monday-dated one does not. Lists carry a date, not a time, so "early morning"
@@ -55,7 +59,62 @@ the player.
   14-day rule alone the count was 14 fresh; the Tuesday rule drops five more.
 - Anchors per scoring: 520 (PPR), 522 (Half), 522 (standard).
 
-## Weight consequence
+## The registry as enabled (2026-11-28): what it costs and what it buys
+
+This section is the shipped registry: the 21 feed rows plus Razzball, Rotoballer and StickToTheModel
+at the scorings they support, rescaled to the DDF total, one vote per expert unless stated. Every
+other number in this write-up that says "feed lists only" is the registry before the candidates were
+enabled; those tables are kept as the before. Fresh lists on 27 Nov under the Tuesday rule: 11 in PPR
+(8 feed + Rotoballer, Razzball, StickToTheModel), 11 in Half PPR (9 feed + Rotoballer, Razzball), 10
+in standard (9 feed + Razzball). The charts carry 21%, 21% and 23% of the weight.
+
+**Cost.** Leave-one-chart-out agreement with a held-out chart (mean over the three charts):
+
+| scoring | rho DDF | rho EDDF, feed only | rho EDDF, as enabled | MAE DDF | MAE EDDF, as enabled |
+| -- | -- | -- | -- | -- | -- |
+| PPR | 0.908 | 0.815 | 0.807 | 0.738 | 0.851 |
+| Half PPR | 0.919 | 0.803 | 0.752 | 0.733 | 0.796 |
+| Standard | 0.926 | 0.786 | 0.756 | 0.775 | 0.976 |
+
+On the players the lists rank the Half PPR rho is 0.924 for DDF and 0.797 as enabled. The earlier
+figure of 0.740 in the candidate study included FanDuel, which stays disabled; without it the Half
+PPR rho is 0.752. DDF vs EDDF rank correlation falls to 0.859 (PPR), 0.800 (Half), 0.796 (standard).
+
+**What it buys** (Half PPR, as enabled; PPR and standard in `variants.json`):
+
+| variant | LOO rho | LOO rho, ranked | LOO MAE | scramble MAE / rho | drop-one MAE / rho | week-change MAE | chart weight |
+| -- | -- | -- | -- | -- | -- | -- | -- |
+| none (DDF) | 0.919 | 0.924 | 0.73 | 2.12 / 0.696 | 0.24 / 0.980 | 0.51 | 100% |
+| per_expert | 0.752 | 0.797 | 0.80 | 1.83 / 0.709 | 0.24 / 0.987 | 0.37 | 21% |
+| site_once | 0.752 | 0.797 | 0.78 | 1.81 / 0.711 | 0.23 / 0.987 | 0.37 | 25% |
+| grouped | 0.754 | 0.800 | 0.71 | 1.87 / 0.706 | 0.20 / 0.987 | 0.43 | 75% |
+| chart_floor 50% | 0.753 | 0.799 | 0.72 | 1.78 / 0.714 | 0.20 / 0.987 | 0.38 | 50% |
+
+- Independence: the 11 fresh lists agree at pair rank correlation 0.902, which is 1.10 effective
+  independent views (1.07 for the feed alone); with Razzball in standard it is 1.12.
+- Robustness: a scrambled chart moves values 1.83 (per_expert) or 1.78 (chart_floor) against 2.12 for
+  DDF; the gain is mostly the rescale. Dropping a chart moves them as much as DDF (0.24 vs 0.24).
+- Stability: week-over-week change 0.37 against 0.51, partly built in because the lists are held fixed.
+- Error: grouped and chart_floor cut the leave-one-chart-out MAE to 0.71 and 0.72 against 0.80 for
+  per_expert at the same rank agreement.
+- Coverage: 674 players priced against 669 for DDF (5 ranker-only players).
+- League total: sums to 2352.0 in every scoring and variant (tests).
+
+**FanDuel stays off.** Enabling it needs two things from the source: a stated scoring (PPR value per
+reception) and an update date, plus a statement that the table is rest of season. The page
+(fanduel.com/research/nfl/fantasy-football-projections) read 2026-11-27 states none of these: it
+mentions "standard and PPR leagues" without saying which the projections use, shows no date or
+author, and does not say rest of season versus weekly (the table itself did not come through the
+fetch). The file in the notes folder infers half PPR from 0.499 points per reception. Re-check after
+the next Tuesday reset. GWTTKB (dated Monday 23 Nov) is re-checked then too.
+
+**Second list date.** Plan: after the next Tuesday reset (Tue 1 Dec 2026), re-run the puller
+(`pipelines/pull_ros_rankings.py`) and the candidate files on or after Wednesday 2 Dec, once analysts
+have updated, then `tools/research/eddf_prepare.py`, `eddf_candidates.py`, `eddf_evidence.py`,
+`eddf_variants.py` and `eddf_study.py` on the new lists and compare each metric with this date.
+A session or job with `ros_rankings` access would add the daily snapshots since 2026-10-29 at once.
+
+## Weight consequence (feed lists only)
 
 With 3 charts and 8 to 9 fresh rankers the charts carry 25 to 27% of the weight. Moving from DDF
 to EDDF with random subsets of the fresh rankers (mean abs value change against DDF in points,
@@ -74,7 +133,7 @@ Most of the change arrives with the first three rankers. Pooling all rankers int
 differs from one-vote-each by 0.34 to 0.40 points with rank correlation of 0.999 or more: the choice
 matters for weight share and for what happens when a source drops, not for today's values.
 
-## Evidence on real Adjusted values (QBs excluded, the default; Tuesday rule)
+## Evidence on real Adjusted values, feed lists only (QBs excluded, the default; Tuesday rule)
 
 Leave one chart out: predict the held-out chart's Adjusted value from the other two charts (DDF
 estimate) or from the other two plus the fresh rankers (EDDF). Anchors use the other two charts
@@ -121,7 +180,7 @@ a test of rankers over time: one list date exists in this run.
 Coverage: DDF prices 669 players, EDDF 674 (five players the rankers list and no chart prices);
 players priced by one source only: 0 (DDF), 1 to 3 (EDDF, ranker-only players).
 
-## Variants side by side (Jeremy, 2026-11-28: "One per expert" is primary)
+## Variants side by side, feed lists only (Jeremy, 2026-11-28: "One per expert" is primary)
 
 `variants.json`, same harness and inputs. none = DDF Value; per_expert = every list one vote
 (Jeremy's choice, the default); site_once = a publisher's lists share one vote (only the three
@@ -155,6 +214,8 @@ his; this PR builds per_expert as the default and ships site_once and grouped as
 `eddf.py` (`variant=`).
 
 ## Candidate sources: the consensus study (Jeremy, 2026-11-28)
+
+*Superseded in its recommendation by Jeremy's ruling later on 2026-11-28 (see Decisions and the section on the registry as enabled): Razzball, Rotoballer and StickToTheModel are now enabled. The study's numbers stand.*
 
 `study.json`, `candidates.json`, `candidate_study.json`; `tools/research/eddf_candidates.py` and
 `eddf_study.py`. Candidate rows are enabled only inside the harness; the registry rows stay
@@ -240,18 +301,18 @@ in the config switches it off. Every number in this write-up is after the rescal
 
 ## Weight and independence, together
 
-Under one vote per expert the fresh lists hold 75% of the weight in Half PPR (the charts 25%), but
-they are about 1.07 effective independent views (pair rank correlation 0.925), and all of them
-come through FantasyPros's expert pages (the staff three among them). The weight sits with one
-view, not with nine.
+As enabled, under one vote per expert the 11 fresh lists hold 79% of the weight in Half PPR (the
+charts 21%), but they are about 1.10 effective independent views (pair rank correlation 0.902). The
+nine feed lists are all FantasyPros-hosted pages and agree at 0.925; Razzball and Rotoballer add the
+only departures. The weight sits with close to one view, not with eleven.
 
 ## Before and after
 
 `before_after_<scoring>.csv`: every player with a DDF or EDDF value, both values, ranks and source
-counts. Spearman DDF vs EDDF over the 669 common players: 0.874 (PPR), 0.854 (Half), 0.839
-(standard); top-24 overlap 22, 22, 20; largest single-player move 10.0, 10.6, 14.8 points.
-Half PPR top: Gibbs 83.97 to 81.15, Robinson 66.10 to 67.14, McCaffrey 69.76 to 66.13,
-Smith-Njigba 67.60 to 65.01, Walker 66.10 to 60.41.
+counts. Spearman DDF vs EDDF over the 669 common players, as enabled: 0.859 (PPR), 0.800 (Half), 0.796
+(standard); top-24 overlap 22, 22, 20; largest single-player move 9.7, 10.7, 15.3 points.
+Half PPR top: Gibbs 83.97 to 82.16, Robinson 66.10 to 67.67, McCaffrey 69.76 to 66.03,
+Smith-Njigba 67.60 to 65.59, Walker 66.10 to 59.20 (the csv files are the as-enabled run).
 
 ## Limits
 
@@ -272,11 +333,13 @@ Smith-Njigba 67.60 to 65.01, Walker 66.10 to 60.41.
 
 ## Recommendation
 
-Built as Jeremy ruled (one per expert, primary, Tuesday reset). Keep EDDF off. On real values
-per_expert is steadier week to week (0.39 vs 0.51 mean weekly change in Half PPR; partly built in, because the lists are held fixed and only the charts move) and prices a few
-more players, but it tracks the charts less closely (leave-one-chart-out rho 0.803 vs 0.919), the
-fresh lists are about one independent view carrying 75% of the weight, and a scrambled chart moves
-it 8 to 10% less than DDF (mostly the rescale). The Tuesday reset also means the ranker side empties after each reset and
-refills as analysts update. Options for Jeremy to choose from, none substituted here: keep
-per_expert; site_once (small effect today); grouped (the ranker view once beside the charts), which
-keeps the charts-only agreement; or a floor share for the charts.
+Built as Jeremy ruled: one per expert primary, the Tuesday reset, the rescale, and Razzball,
+Rotoballer and StickToTheModel enabled (the candidate study had recommended none for now; he chose to
+add points of view, and the cost is shown above). Keep the EDDF stage off. As enabled, per_expert
+costs agreement with a held-out chart (Half PPR rho 0.752 vs 0.919 for DDF) and buys steadier weekly
+values (0.37 vs 0.51, partly built in), a scrambled chart moves it less (mostly the rescale), and
+the lists are about 1.1 independent views holding 79% of the weight. Weights change the error, not the
+rank agreement: grouped and chart_floor give a mean error of 0.71 and 0.72 against 0.80 at the same
+rho. Options for Jeremy, none substituted here: keep per_expert; site_once (no visible effect);
+grouped; or chart_floor (the charts keep at least half the weight). FanDuel and GWTTKB are re-checked
+after the next Tuesday reset, and the second list date is planned for 2 Dec.

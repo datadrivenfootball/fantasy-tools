@@ -1,6 +1,6 @@
 {
  "version": 1,
- "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides. stale_weekday 1 = Tuesday: a list is fresh only if updated on or after the most recent Tuesday (Jeremy, 2026-11-27); stale_days stays as a backstop. rescale_to_ddf_total: EDDF is multiplied by one factor so its league total equals DDF Value's (Jeremy, 2026-11-28).",
+ "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides. stale_weekday 1 = Tuesday: a list is fresh only if updated on or after the most recent Tuesday (Jeremy, 2026-11-27); stale_days stays as a backstop. rescale_to_ddf_total: EDDF is multiplied by one factor so its league total equals DDF Value's (Jeremy, 2026-11-28). Enabled 2026-11-28 (Jeremy): cand-razzball (all three scorings), cand-rotoballer (half_ppr, ppr), cand-stm (ppr). Still disabled: cand-fanduel (needs a stated scoring and an update date on the page; the page states neither on 2026-11-27), cand-rsj-wolf (duplicate of fp-wolf-of-roto-street), cand-footballguys-qb (QBs only), cand-gwttkb (stale on the Tuesday rule; re-check after the next Tuesday reset). A source is simply absent in a scoring it does not list.",
  "stale_days": 14,
  "anchor_weeks": 3,
  "anchor_stability": 0.1,
@@ -328,7 +328,7 @@
    ],
    "url": "https://www.rotoballer.com/",
    "how_read": "csv, two lists by scoring, top 200 (tools/research/eddf_candidates.py)",
-   "enabled": false,
+   "enabled": true,
    "candidate": true,
    "group": "cand-rotoballer"
   },
@@ -356,7 +356,7 @@
    ],
    "url": "https://razzball.com/",
    "how_read": "csv ROS points, ranked by points (tools/research/eddf_candidates.py)",
-   "enabled": false,
+   "enabled": true,
    "candidate": true,
    "group": "cand-razzball"
   },
@@ -382,7 +382,7 @@
    ],
    "url": "",
    "how_read": "csv ROS points, top 30 per position, ranked by points (tools/research/eddf_candidates.py)",
-   "enabled": false,
+   "enabled": true,
    "candidate": true,
    "group": "cand-stm"
   },

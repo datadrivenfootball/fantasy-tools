@@ -40,11 +40,10 @@ def main():
     inp = vr.Inputs.load(vr.FIXTURE, vr.PLAYERS)
     hist = vr.History(vr.REPO / "data/history")
     rng = random.Random(11)
-    variants = ["none", "per_expert", "site_once", "grouped"]
+    variants = ["none", "per_expert", "site_once", "grouped", "chart_floor"]
     report = {"as_of": as_of.isoformat(), "variants": variants, "scorings": {}}
     for scoring in E.SCORINGS:
-        lists = {rid: {int(pk): r for pk, r in d[scoring]["ranks"].items()} for rid, d in raw.items() if scoring in d}
-        vint = {rid: d[scoring]["vintage"] for rid, d in raw.items() if scoring in d}
+        lists, vint = E.load_lists(scoring)
         weeks = [12, 11, 10]
         wm, charts, pos_of, _, _ = E.adjusted_by_week(inp, hist, scoring, weeks)
         base = E.run_eddf(cfg, charts, wm, lists, vint, pos_of, as_of, scoring, weeks)

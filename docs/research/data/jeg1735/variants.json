@@ -4,11 +4,12 @@
   "none",
   "per_expert",
   "site_once",
-  "grouped"
+  "grouped",
+  "chart_floor"
  ],
  "scorings": {
   "ppr": {
-   "fresh": 8,
+   "fresh": 11,
    "charts": [
     "usatoday",
     "fantasycalc",
@@ -19,8 +20,8 @@
      "loo": {
       "rho": 0.9084674281212585,
       "mae": 0.7380837038131685,
-      "ranked_rho": 0.931033486581741,
-      "ranked_mae": 1.4438056440055533
+      "ranked_rho": 0.9125620726172148,
+      "ranked_mae": 0.9559229518215283
      },
      "drop_one": {
       "mae": 0.24602790127105617,
@@ -37,86 +38,107 @@
     },
     "per_expert": {
      "loo": {
-      "rho": 0.8145520811838611,
-      "mae": 0.8806577432216772,
-      "ranked_rho": 0.8829318207743816,
-      "ranked_mae": 1.7412836751767191
+      "rho": 0.8073704630298972,
+      "mae": 0.850849844027865,
+      "ranked_rho": 0.8243034032375545,
+      "ranked_mae": 1.1104104027608588
      },
      "drop_one": {
-      "mae": 0.27003548648197473,
-      "rho": 0.9908784145136602
+      "mae": 0.24050527999793073,
+      "rho": 0.9875571610515356
      },
      "scramble_one": {
-      "mae": 1.92761160903978,
-      "rho": 0.7125356638117978
+      "mae": 1.8309717454339043,
+      "rho": 0.7038520521579043
      },
-     "stability_mae_week_change": 0.3414720788629273,
+     "stability_mae_week_change": 0.30800556919468475,
      "priced": 674,
-     "chart_weight_share": 0.2727272727272727,
-     "top_publisher_weight_share": 0.2727272727272727,
+     "chart_weight_share": 0.21428571428571427,
+     "top_publisher_weight_share": 0.21428571428571427,
      "top_publisher": "FantasyPros"
     },
     "site_once": {
      "loo": {
-      "rho": 0.8149604002878136,
-      "mae": 0.8522768333025015,
-      "ranked_rho": 0.884151148824533,
-      "ranked_mae": 1.6832198869919093
+      "rho": 0.8076972947680526,
+      "mae": 0.8320289934158226,
+      "ranked_rho": 0.824765237020098,
+      "ranked_mae": 1.0851005949940993
      },
      "drop_one": {
-      "mae": 0.23740417204051414,
-      "rho": 0.9908886136373871
+      "mae": 0.2124779610698365,
+      "rho": 0.9875084814214079
      },
      "scramble_one": {
-      "mae": 1.9204143441814978,
-      "rho": 0.7132825060346082
+      "mae": 1.8264464770748567,
+      "rho": 0.7044298169729533
      },
-     "stability_mae_week_change": 0.34457483314725784,
+     "stability_mae_week_change": 0.3052133743036064,
      "priced": 674,
-     "chart_weight_share": 0.3333333333333333,
-     "top_publisher_weight_share": 0.1111111111111111,
+     "chart_weight_share": 0.25,
+     "top_publisher_weight_share": 0.08333333333333333,
      "top_publisher": "FantasyPros"
     },
     "grouped": {
      "loo": {
-      "rho": 0.8166135809797342,
-      "mae": 0.7339164724337907,
-      "ranked_rho": 0.8892200517409931,
-      "ranked_mae": 1.4332986849857101
+      "rho": 0.8090219337176712,
+      "mae": 0.7206951047069362,
+      "ranked_rho": 0.8267928708167478,
+      "ranked_mae": 0.9307358410337744
      },
      "drop_one": {
-      "mae": 0.2179757410708716,
-      "rho": 0.9905069600168159
+      "mae": 0.20639886254914883,
+      "rho": 0.9869528968495546
      },
      "scramble_one": {
-      "mae": 1.9794244761033564,
-      "rho": 0.7127568682675792
+      "mae": 1.872826577141785,
+      "rho": 0.6857131648929731
      },
-     "stability_mae_week_change": 0.42209460076777655,
+     "stability_mae_week_change": 0.4191227171909991,
      "priced": 674,
      "chart_weight_share": 0.75,
-     "top_publisher_weight_share": 0.09375,
+     "top_publisher_weight_share": 0.06818181818181818,
+     "top_publisher": "FantasyPros"
+    },
+    "chart_floor": {
+     "loo": {
+      "rho": 0.8086055324865565,
+      "mae": 0.7448752503122472,
+      "ranked_rho": 0.8262134118157638,
+      "ranked_mae": 0.9640363202585979
+     },
+     "drop_one": {
+      "mae": 0.20061294927995074,
+      "rho": 0.9874015468742334
+     },
+     "scramble_one": {
+      "mae": 1.7769290409568443,
+      "rho": 0.7050790876182048
+     },
+     "stability_mae_week_change": 0.3528493526838428,
+     "priced": 674,
+     "chart_weight_share": 0.5,
+     "top_publisher_weight_share": 0.13636363636363635,
      "top_publisher": "FantasyPros"
     }
    },
    "independence": {
-    "n_common": 154,
-    "ranker_pair_rank_rho": 0.9217241148658877,
-    "ranker_pair_implied_rho": 0.9114672899286822,
-    "chart_pair_rho": 0.9599999304169261,
-    "ranker_vs_chart_rho": 0.8894923752881038,
-    "fantasypros_staff_pair_rank_rho": 0.9340983705310081,
-    "effective_independent_rankers": 1.0735273935796428,
-    "n_rankers": 8
+    "n_common": 80,
+    "ranker_pair_rank_rho": 0.8971577872803043,
+    "ranker_pair_implied_rho": 0.893989616133773,
+    "chart_pair_rho": 0.9539137242776199,
+    "ranker_vs_chart_rho": 0.9080604453070007,
+    "fantasypros_staff_pair_rank_rho": 0.9468588842006563,
+    "effective_independent_rankers": 1.1031353453099861,
+    "n_rankers": 11
    },
    "dispersion": {
-    "sd_among_charts": 2.159850079381878,
-    "sd_among_rankers": 3.731851156875588,
-    "gap_chart_mean_vs_ranker_mean": 3.0425503660575974
+    "sd_among_charts": 3.1837135427670815,
+    "sd_among_rankers": 5.811786042991007,
+    "gap_chart_mean_vs_ranker_mean": 3.381576101667475
    }
   },
   "half_ppr": {
-   "fresh": 9,
+   "fresh": 11,
    "charts": [
     "usatoday",
     "fantasycalc",
@@ -127,8 +149,8 @@
      "loo": {
       "rho": 0.9188710349016976,
       "mae": 0.7333707105867768,
-      "ranked_rho": 0.9428021756738156,
-      "ranked_mae": 1.4099460565100823
+      "ranked_rho": 0.924050226514573,
+      "ranked_mae": 0.9444023513599205
      },
      "drop_one": {
       "mae": 0.2444569035289256,
@@ -145,86 +167,107 @@
     },
     "per_expert": {
      "loo": {
-      "rho": 0.8026396211391927,
-      "mae": 0.8097584937885688,
-      "ranked_rho": 0.8805150684351637,
-      "ranked_mae": 1.563499807701302
+      "rho": 0.7518383084408659,
+      "mae": 0.7964679899566083,
+      "ranked_rho": 0.7965067431488505,
+      "ranked_mae": 1.0268863941461182
      },
      "drop_one": {
-      "mae": 0.2519655927637607,
-      "rho": 0.990379272174135
+      "mae": 0.2402418793759891,
+      "rho": 0.9874961899923599
      },
      "scramble_one": {
-      "mae": 1.9286521881518384,
-      "rho": 0.7064356505716214
+      "mae": 1.8290811658247141,
+      "rho": 0.7090715957238343
      },
-     "stability_mae_week_change": 0.3935623699236373,
+     "stability_mae_week_change": 0.37449701045911027,
      "priced": 674,
-     "chart_weight_share": 0.25,
-     "top_publisher_weight_share": 0.25,
+     "chart_weight_share": 0.21428571428571427,
+     "top_publisher_weight_share": 0.21428571428571427,
      "top_publisher": "FantasyPros"
     },
     "site_once": {
      "loo": {
-      "rho": 0.8031228447849678,
-      "mae": 0.7911893902191519,
-      "ranked_rho": 0.8818881233222037,
-      "ranked_mae": 1.5266865052771146
+      "rho": 0.7521709818723668,
+      "mae": 0.7820801723277648,
+      "ranked_rho": 0.7969893645355833,
+      "ranked_mae": 1.007858986359678
      },
      "drop_one": {
-      "mae": 0.23578029647909413,
-      "rho": 0.9904036110141824
+      "mae": 0.2265786543396552,
+      "rho": 0.9874775010279209
      },
      "scramble_one": {
-      "mae": 1.9011680659306245,
-      "rho": 0.7088071891648307
+      "mae": 1.8065056083873445,
+      "rho": 0.7108425808247536
      },
-     "stability_mae_week_change": 0.3883695531983016,
+     "stability_mae_week_change": 0.3699769231457784,
      "priced": 674,
-     "chart_weight_share": 0.3,
-     "top_publisher_weight_share": 0.1,
+     "chart_weight_share": 0.25,
+     "top_publisher_weight_share": 0.08333333333333333,
      "top_publisher": "FantasyPros"
     },
     "grouped": {
      "loo": {
-      "rho": 0.8050318513807665,
-      "mae": 0.7191659587137719,
-      "ranked_rho": 0.8879355116037296,
-      "ranked_mae": 1.3782871564383308
+      "rho": 0.7538652200044927,
+      "mae": 0.7121635639386094,
+      "ranked_rho": 0.7998349502170479,
+      "ranked_mae": 0.9134546312339886
      },
      "drop_one": {
-      "mae": 0.20293417322800816,
-      "rho": 0.9898977508385423
+      "mae": 0.19660862725443307,
+      "rho": 0.9866760208260703
      },
      "scramble_one": {
-      "mae": 1.9709741011494788,
-      "rho": 0.7115684463901694
+      "mae": 1.8736731889603677,
+      "rho": 0.7057582790719908
      },
-     "stability_mae_week_change": 0.43069514166683376,
+     "stability_mae_week_change": 0.4274884637987438,
      "priced": 674,
      "chart_weight_share": 0.75,
-     "top_publisher_weight_share": 0.08333333333333333,
+     "top_publisher_weight_share": 0.06818181818181818,
+     "top_publisher": "FantasyPros"
+    },
+    "chart_floor": {
+     "loo": {
+      "rho": 0.7533048022585754,
+      "mae": 0.7175350211913456,
+      "ranked_rho": 0.7988905157789081,
+      "ranked_mae": 0.9198101649536338
+     },
+     "drop_one": {
+      "mae": 0.19526549641428526,
+      "rho": 0.9872139635743609
+     },
+     "scramble_one": {
+      "mae": 1.7785663109384957,
+      "rho": 0.713561824692773
+     },
+     "stability_mae_week_change": 0.38043066270696446,
+     "priced": 674,
+     "chart_weight_share": 0.5,
+     "top_publisher_weight_share": 0.13636363636363635,
      "top_publisher": "FantasyPros"
     }
    },
    "independence": {
-    "n_common": 147,
-    "ranker_pair_rank_rho": 0.9254781759674128,
-    "ranker_pair_implied_rho": 0.9214406696001409,
-    "chart_pair_rho": 0.9663306386445139,
-    "ranker_vs_chart_rho": 0.8952907768099955,
-    "fantasypros_staff_pair_rank_rho": 0.9274028011797092,
-    "effective_independent_rankers": 1.070940858875015,
-    "n_rankers": 9
+    "n_common": 139,
+    "ranker_pair_rank_rho": 0.9023045974693431,
+    "ranker_pair_implied_rho": 0.9002808414327372,
+    "chart_pair_rho": 0.9644490093298458,
+    "ranker_vs_chart_rho": 0.8886388933918471,
+    "fantasypros_staff_pair_rank_rho": 0.9218508423075205,
+    "effective_independent_rankers": 1.0974707716370073,
+    "n_rankers": 11
    },
    "dispersion": {
-    "sd_among_charts": 2.2351964305292893,
-    "sd_among_rankers": 3.6399945337688733,
-    "gap_chart_mean_vs_ranker_mean": 2.9524039819378842
+    "sd_among_charts": 2.3632226546724246,
+    "sd_among_rankers": 4.363022571053081,
+    "gap_chart_mean_vs_ranker_mean": 2.9495138626512323
    }
   },
   "standard": {
-   "fresh": 9,
+   "fresh": 10,
    "charts": [
     "usatoday",
     "fantasycalc",
@@ -235,8 +278,8 @@
      "loo": {
       "rho": 0.925716767797461,
       "mae": 0.7751843903177941,
-      "ranked_rho": 0.942649363308008,
-      "ranked_mae": 1.5036622242404398
+      "ranked_rho": 0.9331725417960806,
+      "ranked_mae": 1.001409985993086
      },
      "drop_one": {
       "mae": 0.258394796772598,
@@ -253,82 +296,103 @@
     },
     "per_expert": {
      "loo": {
-      "rho": 0.7861327977885908,
-      "mae": 0.9810172916064789,
-      "ranked_rho": 0.858564166776164,
-      "ranked_mae": 1.9324841391520649
+      "rho": 0.755723540688132,
+      "mae": 0.9757638040033758,
+      "ranked_rho": 0.7865090068674496,
+      "ranked_mae": 1.2774941487070566
      },
      "drop_one": {
-      "mae": 0.23503015689377538,
-      "rho": 0.9917717680706539
+      "mae": 0.22712250353958238,
+      "rho": 0.9649489363649757
      },
      "scramble_one": {
-      "mae": 1.9457179989996192,
-      "rho": 0.7200669180767892
+      "mae": 1.8100762666005539,
+      "rho": 0.7193913743643334
      },
-     "stability_mae_week_change": 0.29847909819182716,
+     "stability_mae_week_change": 0.29329224795982767,
      "priced": 674,
-     "chart_weight_share": 0.25,
-     "top_publisher_weight_share": 0.25,
+     "chart_weight_share": 0.23076923076923078,
+     "top_publisher_weight_share": 0.23076923076923078,
      "top_publisher": "FantasyPros"
     },
     "site_once": {
      "loo": {
-      "rho": 0.7859796360157179,
-      "mae": 0.9502814940869452,
-      "ranked_rho": 0.8581926226631738,
-      "ranked_mae": 1.8670219422014545
+      "rho": 0.7555475024404478,
+      "mae": 0.9497367795674221,
+      "ranked_rho": 0.7863625847127382,
+      "ranked_mae": 1.2408068729344595
      },
      "drop_one": {
-      "mae": 0.23411962000242081,
-      "rho": 0.9918520322991686
+      "mae": 0.2253912974289295,
+      "rho": 0.965339240318698
      },
      "scramble_one": {
-      "mae": 1.952160455496499,
-      "rho": 0.7213693616015299
+      "mae": 1.8142532873048767,
+      "rho": 0.7205492374839111
      },
-     "stability_mae_week_change": 0.3079110302687261,
+     "stability_mae_week_change": 0.3017983697105786,
      "priced": 674,
-     "chart_weight_share": 0.3,
-     "top_publisher_weight_share": 0.1,
+     "chart_weight_share": 0.2727272727272727,
+     "top_publisher_weight_share": 0.09090909090909091,
      "top_publisher": "FantasyPros"
     },
     "grouped": {
      "loo": {
-      "rho": 0.7912923340936692,
-      "mae": 0.782315627247066,
-      "ranked_rho": 0.8729637594278311,
-      "ranked_mae": 1.517230164306528
+      "rho": 0.7601666874518779,
+      "mae": 0.7756147135665676,
+      "ranked_rho": 0.7937218794924977,
+      "ranked_mae": 1.0010243406157624
      },
      "drop_one": {
-      "mae": 0.22418654500810858,
-      "rho": 0.9912355500481947
+      "mae": 0.22050523367670447,
+      "rho": 0.962230191290173
      },
      "scramble_one": {
-      "mae": 2.0182321222029205,
-      "rho": 0.7223541275661767
+      "mae": 1.9120271944177083,
+      "rho": 0.7122717173663875
      },
-     "stability_mae_week_change": 0.40642227040671997,
+     "stability_mae_week_change": 0.40263959582225434,
      "priced": 674,
      "chart_weight_share": 0.75,
-     "top_publisher_weight_share": 0.08333333333333333,
+     "top_publisher_weight_share": 0.07500000000000001,
+     "top_publisher": "FantasyPros"
+    },
+    "chart_floor": {
+     "loo": {
+      "rho": 0.7588718612546831,
+      "mae": 0.8219934341730833,
+      "ranked_rho": 0.7915031242533851,
+      "ranked_mae": 1.0650355820057766
+     },
+     "drop_one": {
+      "mae": 0.2039637895167727,
+      "rho": 0.9634580683185882
+     },
+     "scramble_one": {
+      "mae": 1.81459020822764,
+      "rho": 0.7211816087972728
+     },
+     "stability_mae_week_change": 0.3270399395473314,
+     "priced": 674,
+     "chart_weight_share": 0.5,
+     "top_publisher_weight_share": 0.15,
      "top_publisher": "FantasyPros"
     }
    },
    "independence": {
     "n_common": 144,
-    "ranker_pair_rank_rho": 0.893710982504086,
-    "ranker_pair_implied_rho": 0.8893807653153902,
+    "ranker_pair_rank_rho": 0.8792389704782276,
+    "ranker_pair_implied_rho": 0.8755882383660691,
     "chart_pair_rho": 0.961318936642429,
-    "ranker_vs_chart_rho": 0.8569534897032501,
+    "ranker_vs_chart_rho": 0.8591161236476275,
     "fantasypros_staff_pair_rank_rho": 0.9285802320285079,
-    "effective_independent_rankers": 1.1043367739441128,
-    "n_rankers": 9
+    "effective_independent_rankers": 1.1219377185570298,
+    "n_rankers": 10
    },
    "dispersion": {
     "sd_among_charts": 2.367417609481335,
-    "sd_among_rankers": 4.376155848528302,
-    "gap_chart_mean_vs_ranker_mean": 3.5744333953920786
+    "sd_among_rankers": 4.654008759036512,
+    "gap_chart_mean_vs_ranker_mean": 3.527320016628866
    }
   }
  }
