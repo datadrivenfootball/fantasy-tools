@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DDF · Trade &amp; Waiver Recommendations (staging)</title>
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/styles.css">
+<link rel="icon" href="https://datadrivenfootball.github.io/fantasy-tools/icon.jpg">
+</head>
+<body>
+<!-- Staging shell (JEG-1736, piece 3). league-bridge.js signs in, reads the stored league and its weekly projections,
+     writes the deployed live find.html into this document (base href = the live site, so its scripts, data and links
+     are the live ones), hands it the league (sessionStorage ddf:pasted, this tab only) and then loads data-add:
+     find-weekly.css and find-weekly.js, the "Your moves, in time order" panel and the weekly-gain section. -->
+<main><p class="muted" role="status">Loading your league…</p></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
+<script src="weekly.js"></script>
+<script src="league-bridge.js" data-live-page="find.html" data-add="find-weekly.css,find-weekly.js" data-staging-pages="team.html,find.html,build.html"></script>
+</body>
+</html>
