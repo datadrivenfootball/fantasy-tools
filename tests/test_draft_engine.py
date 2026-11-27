@@ -136,8 +136,8 @@ class GuardsCatchMutations(unittest.TestCase):
 
     def test_guard_push_floor_without_rival_cap(self):
         a = fixture()["auction"]
-        board = self._mutated("Math.floor(marketInfl + EPS) - 1, rivalCeiling - 1)",
-                              "Math.floor(marketInfl + EPS) - 1)", variant="variant_rival_cap")
+        board = self._mutated("var pb = Math.min(buyLimit, rivalCeiling - minBid);",
+                              "var pb = buyLimit;", variant="variant_rival_cap")
         self.assertNotEqual(worked_mismatches(board, a["variant_rival_cap"]["expected_rows"], rows_only=True), [])
 
     def test_guard_inflation_over_whole_board(self):

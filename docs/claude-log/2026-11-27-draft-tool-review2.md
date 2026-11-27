@@ -44,3 +44,13 @@ model). Defaults (push floor, personal inflation, blend) left for Jeremy.
   personal table (A's factor 0.8) next to the room table; the old
   "room is the default" assertion flipped because the rule changed.
   79 draft tests pass. Push floor and blend weights unchanged.
+
+### Addendum (same PR): push floor B is the board default
+- Jeremy, 2026-11-27: "Roster value (Recommended)". `boardRow` returns
+  `buyLimit` (roster value, capped at walk-away) as its own number and
+  `pushFloor` = buy limit capped at the best rival max bid - $1 (rule B).
+  Rule A moved to `pushFloorRuleA` and, with C, is reported only by
+  `pushFloors()`. Worked-example fixture re-derived by hand for B (room and
+  personal tables); the rival-cap guard now mutates B's cap. New test
+  `test_board_push_floor_is_rule_b`. 80 draft tests pass. Blend stays
+  50/25/25.

@@ -396,14 +396,13 @@
   //     our max bid and at the best rival max bid (among rivals who can
   //     roster him) + $1, since no rival can force us higher. $1 when he is
   //     outside our priced pool but we have a slot; 0 when we have no slot.
-  //   pushFloor: the highest bid we make on a player to make another team
-  //     pay (docs/draft-tool/engine.md "Push floor"): the lowest of
-  //       (a) walkAway: if nobody tops us we own him at a price we accept;
-  //       (b) market clearing price - 1: below the price the room is
-  //           expected to pay, so a rival still tops us;
-  //       (c) the best rival max bid - 1 among rivals with a slot for him:
-  //           someone must be able to top us.
-  //     null when that is below the minimum bid (do not push).
+  //   buyLimit: what he is worth to our roster as it stands: walk-away when
+  //     he fills an open starting slot, half his inflated price
+  //     (benchStuckFactor) when only the bench fits, 0 with no slot or no price.
+  //   pushFloor (rule B, Jeremy 2026-11-27: "Roster value (Recommended)"):
+  //     the buy limit capped at the best rival max bid - $1 (above that no
+  //     rival can top us, so the bid is a purchase, not a push); null below
+  //     the minimum bid. Rules A and C stay in pushFloors() for comparison.
   function boardRow(state, key, cache) {
     var league = state.league;
     var minBid = leagueShape(league).minBid;
@@ -434,15 +433,27 @@
       var own = oursInfl != null ? Math.floor(oursInfl + EPS) : minBid;
       walkAway = Math.max(minBid, Math.min(myMax, own, rivalCeiling + minBid));
     }
+    var myNeed = canRoster(me, pos) ? needFactor(me, pos, { benchNeed: OPPONENT_DEFAULTS.benchStuckFactor }) : 0;
+    var rosterVal = oursInfl == null ? 0 : oursInfl * myNeed;
+    var buyLimit = Math.max(0, Math.min(walkAway, Math.floor(rosterVal + EPS)));
     var pushFloor = null;
-    if (walkAway >= minBid && marketInfl != null) {
-      var b = Math.min(walkAway, Math.floor(marketInfl + EPS) - 1, rivalCeiling - 1);
-      pushFloor = b >= minBid ? b : null;
+    if (buyLimit >= minBid) {
+      var pb = Math.min(buyLimit, rivalCeiling - minBid);
+      pushFloor = pb >= minBid ? pb : null;
     }
     return { key: key, pos: pos, ours: ours, market: market, platform: platform,
       oursInflated: oursInfl, oursInflatedRoom: oursInflRoom, ourFactor: usePersonal ? "personal" : "room",
       marketInflated: marketInfl, platformInflated: platformInfl,
-      walkAway: walkAway, pushFloor: pushFloor, myMaxBid: myMax, rivalCeiling: rivalCeiling };
+      walkAway: walkAway, rosterValue: rosterVal, buyLimit: buyLimit, pushFloor: pushFloor,
+      myMaxBid: myMax, rivalCeiling: rivalCeiling };
+  }
+
+  // Push floor rule A (first draft, kept for comparison only): the lowest of
+  // walk-away, inflated market price - $1 and the best rival max bid - $1.
+  function pushFloorRuleA(row, minBid) {
+    if (!(row.walkAway >= minBid) || row.marketInflated == null) return null;
+    var a = Math.min(row.walkAway, Math.floor(row.marketInflated + EPS) - 1, row.rivalCeiling - 1);
+    return a >= minBid ? a : null;
   }
 
   function boardCache(state) {
@@ -530,7 +541,7 @@
     var row = boardRow(state, key, cache);
     var need = needFactor(me, state.pos[key], { benchNeed: model.opts.benchStuckFactor });
     var v = row.oursInflated == null ? 0 : row.oursInflated * need;
-    return { value: v, buyLimit: Math.min(row.walkAway, Math.floor(v + EPS)), row: row };
+    return { value: v, buyLimit: Math.max(0, Math.min(row.walkAway, Math.floor(v + EPS))), row: row };
   }
 
   // Push floor candidates for one player (engine.md "Push floor, thought
@@ -558,7 +569,7 @@
       : rv.value >= costToWin + opts.targetMargin ? "target"
       : rv.value <= costToWin - opts.targetMargin ? "fade" : "neutral";
     var cap = Math.min(myMax, model.topRivalMaxBid - minBid);
-    var a = row.pushFloor;
+    var a = pushFloorRuleA(row, minBid);
     // Buy limit: the most we pay to own him (may exceed every rival's max
     // bid: then we simply win). Push floor B: the same, but never past the
     // best rival max - $1, since above that no rival can top us and the bid
@@ -647,6 +658,7 @@
     inflation: inflation,
     inflatedPrice: inflatedPrice,
     boardRow: boardRow,
+    pushFloorRuleA: pushFloorRuleA,
     board: board,
     OPPONENT_DEFAULTS: OPPONENT_DEFAULTS,
     needFactor: needFactor,

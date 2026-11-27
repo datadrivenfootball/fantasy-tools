@@ -168,68 +168,78 @@
      "marketInflated": 19.75,
      "walkAway": 13,
      "rivalCeiling": 27,
-     "pushFloor": 13
+     "pushFloor": 13,
+     "buyLimit": 13
     },
     "P6": {
      "oursInflated": 12.25,
      "marketInflated": 9.75,
      "walkAway": 12,
      "rivalCeiling": 27,
-     "pushFloor": 8
+     "pushFloor": 12,
+     "buyLimit": 12
     },
     "P7": {
      "oursInflated": 9.75,
      "marketInflated": 13.5,
      "walkAway": 0,
      "rivalCeiling": 27,
-     "pushFloor": null
+     "pushFloor": null,
+     "buyLimit": 0
     },
     "P8": {
      "oursInflated": 7.25,
      "marketInflated": 4.75,
      "walkAway": 7,
      "rivalCeiling": 13,
-     "pushFloor": 3
+     "pushFloor": 7,
+     "buyLimit": 7
     },
     "P9": {
      "oursInflated": 7.25,
      "marketInflated": 6.0,
      "walkAway": 7,
      "rivalCeiling": 27,
-     "pushFloor": 5
+     "pushFloor": 7,
+     "buyLimit": 7
     },
     "P10": {
      "oursInflated": 2.25,
      "marketInflated": 1.0,
      "walkAway": 0,
      "rivalCeiling": 27,
-     "pushFloor": null
+     "pushFloor": null,
+     "buyLimit": 0
     },
     "P11": {
      "oursInflated": 2.25,
      "marketInflated": 2.25,
      "walkAway": 2,
      "rivalCeiling": 13,
-     "pushFloor": 1
+     "pushFloor": 2,
+     "buyLimit": 2
     },
     "P12": {
      "oursInflated": 2.25,
      "marketInflated": 1.0,
      "walkAway": 2,
      "rivalCeiling": 27,
-     "pushFloor": null
+     "pushFloor": 2,
+     "buyLimit": 2
     },
     "P13": {
      "oursInflated": 2.25,
      "marketInflated": 1.0,
      "walkAway": 2,
      "rivalCeiling": 27,
-     "pushFloor": null
+     "pushFloor": 2,
+     "buyLimit": 2
     }
-   }
+   },
+   "rule_note": "Since 2026-11-27 the board's push floor is rule B (Jeremy: \"Roster value (Recommended)\"): buy limit capped at the best rival max bid - $1. Rule A values for the same state stay pinned in tests/test_draft_strategy.py (pushFloors().pushFloor.A)."
   },
   "variant_rival_cap": {
-   "note": "Same money and slot counts; only which slots are open changes. Only B can now roster a QB, so P5's push floor stops at B's max bid less $1.",
+   "note": "Same money and slot counts; only which slots are open changes. Only B can now roster a QB, so P5's push floor stops at B's max bid less $1 ($12) while his buy limit stays $13.",
    "teams": [
     {
      "id": "A",
@@ -262,12 +272,14 @@
     "P5": {
      "walkAway": 13,
      "rivalCeiling": 13,
+     "buyLimit": 13,
      "pushFloor": 12
     },
     "P6": {
      "walkAway": 12,
      "rivalCeiling": 27,
-     "pushFloor": 8
+     "buyLimit": 12,
+     "pushFloor": 12
     }
    }
   },
@@ -279,48 +291,57 @@
      "oursInflated": 9.8,
      "oursInflatedRoom": 14.75,
      "walkAway": 9,
-     "pushFloor": 9
+     "pushFloor": 9,
+     "buyLimit": 9
     },
     "P6": {
      "oursInflated": 8.2,
      "oursInflatedRoom": 12.25,
      "walkAway": 8,
-     "pushFloor": 8
+     "pushFloor": 8,
+     "buyLimit": 8
     },
     "P7": {
      "oursInflated": 6.6,
      "walkAway": 0,
-     "pushFloor": null
+     "pushFloor": null,
+     "buyLimit": 0
     },
     "P8": {
      "oursInflated": 5.0,
      "walkAway": 5,
-     "pushFloor": 3
+     "pushFloor": 5,
+     "buyLimit": 5
     },
     "P9": {
      "oursInflated": 5.0,
      "walkAway": 5,
-     "pushFloor": 5
+     "pushFloor": 5,
+     "buyLimit": 5
     },
     "P10": {
      "oursInflated": 1.8,
      "walkAway": 0,
-     "pushFloor": null
+     "pushFloor": null,
+     "buyLimit": 0
     },
     "P11": {
      "oursInflated": 1.8,
      "walkAway": 1,
-     "pushFloor": 1
+     "pushFloor": 1,
+     "buyLimit": 1
     },
     "P12": {
      "oursInflated": 1.8,
      "walkAway": 1,
-     "pushFloor": null
+     "pushFloor": 1,
+     "buyLimit": 1
     },
     "P13": {
      "oursInflated": 1.8,
      "walkAway": 1,
-     "pushFloor": null
+     "pushFloor": 1,
+     "buyLimit": 1
     }
    }
   }

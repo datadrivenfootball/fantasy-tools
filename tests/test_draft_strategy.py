@@ -93,6 +93,17 @@ class PushFloorCandidates(unittest.TestCase):
         self.assertEqual(m["rivals"][0]["id"], "r1")
         self.assertEqual(m["topRivalMaxBid"], 40)
 
+    def test_board_push_floor_is_rule_b(self):
+        """Jeremy, 2026-11-27: "Roster value (Recommended)". The board's push
+        floor and buy limit are pushFloors()'s B and buy limit, for every
+        player, under both inflation factors; rule A is not on the board."""
+        for factor in ("personal", "room"):
+            rows = _cjs(f"Object.keys(W.players).map(k=>{{const s=st({{ourFactor:'{factor}'}});"
+                        "const r=E.boardRow(s,k),p=E.pushFloors(s,k);return [k,r.pushFloor,p.pushFloor.B,r.buyLimit,p.buyLimit,'pushFloorA' in r]})")
+            for k, board_pf, b, board_bl, bl, has_a in rows:
+                self.assertEqual((board_pf, board_bl), (b, bl), (factor, k))
+                self.assertFalse(has_a, k)
+
     def test_no_slot_classification(self):
         self.assertEqual(_cjs("E.pushFloors(st(),'P7').classification"), "no slot")
 

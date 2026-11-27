@@ -88,7 +88,7 @@ available players, and the three pre-draft price maps.
 | Inflated price | `$1 + (price - $1) x factor` |
 | Max bid (per team) | `money left - $1 x (open slots - 1)` |
 | Walk-away | Our inflated price rounded down to whole dollars, capped at our max bid and at the best max bid among rivals who can roster him + $1 (no rival can force us past that). $1 when he is outside our priced pool but we have a slot; $0 when we have no slot. |
-| Push floor | Below. **What the board does today:** walk-aways use **personal inflation by default** (Jeremy, 2026-11-27: "Personal by default (Recommended)"); each row also carries `oursInflatedRoom`, the room-factor price, for reference, and `state.ourFactor = "room"` switches back. The push floor shown is still rule A; the candidates below are in `pushFloors()` until Jeremy decides. |
+| Push floor | Below. **What the board does today:** walk-aways use **personal inflation by default** (Jeremy, 2026-11-27: "Personal by default (Recommended)"); each row also carries `oursInflatedRoom`, the room-factor price, for reference, and `state.ourFactor = "room"` switches back. The push floor shown is **rule B** (Jeremy, 2026-11-27: "Roster value (Recommended)"): the buy limit, which the board shows as its own number, capped at the best rival max bid - $1. Rules A and C stay in `pushFloors()` for comparison and are not on the board. |
 
 The inflation factor itself is not bounded: late in a draft it can be large
 (review probe: $20 and 2 open slots against a rival with $3 for 1 slot and
@@ -202,9 +202,9 @@ What it shows:
    +0.1 +/- 0.5); C only loses under our own values. Pushing past our value
    neither helps nor clearly hurts, and it gets us stuck 2.6 times a draft.
 
-Personal inflation is the board default since 2026-11-27 (Jeremy:
-"Personal by default (Recommended)"). Recommendation for the push floor,
-still Jeremy's call (the board shows rule A until then): **B.** Limits: bots do not nominate
+Decided 2026-11-27: personal inflation is the board default ("Personal by
+default (Recommended)") and the board's push floor is B ("Roster value
+(Recommended)"). Limits: bots do not nominate
 strategically; one league shape; the noisy judge still centres on DDF Value.
 (The reviewer's probe on the earlier code, 100 drafts on seed 2, found
 B - A = -1.7 +/- 0.9 under the market judge; this run, after the Vegas fill
@@ -234,22 +234,30 @@ three $2 players (P10, P11, P12; P13 is the 9th): 11+9+7+5+5+1+1+1 = **$40**.
 Factor 50/40 = **1.25** (inflation **+25%**). Market value left is also $40
 (16, 11, 8, 5, 4, 2, 1, 1 less $1 each), so market factor is also 1.25.
 
-| Player | Pos | Ours | Mkt | Ours infl. | Mkt infl. | Walk-away | Best rival max | Push floor |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| P5 | QB | 12 | 16 | 14.75 | 19.75 | min(13, 14) = **13** | C 27 | min(13, 18, 26) = **13** |
-| P6 | WR | 10 | 8 | 12.25 | 9.75 | **12** | C 27 | min(12, 8, 26) = **8** |
-| P7 | RB | 8 | 11 | 9.75 | 13.5 | **0** (no RB slot) | 27 | **none** |
-| P8 | TE | 6 | 4 | 7.25 | 4.75 | **7** | B 13 | min(7, 3, 12) = **3** |
-| P9 | WR | 6 | 5 | 7.25 | 6.0 | **7** | C 27 | min(7, 5, 26) = **5** |
-| P11 | TE | 2 | 2 | 2.25 | 2.25 | **2** | B 13 | min(2, 1, 12) = **1** |
-| P12 | QB | 2 | 1 | 2.25 | 1.0 | **2** | C 27 | min(2, 0, 26) < 1: **none** |
+Push floor is rule B (the board since 2026-11-27): buy limit (what he is
+worth to A's roster; every open A slot here is a starting slot, so it equals
+the walk-away) capped at the best rival max bid - $1. Rule A is shown for
+comparison only.
 
-Each rule binds at least once: our max bid caps P5's walk-away, the market
-caps P6's push, the walk-away caps P5's push, the missing slot zeroes P7.
+| Player | Pos | Ours | Mkt | Ours infl. | Mkt infl. | Walk-away = buy limit | Best rival max | Push floor B | Rule A (comparison) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| P5 | QB | 12 | 16 | 14.75 | 19.75 | min(13, 14) = **13** | C 27 | min(13, 26) = **13** | min(13, 18, 26) = 13 |
+| P6 | WR | 10 | 8 | 12.25 | 9.75 | **12** | C 27 | min(12, 26) = **12** | min(12, 8, 26) = 8 |
+| P7 | RB | 8 | 11 | 9.75 | 13.5 | **0** (no RB slot) | 27 | **none** | none |
+| P8 | TE | 6 | 4 | 7.25 | 4.75 | **7** | B 13 | min(7, 12) = **7** | min(7, 3, 12) = 3 |
+| P9 | WR | 6 | 5 | 7.25 | 6.0 | **7** | C 27 | **7** | min(7, 5, 26) = 5 |
+| P11 | TE | 2 | 2 | 2.25 | 2.25 | **2** | B 13 | **2** | min(2, 1, 12) = 1 |
+| P12 | QB | 2 | 1 | 2.25 | 1.0 | **2** | C 27 | **2** | none |
+
+Each rule binds at least once: our max bid caps P5's walk-away, the missing
+slot zeroes P7, and (variant) the rival cap holds P5's push floor under his
+buy limit. Where B and A differ, A stopped at market - $1 on players we would
+gladly own at our price (P6, P8, P9, P11).
 
 **Variant (rival cap).** Same money and counts, but only B has an open QB
 slot (B: QB, WR; C: RB, WR, TE). P5's best rival is now B at $13, so his
-push floor is min(13, 18, 12) = **$12**.
+push floor is min(13, 13 - 1) = **$12** while his buy limit stays **$13**:
+above $12 no rival can top us, so a $13 bid is a purchase, not a push.
 
 The tables above use the room factor (`ourFactor: "room"`). **With the
 default personal inflation** (since 2026-11-27): A holds $12 of the room's
@@ -257,15 +265,15 @@ $50 surplus but 3 of its 8 open valued slots, so A's factor is
 12 / (40 x 3/8) = **0.8**; market prices stay on the room factor (1.25).
 Ours inflated = 1 + (ours - 1) x 0.8:
 
-| Player | Ours | Ours infl. (personal) | Room, for reference | Walk-away | Push floor (rule A) |
+| Player | Ours | Ours infl. (personal) | Room, for reference | Walk-away = buy limit | Push floor B |
 | --- | --- | --- | --- | --- | --- |
-| P5 | 12 | 9.8 | 14.75 | **9** | min(9, 18, 26) = **9** |
-| P6 | 10 | 8.2 | 12.25 | **8** | min(8, 8, 26) = **8** |
+| P5 | 12 | 9.8 | 14.75 | **9** | min(9, 26) = **9** |
+| P6 | 10 | 8.2 | 12.25 | **8** | **8** |
 | P7 | 8 | 6.6 | 9.75 | **0** (no RB slot) | none |
-| P8 | 6 | 5.0 | 7.25 | **5** | min(5, 3, 12) = **3** |
-| P9 | 6 | 5.0 | 7.25 | **5** | min(5, 5, 26) = **5** |
-| P11 | 2 | 1.8 | 2.25 | **1** | min(1, 1, 12) = **1** |
-| P12 | 2 | 1.8 | 2.25 | **1** | min(1, 0, 26) < 1: **none** |
+| P8 | 6 | 5.0 | 7.25 | **5** | min(5, 12) = **5** |
+| P9 | 6 | 5.0 | 7.25 | **5** | **5** |
+| P11 | 2 | 1.8 | 2.25 | **1** | **1** |
+| P12 | 2 | 1.8 | 2.25 | **1** | **1** |
 
 A is short of money for its open slots (it overspent on P1), so personal
 inflation lowers its bids; a team holding more than its share bids higher.
