@@ -31,7 +31,7 @@
   var QS = new URLSearchParams(location.search);
   var IS_LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   var list = function (s) { return String(s || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean); };
-  var LIVE_PAGE = cfg.livePage || "team.html", ADD = list(cfg.add), STAGING_PAGES = list(cfg.stagingPages || "team.html");
+  var LIVE_PAGE = cfg.livePage || "team.html", ADD = list(cfg.add), STAGING_PAGES = list(cfg.stagingPages || "team.html,find.html,build.html");
   var sb = null, resolveReady;
   var S = window.DDFStaging = {league: null, summary: null, weekly: null, weeklyError: null, me: null, matched: {teams: []},
     mock: IS_LOCAL && QS.get("mock") === "1", url: function (name) { return new URL(name, HERE).href; }};
@@ -150,7 +150,11 @@
       busy = true;
       Array.prototype.forEach.call(nav.querySelectorAll("a[href]"), function (a) {
         var file = (a.getAttribute("href") || "").split(/[?#]/)[0];
-        if (STAGING_PAGES.indexOf(file) >= 0) a.href = S.url(a.getAttribute("href"));
+        if (STAGING_PAGES.indexOf(file) >= 0) {
+          var u = new URL(S.url(a.getAttribute("href")));
+          if (S.league && !u.searchParams.get("league")) u.searchParams.set("league", S.league.id); // stay on this league
+          a.href = u.href;
+        }
       });
       Array.prototype.forEach.call(nav.querySelectorAll('a[href$="team.html"]'), function (team) {
         var next = team.nextElementSibling;

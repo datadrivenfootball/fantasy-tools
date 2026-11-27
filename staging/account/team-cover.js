@@ -73,6 +73,9 @@
       el("details", {class: "info"}, el("summary", {"aria-label": "How cover is worked out", text: "ⓘ"}),
         el("span", {text: "For each week left we set your best lineup on weekly projections, then set it again without that player. The cost is the points you lose, and the name under it is who steps in. Hole: a slot goes empty, or you lose half his points or more. Thin: you lose a quarter or more."}))));
     sec.appendChild(el("p", {class: "cv-intro", text: "What losing each starter costs your lineup in the weeks left, and who steps in. Holes first." + (sample ? " Sample numbers." : "")}));
+    /* Jeremy, 2026-11-27: every weekly number says its source and whether it is in the league's own scoring */
+    var sb = (S && S.weekly && S.weekly.scoring_basis) || null;
+    if (sb && sb.text) sec.appendChild(el("p", {class: "cv-intro cv-basis", text: "Numbers: ESPN's weekly projected stats (Sleeper's where ESPN has none; K and DEF from ESPN). " + sb.text}));
     if (!cover.starters.length && !(cover.kdef || []).length) { sec.appendChild(el("p", {class: "empty", text: "No starters to show for the weeks left."})); return sec; }
     var counts = {hole: 0, thin: 0};
     cover.starters.forEach(function (s) { if (counts[s.kind] !== undefined) counts[s.kind]++; });

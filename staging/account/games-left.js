@@ -335,6 +335,8 @@
     if (!league.my_team_key) { status(addLeagueLine("Pick your team in this league first.")); return; }
     if (!window.DDFWeekly || typeof window.DDFWeekly.plan !== "function") throw new Error("The planner did not load. Reload the page.");
     /* The team picked on the Add your league page lives on the league row; the planner falls back to the summary's own. */
+    /* the staging Team / Find / Build links stay on this league */
+    Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="games-left.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
     var plan = window.DDFWeekly.plan(league.summary, weekly, league.my_team_key ? {myTeamKey: league.my_team_key} : {});
     render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"));
   }
