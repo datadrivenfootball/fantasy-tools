@@ -153,6 +153,7 @@ test-unit-modules:
 	python3 -m unittest tests.test_draft_strategy
 	python3 -m unittest tests.test_draft_vegas_paste
 	python3 -m unittest tests.test_draft_auction_paste
+	python3 -m unittest tests.test_draft_outcome
 	# JEG-1543: the answers version shows no source name or source number and the same DDF Value (needs dist/answers).
 	python3 -m unittest tests.test_answers_site
 	# JEG-1334: fractional flex and bench seats helper (option B, JEG-1286).

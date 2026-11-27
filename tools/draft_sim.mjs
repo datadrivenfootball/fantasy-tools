@@ -29,6 +29,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { buildPrices, ecrRanks, espnTable } from "./draft_backtest.mjs";
+import { realizedPoints } from "./draft_outcome.mjs";
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
@@ -239,10 +240,16 @@ export function simulate({ prices: realPrices, league, policy: pol, draft, seed,
   // Independent judges: market dollars, and DDF Value with hidden noise.
   const marketVals = prices.market;
   const truthVals = prices.truth || {};
+  // Realized judge (Jeremy, 2026-11-27: "Re-test on 2026 results"): the 2026
+  // DDF Value of what each player actually scored (weeks 1-11 scaled to 17),
+  // summed over the whole roster, so bench depth counts as well as starters.
+  const realVals = prices.realized || {};
   return {
     starterValue: starterValue(roster, pos, vals),
     starterMarket: starterValue(roster, pos, marketVals),
     starterTruth: starterValue(roster, pos, truthVals),
+    rosterRealized: roster.reduce((t, k) => t + (realVals[k] || 0), 0),
+    starterRealized: starterValue(roster, pos, realVals),
     rosterMarket: roster.reduce((t, k) => t + (marketVals[k] || 0), 0),
     rosterValue: roster.reduce((t, k) => t + (vals[k] || 0), 0),
     starterDollars: starterValue(roster, pos, prices.ours),
@@ -261,7 +268,7 @@ export function simulate({ prices: realPrices, league, policy: pol, draft, seed,
 
 // Judges: ours and market score the real-price world; truth scores the
 // truth world (a separate run with the same seeds).
-export const JUDGES = { ours: "starterValue", market: "starterMarket" };
+export const JUDGES = { ours: "starterValue", market: "starterMarket", realized: "rosterRealized" };
 
 // Mean and standard error of the per-draft difference a - b (same seeds).
 function paired(a, b, f) {
@@ -279,6 +286,7 @@ function summarize(runs) {
     starterValue: mean("starterValue"), starterValueSd: sd("starterValue"),
     rosterValue: mean("rosterValue"), starterDollars: mean("starterDollars"),
     starterMarket: mean("starterMarket"), starterTruth: mean("starterTruth"), rosterMarket: mean("rosterMarket"),
+    rosterRealized: mean("rosterRealized"), starterRealized: mean("starterRealized"),
     unspent: mean("unspent"), pushWins: mean("pushWins"),
     aboveValue: mean("aboveValue"), aboveValueDollars: mean("aboveValueDollars"),
     aboveWalkAway: mean("aboveWalkAway"), drained: mean("drained"),
@@ -297,6 +305,12 @@ function main() {
   const prices = buildPrices({ league, fp: JSON.parse(fs.readFileSync(a.fp, "utf8")),
     vegas: JSON.parse(fs.readFileSync(a.vegas, "utf8")), espn: espnTable(JSON.parse(fs.readFileSync(a.espn, "utf8"))),
     ecr: ecrRanks(path.join(a["ecr-dir"], "ecr_half.html")) });
+  // Realized 2026 value for the realized judge, priced at this league.
+  const keys = new Set(Object.keys(prices.players));
+  const pts = realizedPoints(fs.readFileSync(a.actuals || path.join(ROOT, "data", "inputs", "weekly_actuals_2024_2026.csv"), "utf8"),
+    "half_ppr", Number(a.weeks || 11), keys);
+  const LINEUP = JSON.parse(fs.readFileSync(path.join(ROOT, "config", "lineup_parameters.json"), "utf8"));
+  prices.realized = E.ddfDraftValues({ league, players: prices.players, projections: { realized: pts }, lineupConfig: LINEUP }).values;
   const results = {}, allRuns = {}, truthRuns = {}, truthResults = {};
   POLICIES.forEach(policy => {
     const runs = [], tr = [];

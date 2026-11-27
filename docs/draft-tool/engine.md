@@ -37,6 +37,21 @@ the 50/25/25 blend of the same day; no source weights remain.)
 A snapshot marked stale or rejected (`vegasStatus` other than "ok") is
 ignored, so every player falls back to his projection, never to zero.
 
+**Vegas level (Jeremy, 2026-11-27: "Scale to projections (Recommended)").**
+Book lines sit below projections (a line is a median, shaded by the book).
+Before the per-stat pick each Vegas market is scaled onto the projection's
+level: factor = the median, over players with both a prop and a projection,
+of projection / line (`vegasScaleFactors`, `scaleVegas`). Vegas still wins
+wherever it has a line; only its level moves. A market with no overlap keeps
+1. The paste tool records the factors and the pull date in each snapshot's
+meta file. 2026 factors (2026-09-12 lines vs FantasyPros 2026-09-11):
+pass_yds 1.117, pass_tds 1.074, rush_yds 1.238, rush_tds 1.107, rec 1.106, rec_yds 1.137, rec_tds 1.109. Test: lines exactly 0.9x the projection give a factor of 1/0.9
+and ours equal to projections only (`test_vegas_lines_scaled_to_projection_level`).
+
+**Position split (Jeremy, 2026-11-27: "Projection split (Recommended)",
+replacing his earlier "A").** The projection sets the position split; the
+market split was tried and lost the 2026 outcome test (learnings.md).
+
 The merged stat line is scored with the league's scoring and goes through
 the existing value build once, as one projection source in points per game
 (`ValueModel.runValuePipeline`, expected-starts bench share from
@@ -165,55 +180,47 @@ own market/platform blend (uniform 0-1; the model assumes 0.5) and +/-10%
 position tendencies, so they do not bid the way our opponent model assumes.
 Same seeds for every policy.
 
-Three judges score our starting lineup:
+Four judges (Jeremy, 2026-11-27: "Re-test on 2026 results (Recommended)"
+added the fourth):
 
-- **Ours** and **market**: the draft runs on the real 2026 prices; the
-  lineup is scored with DDF Value, or with market dollars.
+- **Ours** and **market**: the draft runs on the real 2026 prices; our
+  starting lineup is scored with DDF Value, or with market dollars.
 - **Truth**: a separate run where each player's true value is drawn first
   (around the mean of ours and market, +/-25%), and ours and market are each
-  an independent estimate of it (+/-20% apiece). Bidders see only the
-  estimates; the lineup is scored by the true values. Here ours can be wrong
-  and lose, so this is the judge that can contradict our own numbers.
+  an independent estimate of it (+/-20% apiece); our starting lineup is
+  scored by the true values.
+- **Realized**: the draft runs on the real 2026 prices; our whole roster
+  (starters and bench) is scored by the 2026 DDF Value of what each player
+  actually scored, weeks 1-11 scaled to 17 (the outcome test's values).
 
-Re-run 2026-11-27 with ours built by availability (Vegas, then projection,
-then market; no blend). Mean per draft (starter value; ours and truth in DDF
-Value points, market in market dollars):
+Re-run 2026-11-27 with ours by availability and Vegas scaled to projections
+(300 drafts, seed 2). Each policy minus B, paired by seed (mean +/- standard
+error):
 
-| Policy | Ours | Market | Truth | Unspent (real prices) | Bench buys at starter price |
-| --- | --- | --- | --- | --- | --- |
-| Walk-away, room inflation (first engine) | 192.4 | 74.8 | 216.0 | $94 | 4.9 |
-| Walk-away, personal inflation | 250.5 | 163.8 | 216.6 | $0 | 5.1 |
-| A, personal | 251.0 | 165.8 | 216.9 | $0 | 5.0 |
-| **B, personal (the board today)** | **256.9** | 156.3 | **221.2** | $2 | 0 |
-| C, personal | 256.4 | 158.2 | 213.9 | $1 | 1.3 |
+| Policy | Ours judge | Market judge | Truth judge | Realized judge |
+| --- | --- | --- | --- | --- |
+| Walk-away, room inflation | -60.0 +/- 0.8 | -87.7 +/- 1.0 | -8.0 +/- 0.9 | -27.4 +/- 3.3 |
+| Walk-away, personal | -10.2 +/- 0.6 | -3.3 +/- 0.7 | -4.9 +/- 0.4 | -49.4 +/- 3.0 |
+| A, personal | -7.3 +/- 0.5 | +3.2 +/- 0.6 | -4.5 +/- 0.3 | -36.8 +/- 3.1 |
+| C, personal | -1.1 +/- 0.2 | 0.0 +/- 0.2 | -7.3 +/- 0.4 | -6.7 +/- 1.4 |
 
-Each policy minus B, paired by seed (mean +/- standard error):
-
-| Policy | Ours judge | Market judge | Truth judge |
-| --- | --- | --- | --- |
-| Walk-away, room inflation | -64.5 +/- 1.2 | -81.5 +/- 1.2 | -5.2 +/- 1.0 |
-| Walk-away, personal | -6.3 +/- 0.8 | +7.5 +/- 0.6 | -4.6 +/- 0.4 |
-| A, personal | -5.8 +/- 0.7 | +9.5 +/- 0.5 | -4.3 +/- 0.3 |
-| C, personal | -0.4 +/- 0.2 | +1.9 +/- 0.2 | -7.3 +/- 0.4 |
+B means per draft: 217.8 (ours), 160.6 (market), 220.6 (truth), 299.3
+(realized roster; 253.3 for its starters alone).
 
 What it shows:
 
-1. **B wins under the truth judge,** the one that can contradict our values:
-   +4.3 over A, +4.6 over plain walk-away, +7.3 over C, each well over two
-   standard errors. B also wins under our own values.
-2. **Under the market judge B now loses** (A +9.5, walk-away +7.5). With
-   the fallback, ours and the market disagree on positions (ours rates RBs
-   higher; see backtest.md), and B bids hardest where ours is most sure, so
-   a market-valued lineup scores lower. This is the position-split question
-   in backtest.md, not a push-floor effect.
-3. **Personal inflation, measured alone** (personal minus room walk-away):
-   +58.2 +/- 1.4 (ours), +89.0 +/- 1.2 (market), **+0.6 +/- 1.0 (truth)**.
-   On the real 2026 prices room inflation strands $94 because ours and the
-   market price the pool very differently; when they agree on average
-   (truth world) the two factors draft alike.
-
-Limits: bots do not nominate strategically; one league shape; the truth world
-assumes ours and market are equally accurate.
+1. **B wins under the realized 2026 judge,** by far the most: +36.8 over A,
+   +49.4 over plain walk-away, +6.7 over C. It also wins under ours and
+   truth. Only the market judge prefers A (+3.2), and only narrowly. B
+   stays the board default.
+2. **Personal inflation, measured alone** (personal minus room walk-away):
+   +49.8 +/- 1.0 (ours), +84.4 +/- 1.1 (market), +3.0 +/- 1.0 (truth),
+   **-22.0 +/- 3.8 (realized)**. With room inflation the plain walk-away
+   policy left $101 unspent but bought cheaper players who outscored their
+   price in 2026. Combined with B the board beats the first engine under
+   every judge (-60.0 / -87.7 / -8.0 / -27.4 above), but personal inflation
+   on its own did not help against 2026 results. One season, one league
+   shape: a question for Jeremy, not a change.
 
 Decided 2026-11-27: personal inflation is the board default ("Personal by
 default (Recommended)") and the board's push floor is B ("Roster value

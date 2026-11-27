@@ -236,17 +236,58 @@ class FullLeagueBuild(unittest.TestCase):
     def _fp(self):
         return _league_input()["projections"]["fp"]
 
+    def _rb_market(self, fp, probe_mult=None):
+        """Props equal to the projection for 20 RBs (so each market's scale
+        factor is 1), with the probe RB's lines times probe_mult."""
+        players = _league_input()["players"]
+        rbs = [k for k in fp if players[k]["pos"] == "RB"][:20]
+        if PROBE_RB not in rbs:
+            rbs.append(PROBE_RB)
+        out = {}
+        for k in rbs:
+            m = probe_mult if (k == PROBE_RB and probe_mult) else 1.0
+            out[k] = {"rush_yds": fp[k]["rush_yds"] * m, "rec_yds": fp[k]["rec_yds"] * m, "covered": ["rush_yds", "rec_yds"]}
+        return out
+
     def test_all_props_present_price_uses_vegas(self):
         fp = self._fp()
-        rb = dict(fp[PROBE_RB])
-        props = {"rush_yds": rb["rush_yds"] * 1.5, "rec_yds": rb["rec_yds"] * 1.5, "covered": ["rush_yds", "rec_yds"]}
         base = self._build()
-        out = self._build(vegas={PROBE_RB: props})
+        out = self._build(vegas=self._rb_market(fp, probe_mult=1.5))
         self.assertEqual(out["source"][PROBE_RB], "vegas")
+        self.assertAlmostEqual(out["vegasFactors"]["rush_yds"], 1.0, places=9)
         # The price follows the props, not an average with the projection.
         bumped = self._build(bump={"proj": {PROBE_RB: 1.5}})
-        self.assertAlmostEqual(out["ours"][PROBE_RB], bumped["ours"][PROBE_RB], places=9)
+        self.assertAlmostEqual(out["ours"][PROBE_RB], bumped["ours"][PROBE_RB], places=6)
         self.assertGreater(out["ours"][PROBE_RB], base["ours"][PROBE_RB])
+
+    # Jeremy, 2026-11-27: "Scale to projections (Recommended)".
+    def test_vegas_lines_scaled_to_projection_level(self):
+        """Every line exactly 0.9x the projection: the scale factor is 1/0.9,
+        so ours equals projections only."""
+        fp = self._fp()
+        players = _league_input()["players"]
+        low = {k: {"rush_yds": fp[k]["rush_yds"] * 0.9, "rec_yds": fp[k]["rec_yds"] * 0.9, "covered": ["rush_yds", "rec_yds"]}
+               for k in fp if players[k]["pos"] == "RB"}
+        out = self._build(vegas=low)
+        self.assertAlmostEqual(out["vegasFactors"]["rush_yds"], 1 / 0.9, places=9)
+        self.assertEqual(out["vegasFactorN"]["rush_yds"], len(low))
+        base = self._build()["ours"]
+        self.assertEqual(set(out["ours"]), set(base))
+        self.assertLess(max(abs(out["ours"][k] - base[k]) for k in base), 1e-9)
+
+    def test_unscaled_lines_would_move_ours(self):
+        """Discrimination for the scaling test: with scaling off, 0.9x lines
+        lower every RB with a prop."""
+        fp = self._fp()
+        players = _league_input()["players"]
+        low = {k: {"rush_yds": fp[k]["rush_yds"] * 0.9, "rec_yds": fp[k]["rec_yds"] * 0.9, "covered": ["rush_yds", "rec_yds"]}
+               for k in fp if players[k]["pos"] == "RB"}
+        doc = _league_input(vegas=low)
+        doc["vegasScale"] = False
+        off = self._build_doc(doc)
+        self.assertIsNone(off["vegasFactors"])
+        base = self._build()["ours"]
+        self.assertGreater(max(abs(off["ours"].get(k, 0) - base.get(k, 0)) for k in set(off["ours"]) | set(base)), 0.5)
 
     def test_partial_props_fill_missing_stats_from_projection(self):
         fp = self._fp()

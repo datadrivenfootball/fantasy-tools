@@ -178,6 +178,48 @@
     return { line: out, source: source };
   }
 
+  // Vegas level (Jeremy, 2026-11-27: "Scale to projections (Recommended)").
+  // Book lines and projections sit on different levels (a line is a median,
+  // shaded by the book), so each Vegas market is scaled onto the projection's
+  // level before the per-stat pick: factor = median over players with both a
+  // prop and a projection of (projection / line). Vegas still wins wherever
+  // it has a line; only its level moves. A market with no overlap keeps 1.
+  function propStatCovered(v, st) {
+    return v && v[st] !== null && v[st] !== undefined && isFinite(Number(v[st])) &&
+      (!v.covered || v.covered.indexOf(st) !== -1);
+  }
+  function median(xs) {
+    var a = xs.slice().sort(function (x, y) { return x - y; }), n = a.length;
+    return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
+  }
+  function vegasScaleFactors(vegas, proj) {
+    var factors = {}, n = {};
+    VEGAS_STATS.forEach(function (st) {
+      var r = [];
+      Object.keys(vegas || {}).forEach(function (k) {
+        var v = vegas[k], p = proj && proj[k];
+        if (!p || typeof p !== "object" || !propStatCovered(v, st)) return;
+        var lv = Number(v[st]), pv = Number(p[st]);
+        if (lv > 0 && pv > 0) r.push(pv / lv);
+      });
+      factors[st] = r.length ? median(r) : 1;
+      n[st] = r.length;
+    });
+    return { factors: factors, n: n };
+  }
+  function scaleVegas(vegas, factors) {
+    var out = {};
+    Object.keys(vegas || {}).forEach(function (k) {
+      var v = vegas[k], o = {};
+      Object.keys(v).forEach(function (f) { o[f] = v[f]; });
+      VEGAS_STATS.forEach(function (st) {
+        if (propStatCovered(v, st) && factors[st] != null) o[st] = Number(v[st]) * factors[st];
+      });
+      out[k] = o;
+    });
+    return out;
+  }
+
   // DDF values for market-only players: market dollars above the minimum
   // bid times (DDF Value / market surplus) over the players priced by both.
   function marketFallbackValues(values, mkt, floor, wanted) {
@@ -212,7 +254,12 @@
     var projKey = input.projectionSource || Object.keys(input.projections || {})[0];
     var proj = projKey ? input.projections[projKey] : {};
     var vegasOk = !!input.vegas && (input.vegasStatus == null || input.vegasStatus === "ok");
-    var vegas = vegasOk ? input.vegas : {};
+    var vegasRaw = vegasOk ? input.vegas : {};
+    // input.vegasFactors (e.g. the snapshot's recorded factors) wins over
+    // factors computed here; vegasScale: false keeps the raw lines.
+    var scale = input.vegasScale === false ? null
+      : (input.vegasFactors ? { factors: input.vegasFactors, n: null } : vegasScaleFactors(vegasRaw, proj));
+    var vegas = scale ? scaleVegas(vegasRaw, scale.factors) : vegasRaw;
     var skill = {};
     Object.keys(input.players).forEach(function (k) {
       var p = input.players[k];
@@ -277,6 +324,7 @@
     SOURCE_LABELS.forEach(function (l) { counts[l] = 0; });
     Object.keys(values).forEach(function (k) { if (source[k]) counts[source[k]] += 1; });
     return { values: values, source: source, counts: counts, pipeline: pipeline,
+      vegasFactors: scale ? scale.factors : null, vegasFactorN: scale ? scale.n : null,
       vegasUsed: vegasOk && Object.keys(input.vegas || {}).length > 0 };
   }
 
@@ -707,6 +755,8 @@
     preseasonLineup: preseasonLineup,
     SOURCE_LABELS: SOURCE_LABELS,
     mergeStatLine: mergeStatLine,
+    vegasScaleFactors: vegasScaleFactors,
+    scaleVegas: scaleVegas,
     ddfDraftValues: ddfDraftValues,
     pricesFromWeights: pricesFromWeights,
     ourPrices: ourPrices,

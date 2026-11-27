@@ -234,6 +234,11 @@ class SnapshotTool(unittest.TestCase):
         self.assertEqual(set(rows[0]), {"name", "player_key", "team", "market", "line"})
         meta = json.loads((d / "vegas_2026-08-20.meta.json").read_text())
         self.assertEqual((meta["snapshot_date"], meta["season"], meta["label"]), ("2026-08-20", 2026, "2026 data"))
+        # Jeremy, 2026-11-27: "Scale to projections (Recommended)": the
+        # snapshot records each market's factor and how many players set it.
+        self.assertIn("pulled_at", meta)
+        self.assertEqual(set(meta["vegas_factors"]), {"pass_yds", "pass_tds", "rush_yds", "rush_tds", "rec", "rec_yds", "rec_tds"})
+        self.assertTrue(all(v > 0 for v in meta["vegas_factors"].values()))
 
     def test_sql_load_script_is_idempotent_and_escaped(self):
         out, d = self._run(SAMPLE, extra=("--sql",))

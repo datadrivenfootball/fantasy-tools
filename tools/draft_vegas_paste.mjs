@@ -21,6 +21,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const V = require(path.join(ROOT, "app", "draft", "vegas-paste.js"));
+const E = require(path.join(ROOT, "app", "draft", "draft-engine.js"));
 
 const wantSql = process.argv.includes("--sql");
 const argv = process.argv.slice(2).filter(x => x !== "--sql"), a = {};
@@ -45,9 +46,17 @@ const rows = res.rows.map(r => ({ name: r.name, player_key: Number(r.key), team:
 fs.mkdirSync(a.out, { recursive: true });
 const file = path.join(a.out, `vegas_${a.date}.json`);
 fs.writeFileSync(file, JSON.stringify(rows, null, 1));
+// Scale factors onto the projection's level (Jeremy, 2026-11-27: "Scale to
+// projections (Recommended)"), recorded with the snapshot.
+const projStats = Array.isArray(list)
+  ? Object.fromEntries(list.map(p => [String(p.key), Object.fromEntries(Object.entries(p).map(([f, v]) => [f, typeof v === "string" && !["name", "pos", "team"].includes(f) ? Number(v) : v]))]))
+  : {};
+const lineStats = Object.fromEntries(Object.entries(V.lineMap(res.rows)).map(([k, l]) => [k, E.vegasStatLine(l, null)]));
+const scale = E.vegasScaleFactors(lineStats, projStats);
 fs.writeFileSync(path.join(a.out, `vegas_${a.date}.meta.json`), JSON.stringify({
-  snapshot_date: a.date, season: res.season, label: `${res.season} data`, source: "paste",
+  snapshot_date: a.date, pulled_at: new Date().toISOString(), season: res.season, label: `${res.season} data`, source: "paste",
   rows: rows.length, players: new Set(rows.map(r => r.player_key)).size, ignored_lines: res.ignored,
+  vegas_factors: scale.factors, vegas_factor_n: scale.n,
 }, null, 1));
 if (wantSql) {
   const q = v => (v === null || v === undefined ? "null" : `'${String(v).replace(/'/g, "''")}'`);

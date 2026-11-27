@@ -138,6 +138,11 @@ of f662c66 and f0fcfb1):
   player and market, an over and under more than 5% apart, a number outside
   a plausible season range, or an over/under it cannot read.
 
+Each snapshot's meta file records its pull date (`snapshot_date`,
+`pulled_at`) and the scale factor per market that puts its lines on the
+projection's level (`vegas_factors`, with `vegas_factor_n` players behind
+each); see engine.md "Vegas level".
+
 Storage: `public.draft_vegas_lines` (applied 2026-11-27 on Jeremy's yes;
 public read, server-only write; one snapshot per date, the same for every
 league). Add `--sql` to step 3 and the tool also writes

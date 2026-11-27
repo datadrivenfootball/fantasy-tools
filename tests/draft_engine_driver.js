@@ -37,7 +37,7 @@ if (mode === "pricing") {
   const ours = DraftEngine.ourPrices(res.values, doc.league);
   out = { values: res.values, ours, snake: DraftEngine.snakeRanks(res.values),
     method: res.pipeline.method, benchShare: res.pipeline.benchShare,
-    source: res.source, counts: res.counts,
+    source: res.source, counts: res.counts, vegasFactors: res.vegasFactors, vegasFactorN: res.vegasFactorN,
     shape: DraftEngine.leagueShape(doc.league) };
 } else {
   throw new Error(`unknown mode ${mode}`);

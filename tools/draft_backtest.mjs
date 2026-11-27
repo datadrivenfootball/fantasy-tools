@@ -91,7 +91,7 @@ export function espnTable(doc) {
   }));
 }
 
-export function buildPrices({ league, fp, vegas, espn, ecr }) {
+export function buildPrices({ league, fp, vegas, espn, ecr, vegasScale }) {
   // league.ecr names the published format closest to the league's scoring.
   const scoringKey = league.ecr === "standard" ? "std" : "ppr";
   const players = {}, fpStats = {}, byName = new Map();
@@ -117,13 +117,14 @@ export function buildPrices({ league, fp, vegas, espn, ecr }) {
   const platformRaw = {};
   espnSkill.forEach(p => { const k = byName.get(p.name); if (k && p[scoringKey] != null) platformRaw[k] = p[scoringKey]; });
   const build = E.ddfDraftValues({ league, players, projections: { fp: fpStats }, vegas: vegasStats,
-    markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP });
+    markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP, vegasScale });
   return {
     players, byName, values: build.values,
     ours: E.ourPrices(build.values, league),
     market: E.rescaleDollars(fpMarketRaw, league),
     platform: E.rescaleDollars(platformRaw, league),
     method: build.pipeline.method, source: build.source, sourceCounts: build.counts,
+    vegasFactors: build.vegasFactors, vegasFactorN: build.vegasFactorN,
     coverage: { fp: Object.keys(fpStats).length, vegas: Object.keys(vegasStats).length,
       ecr: Object.keys(ecrByKey).length, platform: Object.keys(platformRaw).length },
   };
