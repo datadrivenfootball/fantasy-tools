@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>DDF · Add your league (staging)</title>
+<script>/* ESPN phone hand-off (bookmarklet / Shortcut): take it out of the address bar before any other script runs. */
+(function(){var m=/[#&]espn=([^&]+)/.exec(location.hash);if(m){window.__ddfEspnHandoff=m[1];history.replaceState(null,"",location.pathname+location.search);}})();</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- The live site's own stylesheet and the Add your league page's own styles (connect-page.css, copied verbatim). -->
@@ -46,7 +48,7 @@
   .connect .espn-steps>li{margin:10px 0}
   .connect .espn-steps>li.done>strong::after{content:" · added ✓";color:#176c4d}
   .connect .espn-steps>li.done>details{display:none}
-  .connect .espn-phone{background:#e8f5ee;color:#176c4d;border-radius:8px;padding:10px 12px}
+  .connect #bm-code{width:100%;margin:8px 0}
   .connect button[disabled]{opacity:.55;cursor:not-allowed}
   @media(max-width:760px){.connect .roster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -88,7 +90,24 @@
           <div class="way-or" aria-hidden="true"><span>or</span></div>
           <div class="way" id="espn-account-way"><h3>Sign in with ESPN</h3>
             <p>Private league, or several leagues? Sign in at ESPN and pick yours from a list. DDF never asks for your ESPN password.</p>
-            <p class="espn-phone" id="espn-phone" hidden>On a phone, connect ESPN once from a computer (Chrome). After that, your league works here on your phone too.</p>
+            <div id="espn-phone" hidden>
+              <ol class="espn-steps">
+                <li id="bm-step"><strong>Add the DDF ESPN bookmark</strong> (one time).
+                  <details class="id-help" id="bm-help"><summary>How to add it (1 minute)</summary>
+                    <p>Copy this, then follow the steps for your phone.</p>
+                    <div class="cluster"><button type="button" id="bm-copy">Copy the DDF bookmark</button><span class="muted" id="bm-copied" role="status"></span></div>
+                    <textarea id="bm-code" rows="3" readonly spellcheck="false" style="min-height:0;font:12px ui-monospace,monospace"></textarea>
+                    <p><strong>iPhone (Safari)</strong></p>
+                    <ol><li>Tap the Share button, then <strong>Add Bookmark</strong>, name it <code>DDF ESPN</code>, Save.</li>
+                      <li>Open Bookmarks, tap <strong>Edit</strong>, tap <code>DDF ESPN</code>.</li>
+                      <li>Clear the address and paste what you copied. Tap Done.</li></ol>
+                    <p><strong>Android (Chrome)</strong></p>
+                    <ol><li>Tap ⋮, then the star to bookmark this page. Tap <strong>Edit</strong>.</li>
+                      <li>Name it <code>DDF ESPN</code>, replace the URL with what you copied, save.</li></ol></details></li>
+                <li><strong>Open ESPN in this tab and sign in.</strong><div class="cluster" style="margin-top:8px"><button type="button" class="primary" id="espn-open">Open ESPN</button></div></li>
+                <li><strong>Tap the DDF ESPN bookmark</strong> on espn.com. (Android: type <code>DDF ESPN</code> in the address bar and tap the bookmark.) You come back here with your leagues listed.</li>
+              </ol>
+            </div>
             <ol class="espn-steps" id="espn-steps">
               <li id="espn-step-ext"><strong>Add the DDF extension</strong> to Chrome on a computer.
                 <details class="id-help" id="ext-help"><summary>How to add it (2 minutes)</summary>

@@ -131,6 +131,38 @@
     showOptions(r.connection, (r.leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }));
     await loadMe();
   }));
+  /* Phones: a bookmarklet run on espn.com reads ESPN's own sign-in (espn_s2 and SWID are readable by
+     page scripts; ESPN's own code reads espn_s2 the same way) and comes back to this page in the same
+     tab with it in the URL fragment, which never reaches a server. A head script takes it out of the
+     address bar at once; this page sends it to DDF's server and forgets it. */
+  var BOOKMARKLET = "javascript:(function(){" +
+    "if(!/(^|[.])espn[.]com$/.test(location.hostname)){alert('Open espn.com first, signed in, then tap DDF ESPN.');return}" +
+    "var g=function(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?m[1]:''};" +
+    "var s2=g('espn_s2'),sw=decodeURIComponent(g('SWID'));" +
+    "if(!s2||!sw){alert('Sign in to ESPN first, then tap DDF ESPN again.');return}" +
+    "location.href='" + HERE + "#espn='+encodeURIComponent(btoa(JSON.stringify({espn_s2:s2,swid:sw})))})()";
+  $("bm-code").value = BOOKMARKLET;
+  $("bm-copy").addEventListener("click", function () {
+    var done = function () { $("bm-copied").textContent = "Copied"; };
+    try { navigator.clipboard.writeText(BOOKMARKLET).then(done, function () { $("bm-code").select(); }); } catch (e) { $("bm-code").select(); }
+  });
+  $("espn-open").addEventListener("click", function () { location.href = "https://www.espn.com/fantasy/football/"; });
+  async function finishEspnHandoff() {
+    var raw = window.__ddfEspnHandoff;
+    try { if (!raw) raw = sessionStorage.getItem("ddf_espn_pending"); } catch (e) { /* none */ }
+    if (!raw) return;
+    var keys;
+    try { keys = JSON.parse(atob(decodeURIComponent(raw))); } catch (e) { window.__ddfEspnHandoff = null; say("That ESPN sign-in didn't come through. Tap the DDF ESPN bookmark again on espn.com.", "err"); return; }
+    var s = (await sb.auth.getSession()).data.session;
+    if (!s) { try { sessionStorage.setItem("ddf_espn_pending", raw); } catch (e) { /* ignore */ } say("Sign in to DDF in this tab to finish connecting ESPN.", "ok"); return; }
+    window.__ddfEspnHandoff = null;
+    try { sessionStorage.removeItem("ddf_espn_pending"); } catch (e) { /* ignore */ }
+    say("Asking ESPN for your leagues…");
+    var j = await api("POST", "/espn/session", {espn_s2: keys.espn_s2, swid: keys.swid});
+    say("ESPN connected. Pick your league.", "ok");
+    showOptions(j.connection, (j.leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }));
+    await loadMe();
+  }
   try { $("espn-dev").hidden = localStorage.getItem("ddf_dev") !== "1"; } catch (e) { /* dev path stays hidden */ }
   $("espn-private-form").addEventListener("submit", busy(null, async function () {
     var j = await api("POST", "/espn/connect", {league_id: $("espn-pid").value.trim(), espn_s2: $("espn-s2").value.trim(), swid: $("espn-swid").value.trim()});
@@ -361,6 +393,7 @@
     try { await loadMe(); } catch (err) { say(err.message, "err"); }
     placePill();
     detectExt();
+    finishEspnHandoff().catch(function (err) { say(err.message, "err"); });
   }
   var h = new URLSearchParams(location.hash.slice(1));
   var handoff = h.get("yahoo") === "finish" ? h.get("h") : null;
