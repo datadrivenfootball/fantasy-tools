@@ -1,5 +1,5 @@
-// Draft tool daily pull (JEG-1667, Phase 0). NOT DEPLOYED: deploy only on
-// Jeremy's named yes (AGENTS.md: every edge-function deploy).
+// Draft tool daily pull (JEG-1667, Phase 0). Deployed 2026-11-27 on Jeremy's
+// yes (verify_jwt true); redeploy from this file. Not read by any live page.
 //
 // Pulls the recurring draft data that is the same for every league and saves
 // it to public.draft_market_values with its pull date; every attempt is

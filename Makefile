@@ -150,6 +150,7 @@ test-unit-modules:
 	# JEG-1667: draft tool Phase 0 engine (worked example to the dollar) and daily-pull parsers (node, no browser).
 	python3 -m unittest tests.test_draft_engine
 	python3 -m unittest tests.test_draft_pull_parse
+	python3 -m unittest tests.test_draft_strategy
 	# JEG-1543: the answers version shows no source name or source number and the same DDF Value (needs dist/answers).
 	python3 -m unittest tests.test_answers_site
 	# JEG-1334: fractional flex and bench seats helper (option B, JEG-1286).

@@ -349,9 +349,21 @@
       return t + Math.max(0, priceMap[k] - minBid);
     }, 0);
     var factor = valueLeft > 0 ? surplusLeft / valueLeft : null;
+    // Personal factor: our surplus dollars against our fair share of the
+    // value left (value left x our share of the open valued slots). Equal to
+    // the room factor while we hold an average share of money per slot;
+    // higher when rivals have spent faster than us, so unspent cash raises
+    // our bids instead of going to waste.
+    var personal = null;
+    if (state.me != null && factor != null) {
+      var mine = teamById(state, state.me);
+      var myOpen = openCount(mine.open), myValued = myOpen - openMinBidSlots(mine.open);
+      var mySurplus = mine.budgetLeft - myOpen * minBid;
+      personal = myValued > 0 && openValued > 0 ? mySurplus / (valueLeft * myValued / openValued) : null;
+    }
     return { moneyLeft: moneyLeft, openSlots: openTotal, openValuedSlots: openValued,
       surplusLeft: surplusLeft, valueLeft: valueLeft, factor: factor,
-      inflation: factor == null ? null : factor - 1 };
+      inflation: factor == null ? null : factor - 1, personalFactor: personal };
   }
 
   function inflatedPrice(price, factor, minBid) {
@@ -387,7 +399,11 @@
     var ours = p.ours ? p.ours[key] : undefined;
     var market = p.market ? p.market[key] : undefined;
     var platform = p.platform ? p.platform[key] : undefined;
-    var oursInfl = inflatedPrice(ours, c.ours.factor, minBid);
+    // state.ourFactor: "room" (default; the hand-checked worked example) or
+    // "personal" (our money share vs slot share; see inflation()).
+    var ourFactor = state.ourFactor === "personal" && c.ours.personalFactor != null
+      ? c.ours.personalFactor : c.ours.factor;
+    var oursInfl = inflatedPrice(ours, ourFactor, minBid);
     var marketInfl = c.market ? inflatedPrice(market, c.market.factor, minBid) : null;
     var platformInfl = c.platform ? inflatedPrice(platform, c.platform.factor, minBid) : null;
     var myMax = maxBid(me, league);
@@ -426,6 +442,159 @@
       rows: state.available.map(function (k) { return boardRow(state, k, cache); }) };
   }
 
+  // ------------------------------------------------------ opponent model
+  // docs/draft-tool/engine.md "Push floor, thought through" and
+  // research-nominations-opponents.md. Estimates only: a rival's real limit
+  // is unknown, so each estimate carries a relative spread (sigma).
+  var OPPONENT_DEFAULTS = {
+    benchNeed: 0.6,        // need factor when only a bench slot fits him
+    sigma: 0.2,            // relative spread of a rival's limit around the estimate
+    platformBlend: 0.5,    // room price = market x (1 - blend) + platform x blend
+    benchStuckFactor: 0.5, // our value of a bench-only player, share of his price
+    targetMargin: 2,       // $ over the clearing price that makes him a target
+    drainWeight: 0.5,      // what a rival dollar drained is worth to us (candidate C)
+    stuckAllowance: 1      // most expected $ loss we accept on one push (candidate C)
+  };
+
+  // 1 when a starting slot (his position, FLEX, SUPERFLEX) is open for him,
+  // benchNeed when only the bench fits, 0 when nothing does.
+  function needFactor(team, pos, opts) {
+    var o = openSlots(team.open);
+    var has = function (k) { return (Number(o[k]) || 0) > 0; };
+    if (has(pos)) return 1;
+    if (["RB", "WR", "TE"].indexOf(pos) !== -1 && has("FLEX")) return 1;
+    if (SKILL_POSITIONS.indexOf(pos) !== -1 && has("SUPERFLEX")) return 1;
+    if (has("BN")) return (opts || OPPONENT_DEFAULTS).benchNeed;
+    return 0;
+  }
+
+  function normCdf(z) { return 0.5 * (1 + ValueModel.esErf(z / Math.SQRT2)); }
+
+  // The room's price for a player now and every rival's estimated limit.
+  // tendency(teamId, pos) -> multiplier (league tendencies; default 1).
+  function opponentModel(state, key, options) {
+    var opts = Object.assign({}, OPPONENT_DEFAULTS, options || {});
+    var league = state.league;
+    var minBid = leagueShape(league).minBid;
+    var c = (options && options.cache) || boardCache(state);
+    var pos = state.pos[key];
+    var p = state.prices;
+    var m = c.market ? inflatedPrice(p.market && p.market[key], c.market.factor, minBid) : null;
+    var pl = c.platform ? inflatedPrice(p.platform && p.platform[key], c.platform.factor, minBid) : null;
+    var room = m != null && pl != null ? m * (1 - opts.platformBlend) + pl * opts.platformBlend : (m != null ? m : pl);
+    var rivals = [];
+    state.teams.forEach(function (t) {
+      if (t.id === state.me) return;
+      var need = needFactor(t, pos, opts);
+      var mb = maxBid(t, league);
+      if (need <= 0 || mb < minBid) return;
+      var tend = opts.tendency ? opts.tendency(t.id, pos) : 1;
+      var est = room == null ? minBid : Math.min(mb, Math.max(minBid, room * need * tend));
+      rivals.push({ id: t.id, need: need, maxBid: mb, estimate: est });
+    });
+    rivals.sort(function (a, b) { return b.estimate - a.estimate || b.maxBid - a.maxBid; });
+    var w1 = rivals.length ? rivals[0].estimate : 0;
+    var w2 = rivals.length > 1 ? rivals[1].estimate : (rivals.length ? minBid : 0);
+    var clearing = rivals.length ? Math.min(w1, w2 + minBid) : null;
+    return { pos: pos, roomPrice: room, rivals: rivals, w1: w1, w2: w2, clearing: clearing,
+      topRivalMaxBid: rivals.length ? rivals[0].maxBid : 0, opts: opts };
+  }
+
+  // Our value of him to our roster as it stands: his inflated price when he
+  // starts for us, benchStuckFactor of it when only the bench fits, 0 when
+  // nothing fits.
+  function rosterValue(state, key, model, cache) {
+    var me = teamById(state, state.me);
+    var row = boardRow(state, key, cache);
+    var need = needFactor(me, state.pos[key], { benchNeed: model.opts.benchStuckFactor });
+    var v = row.oursInflated == null ? 0 : row.oursInflated * need;
+    return { value: v, buyLimit: Math.min(row.walkAway, Math.floor(v + EPS)), row: row };
+  }
+
+  // Push floor candidates for one player (engine.md "Push floor, thought
+  // through"). Returns the classification (target / neutral / fade /
+  // uncontested: cost to win = best rival limit + $1 against our roster
+  // value), our buy limit and the push floor under each candidate:
+  //   A  lowest of walk-away, market - $1, best rival max - $1 (first draft)
+  //   B  our roster value: the most we are glad to own him at (buy limit)
+  //   C  B, plus a bounded overreach on fades and neutrals: the bid above B
+  //      that maximises drained rival dollars x drainWeight minus expected
+  //      stuck loss, keeping expected loss <= stuckAllowance
+  function pushFloors(state, key, options) {
+    var cache = (options && options.cache) || boardCache(state);
+    var model = opponentModel(state, key, Object.assign({}, options, { cache: cache }));
+    var opts = model.opts;
+    var minBid = leagueShape(state.league).minBid;
+    var rv = rosterValue(state, key, model, cache);
+    var row = rv.row;
+    var me = teamById(state, state.me);
+    var myMax = maxBid(me, state.league);
+    var canBid = canRoster(me, model.pos) && myMax >= minBid;
+    var costToWin = model.rivals.length ? model.w1 + minBid : minBid;
+    var cls = !model.rivals.length ? "uncontested"
+      : rv.value >= costToWin + opts.targetMargin ? "target"
+      : rv.value <= costToWin - opts.targetMargin ? "fade" : "neutral";
+    var cap = Math.min(myMax, model.topRivalMaxBid - minBid);
+    var a = row.pushFloor;
+    var base = canBid && rv.buyLimit >= minBid ? rv.buyLimit : null;
+    var cBest = base, cDetail = null;
+    if (canBid && model.rivals.length && cls !== "target") {
+      var sd = Math.max(1, opts.sigma * model.w1);
+      var from = base == null ? 0 : base;
+      var best = 0;
+      for (var bid = Math.max(minBid, from + 1); bid <= cap; bid += 1) {
+        var pStuck = normCdf((bid - model.w1) / sd);
+        var drain = Math.max(0, bid - Math.max(from, model.w2));
+        var loss = Math.max(0, bid - rv.value);
+        var expLoss = pStuck * loss;
+        if (expLoss > opts.stuckAllowance + EPS) break;
+        var gain = (1 - pStuck) * drain * opts.drainWeight - expLoss;
+        if (gain > best + EPS) { best = gain; cBest = bid; cDetail = { pStuck: pStuck, drain: drain, expectedLoss: expLoss, gain: gain }; }
+      }
+    }
+    return { key: key, classification: cls, costToWin: costToWin, clearing: model.clearing,
+      w1: model.w1, w2: model.w2, rosterValue: rv.value, buyLimit: rv.buyLimit, walkAway: row.walkAway,
+      pushFloor: { A: a, B: base, C: cBest }, candidateC: cDetail, rivals: model.rivals.length,
+      roomPrice: model.roomPrice };
+  }
+
+  // Nomination plays (research-nominations-opponents.md), ranked:
+  //   uncontested  a target at most one rival can chase now
+  //   drain        a fade two or more needy rivals will bid past our value
+  //   endgame      every rival is down to a $1-$2 max bid: our best target
+  //   discovery    otherwise the priciest player we do not need to win
+  // Scores are in dollars. Returns up to `limit` suggestions.
+  function nominationPlays(state, options) {
+    var opts = Object.assign({ limit: 3, scan: 120 }, options || {});
+    var cache = boardCache(state);
+    var minBid = leagueShape(state.league).minBid;
+    var me = teamById(state, state.me);
+    var rivalsMax = 0;
+    state.teams.forEach(function (t) { if (t.id !== state.me) rivalsMax = Math.max(rivalsMax, maxBid(t, state.league)); });
+    var room = state.prices.market || state.prices.ours;
+    var keys = state.available.filter(function (k) { return canRoster(me, state.pos[k]); })
+      .sort(function (a, b) { return (room[b] || 0) - (room[a] || 0) || (a < b ? -1 : 1); }).slice(0, opts.scan);
+    var plays = [];
+    keys.forEach(function (k) {
+      var pf = pushFloors(state, k, Object.assign({}, opts, { cache: cache }));
+      var needy = 0;
+      opponentModel(state, k, Object.assign({}, opts, { cache: cache })).rivals.forEach(function (r) {
+        if (r.need >= 1 && r.estimate >= pf.buyLimit) needy += 1;
+      });
+      if (rivalsMax <= 2 * minBid && pf.buyLimit >= minBid) {
+        plays.push({ key: k, play: "endgame", score: 100 + pf.rosterValue, detail: pf });
+      } else if ((pf.classification === "target" || pf.classification === "uncontested") && needy <= 1) {
+        plays.push({ key: k, play: "uncontested", score: 50 + pf.rosterValue - pf.costToWin, detail: pf });
+      } else if (pf.classification === "fade" && needy >= 2 && pf.clearing >= pf.buyLimit + 3) {
+        plays.push({ key: k, play: "drain", score: 25 + pf.clearing - pf.buyLimit, detail: pf });
+      } else if (pf.classification !== "target") {
+        plays.push({ key: k, play: "discovery", score: (pf.roomPrice || 0) / 10, detail: pf });
+      }
+    });
+    plays.sort(function (a, b) { return b.score - a.score || (a.key < b.key ? -1 : 1); });
+    return plays.slice(0, opts.limit);
+  }
+
   var DraftEngine = {
     VERSION: VERSION,
     SCORING_PRESETS: SCORING_PRESETS,
@@ -449,7 +618,13 @@
     inflation: inflation,
     inflatedPrice: inflatedPrice,
     boardRow: boardRow,
-    board: board
+    board: board,
+    OPPONENT_DEFAULTS: OPPONENT_DEFAULTS,
+    needFactor: needFactor,
+    opponentModel: opponentModel,
+    rosterValue: rosterValue,
+    pushFloors: pushFloors,
+    nominationPlays: nominationPlays
   };
   root.DraftEngine = DraftEngine;
   if (typeof module !== "undefined" && module.exports) module.exports = DraftEngine;

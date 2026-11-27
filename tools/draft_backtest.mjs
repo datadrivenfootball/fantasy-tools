@@ -70,7 +70,7 @@ function balancedObject(text, start) {
   throw new Error("unbalanced JSON object");
 }
 
-function ecrRanks(file) {
+export function ecrRanks(file) {
   const t = fs.readFileSync(file, "utf8");
   const m = /ecrData\s*=\s*/.exec(t);
   const d = JSON.parse(balancedObject(t, m.index + m[0].length));
@@ -81,7 +81,7 @@ function ecrRanks(file) {
 }
 
 const ESPN_POS = { 1: "QB", 2: "RB", 3: "WR", 4: "TE", 5: "K", 16: "DST" };
-function espnTable(doc) {
+export function espnTable(doc) {
   return doc.players.map(r => r.player).map(p => ({
     name: normName(p.fullName), pos: ESPN_POS[p.defaultPositionId],
     std: p.draftRanksByRankType?.STANDARD?.auctionValue ?? null,
@@ -90,7 +90,7 @@ function espnTable(doc) {
   }));
 }
 
-function buildPrices({ league, fp, vegas, espn, ecr, weights }) {
+export function buildPrices({ league, fp, vegas, espn, ecr, weights }) {
   // league.ecr names the published format closest to the league's scoring.
   const scoringKey = league.ecr === "standard" ? "std" : "ppr";
   const players = {}, fpStats = {}, byName = new Map();
@@ -118,7 +118,7 @@ function buildPrices({ league, fp, vegas, espn, ecr, weights }) {
   const build = E.ddfDraftValues({ league, players, projections: { fp: fpStats }, vegas: vegasStats,
     markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP, basisWeights: weights });
   return {
-    players, byName,
+    players, byName, values: build.values,
     ours: E.ourPrices(build.values, league),
     market: E.rescaleDollars(fpMarketRaw, league),
     platform: E.rescaleDollars(platformRaw, league),

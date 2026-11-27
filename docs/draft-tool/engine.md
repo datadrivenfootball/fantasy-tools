@@ -94,44 +94,93 @@ Scoring presets: `standard`, `half`, `ppr` use ESPN's defaults
 (interception -2); `yahoo_standard`, `yahoo_half`, `yahoo_ppr` use Yahoo's
 (-1). Any per-stat override can be passed instead of a preset.
 
-### Push floor
+### Push floor, thought through
 
-**Definition (recommended, option A):** the highest whole-dollar bid that is
-the lowest of
+Jeremy (2026-11-27) judged the first three definitions not good enough. This
+is the deeper pass, tested in the auction simulator (`tools/draft_sim.mjs`).
 
-1. our walk-away price,
-2. the market clearing price (inflated market price, rounded down) minus $1,
-3. the best max bid among rivals with a slot that can take the player, minus $1.
+**What it is for.** The push floor is the highest bid we will make on a
+player. It has two jobs: make the winner pay as much as possible, and never
+leave us owning a player we did not want at a price we regret.
 
-If that is below $1, there is no push floor: let him go.
+**How an auction actually clears.** The winner pays about the runner-up's
+limit + $1. So the price of any player is set by the second-highest limit in
+the room. If our bid is the runner-up's, every dollar we bid is a dollar the
+winner pays; above the top rival's limit, we win instead.
 
-**Why this one.** A push bid must pass two tests. It has to be safe: if
-nobody tops it we own the player, so it can never exceed what we would pay
-(rule 1). And it has to make someone else pay: it only works if a rival will
-and can still top it. Rule 2 stops where the room is expected to stop, so we
-do not end up as the high bidder on a player the room values less than we
-pushed. Rule 3 stops when no rival can legally top us, the case where a push
-turns into a forced buy.
+**What the opponent model gives us** (`opponentModel`):
 
-For a player we like more than the market (a target), the push floor sits
-below the walk-away: bidding to there is free, above it we are paying over
-market. For a player we like less (a fade), the push floor is our walk-away:
-whoever wins pays more than he is worth to us. One key on the board enters
-it.
+| Estimate | Definition |
+| --- | --- |
+| Room price | Inflated market price blended 50/50 with the inflated platform price (rooms track the platform's numbers: backtest) |
+| Rival limit (w) | `min(max bid, room price x need)`; need 1 with an open starting slot, 0.6 bench only, 0 none; spread +/-20% |
+| w1, w2 | The highest and second-highest rival limits |
+| Clearing price | `min(w1, w2 + $1)`: what the winner pays if we stay out |
+| Cost to win | `w1 + $1`: what we pay if we want him |
+| Roster value | Our inflated price if he starts for us; half of it if he only fits the bench; 0 if nothing fits |
 
-Options considered:
+**Targets, fades and neutral players** (`pushFloors`):
 
-- **A (recommended): lowest of walk-away, market - $1 and rival max - $1.**
-  Never leaves us stuck above our value; never bids past what any rival can
-  pay.
-- B: market - $1 only. Simpler, but can push past our own value on a fade and
-  leave us holding a player we do not want at more than he is worth to us.
-- C: walk-away minus a fixed margin ($2 or 10%). Ignores what the room and
-  the rivals can actually pay.
+- **Target**: roster value at least $2 over the cost to win. We are buying;
+  bid to the buy limit (roster value, capped by walk-away). No push logic.
+- **Fade**: roster value at least $2 under the cost to win. We will not win
+  him at a fair price, so every dollar we bid only moves the winner's price.
+- **Neutral**: within $2. Buy at value, else push.
 
-Phase 1 refinement (not built): rule 1 should use the player's value to our
-roster as it stands (starter value when he fills a starting slot, bench value
-when he only fills the bench), not his league-wide price.
+**The risk we accept.** Getting stuck means our bid is the highest. If the
+bid is at or under our roster value, getting stuck costs nothing: we own a
+player at a price we are glad to pay. Above roster value, the loss is
+`bid - roster value`, times the chance the top rival stops short of our bid.
+
+**Candidates.**
+
+- **A (first draft):** lowest of walk-away, market - $1, best rival max - $1.
+  Stops at market - $1 even when we would gladly pay more. It also uses the
+  league price, not roster value, so it can overpay for a bench-only player.
+- **B (recommended): our roster value.** Bid to exactly what he is worth to
+  our roster as it stands, on every player. In an English auction this is
+  the strongest safe push: the winner pays at least our value, and getting
+  stuck never costs anything.
+- **C: roster value plus a bounded overreach.** On fades and neutrals, go
+  above roster value only while `(chance the top rival tops us) x (dollars
+  drained) x 0.5` beats `(chance we are stuck) x (overpay)`, and keep the
+  expected overpay under $1 per player. The 0.5 says a rival's wasted dollar
+  is worth half of one of ours.
+
+**Simulation** (300 seeded drafts per policy, 12 teams, Jeremy's league
+settings at $200, 2026 data; rivals bid their need-weighted room price with
++/-20% noise centred so rooms pay market on average; same seeds for every
+policy). Starter and roster value are DDF Value points (higher is better):
+
+| Policy | Starter value | Roster value | Unspent | Above roster value, per draft | Drained from rivals |
+| --- | --- | --- | --- | --- | --- |
+| Walk-away, room inflation (first engine) | 159.6 | 216.2 | $70 | 5.0 ($20) | $12 |
+| Walk-away, personal inflation | 229.1 | 282.2 | $0 | 5.1 ($20) | $15 |
+| A, personal | 229.9 | 282.6 | $0 | 5.0 ($19) | $15 |
+| **B, personal** | **233.5** | 281.1 | $0 | **0** | $14 |
+| C, personal | 233.3 | 274.7 | $0 | 2.1 ($4) | $15 |
+
+What it shows:
+
+1. **Spending our money matters most.** The room's inflation sinks as rivals
+   overpay for stars, so walk-aways built on it shrink while our cash sits
+   unused ($70 left over, worth nothing). A personal factor (our surplus
+   dollars against our share of the open slots, `inflation().personalFactor`)
+   spends it: +70 starter points. This is the biggest finding.
+2. **B beats A and plain walk-away** by about 4 starter points with less
+   spread, and never buys a bench player at a starter's price (A and
+   walk-away do so about 5 times a draft, about $20).
+3. **Pushing past our value (C) buys nothing.** It drains about $2 more per
+   draft but gets stuck 2 times a draft and loses 6 roster points.
+
+Recommendation: **B with personal inflation.** The push floor is our roster
+value; the board shows it in place of walk-away when they differ (bench-only
+players). Personal inflation is an option today (`state.ourFactor =
+"personal"`); the engine default stays the room factor so the hand-checked
+worked example below holds. Limits: rival bots are simple (no tendencies, no
+strategic nominations, no team-specific budgets beyond money left), and
+values are scored with our own DDF Value, which favours strategies that buy
+what ours likes.
 
 ## Worked example (hand-checked; the test matches it to the dollar)
 

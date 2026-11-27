@@ -5,6 +5,13 @@
 
 export const SEASON = 2026;
 
+// Source credit every page must show next to these numbers (Jeremy,
+// 2026-11-27: FantasyPros "with attribution").
+export const CREDITS = {
+  fantasypros_ecr: "Rankings: FantasyPros consensus (fantasypros.com)",
+  espn: "Auction values and ADP: ESPN Fantasy",
+};
+
 // FantasyPros draft cheat sheets (public HTML; robots.txt allows /nfl/rankings/,
 // Crawl-delay 5). The full consensus is embedded as `var ecrData = {...}`.
 export const FP_ECR_PAGES = {
@@ -57,6 +64,7 @@ export function parseFpEcr(html, scoring, season = SEASON) {
   if (d.scoring !== scoring) throw new Error(`fantasypros: scoring ${d.scoring}, expected ${scoring}`);
   const rows = (d.players || []).map((p) => ({
     source: "fantasypros_ecr",
+    credit: CREDITS.fantasypros_ecr,
     season,
     scoring,
     source_player_id: String(p.player_id),
@@ -106,6 +114,7 @@ export function parseEspn(doc, season = SEASON) {
       if (!rk) return;
       rows.push({
         source: "espn",
+        credit: CREDITS.espn,
         season,
         scoring,
         source_player_id: String(p.id),
