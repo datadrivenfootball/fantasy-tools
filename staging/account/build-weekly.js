@@ -144,7 +144,8 @@
     }
     body.appendChild(el("div", {class: "bw-scroll", role: "region", tabindex: "0", "aria-label": "Week by week, both sides"}, table));
     var n = notes.node(); if (n) body.appendChild(n);
-    body.appendChild(el("p", {class: "muted bw-fine", text: "Each number is the best lineup that team can start that week, on weekly projections."}));
+    var sbW = ((window.DDFStaging && window.DDFStaging.weekly) || {}).scoring_basis;
+    body.appendChild(el("p", {class: "muted bw-fine", text: "Each number is the best lineup that team can start that week, on weekly projections." + (sbW && sbW.text ? " " + sbW.text : "")}));
   }
 
   // ---------- Player by player ----------
@@ -162,6 +163,9 @@
           if (c.bye) td.appendChild(el("span", {class: "bw-bye", text: "BYE"}));
           else {
             td.appendChild(isNum(c.points) ? el("span", {class: "bw-pts", text: c.points.toFixed(1)}) : notes.na(p.name + ", week " + w + ": " + (c.note || "no projection this week")));
+            /* Jeremy, 2026-11-27: each weekly number says its source and whether it is in the league's own scoring */
+            var wc = (((window.DDFStaging && window.DDFStaging.weekly || {}).players || {})[p.player_id] || {weeks: {}}).weeks[w] || {};
+            if (isNum(c.points) && c.source) td.appendChild(el("small", {class: "bw-src", text: ({espn: "ESPN", sleeper: "Sleeper", espn_live: "ESPN"}[c.source] || c.source) + (wc.rescored === false ? " · default scoring" : " · your scoring")}));
             td.appendChild(el("span", {class: "bw-role", "data-starts": c.starts_after ? "yes" : "no", text: c.starts_after ? "Starts" : "Bench"}));
           }
           tr.appendChild(td);
