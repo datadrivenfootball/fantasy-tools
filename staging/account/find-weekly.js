@@ -75,7 +75,8 @@
     var sd = state.plan.spread && state.plan.spread.sd, ul = el("ul", {class: "fw-chips", "aria-label": "Gain by week"});
     state.rec.weeks.forEach(function (w) {
       var gain = a.gain_by_week[w], g = gameOf(w), win = null, why = null;
-      if (isNum(gain) && g && g.opp && isNum(g.margin) && isNum(g.win && g.win.ddf) && isNum(sd)) win = winDelta(g.win.ddf, W.winChance(g.margin + gain, sd));
+      var sdw = (state.plan.spreads || {})[w] || sd; /* the same spread the game's own win chance used */
+      if (isNum(gain) && g && g.opp && isNum(g.margin) && isNum(g.win && g.win.ddf) && isNum(sdw)) win = winDelta(g.win.ddf, W.winChance(g.margin + gain, sdw));
       else if (g && !g.opp) why = g.opp_note || "Opponent not set yet, so no win chance";
       ul.appendChild(chip(w, gain, win, why));
     });
@@ -240,7 +241,7 @@
   }
   function sourcesLine() {
     var p = el("p", {class: "muted fw-src"});
-    var lines = (state.plan.sources || []).filter(function (s) { return /^(Player projections|K and DEF|Win chance)/.test(s); });
+    var lines = (state.plan.sources || []).filter(function (s) { return /^(Player projections|K and DEF|Win chance|Every weekly number|Your league's scoring)/.test(s); });
     p.textContent = "Sources. " + lines.join(" ") + " These panels use weekly projections only, never DDF Value." + (state.data.mock ? " Sample data: an invented league." : "");
     return p;
   }
