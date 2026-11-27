@@ -47,7 +47,7 @@
   /* The DDF connector's tool names (09-mcp-server tools.ts). */
   var TOOLS = ['get_values', 'get_player_value', 'trade_targets', 'compare_trade', 'read_state', 'make_state',
     'site_next_steps', 'find_trades', 'find_trades_league', 'risers_fallers', 'audit_values', 'explain'];
-  var EVENTS = ['league-added/paste', 'league-added/link', 'league-added/sleeper', 'league-added/manual',
+  var EVENTS = ['league-added/paste', 'league-added/link', 'league-added/sleeper', 'league-added/espn', 'league-added/manual',
     'settings-confirmed', 'bookmark-clicked', 'bookmark-again', 'trade-message-copied', 'value-override-set',
     'start-fresh', 'visit/direct', 'visit/saved-link', 'visit/other-tag', 'device/phone', 'device/desktop'];
   CLIENTS.forEach(function(c){
