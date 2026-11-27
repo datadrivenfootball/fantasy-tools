@@ -288,6 +288,9 @@ Deno.test("rescoring: ESPN and Sleeper stat lines and ESPN K/DEF lines with the 
   // Giants D/ST, week 15 (ESPN default 8.1): sacks, INT, fumbles, TDs, safety, blocks, return TDs and points-allowed bands
   const g = { 89: 0.016, 90: 0.07, 91: 0.235, 92: 0.2, 93: 0.007, 94: 0.093, 95: 0.677, 96: 0.464, 97: 0.112, 98: 0.016, 99: 3.765, 101: 0.008, 102: 0.025, 121: 0.145, 122: 0.185, 123: 0.11, 124: 0.035, 125: 0.004 };
   assertAlmostEquals(rescore("DEF", g, r)!.points, 8.73, 0.02);
+  // missed FGs by distance (ESPN splits them): -1 under 40, -1 40-49, 0 50+
+  const r2 = leagueRules({ settings: { scoring_raw: [{ statId: "24", value: -1 }, { statId: "25", value: -1 }, { statId: "26", value: -1 }, { statId: "27", value: -1 }, { statId: "28", value: 0 }] } })!;
+  assertAlmostEquals(rescore("K", { 76: 0.16, 79: 0.11, 82: 0.02, 85: 0.29 }, r2)!.points, -0.13, 0.001);
   assertEquals(leagueRules({ settings: { scoring_raw: null } }), null);
 });
 

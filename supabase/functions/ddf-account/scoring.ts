@@ -35,13 +35,13 @@ const OFFENSE: Record<"espn" | "sleeper", Map1> = {
   },
 };
 // ESPN kona stat ids (checked 2026-11-27 against ESPN's own default totals): K 74 FG 50+, 77 FG 40-49, 80 FG under 40,
-// 85 FG missed, 86 PAT made, 88 PAT missed. D/ST 99 sacks, 95 INT, 96 fumbles recovered, 94 defensive TDs, 93 blocked
+// missed 76 (50+), 79 (40-49), 82 (under 40), 85 (all), 86 PAT made, 88 PAT missed. D/ST 99 sacks, 95 INT, 96 fumbles recovered, 94 defensive TDs, 93 blocked
 // kick TD, 98 safeties, 97 blocked kicks, 101/102 kick/punt return TDs, points-allowed bands 89 (0), 90 (1-6),
 // 91 (7-13), 92 (14-17), 121 (18-21), 122 (22-27), 123 (28-34), 124 (35-45), 125 (46+), each the band's probability.
 // Yahoo's bands are 14-20 and 21-27, so ESPN's 18-21 band is split by points: three quarters to 14-20, one to 21-27.
 const KICKER: Map1 = {
   "19": one("80"), "20": one("80"), "21": one("80"), "22": one("77"), "23": one("74"), "29": one("86"), "30": one("88"),
-  "24": one("85"), "25": one("85"), "26": one("85"), "27": one("85"), "28": one("85"),
+  "24": one("82"), "25": one("82"), "26": one("82"), "27": one("79"), "28": one("76"),
 };
 const DEFENSE: Map1 = {
   "32": one("99"), "33": one("95"), "34": one("96"), "35": [["94", 1], ["93", 1]], "36": one("98"), "37": one("97"), "49": [["101", 1], ["102", 1]],
@@ -53,15 +53,14 @@ const GROUP: Record<string, Set<string>> = {
   K: new Set(["19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"]),
   DEF: new Set(["31", "32", "33", "34", "35", "36", "37", "48", "49", "82", "50", "51", "52", "53", "54", "55", "56", "67", "68", "69", "70", "71", "72", "73", "74", "75", "76", "77"]),
 };
-// Field goals: ESPN projects made FGs under 40 as one number and misses as one number. The league's 0-19, 20-29 and
-// 30-39 values (and the missed-FG values) must agree for that to be exact; when they don't, the 30-39 (or 40-49
-// missed) value is used and the rule is listed as approximate.
+// Field goals: ESPN projects made and missed FGs under 40 as one number each. The league's 0-19, 20-29 and 30-39 values
+// must agree for that to be exact; when they don't, the 30-39 value is used and the rule is listed as approximate.
 function kickerSplitNote(r: Rules) {
   const v = (id: string) => r.mods.get(id) ?? 0;
   const notes: string[] = [];
   if (!(v("19") === v("20") && v("20") === v("21"))) notes.push("FG under 40 scored at the 30-39 value (ESPN does not split it)");
-  const miss = ["24", "25", "26", "27", "28"].map(v);
-  if (miss.some((x) => x !== miss[0])) notes.push("missed FGs scored at one value (ESPN does not split them)");
+  const miss = ["24", "25", "26"].map(v);
+  if (miss.some((x) => x !== miss[0])) notes.push("missed FGs under 40 scored at the 30-39 value (ESPN does not split them)");
   return notes;
 }
 
@@ -76,7 +75,7 @@ export function rescore(kind: "espn" | "sleeper" | "K" | "DEF", stats: Record<st
     const keys = map[id];
     if (!keys) { missing.push(r.names.get(id) || id); continue; }
     if (kind === "K" && ["19", "20"].includes(id)) continue; // under-40 FGs counted once, at the 30-39 value (21)
-    if (kind === "K" && ["24", "25", "26", "27"].includes(id)) continue; // missed FGs counted once (28 carries it)
+    if (kind === "K" && ["24", "25"].includes(id)) continue; // missed FGs under 40 counted once, at the 30-39 value (26)
     for (const [k, w] of keys) pts += (Number(stats[k]) || 0) * w * val;
   }
   return { points: Math.round(pts * 100) / 100, missing };
