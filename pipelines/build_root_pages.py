@@ -72,6 +72,8 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               "img/league-id",
               # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
               "sleeper-import.js",
+              # ESPN public leagues (league entry, 2026-11-24): read from ESPN's league data service in the browser.
+              "espn-import.js",
               # JEG-1548: the visit counter wrapper site.js loads (sends nothing until its site code is set).
               "analytics.js",
               # Source freshness page script.
