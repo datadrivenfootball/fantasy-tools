@@ -23,3 +23,11 @@ feeding ours through the same path as the 2026-09-12 snapshot. No scraping.
   `tools/draft_vegas_paste.mjs` writes an idempotent load script
   (`test_sql_load_script_is_idempotent_and_escaped`). No snapshot has been
   loaded yet; the first real paste is pending.
+
+### Addendum (same PR): third backtest auction ready for the paste
+- Jeremy, 2026-11-27: "Paste USO XVIII (Recommended)". `app/draft/auction-paste.js`
+  (matching through the live roster matcher) and `tools/draft_auction_paste.mjs`
+  write the backtest's auction file; `tools/draft_leagues/uso-season-xviii-2026.json`
+  holds the league settings. `tests/test_draft_auction_paste.py` (8 tests,
+  invented sample) passes. Not run on a real Yahoo page yet; the budget of
+  $200 is assumed.

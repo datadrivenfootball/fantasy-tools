@@ -96,6 +96,24 @@ Decision for Jeremy (default blend):
   average (platform: $7.5 less). The opponent model should still cap stars
   at the clearing price.
 
+## Third auction: USO Season XVIII (waiting for the paste)
+
+Jeremy, 2026-11-27: "Paste USO XVIII (Recommended)". The backtest is ready
+to take it:
+
+1. On Yahoo, open the league's 2026 Draft Results (the view with each
+   player's cost), select all, copy, and paste into a text file.
+2. `node tools/draft_auction_paste.mjs --in paste.txt --players <FantasyPros projection export> --league tools/draft_leagues/uso-season-xviii-2026.json --out uso_2026.json`
+   It reads each sale's player (the live site's roster matcher), cost and
+   keeper mark, drops team and manager names, and saves nothing if any sale
+   is unreadable, listing those lines. It warns when the count is not a full
+   draft (180 sales) or the total is over 12 x $200.
+3. Add `--auction "uso=uso_2026.json:tools/draft_leagues/uso-season-xviii-2026.json"`
+   to the backtest command above and re-run.
+
+League settings come from the Yahoo league connector (12 teams, half PPR,
+QB/2RB/3WR/TE/FLEX/K/DEF/5 bench); the $200 budget is assumed.
+
 ## Limits
 
 - Look-ahead: projections and props are dated about three weeks after the
