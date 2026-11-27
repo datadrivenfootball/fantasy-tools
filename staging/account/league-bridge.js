@@ -124,6 +124,32 @@
     }).then(function () { document.dispatchEvent(new CustomEvent("ddf-staging:ready", {detail: {league: S.league, summary: S.summary, weekly: S.weekly}})); },
       function (e) { console.error(e); });
   };
+  /* Data age (JEG-1736): the league data is a snapshot that does not refresh by itself, so every page says how old it
+   * is. Attention when it is over 6 hours old, or when a game of the current week has kicked off since the pull.
+   * games-left.js carries the same function (that page does not load the bridge). */
+  function dataAge(summary, weekly, now) {
+    var flaim = !!(summary.source && summary.source.kind === "flaim"), site = String(summary.platform || "");
+    var from = "League data from " + (site ? site.charAt(0).toUpperCase() + site.slice(1) : "your league site") + (flaim ? " via Flaim" : "");
+    var tail = flaim ? " It does not refresh on its own yet." : "";
+    var at = Date.parse(summary.pulled_at || "");
+    if (!isFinite(at)) return {text: from + ". The time it was pulled was not recorded." + tail, stale: true};
+    var mins = Math.max(0, Math.floor((now - at) / 60000)), hours = Math.floor(mins / 60), days = Math.floor(hours / 24);
+    var ago = mins < 1 ? "just now" : mins < 60 ? mins + (mins === 1 ? " minute ago" : " minutes ago") : hours < 48 ? hours + (hours === 1 ? " hour ago" : " hours ago") : days + " days ago";
+    var local = new Date(at).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"});
+    var ko = ((weekly && weekly.kickoffs) || {})[String(summary.current_week)] || {};
+    var kicked = Object.keys(ko).map(function (t) { return Date.parse(ko[t]); }).filter(function (k) { return isFinite(k) && k <= now; });
+    var behind = kicked.length > 0 && at < Math.max.apply(null, kicked); /* the latest kickoff that has passed came after the pull */
+    return {text: from + ", pulled " + ago + " (" + local + ")." + tail + (behind ? " Games have kicked off since, so scores and lineups here are behind." : ""), stale: behind || now - at > 6 * 3600000};
+  }
+  function ageStrip() {
+    var main = document.querySelector("main");
+    if (!main || !S.summary) return;
+    var p = document.getElementById("ddf-data-age");
+    if (!p) { p = document.createElement("p"); p.id = "ddf-data-age"; main.insertBefore(p, main.firstChild); }
+    var a = dataAge(S.summary, S.weekly, Date.now());
+    p.textContent = a.text;
+    p.className = "ddf-data-age" + (a.stale ? " stale" : "");
+  }
   /* Staging tag, and nav links that stay on staging (site.js redraws the nav, so this is re-applied). */
   function chrome() {
     var brand = document.querySelector("header .brand");
@@ -139,9 +165,13 @@
       st.id = "ddf-staging-style";
       st.textContent = "@media(min-width:901px) and (max-width:1500px){body:not(.home2) header .header-inner{flex-wrap:wrap;row-gap:0;padding-top:10px}body:not(.home2) header nav{order:9;flex:1 0 100%;padding:6px 0 8px;margin-left:-13px}body:not(.home2) header .ddf-staging-tag{margin-right:auto}}" +
         /* phone: no room in the row, so the tag sits under the wordmark and takes no width */
-        "@media(max-width:900px){header .header-inner{position:relative}header .ddf-staging-tag{position:absolute;left:16px;bottom:1px;border:0!important;padding:0!important;font-size:8px!important;line-height:1}}";
+        "@media(max-width:900px){header .header-inner{position:relative}header .ddf-staging-tag{position:absolute;left:16px;bottom:1px;border:0!important;padding:0!important;font-size:8px!important;line-height:1}}" +
+        /* the data-age line: fine print, and the live attention colours when the snapshot is behind */
+        "main>.ddf-data-age{margin:0 0 16px;max-width:none;font-size:13px;line-height:1.45;color:var(--muted)}main>.ddf-data-age.stale{padding:8px 12px;border-left:3px solid var(--attention-text);border-radius:0 8px 8px 0;background:var(--attention);color:var(--attention-text)}";
       document.head.appendChild(st);
     }
+    ageStrip();
+    if (!S._ageTimer) S._ageTimer = setInterval(ageStrip, 60000); /* the relative time, and a kickoff passing, while the tab stays open */
     var nav = document.querySelector("header nav");
     if (!nav) return;
     var busy = false;

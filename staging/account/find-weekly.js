@@ -159,7 +159,7 @@
     if (!rv.length) return el("p", {class: "fw-rivals", text: "No other team's lineup gains a point or more from him. " + mine});
     return el("p", {class: "fw-rivals", text: "Also helps: " + rv.map(function (r) {
       return r.name + " +" + r.gain.toFixed(1) + " (" + money(r.faab) + (isNum(r.waiver_priority) ? ", priority " + r.waiver_priority : "") + ")";
-    }).join("; ") + ". " + mine}));
+    }).join("; ") + ". " + mine});
   }
   function addCard(a) {
     return el("article", {class: "pkg fw-card", "data-fw-add": a.player_id},

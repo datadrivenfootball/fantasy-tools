@@ -69,6 +69,35 @@
     return hit ? hit.reason : null;
   }
 
+  /* Data age (JEG-1736): the league data is a snapshot that does not refresh by itself, so every page says how old it
+   * is. Attention when it is over 6 hours old, or when a game of the current week has kicked off since the pull.
+   * league-bridge.js carries the same function for Team, Find and Build (this page does not load the bridge). */
+  function dataAge(summary, weekly, now) {
+    var flaim = !!(summary.source && summary.source.kind === "flaim"), site = String(summary.platform || "");
+    var from = "League data from " + (site ? site.charAt(0).toUpperCase() + site.slice(1) : "your league site") + (flaim ? " via Flaim" : "");
+    var tail = flaim ? " It does not refresh on its own yet." : "";
+    var at = Date.parse(summary.pulled_at || "");
+    if (!isFinite(at)) return {text: from + ". The time it was pulled was not recorded." + tail, stale: true};
+    var mins = Math.max(0, Math.floor((now - at) / 60000)), hours = Math.floor(mins / 60), days = Math.floor(hours / 24);
+    var ago = mins < 1 ? "just now" : mins < 60 ? mins + (mins === 1 ? " minute ago" : " minutes ago") : hours < 48 ? hours + (hours === 1 ? " hour ago" : " hours ago") : days + " days ago";
+    var local = new Date(at).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"});
+    var ko = ((weekly && weekly.kickoffs) || {})[String(summary.current_week)] || {};
+    var kicked = Object.keys(ko).map(function (t) { return Date.parse(ko[t]); }).filter(function (k) { return isFinite(k) && k <= now; });
+    var behind = kicked.length > 0 && at < Math.max.apply(null, kicked); /* the latest kickoff that has passed came after the pull */
+    return {text: from + ", pulled " + ago + " (" + local + ")." + tail + (behind ? " Games have kicked off since, so scores and lineups here are behind." : ""), stale: behind || now - at > 6 * 3600000};
+  }
+  var AGE_STYLE = "margin:0 0 16px;font-size:13px;line-height:1.45;color:var(--muted)";
+  var AGE_STALE = "margin:0 0 16px;font-size:13px;line-height:1.45;padding:8px 12px;border-left:3px solid var(--attention-text);border-radius:0 8px 8px 0;background:var(--attention);color:var(--attention-text)";
+  var ageTimer = null;
+  function ageStrip(summary, weekly) {
+    var p = el("p", {id: "gl-data-age"});
+    function draw() { var a = dataAge(summary, weekly, Date.now()); p.textContent = a.text; p.setAttribute("style", a.stale ? AGE_STALE : AGE_STYLE); }
+    draw();
+    if (ageTimer) clearInterval(ageTimer);
+    ageTimer = setInterval(draw, 60000); /* the relative time, and a kickoff passing, while the tab stays open */
+    return p;
+  }
+
   /* ---------- header ---------- */
   function renderHeader(plan) {
     var lg = plan.league || {}, me = plan.me || {}, sim = plan.sim || {}, wins = plan.wins || {}, box = el("section", {"aria-labelledby": "gl-title"});
@@ -283,10 +312,12 @@
     return sec;
   }
 
-  function render(plan, flaim) {
+  function render(plan, flaim, summary, weekly) {
     var root = $("gl-root");
     root.textContent = "";
-    root.appendChild(renderHeader(plan));
+    var head = renderHeader(plan);
+    if (summary) head.insertBefore(ageStrip(summary, weekly), head.querySelector(".gl-record").nextSibling); /* under the record line */
+    root.appendChild(head);
     root.appendChild(renderGames(plan));
     root.appendChild(renderFooter(plan, flaim));
     if (plan.league && plan.league.name) $("ctx-league").textContent = "My league · " + plan.league.name;
@@ -338,7 +369,7 @@
     /* the staging Team / Find / Build links stay on this league */
     Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="games-left.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
     var plan = window.DDFWeekly.plan(league.summary, weekly, league.my_team_key ? {myTeamKey: league.my_team_key} : {});
-    render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"));
+    render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"), league.summary, weekly);
   }
   boot().catch(function (err) { status(el("p", {text: err.message || String(err)}), "err"); });
 })();

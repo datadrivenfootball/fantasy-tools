@@ -342,3 +342,12 @@ Deno.test("recommendations: who else a pickup helps, with their FAAB (context, n
   for (let i = 1; i < fa.rivals.length; i++) assert(fa.rivals[i - 1].gain >= fa.rivals[i].gain);
   assertEquals(r.me, { faab: 50, waiver_priority: 1, faab_budget: 100 });
 });
+
+Deno.test("every staging page script parses", async () => {
+  const dir = new URL("staging/account/", ROOT);
+  for await (const f of Deno.readDir(dir)) {
+    if (!f.name.endsWith(".js")) continue;
+    const src = await Deno.readTextFile(new URL(f.name, dir));
+    try { new Function(src); } catch (e) { throw new Error(f.name + ": " + (e as Error).message); }
+  }
+});
