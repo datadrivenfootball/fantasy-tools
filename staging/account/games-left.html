@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DDF · Games left (staging)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- The live site's own stylesheet; games-left.css adds only this page's layout, built from its tokens. -->
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/styles.css">
+<link rel="icon" href="https://datadrivenfootball.github.io/fantasy-tools/icon.jpg">
+<link rel="stylesheet" href="games-left.css">
+</head>
+<body class="gl-shell">
+<!-- The live header and league nav (site.js POST), with Games left after Team. Other links open the live site. -->
+<header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div><span class="gl-staging" title="Private test build, not the live site">staging</span>
+  <nav aria-label="Main navigation"><a href="https://datadrivenfootball.github.io/fantasy-tools/team.html">Team</a><a href="games-left.html" aria-current="page">Games left</a><a href="https://datadrivenfootball.github.io/fantasy-tools/find.html">Trade &amp; Waiver Recommendations</a><a href="https://datadrivenfootball.github.io/fantasy-tools/build.html">Build a Trade</a><a href="https://datadrivenfootball.github.io/fantasy-tools/values.html">Values</a>
+    <span class="morewrap" id="gl-more"><button type="button" aria-expanded="false" aria-controls="gl-menu">Menu</button>
+      <div class="menu" id="gl-menu"><a href="https://datadrivenfootball.github.io/fantasy-tools/team.html">Team</a><a href="games-left.html" aria-current="page">Games left</a><a href="https://datadrivenfootball.github.io/fantasy-tools/find.html">Trade &amp; Waiver Recommendations</a><a href="https://datadrivenfootball.github.io/fantasy-tools/build.html">Build a Trade</a><a href="https://datadrivenfootball.github.io/fantasy-tools/values.html">Values</a><a href="./">Add your league</a></div></span>
+  </nav></div></header>
+<!-- As on the live league pages: the strip stays in the page (styles.css keeps it hidden) so section headings take the workspace green. -->
+<div class="ctx-strip" id="ctx"><span id="ctx-league"></span><a href="./">Change league</a></div>
+<main class="gl">
+  <div id="gl-status" role="status" aria-live="polite"><p class="muted">Loading your games…</p></div>
+  <div id="gl-root" hidden></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
+<script src="weekly.js"></script>
+<script src="games-left.js"></script>
+</body>
+</html>

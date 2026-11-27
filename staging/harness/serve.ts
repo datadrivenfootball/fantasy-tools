@@ -1,7 +1,9 @@
 // Local UI harness for the staging page (JEG-1732): the real ddf-account router with an in-memory store,
 // stubbed DDF sign-in (localStorage.h_in = "1"), recorded Sleeper fixtures, live ESPN public reads, and a fake
 // ESPN session (espn_s2 starting "AEBtest") that owns public league 1086064.
-//   deno run --allow-read --allow-net staging/harness/serve.ts "$PWD"   ->  http://localhost:8791/ddf-staging/
+//   deno run --allow-read --allow-net staging/harness/serve.ts "$PWD" [snapshot.json warehouse.json]  ->  http://localhost:8791/ddf-staging/
+// JEG-1736: with a Flaim snapshot and a warehouse dump ({rows, schedule}), the signed-in tester owns that league, and
+// /leagues/:id/weekly reads the dump plus live Sleeper / Dynasty Daddy ids and ESPN's K/DEF projections.
 // It reads files at start: restart after edits.
 // Local UI harness for the JEG-1732 staging page: real router (app.ts) + MemoryStore,
 // stubbed sign-in, recorded Sleeper fixture and synthetic Yahoo responses. No network to platforms.
@@ -15,6 +17,7 @@ const ORIGIN = "http://localhost:8791";
 const store = new MemoryStore(); store.allow.add("tester@example.com");
 const fetchFx = async (u: string | URL, init?: RequestInit) => {
   const url = String(u);
+  if (url.startsWith("https://api.sleeper.app/v1/players/nfl") || url.includes("dynasty-daddy.com") || url.includes("leaguedefaults/3")) return fetch(url, init); // weekly ids and K/DEF
   if (url.includes("fan.api.espn.com")) { // test path: a fake ESPN session that "owns" the public league 1086064
     return new Headers(init?.headers).get("cookie")?.includes("espn_s2=AEBtest") ? j({ preferences: [{ metaData: { entry: { abbrev: "FFL", seasonId: 2026, entryLocation: "Test", entryNickname: "Team", groups: [{ groupId: 1086064, groupName: "La Lega dei Cugini", groupSize: 12 }] } } }] }) : j({ message: "fan not found" }, 404);
   }
@@ -36,7 +39,16 @@ const handle = makeApp({
   env: () => undefined, functionsBase: ORIGIN + "/functions/v1", allowedOrigins: [ORIGIN],
   now: () => new Date(), log: () => {},
 });
-const page = (await Deno.readTextFile(`${REPO}/staging/account/index.html`)).replace(
+if (Deno.args[1]) {
+  const snap = JSON.parse(await Deno.readTextFile(Deno.args[1]));
+  const uid = "11111111-1111-4111-8111-111111111111";
+  const conn = await store.upsertConnection({ user_id: uid, platform: "flaim", external_id: "flaim:" + snap.league_key, display_name: "Flaim", secret_ciphertext: null, secret_iv: null, token_expires_at: null });
+  const lg = await store.upsertLeague({ user_id: uid, connection_id: conn.id, platform: snap.platform, league_key: snap.league_key, season: snap.season, name: snap.name, my_team_key: snap.my_team_key, summary: snap, raw: null, pulled_at: snap.pulled_at });
+  (lg as { source?: string }).source = "flaim";
+  if (Deno.args[2]) { const dump = JSON.parse(await Deno.readTextFile(Deno.args[2])); store.warehouse = dump.rows; store.schedule = dump.schedule; }
+  console.log("seeded league", lg.id);
+}
+const stub = (html: string) => html.replace(
   /<script src="https:\/\/cdn\.jsdelivr[^>]+><\/script>/,
   `<script>window.DDF_STAGING_FN="${ORIGIN}/functions/v1/ddf-account";
   window.supabase={createClient:function(){var on=function(){return localStorage.h_in==="1"};return{auth:{
@@ -44,6 +56,7 @@ const page = (await Deno.readTextFile(`${REPO}/staging/account/index.html`)).rep
     signInWithOtp:async function(){localStorage.h_in="1";setTimeout(function(){location.reload()},50);return{}},
     signInWithOAuth:async function(){return{error:{message:"provider is not enabled"}}},
     signOut:async function(){localStorage.h_in="0";return{}},onAuthStateChange:function(){}}}}};</script>`);
+const page = stub(await Deno.readTextFile(`${REPO}/staging/account/index.html`));
 const appJs = await Deno.readTextFile(`${REPO}/staging/account/app.js`);
 const css = await Deno.readTextFile(`${REPO}/staging/account/connect-page.css`);
 Deno.serve({ port: 8791 }, (req) => {
@@ -52,5 +65,12 @@ Deno.serve({ port: 8791 }, (req) => {
   if (p === "/ddf-staging/connect-page.css") return new Response(css, { headers: { "content-type": "text/css" } });
   if (p === "/ddf-staging/app.js") return new Response(appJs, { headers: { "content-type": "text/javascript" } });
   if (p === "/ddf-staging/" ) return new Response(page, { headers: { "content-type": "text/html" } });
+  // Other staging pages (JEG-1736), read fresh on every request, with the same sign-in stub as the index page.
+  const m = /^\/ddf-staging\/([a-z0-9-]+\.(html|js|css|json))$/.exec(p);
+  if (m) {
+    const types: Record<string, string> = { html: "text/html", js: "text/javascript", css: "text/css", json: "application/json" };
+    const file = m[1].startsWith("plan-sample") ? `${REPO}/staging/harness/fixtures/${m[1]}` : `${REPO}/staging/account/${m[1]}`;
+    return Deno.readTextFile(file).then((t) => new Response(m[2] === "html" ? stub(t) : t, { headers: { "content-type": types[m[2]] } }), () => new Response("nf", { status: 404 }));
+  }
   return new Response("nf", { status: 404 });
 });
