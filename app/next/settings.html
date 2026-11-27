@@ -363,6 +363,7 @@ document.addEventListener('click',function(e){document.querySelectorAll('details
     const lines = [];
     if (fit.teams && fit.usedTeams) lines.push('Your league has ' + fit.teams + ' teams. Values are for 8, 10, 12 or 14 teams, so we use ' + fit.usedTeams
       + (fit.usedTeams >= fit.teams ? ', the closest size at or above yours.' : '.'));
+    if (fit.idp) lines.push('Your league starts ' + fit.idp + ' defensive ' + (fit.idp === 1 ? 'player' : 'players') + ' (IDP). Values do not cover them, so they are left off the rosters here.');
     if (fit.tePremium) lines.push('Your league gives tight ends ' + num(fit.tePremium) + ' extra ' + (fit.tePremium === 1 ? 'point' : 'points') + ' per catch. Values do not include that yet.');
     if (!lines.length) return;
     box.replaceChildren(...lines.map(t => { const p = document.createElement('p'); p.textContent = t; return p; }));

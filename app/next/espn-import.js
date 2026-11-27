@@ -37,6 +37,7 @@
   /* lineupSlotCounts keys (ESPN lineup slot ids) */
   var SLOT = {QB: 0, RB: 2, RBWR: 3, WR: 4, WRTE: 5, TE: 6, OP: 7, DST: 16, K: 17, BENCH: 20, IR: 21, FLEX: 23};
   var REC_STAT = 53;   /* scoring statId for a reception */
+  var IDP_SLOTS = [8, 9, 10, 11, 12, 13, 14, 15];   /* DT, DE, LB, DL, CB, S, DB, DP: defensive players, not valued */
 
   function seasonNow(now) {
     var d = now ? new Date(now) : new Date();
@@ -109,10 +110,13 @@
     if (isFinite(size) && size >= 2) out.teams = closestSize(size);
     return out;
   }
-  /* what the league has that the values cannot reflect: a team count outside 8 to 14, TE premium */
+  /* what the league has that the values cannot reflect: a team count outside 8 to 14, TE premium, defensive player
+     (IDP) slots (those players are left off the rosters: a name alone could match an offensive player) */
   function fitOf(lg) {
     if (!lg || !lg.settings) return null;
-    var fit = {}, size = Number(lg.settings.size), rec = recPoints(lg);
+    var fit = {}, size = Number(lg.settings.size), rec = recPoints(lg), c = slotCounts(lg) || {};
+    var idp = IDP_SLOTS.reduce(function (a, k) { var v = Number(c[k]); return a + (isFinite(v) && v > 0 ? Math.floor(v) : 0); }, 0);
+    if (idp > 0) fit.idp = idp;
     if (isFinite(size) && size >= 2 && SIZES.indexOf(size) < 0) { fit.teams = size; fit.usedTeams = closestSize(size); }
     if (isFinite(rec.te) && rec.te > rec.points) fit.tePremium = Math.round((rec.te - rec.points) * 100) / 100;
     return Object.keys(fit).length ? fit : null;
@@ -134,6 +138,7 @@
         var p = e && e.playerPoolEntry && e.playerPoolEntry.player;
         if (!p) return;
         var pos = POS[p.defaultPositionId] || "", team = PRO_TEAM[p.proTeamId] || "";
+        if (!pos) return;   /* defensive players (IDP), punters, head coaches: not valued, and not matched by name alone */
         if (pos === "DEF") { if (team) lines.push(team + " Defense DEF"); return; }
         var full = String(p.fullName || [p.firstName, p.lastName].filter(Boolean).join(" ")).replace(/\s+/g, " ").trim();
         if (full) lines.push(full + (pos ? " " + pos : "") + (team ? " " + team : ""));

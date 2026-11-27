@@ -104,6 +104,26 @@ test("settings: scoring, slots, superflex, team count, TE premium", () => {
   assert.strictEqual(ES.settingsOf(lg({rosterSettings: {}})).roster, undefined, "no slot counts: settings.html asks");
 });
 
+test("every ESPN team code, and defensive players left off", () => {
+  // ESPN proTeamId -> the player table's team codes, stated here (matching goes by name, so a wrong code would pass unseen)
+  const WANT = {1: "ATL", 2: "BUF", 3: "CHI", 4: "CIN", 5: "CLE", 6: "DAL", 7: "DEN", 8: "DET", 9: "GB", 10: "TEN", 11: "IND",
+    12: "KC", 13: "LV", 14: "LAR", 15: "MIA", 16: "MIN", 17: "NE", 18: "NO", 19: "NYG", 20: "NYJ", 21: "PHI", 22: "ARI", 23: "PIT",
+    24: "LAC", 25: "SF", 26: "SEA", 27: "TB", 28: "WAS", 29: "CAR", 30: "JAX", 33: "BAL", 34: "HOU"};
+  const entry = (name, pos, pro) => ({playerPoolEntry: {player: {fullName: name, defaultPositionId: pos, proTeamId: pro}}});
+  const ids = Object.keys(WANT).map(Number);
+  const lines = ES.asBlocks([{id: 1, name: "A", roster: {entries: ids.map(id => entry("Player " + id, 1, id))}}])[0].text.split("\n");
+  assert.deepStrictEqual(lines, ids.map(id => `Player ${id} QB ${WANT[id]}`));
+  const defs = ES.asBlocks([{id: 1, name: "A", roster: {entries: ids.map(id => entry("x D/ST", 16, id))}}])[0].text.split("\n");
+  assert.deepStrictEqual(defs, ids.map(id => `${WANT[id]} Defense DEF`));
+  // the player table writes Jacksonville JAC; the live matcher reads JAX as JAC (roster-paste.js team aliases), as for Sleeper
+  assert.deepStrictEqual(Object.values(WANT).map(t => t === "JAX" ? "JAC" : t).sort(),
+    [...new Set(TABLE.map(r => r.split("|")[2]).filter(t => /^[A-Z]{2,3}$/.test(t)))].sort(), "the codes are the player table's");
+  // IDP: a linebacker named like a quarterback is left off, never matched to him; the league says how many it starts
+  const idp = ES.asBlocks([{id: 1, name: "A", roster: {entries: [entry("Josh Allen", 1, 2), entry("Josh Allen", 11, 30), entry("Some Punter", 7, 3)]}}])[0];
+  assert.strictEqual(idp.text, "Josh Allen QB BUF");
+  assert.deepStrictEqual(ES.fitOf({settings: {size: 12, rosterSettings: {lineupSlotCounts: {"0": 1, "10": 2, "14": 1, "15": 0}}}}), {idp: 3});
+});
+
 test("errors fall through with a reason", async () => {
   const o = {rows: ROWS, table: TABLE, now: NOW};
   assert.strictEqual((await ES.load(ID, Object.assign({fetch: fakeFetch({settings: 401})}, o))).code, "private");

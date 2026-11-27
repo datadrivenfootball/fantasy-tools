@@ -293,6 +293,15 @@
     var rec = kept();
     if (needsScoring(rec) && rec.scoring && scoringChoice() !== "n/a") applyScoring(rec.scoring);
   }
+  /* Settings read from the league (Sleeper, ESPN: ddf:pasted importSettings) reach the league's settings on Next, as the
+     picked scoring does (#1536): while editing, reading a league changes nothing until Next, so "Keep my league" leaves
+     the settings as they were. Only a league read on this page counts (the read card is showing). */
+  function applyImported() {
+    var rec = kept(), card = $("recognized");
+    if (!rec || !rec.importSettings || !card || card.hidden || !DDF.engine || !DDF.engine.apply) return;
+    if (rec.source !== "sleeper" && rec.source !== "espn") return;
+    try { DDF.engine.apply(rec.importSettings); } catch (e) { /* settings.html asks */ }
+  }
   /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
   function scoringChoice() {
     var box = $("scoring-pick"), card = $("recognized");
@@ -342,13 +351,13 @@
     var got = espnCopied(text);
     if (!got || !DDF.espn) return null;
     $("one-team-error").hidden = true;
-    if (!got.ok) { hideResult(); hideEditNames(); status(COPIED[got.code] || COPIED.notleague, "warn"); return Promise.resolve({ok: false, code: got.code}); }
+    /* a failed copy replaces nothing: the league read before it is dropped, as a paste we cannot read drops it */
+    if (!got.ok) { hideResult(); hideEditNames(); drop(); status(COPIED[got.code] || COPIED.notleague, "warn"); return Promise.resolve({ok: false, code: got.code}); }
     status("Reading your league from ESPN's data...", "");
     return whenRows().then(function (rows) {
       var j = got.json, out = DDF.espn.fromLeague(j, j, j.id, {rows: rows, table: table(), strategy: "espn-copy"});
-      if (!out.ok) { hideResult(); status(COPIED[out.code] || COPIED.notleague, "warn"); return out; }
+      if (!out.ok) { hideResult(); drop(); status(COPIED[out.code] || COPIED.notleague, "warn"); return out; }
       var res = out.result;
-      if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
       hideEditNames();
       showResult(res, "espn");
       var rec = DDF.leaguePaste.record(res, "espn");
@@ -675,7 +684,7 @@
     if (scoringBox) scoringBox.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-scoring]"); if (b) pickScoring(b.getAttribute("data-scoring")); });
     /* Next (to the team page or League settings): the scoring picked on the card becomes the league's */
     var scoringNext = $("connect-next");
-    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) applyPickedScoring(); });
+    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) { applyPickedScoring(); applyImported(); } });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);
