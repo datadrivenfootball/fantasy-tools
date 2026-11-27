@@ -56,9 +56,9 @@
     invalid: function () { return "We could not find an ESPN league ID in that. Paste your league link, or just the number after leagueId=."; },
     "private": function () { return "This ESPN league is private: ESPN shows it only to members who are signed in, so we need one copy from you."; },
     notfound: function (i) { return "We could not find an ESPN league with that ID for the " + ((i && i.season) || "current") + " season. Check the number after leagueId= in your league link."; },
-    empty: function () { return "That ESPN league has no rosters yet. Once the draft is done, try again, or copy your rosters page."; },
-    timeout: function () { return "ESPN is taking too long to answer. You can copy your rosters page instead."; },
-    network: function () { return "We could not reach ESPN just now. You can copy your rosters page instead."; }
+    empty: function () { return "That ESPN league has no rosters yet. Once the draft is done, try again, or open your league on ESPN below and copy it."; },
+    timeout: function () { return "ESPN is taking too long to answer. You can open your league on ESPN below and copy it instead."; },
+    network: function () { return "We could not reach ESPN just now. You can open your league on ESPN below and copy it instead."; }
   };
 
   function leagueUrl(season, id, views) {

@@ -149,6 +149,11 @@ test("errors fall through with a reason", async () => {
     assert.ok(!banned.test(m), `${code}: ${m}`);
   }
   assert.ok(ES.MESSAGES.notfound({season: 2026}).includes("2026 season"));
+  // the fallback button opens the league on ESPN (its data view), not the rosters page: the messages say so
+  for (const code of ["empty", "timeout", "network"]) {
+    assert.ok(ES.MESSAGES[code]().includes("open your league on ESPN below"), code);
+    assert.ok(!/rosters page/.test(ES.MESSAGES[code]()), code);
+  }
 });
 
 (async () => {
