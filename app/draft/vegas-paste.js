@@ -42,10 +42,17 @@
     return NAME_ALIASES[n] || n;
   }
 
+  // Stat families and stat types a header can name. A header naming more
+  // than one family (passing, rushing, receiving) or more than one type
+  // (yards, TDs, receptions) is a combined market, in any word order.
+  var FAMILIES = [/\bpass(ing)?\b/i, /\brush(ing)?\b/i, /\brec(eiving)?\b(?!\w)|\breceiving\b/i];
+  var TYPES = [/\byards?\b|\byds\b/i, /\btouchdowns?\b|\btds?\b/i, /\breceptions?\b|\bcatches\b/i];
   // Markets we refuse outright: their numbers fit a supported market's
-  // range and would be stored as the wrong stat (review of f662c66).
+  // range and would be stored as the wrong stat (reviews of f662c66, f0fcfb1).
   var REFUSED = [
-    { re: /\+|&|\bcombined\b|\brush(ing)?\s*(and|\/)\s*rec|\bpass(ing)?\s*(and|\/)\s*rush/i, why: "combined market" },
+    { re: /\b(1st|2nd|first|second)\s+half\b|\bhalf\b|\bquarter\b|\b[1-4](st|nd|rd|th)\s+q(uarter)?\b|\bq[1-4]\b/i, why: "half or quarter market" },
+    { re: /\bplayoffs?\b|\bpost-?season\b|\bincl\.?(?=\s|$)|\bincluding\b/i, why: "market that includes the playoffs" },
+    { re: /\bweek\b|\bwk\s*\d|\bgame\b|\btonight\b|\bvs\.?\s|\s@\s/i, why: "weekly or game market" },
     { re: /\blong(est)?\b/i, why: "longest-play market" },
     { re: /\battempts?\b|\batt\b|\bcarries\b/i, why: "attempts market" },
     { re: /\btargets?\b/i, why: "targets market" },
@@ -56,31 +63,47 @@
   ];
   // Words that make a line a market header (supported or not).
   var STATLIKE = /\b(yards?|yds|touchdowns?|tds?|receptions?|catches|attempts?|att|carries|targets?|completions?|interceptions?|ints?|longest|sacks?|fumbles?|tackles?|points|passing|rushing|receiving)\b/i;
+  // A line that starts a weekly or game section (no stat named): everything
+  // under it is refused until the next market header.
+  var SECTION_BREAK = /\bweek\s*\d+\b|\bgame lines\b|\bgame props\b|\btonight\b|\b(sunday|monday|thursday|saturday) (night|games?)\b|\b[A-Z][a-z]+ (vs\.?|@) [A-Z][a-z]+\b/i;
+  var SEASON = /\bseason\b|\bseason[- ]long\b|\bfull[- ]season\b/i;
+
+  function count(res, t) { return res.reduce(function (n, re) { return n + (re.test(t) ? 1 : 0); }, 0); }
 
   function marketOf(text) {
     for (var i = 0; i < MARKETS.length; i += 1) if (MARKETS[i].re.test(text)) return MARKETS[i].key;
     return null;
   }
-  // -> null (not a header) | {market} | {refused}
+  // -> null (not a header) | {market, season} | {refused}
   function headerOf(text) {
     if (!STATLIKE.test(text)) return null;
+    var t = text.replace(/\breceptions?\b/ig, " receptions ");
+    var fam = count(FAMILIES, t.replace(/\breceptions?\b/ig, " ")), typ = count(TYPES, t);
+    if (fam > 1 || typ > 1 || (fam >= 1 && /\breceptions?\b|\bcatches\b/i.test(t) && /\b(pass|rush)/i.test(t))) {
+      return { refused: "combined market" };
+    }
     for (var i = 0; i < REFUSED.length; i += 1) if (REFUSED[i].re.test(text)) return { refused: REFUSED[i].why };
     var m = marketOf(text);
-    return m ? { market: m } : { refused: "unsupported market" };
+    return m ? { market: m, season: SEASON.test(text) } : { refused: "unsupported market" };
   }
 
   var NUM = "(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d{1,5}(?:\\.\\d+)?)";
   var OU_ONLY = new RegExp("^(o|over|u|under)\\s*" + NUM + "(?![\\d,])", "i");
   var OU_INLINE = new RegExp("^(.+?)\\s+(o|over|u|under)\\s*" + NUM + "(?![\\d,])(.*)$", "i");
   var ODDS_ONLY = /^\(?[+\-−]\d{2,4}\)?$/;
+  var TEAM_POS_ONLY = /^[A-Z]{2,4}(\s*[-–·•|]\s*(QB|RB|WR|TE))?$|^(QB|RB|WR|TE)$/;
   var HAS_DIGIT = /\d/;
   var toNum = function (s) { return Number(String(s).replace(/,/g, "")); };
-
-  // Looks like a person's name: 2-5 words of letters, no digits.
+  // "Jaxon Smith-Njigba (SEA)", "Josh Allen - BUF" -> the bare name.
+  function stripTeam(t) {
+    return t.replace(/\s*\((?:[A-Z]{2,4}|[A-Z]{2,4}\s*[-–]\s*(QB|RB|WR|TE))\)\s*$/, "")
+      .replace(/\s+[-–·•]\s+[A-Z]{2,4}$/, "").trim();
+  }
   function nameLike(line) {
     return !HAS_DIGIT.test(line) && /^[A-Za-z][A-Za-z.'’\- ]{2,40}$/.test(line) &&
       line.trim().split(/\s+/).length >= 2 && line.trim().split(/\s+/).length <= 5;
   }
+  var OU_GAP = 0.05; // over and under for one market more than 5% apart
 
   // players: {key: {name, pos?, team?}}. options: {season, snapshotDate}.
   // -> {ok, season, snapshotDate, rows: [{key, name, team, market, line,
@@ -91,71 +114,92 @@
     var byName = {};
     Object.keys(players || {}).forEach(function (k) { byName[normName(players[k].name)] = k; });
     var lines = String(text || "").replace(/\r/g, "").split("\n");
-    var errors = [], found = {}, ignored = 0, sawSeason = false;
-    var market = null, refused = null, player = null, pendingName = null;
+    var errors = [], found = {}, ignored = 0;
+    // The current section: its market (or why it is refused), whether it
+    // carries a season marker, and the selected player.
+    var market = null, refused = null, sectionSeason = false, player = null, pendingName = null;
 
     function err(i, t, reason) { errors.push({ lineNo: i + 1, text: t, reason: reason }); }
+    function lookup(t) { return byName[normName(stripTeam(t))]; }
     function record(i, t, k, mkt, side, value) {
       var r = RANGES[mkt];
       if (!(value >= r[0] && value <= r[1])) { err(i, t, "line " + value + " outside " + r[0] + "-" + r[1] + " for " + mkt); return; }
       var id = k + "|" + mkt;
-      var f = found[id] || (found[id] = { key: k, market: mkt, over: null, under: null, lineNo: i + 1 });
+      var f = found[id] || (found[id] = { key: k, market: mkt, over: null, under: null, lineNo: i + 1, lines: {} });
       var which = /^o/i.test(side) ? "over" : "under";
       if (f[which] !== null && f[which] !== value) {
         err(i, t, "two different " + which + " lines for " + players[k].name + " " + mkt + " (" + f[which] + ", " + value + ")");
         return;
       }
-      f[which] = value;
+      f[which] = value; f.lines[which] = i;
+    }
+    function startSection(hdr, t) {
+      market = hdr && hdr.market ? hdr.market : null;
+      refused = hdr && hdr.refused ? hdr.refused + " (" + t + ")" : null;
+      sectionSeason = !!(hdr && hdr.season);
+      pendingName = null;
     }
 
     lines.forEach(function (raw, i) {
       var t = raw.replace(/−/g, "-").replace(/\s+/g, " ").trim();
       if (!t) return;
       if (ODDS_ONLY.test(t)) return;
-      if (/season/i.test(t)) {
-        sawSeason = true;
-        var yr = t.match(/\b(20\d\d)\b/);
-        if (yr && season && Number(yr[1]) !== season) { err(i, t, "season " + yr[1] + " is not " + season); return; }
+      var yr = /©|copyright/i.test(t) ? null : t.match(/\b(20\d\d)\b/);
+      if (yr && season && Number(yr[1]) !== season) {
+        err(i, t, "season " + yr[1] + " is not " + season);
+        startSection({ refused: "another season" }, t);
+        player = null;
+        return;
       }
       var inl = t.match(OU_INLINE);
       var hdr = inl ? null : headerOf(t);
       if (hdr) {
-        market = hdr.market || null;
-        refused = hdr.refused ? hdr.refused + " (" + t + ")" : null;
+        startSection(hdr, t);
         // "Josh Allen - Regular Season Passing Yards": the player is named too.
-        var head = t.split(/\s[-–|:]\s/)[0];
-        player = byName[normName(head)] || null;
-        pendingName = null;
+        player = lookup(t.split(/\s[-–|:]\s/)[0]) || null;
         return;
       }
+      if (!inl && SECTION_BREAK.test(t)) { startSection({ refused: "weekly or game section" }, t); player = null; return; }
+      if (!inl && SEASON.test(t) && !HAS_DIGIT.test(t.replace(/\b20\d\d\b/g, "")) && market) { sectionSeason = true; return; }
       var ou = t.match(OU_ONLY);
       if (ou) {
         if (refused) { err(i, t, "not read, " + refused); return; }
         if (!market) { err(i, t, "over/under before any market header"); return; }
-        if (!player) { err(i, t, pendingName ? "unknown player: " + pendingName : "over/under with no player"); return; }
+        if (!sectionSeason) { err(i, t, "market has no season marker (weekly or game lines?)"); return; }
+        if (!player) { err(i, t, pendingName ? "unknown player: " + pendingName.text + " (line " + pendingName.lineNo + ")" : "over/under with no player"); return; }
         record(i, t, player, market, ou[1], toNum(ou[2]));
         return;
       }
       if (inl) {
         var nm = inl[1].replace(/\s[-–|:]\s.*$/, "");
-        var k = byName[normName(nm)];
+        var k = lookup(nm);
         var restHdr = headerOf(inl[4]) || headerOf(inl[1]);
         if (!k) { err(i, t, "unknown player: " + nm); return; }
         if (restHdr && restHdr.refused) { err(i, t, restHdr.refused); return; }
-        var m2 = restHdr ? restHdr.market : (refused ? null : market);
-        if (!m2) { err(i, t, refused ? "not read, " + refused : "no market for this line"); return; }
+        if (refused) { err(i, t, "not read, " + refused); return; }
+        var m2 = restHdr ? restHdr.market : market;
+        if (!m2) { err(i, t, "no market for this line"); return; }
+        if (!(sectionSeason || (restHdr && restHdr.season))) { err(i, t, "market has no season marker (weekly or game lines?)"); return; }
         record(i, t, k, m2, inl[2], toNum(inl[3]));
         return;
       }
-      var key = byName[normName(t)];
+      if (TEAM_POS_ONLY.test(t)) return;
+      if (HAS_DIGIT.test(t) && /\b(o|over|u|under)\b/i.test(t)) { err(i, t, "unreadable over/under line"); player = null; return; }
+      var key = lookup(t);
       if (key) { player = key; pendingName = null; return; }
-      if (nameLike(t)) { player = null; pendingName = t; ignored += 1; return; }
-      if (HAS_DIGIT.test(t) && /\b(o|over|u|under)\b/i.test(t)) { err(i, t, "unreadable over/under line"); return; }
+      // Anything else clears the selected player, so an unknown name can
+      // never hand its lines to the player above it.
+      player = null;
+      if (nameLike(stripTeam(t))) pendingName = { text: t, lineNo: i + 1 };
       ignored += 1;
     });
-    if (!sawSeason && lines.some(function (l) { return l.trim(); })) {
-      err(-1, "", "the page never says \"season\": weekly or game lines are not read");
-    }
+
+    Object.keys(found).forEach(function (id) {
+      var f = found[id];
+      if (f.over !== null && f.under !== null && Math.abs(f.over - f.under) > OU_GAP * Math.min(f.over, f.under)) {
+        err(f.lines.under, "O " + f.over + " / U " + f.under, "over and under more than 5% apart for " + players[f.key].name + " " + f.market);
+      }
+    });
 
     var rows = Object.keys(found).map(function (id) {
       var f = found[id], p = players[f.key];

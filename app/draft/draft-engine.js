@@ -564,7 +564,8 @@
     var myMax = maxBid(me, state.league);
     var canBid = canRoster(me, model.pos) && myMax >= minBid;
     var costToWin = model.rivals.length ? model.w1 + minBid : minBid;
-    var cls = !canBid ? "no slot"
+    var cls = !canRoster(me, model.pos) ? "no slot"
+      : myMax < minBid ? "no money"
       : !model.rivals.length ? "uncontested"
       : rv.value >= costToWin + opts.targetMargin ? "target"
       : rv.value <= costToWin - opts.targetMargin ? "fade" : "neutral";
@@ -592,6 +593,9 @@
         if (gain > best + EPS) { best = gain; cBest = bid; cDetail = { pStuck: pStuck, drain: drain, expectedLoss: expLoss, gain: gain }; }
       }
     }
+    // C, like B, never past the best rival max bid - $1 (review of f0fcfb1).
+    if (cBest != null) cBest = Math.min(cBest, model.topRivalMaxBid - minBid);
+    if (cBest != null && cBest < minBid) cBest = null;
     return { key: key, classification: cls, costToWin: costToWin, clearing: model.clearing,
       w1: model.w1, w2: model.w2, rosterValue: rv.value, buyLimit: rv.buyLimit, walkAway: row.walkAway,
       pushFloor: { A: a, B: pushB, C: cBest }, candidateC: cDetail, rivals: model.rivals.length,

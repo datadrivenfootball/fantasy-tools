@@ -47,9 +47,27 @@ const NOISE_SIGMA = 0.2;
 // its own market/platform blend (uniform 0-1; the model assumes 0.5) and its
 // own position tendencies (lognormal, sigma 0.1), drawn per draft.
 const TENDENCY_SIGMA = 0.1;
-// The noisy judge: each player's "true" value = DDF Value x lognormal(0.3),
-// drawn per draft and unseen by every bidder.
-const JUDGE_SIGMA = 0.3;
+// The truth world (delta review of f0fcfb1): each player's true value is
+// drawn first, around the mean of ours and market (lognormal, sigma 0.25);
+// ours and market are then each an independent estimate of it (lognormal,
+// sigma 0.2 each), and the draft runs on those estimates. The truth judge
+// scores our lineup by the true values, so ours can be wrong and lose.
+const TRUTH_SIGMA = 0.25, ESTIMATE_SIGMA = 0.2;
+
+export function truthWorld(prices, seed, draft) {
+  const ln = (sd, ...p) => Math.exp(sd * gauss(seed, draft, ...p) - sd * sd / 2);
+  const truth = {}, ours = {}, market = {}, platform = {};
+  Object.keys(prices.players).forEach(k => {
+    const o = prices.ours[k] || 0, m = prices.market[k] || 0;
+    const base = o && m ? (o + m) / 2 : (o || m);
+    if (!base) return;
+    truth[k] = base * ln(TRUTH_SIGMA, k, "truth");
+    ours[k] = truth[k] * ln(ESTIMATE_SIGMA, k, "ours-est");
+    market[k] = truth[k] * ln(ESTIMATE_SIGMA, k, "market-est");
+    platform[k] = market[k];
+  });
+  return { ...prices, ours, market, platform, values: truth, truth };
+}
 
 // Deterministic per-(draft, team, player) random numbers: the same rival
 // noise in every policy.
@@ -112,7 +130,8 @@ export function starterValue(roster, pos, val) {
   return total;
 }
 
-export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 }) {
+export function simulate({ prices: realPrices, league, policy: pol, draft, seed, teams = 12, truth = false }) {
+  const prices = truth ? truthWorld(realPrices, seed, draft) : realPrices;
   const policy = pol.rule;
   const simLeague = { teams, budget: league.budget - (league.slots.K + league.slots.DST) * league.minBid,
     minBid: league.minBid, slots: { QB: 1, RB: 2, WR: 3, TE: 1, FLEX: 1, BN: league.slots.BN } };
@@ -218,12 +237,11 @@ export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 
   const vals = prices.values;
   // Independent judges: market dollars, and DDF Value with hidden noise.
   const marketVals = prices.market;
-  const noisyVals = {};
-  Object.keys(vals).forEach(k => { noisyVals[k] = vals[k] * Math.exp(JUDGE_SIGMA * gauss(seed, draft, k, "judge")); });
+  const truthVals = prices.truth || {};
   return {
     starterValue: starterValue(roster, pos, vals),
     starterMarket: starterValue(roster, pos, marketVals),
-    starterNoisy: starterValue(roster, pos, noisyVals),
+    starterTruth: starterValue(roster, pos, truthVals),
     rosterMarket: roster.reduce((t, k) => t + (marketVals[k] || 0), 0),
     rosterValue: roster.reduce((t, k) => t + (vals[k] || 0), 0),
     starterDollars: starterValue(roster, pos, prices.ours),
@@ -240,7 +258,9 @@ export function simulate({ prices, league, policy: pol, draft, seed, teams = 12 
   };
 }
 
-export const JUDGES = { ours: "starterValue", market: "starterMarket", noisy: "starterNoisy" };
+// Judges: ours and market score the real-price world; truth scores the
+// truth world (a separate run with the same seeds).
+export const JUDGES = { ours: "starterValue", market: "starterMarket" };
 
 // Mean and standard error of the per-draft difference a - b (same seeds).
 function paired(a, b, f) {
@@ -257,7 +277,7 @@ function summarize(runs) {
     drafts: runs.length,
     starterValue: mean("starterValue"), starterValueSd: sd("starterValue"),
     rosterValue: mean("rosterValue"), starterDollars: mean("starterDollars"),
-    starterMarket: mean("starterMarket"), starterNoisy: mean("starterNoisy"), rosterMarket: mean("rosterMarket"),
+    starterMarket: mean("starterMarket"), starterTruth: mean("starterTruth"), rosterMarket: mean("rosterMarket"),
     unspent: mean("unspent"), pushWins: mean("pushWins"),
     aboveValue: mean("aboveValue"), aboveValueDollars: mean("aboveValueDollars"),
     aboveWalkAway: mean("aboveWalkAway"), drained: mean("drained"),
@@ -276,21 +296,30 @@ function main() {
   const prices = buildPrices({ league, fp: JSON.parse(fs.readFileSync(a.fp, "utf8")),
     vegas: JSON.parse(fs.readFileSync(a.vegas, "utf8")), espn: espnTable(JSON.parse(fs.readFileSync(a.espn, "utf8"))),
     ecr: ecrRanks(path.join(a["ecr-dir"], "ecr_half.html")) });
-  const results = {}, allRuns = {};
+  const results = {}, allRuns = {}, truthRuns = {}, truthResults = {};
   POLICIES.forEach(policy => {
-    const runs = [];
-    for (let d = 0; d < drafts; d += 1) runs.push(simulate({ prices, league, policy, draft: d, seed }));
-    allRuns[policy.name] = runs;
+    const runs = [], tr = [];
+    for (let d = 0; d < drafts; d += 1) {
+      runs.push(simulate({ prices, league, policy, draft: d, seed }));
+      tr.push(simulate({ prices, league, policy, draft: d, seed, truth: true }));
+    }
+    allRuns[policy.name] = runs; truthRuns[policy.name] = tr;
     results[policy.name] = { ...summarize(runs), rule: policy.rule, factor: policy.factor };
+    truthResults[policy.name] = summarize(tr);
   });
   // Every policy minus B, under every judge (paired by seed).
   const vsB = {};
   POLICIES.forEach(p => {
     vsB[p.name] = Object.fromEntries(Object.entries(JUDGES).map(([j, f]) => [j, paired(allRuns[p.name], allRuns.B, f)]));
+    vsB[p.name].truth = paired(truthRuns[p.name], truthRuns.B, "starterTruth");
   });
+  // Personal minus room inflation (same rule, walk-away), every judge.
+  const personalVsRoom = Object.fromEntries(Object.entries(JUDGES).map(([j, f]) => [j, paired(allRuns.walkaway, allRuns["walkaway-room"], f)]));
+  personalVsRoom.truth = paired(truthRuns.walkaway, truthRuns["walkaway-room"], "starterTruth");
   process.stdout.write(JSON.stringify({ generated: new Date().toISOString(), data: "2026 data", league,
-    drafts, seed, noiseSigma: NOISE_SIGMA, tendencySigma: TENDENCY_SIGMA, judgeSigma: JUDGE_SIGMA,
-    opponentDefaults: E.OPPONENT_DEFAULTS, results, vsB }, null, 1));
+    drafts, seed, noiseSigma: NOISE_SIGMA, tendencySigma: TENDENCY_SIGMA, truthSigma: TRUTH_SIGMA,
+    estimateSigma: ESTIMATE_SIGMA, opponentDefaults: E.OPPONENT_DEFAULTS, results, truthResults, vsB,
+    personalVsRoom }, null, 1));
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) main();

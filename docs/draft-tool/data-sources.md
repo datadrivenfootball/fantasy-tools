@@ -111,15 +111,32 @@ What it reads: passing, rushing and receiving yards and TDs, and receptions,
 in three layouts: a market header then name / "O 4100.5" lines; a
 "Player - Regular Season Passing Yards" header then Over / Under; or one line
 "Player Over 104.5 Receptions -115". It uses the over line (the under only
-when there is no over), ignores odds and page chrome, and refuses a line for
-an unknown player, a number outside a plausible season range, a season
-other than `--season` anywhere the page says "season", a page that never
-says "season" (weekly or game lines), two different over (or under) lines
-for the same player and market, or any over/under it cannot read. Markets it
-does not read are refused, and lines under them are listed, never stored
-under the previous market: combined (rush + rec), longest play, attempts,
-carries, targets, completions, interceptions, sacks, fumbles, points,
-leaders and awards. Numbers with thousands separators ("3,875.5") are read.
+when there is no over), ignores odds and page chrome, reads "3,875.5", and
+strips team tags like "(SEA)".
+
+It refuses, and lists, every line it cannot trust (tightened after the reviews
+of f662c66 and f0fcfb1):
+
+- **Season only, per market.** Each market needs its own season marker, in
+  its header ("Regular Season Receiving Yards") or on a line in its section
+  before the first player ("2026 Regular Season"). A page that says "season"
+  somewhere else (a "Season Futures" menu link) does not count. A "Week 12",
+  "Game Lines" or "Lions vs Bears" line starts a weekly or game section, and
+  every line under it is refused.
+- **The right year on every line.** Any line naming another year ("2025
+  Receiving Yards") is refused, and so is its section.
+- **One stat per market.** A header that names two stats in any order or
+  joiner ("Receiving and Rushing Yards", "Receiving Yds plus Rushing Yds",
+  "Rush + Rec", "Rushing and Passing Yards") is refused as combined.
+- **No partial or extended markets:** half, quarter, playoffs, "incl."
+  markets; longest play, attempts, carries, targets, completions,
+  interceptions, sacks, fumbles, points, leaders, awards.
+- **No guessing the player.** A name it does not know clears the selected
+  player, so its lines are listed ("unknown player") instead of going to the
+  player above. Any line it cannot read clears the player too.
+- **Consistent lines.** Two different over (or under) lines for the same
+  player and market, an over and under more than 5% apart, a number outside
+  a plausible season range, or an over/under it cannot read.
 
 Storage: `public.draft_vegas_lines` (applied 2026-11-27 on Jeremy's yes;
 public read, server-only write; one snapshot per date, the same for every

@@ -104,6 +104,22 @@ class PushFloorCandidates(unittest.TestCase):
                 self.assertEqual((board_pf, board_bl), (b, bl), (factor, k))
                 self.assertFalse(has_a, k)
 
+    def test_candidate_c_capped_at_rival_max(self):
+        """Delta review of f0fcfb1, item 7: buy limit $10, best rival max $9.
+        B was $8 but C was $10; both now stop at $8."""
+        st = ("{league:{teams:2,budget:40,minBid:1,slots:{RB:1}},me:'us',"
+              "teams:[{id:'us',budgetLeft:30,open:{RB:1}},{id:'r',budgetLeft:9,open:{RB:1}}],"
+              "available:['x','y'],pos:{x:'RB',y:'RB'},prices:{ours:{x:30,y:5},market:{x:20,y:5}}}")
+        pf = _cjs(f"E.pushFloors({st},'x')")
+        self.assertEqual(pf["buyLimit"], 10)
+        self.assertEqual((pf["pushFloor"]["B"], pf["pushFloor"]["C"]), (8, 8))
+
+    def test_no_money_classification(self):
+        st = ("{league:{teams:2,budget:20,minBid:1,slots:{RB:1,BN:1}},me:'us',"
+              "teams:[{id:'us',budgetLeft:1,open:{RB:1,BN:1}},{id:'r',budgetLeft:9,open:{RB:1}}],"
+              "available:['x'],pos:{x:'RB'},prices:{ours:{x:6},market:{x:6}}}")
+        self.assertEqual(_cjs(f"E.pushFloors({st},'x').classification"), "no money")
+
     def test_no_slot_classification(self):
         self.assertEqual(_cjs("E.pushFloors(st(),'P7').classification"), "no slot")
 
@@ -144,7 +160,7 @@ class Nominations(unittest.TestCase):
 
 
 SIM_JS = """
-import { simulate, POLICIES } from './tools/draft_sim.mjs';
+import { simulate, POLICIES, truthWorld } from './tools/draft_sim.mjs';
 const players = {}, ours = {}, market = {}, platform = {}, values = {};
 let n = 0;
 for (const [pos, count, top] of [['QB', 30, 40], ['RB', 70, 60], ['WR', 90, 58], ['TE', 45, 35]]) {
@@ -159,7 +175,12 @@ const league = { teams: 12, budget: 200, minBid: 1, slots: { QB: 1, RB: 2, WR: 3
 const prices = { players, ours, market, platform, values };
 const out = POLICIES.map(policy => [0, 1].map(d => simulate({ prices, league, policy, draft: d, seed: 7 })));
 const again = simulate({ prices, league, policy: POLICIES[3], draft: 0, seed: 7 });
-process.stdout.write(JSON.stringify({ out, again, names: POLICIES.map(p => p.name) }));
+const tw = simulate({ prices, league, policy: POLICIES[3], draft: 0, seed: 7, truth: true });
+const tw2 = simulate({ prices, league, policy: POLICIES[3], draft: 0, seed: 7, truth: true });
+const world = truthWorld(prices, 7, 0);
+const k0 = Object.keys(world.truth)[0];
+process.stdout.write(JSON.stringify({ out, again, tw, tw2, names: POLICIES.map(p => p.name),
+  world: { truth: world.truth[k0], ours: world.ours[k0], market: world.market[k0], real: ours[k0] } }));
 """
 
 
@@ -178,6 +199,17 @@ class Simulator(unittest.TestCase):
 
     def test_seeded_runs_repeat_exactly(self):
         self.assertEqual(self.data["again"], self.data["out"][3][0])
+
+    def test_truth_world_is_seeded_and_independent(self):
+        """Delta review of f0fcfb1, item 6: the truth judge draws the true
+        value first and gives ours and market their own errors, so ours is
+        no longer the judge's centre."""
+        self.assertEqual(self.data["tw"], self.data["tw2"])
+        self.assertGreater(self.data["tw"]["starterTruth"], 0)
+        w = self.data["world"]
+        self.assertNotEqual(w["ours"], w["truth"])
+        self.assertNotEqual(w["market"], w["truth"])
+        self.assertNotEqual(w["ours"], w["market"])
 
     def test_roster_value_bid_never_buys_above_value(self):
         b = self.data["out"][self.data["names"].index("B")]

@@ -111,13 +111,64 @@ class FailsClosed(unittest.TestCase):
     def test_weekly_page_refused(self):
         r = parse("Week 12 Player Props\nReceiving Yards\nJa'Marr Chase\nO 85.5\n-115")
         self.assertFalse(r["ok"])
-        self.assertTrue(any("never says" in e["reason"] for e in r["errors"]))
+        # Rule tightened by the review of f0fcfb1: each market needs its own
+        # season marker, and a "Week N" line starts a weekly section.
+        self.assertEqual(r["rows"], [])
 
     def test_last_season_line_refused(self):
         self._bad("2025 Regular Season\nRegular Season Receiving Yards\nJa'Marr Chase\nO 1375.5", "season 2025 is not 2026")
 
     def test_conflicting_unders_refused(self):
         self._bad("Regular Season Receiving Touchdowns\nJa'Marr Chase\nUnder 11.5", "two different under lines")
+
+    # Delta review of f0fcfb1: each probe below returned ok=true at f0fcfb1.
+    def _stored(self, r, key, market):
+        return [x["line"] for x in r["rows"] if x["key"] == key and x["market"] == market]
+
+    def test_combined_rec_and_rush_any_order(self):
+        r = self._bad("Receiving and Rushing Yards Regular Season\nBijan Robinson\nO 1850.5", "combined market")
+        self.assertEqual(self._stored(r, "201", "season_rush_yds"), [1350.5])
+
+    def test_combined_yds_plus_yds(self):
+        r = self._bad("Receiving Yds plus Rushing Yds Regular Season\nBijan Robinson\nO 1850.5", "combined market")
+        self.assertEqual(self._stored(r, "201", "season_rush_yds"), [1350.5])
+
+    def test_combined_rush_and_pass(self):
+        r = self._bad("Rushing and Passing Yards Regular Season\nJosh Allen\nO 4400.5", "combined market")
+        self.assertEqual(self._stored(r, "102", "season_pass_yds"), [3875.5])
+
+    def test_weekly_page_with_season_menu_link(self):
+        r = parse("Season Futures\nWeek 12 Player Props\nReceiving Yards\nJa'Marr Chase\nO 85.5\n-115\n"
+                  "Receptions\nJa'Marr Chase\nO 6.5\n-120")
+        self.assertFalse(r["ok"])
+        self.assertEqual(r["rows"], [])
+
+    def test_game_lines_after_a_season_page(self):
+        r = self._bad("Game Lines\nLions vs Bears\nReceptions\nAmon-Ra St. Brown\nO 6.5\n-110", "season marker")
+        self.assertEqual(self._stored(r, "302", "season_receptions"), [101.5])
+
+    def test_year_checked_on_every_line(self):
+        r = self._bad("2025 Receiving Yards\nJa'Marr Chase\nO 1708.5", "season 2025 is not 2026")
+        self.assertEqual(self._stored(r, "301", "season_rec_yds"), [1375.5])
+
+    def test_first_half_market_refused(self):
+        self._bad("1st Half Receiving Yards Regular Season\nJa'Marr Chase\nO 700.5", "half or quarter market")
+
+    def test_playoffs_market_refused(self):
+        self._bad("Receiving Yards incl. Playoffs Regular Season\nJa'Marr Chase\nO 1450.5", "includes the playoffs")
+
+    def test_unknown_name_line_clears_the_player(self):
+        r = self._bad("Regular Season Receiving Touchdowns\nJaxon Smith-Njigba (SEA)\nO 8.5",
+                      "unknown player: Jaxon Smith-Njigba (SEA)")
+        self.assertEqual(self._stored(r, "301", "season_rec_tds"), [10.5])
+
+    def test_team_tag_in_parentheses_is_stripped(self):
+        r = parse(SAMPLE + "\nRegular Season Receiving Touchdowns\nAmon-Ra St. Brown (DET)\nO 8.5")
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertEqual(self._stored(r, "302", "season_rec_tds"), [8.5])
+
+    def test_over_and_under_far_apart(self):
+        self._bad("Regular Season Receiving Yards\nAmon-Ra St. Brown\nU 1300.5", "more than 5% apart")
 
     def test_thousands_separator(self):
         r = parse(SAMPLE.replace("O 3875.5", "O 3,875.5"))

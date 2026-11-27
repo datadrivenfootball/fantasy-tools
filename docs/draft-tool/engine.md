@@ -154,53 +154,67 @@ player at a price we are glad to pay. Above roster value, the loss is
 - **C: roster value plus a bounded overreach.** On fades and neutrals, go
   above roster value only while `(chance the top rival tops us) x (dollars
   drained) x 0.5` beats `(chance we are stuck) x (overpay)`, and keep the
-  expected overpay under $1 per player. The 0.5 says a rival's wasted dollar
-  is worth half of one of ours.
+  expected overpay under $1 per player, and, like B, never past the best
+  rival max bid - $1. The 0.5 says a rival's wasted dollar is worth half of
+  one of ours. (`pushFloors()` labels a player we cannot roster "no slot" and
+  one we can roster but cannot afford "no money".)
 
 **Simulation** (`tools/draft_sim.mjs`, 300 seeded drafts per policy, seed
-2, re-run 2026-11-27 after the review of f662c66). 12 teams, Jeremy's league
-settings at $200, 2026 data. Rival bots bid their need-weighted room price
-with +/-20% noise centred so rooms pay market on average, and they are not
-the engine's opponent model: each bot has its own market/platform blend
-(uniform 0-1; the model assumes 0.5) and its own position tendencies
-(+/-10%). Same seeds for every policy.
+2, re-run 2026-11-27 after the delta review of f0fcfb1). 12 teams, Jeremy's
+league settings at $200, 2026 data. Rival bots bid their need-weighted room
+price with +/-20% noise centred so rooms pay market on average, each with its
+own market/platform blend (uniform 0-1; the model assumes 0.5) and +/-10%
+position tendencies, so they do not bid the way our opponent model assumes.
+Same seeds for every policy.
 
-Our starting lineup is scored by three judges, so no result rests on our own
-values alone: **ours** (DDF Value), **market** (market dollars), and
-**noisy** (DDF Value times a hidden +/-30% per player per draft that no
-bidder sees). Mean per draft:
+Three judges score our starting lineup:
 
-| Policy | Ours | Market | Noisy | Unspent | Bench buys at starter price |
+- **Ours** and **market**: the draft runs on the real 2026 prices; the
+  lineup is scored with DDF Value, or with market dollars.
+- **Truth**: a separate run where each player's true value is drawn first
+  (around the mean of ours and market, +/-25%), and ours and market are each
+  an independent estimate of it (+/-20% apiece). Bidders see only the
+  estimates; the lineup is scored by the true values. Here ours can be wrong
+  and lose, so this is the judge that can contradict our own numbers.
+
+Mean per draft (starter value; ours and truth in DDF Value points, market in
+market dollars):
+
+| Policy | Ours | Market | Truth | Unspent (real prices) | Bench buys at starter price |
 | --- | --- | --- | --- | --- | --- |
-| Walk-away, room inflation (first engine) | 164.9 | 124.6 | 177.2 | $55 | 5.0 ($24) |
-| Walk-away, personal inflation | 216.5 | 182.3 | 227.7 | $0 | 5.2 ($20) |
-| A, personal | 218.0 | 184.2 | 229.6 | $0 | 5.0 ($19) |
-| B (buy limit), personal | 221.4 | 186.5 | 231.8 | $1 | 0 |
-| C, personal | 220.6 | 186.2 | 231.9 | $0 | 2.6 ($6) |
+| Walk-away, room inflation (first engine) | 164.9 | 124.6 | 210.5 | $55 | 5.0 |
+| Walk-away, personal inflation | 216.5 | 182.3 | 217.0 | $0 | 5.2 |
+| A, personal | 218.0 | 184.2 | 217.2 | $0 | 5.0 |
+| **B, personal (the board today)** | **221.4** | **186.5** | **220.5** | $1 | 0 |
+| C, personal | 220.0 | 185.5 | 214.5 | $1 | 2.6 |
 
 Each policy minus B, paired by seed (mean +/- standard error):
 
-| Policy | Ours judge | Market judge | Noisy judge |
+| Policy | Ours judge | Market judge | Truth judge |
 | --- | --- | --- | --- |
-| Walk-away, room inflation | -56.5 +/- 1.7 | -62.0 +/- 1.9 | -54.6 +/- 2.6 |
-| Walk-away, personal | -4.9 +/- 0.6 | -4.3 +/- 0.6 | -4.1 +/- 1.0 |
-| A, personal | -3.4 +/- 0.5 | -2.4 +/- 0.5 | -2.3 +/- 1.0 |
-| C, personal | -0.9 +/- 0.2 | -0.4 +/- 0.3 | +0.1 +/- 0.5 |
-
-"Bench buys at starter price" counts players we won above their value to our
-roster as it stood; B is 0 by construction (it bids that value), so it is
-reported, not used to rank.
+| Walk-away, room inflation | -56.5 +/- 1.7 | -62.0 +/- 1.9 | -10.0 +/- 1.0 |
+| Walk-away, personal | -4.9 +/- 0.6 | -4.3 +/- 0.6 | -3.5 +/- 0.3 |
+| A, personal | -3.4 +/- 0.5 | -2.4 +/- 0.5 | -3.3 +/- 0.3 |
+| C, personal | -1.4 +/- 0.2 | -1.1 +/- 0.3 | -6.0 +/- 0.3 |
 
 What it shows:
 
-1. **Spending our money matters most.** Under every judge, personal
-   inflation is worth 52-58 starter points: the room's inflation sinks as
-   rivals overpay for stars, our walk-aways shrink, and $55 is left unused.
-2. **B beats A and plain walk-away under all three judges,** by more than
-   two standard errors (A: 2.3-3.4 points; walk-away: 4.1-4.9).
-3. **B and C tie** under the independent judges (market -0.4 +/- 0.3, noisy
-   +0.1 +/- 0.5); C only loses under our own values. Pushing past our value
-   neither helps nor clearly hurts, and it gets us stuck 2.6 times a draft.
+1. **B wins under all three judges,** by more than two standard errors
+   against every other policy, including the truth judge: +3.3 over A,
+   +3.5 over plain walk-away, +6.0 over C. Pushing past our value (C) is
+   clearly worse once ours can be wrong.
+2. **Personal inflation, measured alone** (personal walk-away minus room
+   walk-away, same bid rule): +51.6 +/- 1.8 (ours judge), +57.7 +/- 1.9
+   (market), **+6.5 +/- 1.1 (truth)**. The large real-price gain comes from a
+   structural mismatch in the 2026 prices: the market spreads its dollars
+   over about 120 players and ours over 156, so on room inflation our bids
+   sink and $55 goes unspent. When ours and market agree on average (truth
+   world), personal inflation still helps, by much less. Taken together with
+   B, the first engine (room walk-away) trails today's board by 56.5 / 62.0 /
+   10.0 points.
+
+Limits: bots do not nominate strategically; one league shape; the truth world
+assumes ours and market are equally accurate.
 
 Decided 2026-11-27: personal inflation is the board default ("Personal by
 default (Recommended)") and the board's push floor is B ("Roster value
