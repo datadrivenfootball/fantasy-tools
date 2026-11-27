@@ -65,13 +65,13 @@ rank correlation with DDF), Half PPR:
 | -- | -- | -- | -- |
 | 0 | 100% | 0 | 1.000 |
 | 1 | 75% | 0.23 | 0.921 |
-| 3 | 50% | 0.37 | 0.888 |
-| 5 | 38% | 0.43 | 0.866 |
+| 3 | 50% | 0.38 | 0.888 |
+| 5 | 38% | 0.45 | 0.866 |
 | 8 | 27% | 0.49 | 0.855 |
-| 9 | 25% | 0.49 | 0.854 |
+| 9 | 25% | 0.50 | 0.854 |
 
 Most of the change arrives with the first three rankers. Pooling all rankers into one source
-differs from one-vote-each by 0.33 to 0.40 points with rank correlation above 0.999: the choice
+differs from one-vote-each by 0.34 to 0.40 points with rank correlation of 0.999 or more: the choice
 matters for weight share and for what happens when a source drops, not for today's values.
 
 ## Evidence on real Adjusted values (QBs excluded, the default; Tuesday rule)
@@ -82,16 +82,16 @@ only. Mean over the three held-out charts.
 
 | scoring | rho DDF | rho EDDF | MAE DDF | MAE EDDF | rho on ranked players only, DDF / EDDF |
 | -- | -- | -- | -- | -- | -- |
-| PPR | 0.908 | 0.815 | 0.738 | 0.874 | 0.931 / 0.883 |
-| Half PPR | 0.919 | 0.803 | 0.733 | 0.805 | 0.943 / 0.881 |
-| Standard | 0.926 | 0.786 | 0.775 | 0.970 | 0.943 / 0.859 |
+| PPR | 0.908 | 0.815 | 0.738 | 0.881 | 0.931 / 0.883 |
+| Half PPR | 0.919 | 0.803 | 0.733 | 0.810 | 0.943 / 0.881 |
+| Standard | 0.926 | 0.786 | 0.775 | 0.981 | 0.943 / 0.859 |
 
 **EDDF agrees less with a held-out chart than DDF does, in every scoring and for every held-out
 chart.** The research stand-in showed no loss (rho 0.928 vs 0.929). A single ranker's implied
 value correlates 0.83 to 0.91 with a held-out chart on ranked non-QB players, against about 0.95
 for the mean of the other charts, so equal-weight fresh rankers pull the mean away from the charts.
 Among the top players (values at least a quarter of the top value) the gap is smaller or reverses:
-Half PPR rho 0.855 DDF and 0.871 EDDF, MAE 6.10 and 6.02; PPR and standard are worse for EDDF.
+Half PPR rho 0.855 DDF and 0.871 EDDF, MAE 6.10 and 5.93; PPR and standard are worse for EDDF.
 Including QBs lowers EDDF further (Half PPR rho 0.792). The held-out chart is itself a chart, so
 this test favours the charts by construction; it measures agreement with the charts, not correctness.
 
@@ -99,22 +99,23 @@ Robustness (mean over the three charts, Half PPR, 15 shared permutations for the
 
 | test | DDF | EDDF |
 | -- | -- | -- |
-| scramble one chart's values: mean abs change from unscrambled | 2.12 | 2.13 |
+| scramble one chart's values: mean abs change from unscrambled | 2.12 | 1.93 |
 | scramble: rank corr with unscrambled | 0.696 | 0.706 |
-| drop one chart: mean abs change | 0.24 | 0.30 |
+| drop one chart: mean abs change | 0.24 | 0.25 |
 | drop one chart: rank corr with full | 0.980 | 0.990 |
 
 **Correction (2026-11-27, same session).** A first run used one random permutation per chart and
 reported EDDF as 14 to 26% less moved by a scrambled chart. One permutation is far too noisy (the
-top few values dominate the mean change). Averaged over 15 permutations shared by every variant the
-scramble gain is within 0 to 4% in points (PPR 2.11 to 2.04, Half 2.12 to 2.13, standard 2.14 to
-2.08) and about +0.01 to +0.02 in rank correlation, so there is no robustness gain to a scrambled
-chart worth claiming. Earlier chat and Linear figures are superseded. Dropping one chart moves
-EDDF's values a little more in points (the anchors are refit from two charts) while keeping the
-order slightly better.
+top few values dominate the mean change). Averaged over 15 permutations shared by every variant,
+the gain was 0 to 4% before the rescale and is 8 to 10% after it (PPR 2.11 to 1.93, Half 2.12 to
+1.93, standard 2.14 to 1.95), with about +0.01 to +0.02 in rank correlation. Part of the later
+gain is the rescale pinning EDDF's total to the unscrambled DDF total while the scrambled anchors
+shift the raw EDDF total. Earlier chat and Linear figures are superseded. Dropping one chart now
+moves EDDF's values about as much as DDF's (0.25 vs 0.24 in Half PPR) and keeps the order slightly
+better.
 
 Stability (week 12 vs week 11, rankers held at the read date, so only the charts vary): mean abs
-week-over-week change 0.51 (DDF) vs 0.33 (PPR), 0.39 (Half), 0.30 (standard) for EDDF. The advantage is partly built in: the lists do not change between the two weeks, so only the charts move, and averaging in a fixed view dampens any change. This is not
+week-over-week change 0.51 (DDF) vs 0.34 (PPR), 0.39 (Half), 0.30 (standard) for EDDF. The advantage is partly built in: the lists do not change between the two weeks, so only the charts move, and averaging in a fixed view dampens any change. This is not
 a test of rankers over time: one list date exists in this run.
 
 Coverage: DDF prices 669 players, EDDF 674 (five players the rankers list and no chart prices);
@@ -130,9 +131,9 @@ charts. Half PPR (PPR and standard are within a few hundredths):
 | variant | LOO rho | LOO rho, ranked | LOO MAE | scramble MAE / rho | drop-one MAE / rho | week-change MAE | chart weight | priced |
 | -- | -- | -- | -- | -- | -- | -- | -- | -- |
 | none | 0.919 | 0.943 | 0.73 | 2.12 / 0.696 | 0.24 / 0.980 | 0.51 | 100% | 669 |
-| per_expert | 0.803 | 0.881 | 0.81 | 2.13 / 0.706 | 0.30 / 0.990 | 0.39 | 25% | 674 |
-| site_once | 0.803 | 0.882 | 0.79 | 2.11 / 0.709 | 0.29 / 0.990 | 0.39 | 30% | 674 |
-| grouped | 0.805 | 0.888 | 0.71 | 2.05 / 0.712 | 0.21 / 0.990 | 0.43 | 75% | 674 |
+| per_expert | 0.803 | 0.881 | 0.81 | 1.93 / 0.706 | 0.25 / 0.990 | 0.39 | 25% | 674 |
+| site_once | 0.803 | 0.882 | 0.79 | 1.90 / 0.709 | 0.24 / 0.990 | 0.39 | 30% | 674 |
+| grouped | 0.805 | 0.888 | 0.72 | 1.97 / 0.712 | 0.20 / 0.990 | 0.43 | 75% | 674 |
 
 Independence of the added views, Half PPR (non-QB players all fresh lists rank): the fresh lists
 agree with one another at rank correlation 0.925 (charts with each other 0.966, lists with charts
@@ -141,7 +142,7 @@ agree with one another at rank correlation 0.925 (charts with each other 0.966, 
 more than the rest, so per-site down-weighting changes little (site_once is within 0.03 of
 per_expert on every metric): one site does not dominate, the whole ranker group does. Under
 per_expert that one view holds 75% of the weight; grouped puts it at 25% and keeps the
-charts-only error (MAE 0.71). Dispersion: among the three charts the per-player standard deviation
+charts-only error (MAE 0.72). Dispersion: among the three charts the per-player standard deviation
 of value is 2.24 points; among the 9 lists' implied values 3.64; the chart mean and the list mean
 differ by 2.95.
 
@@ -171,12 +172,15 @@ the "rho vs feed mean" is against the fresh feed lists under the Tuesday rule:
 None of this decides a weight; it shows which views carry information the charts and the staff
 lists do not.
 
-## League value total
+## League value total (rescaled, Jeremy 2026-11-28)
 
-EDDF is not held to the league value total. DDF Value sums to 2352.0 over all players in every
-scoring; EDDF sums to 2433.8 in Half PPR (+3.5%), 2378.6 in PPR (+1.1%) and 2333.2 in standard
-(-0.8%), over the same players. Jeremy is being asked whether EDDF should be rescaled to that
-total; this PR does not rescale it.
+DDF Value sums to 2352.0 over all players in every scoring. Before any rescale EDDF summed to
+2378.6 in PPR (+1.1%), 2433.8 in Half PPR (+3.5%) and 2333.2 in standard (-0.8%). Jeremy ruled
+(2026-11-28, multiple choice) that EDDF is rescaled to the league value total before it is ever
+shown, so EDDF and DDF Value stay on one scale and trades and totals compare directly. EDDF is now
+multiplied by one factor (0.9888 PPR, 0.9664 Half PPR, 1.0081 standard) so it sums to the DDF total
+to 1e-6 in every scoring and variant; one factor leaves the order unchanged. `rescale_to_ddf_total`
+in the config switches it off. Every number in this write-up is after the rescale.
 
 ## Weight and independence, together
 
@@ -189,9 +193,9 @@ view, not with nine.
 
 `before_after_<scoring>.csv`: every player with a DDF or EDDF value, both values, ranks and source
 counts. Spearman DDF vs EDDF over the 669 common players: 0.874 (PPR), 0.854 (Half), 0.839
-(standard); top-24 overlap 22, 22, 20; largest single-player move 9.8, 10.1, 14.4 points.
-Half PPR top: Gibbs 83.97 to 83.97, Robinson 66.10 to 69.48, McCaffrey 69.76 to 68.43,
-Smith-Njigba 67.60 to 67.27, Walker 66.10 to 62.51.
+(standard); top-24 overlap 22, 22, 20; largest single-player move 10.0, 10.6, 14.8 points.
+Half PPR top: Gibbs 83.97 to 81.15, Robinson 66.10 to 67.14, McCaffrey 69.76 to 66.13,
+Smith-Njigba 67.60 to 65.01, Walker 66.10 to 60.41.
 
 ## Limits
 
@@ -216,7 +220,7 @@ Built as Jeremy ruled (one per expert, primary, Tuesday reset). Keep EDDF off. O
 per_expert is steadier week to week (0.39 vs 0.51 mean weekly change in Half PPR; partly built in, because the lists are held fixed and only the charts move) and prices a few
 more players, but it tracks the charts less closely (leave-one-chart-out rho 0.803 vs 0.919), the
 fresh lists are about one independent view carrying 75% of the weight, and a scrambled chart moves
-it no less than DDF. The Tuesday reset also means the ranker side empties after each reset and
+it 8 to 10% less than DDF (partly the rescale). The Tuesday reset also means the ranker side empties after each reset and
 refills as analysts update. Options for Jeremy to choose from, none substituted here: keep
 per_expert; site_once (small effect today); grouped (the ranker view once beside the charts), which
 keeps the charts-only agreement; or a floor share for the charts.

@@ -37,6 +37,10 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   published; `tests.test_eddf` now covers a disabled row and the all-candidates-disabled check;
   amendment date corrected to 2026-11-28; `docs/decisions.md` entry added; league value total and
   weight-vs-independence added to the write-up.
+- Rescale (Jeremy, 2026-11-28): `tests.test_eddf.Rescale` pins that EDDF sums to the DDF Value total to
+  1e-6 in every scoring and team count (8 to 16 teams, on the reference's own Adjusted rows), in
+  every variant, with order unchanged; the JS twin and the parity fixture agree. Evidence reruns after
+  the rescale changed the numbers (scramble gain 8 to 10%, weekly change 0.39 in Half PPR).
 - Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
   (seven files, all disabled registry rows).
 

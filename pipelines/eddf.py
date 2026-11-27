@@ -4,7 +4,8 @@
 Off by default. DDF Value never reads this module. EDDF is the equal-weight mean of
   - the Adjusted values of the trade charts DDF Value already averages, and
   - one rank-implied value per fresh ranker in config/eddf_sources.json,
-over the sources that have the player (Jeremy, 2026-11-27: every stable source is a
+over the sources that have the player, then multiplied by one factor so the league total equals the
+DDF Value total (Jeremy, 2026-11-28; `rescale_to_ddf_total`, order unchanged) (Jeremy, 2026-11-27: every stable source is a
 separate equal-weight source, not pooled; stale sources are excluded; each FantasyPros staff
 ranker is its own source; more rankers are added over time).
 
@@ -213,6 +214,18 @@ def eddf(chart_adjusted: dict, lists: dict, vintages: dict, anchor_history: list
             w = source_weights(parts, groups, variant)
             values[pk] = {"value": sum(w[k] * parts[k] for k in parts) / sum(w.values()),
                           "count": len(parts), "sources": sorted(parts)}
+    rescale = None
+    if cfg.get("rescale_to_ddf_total", True) and values:
+        # Jeremy, 2026-11-28: EDDF is rescaled to the league value total DDF Value holds, so the two
+        # stay on one scale and trades and totals compare directly. One factor, so order is unchanged.
+        ddf_total = sum(chart_only(chart_adjusted, universe).values())
+        e_total = sum(v["value"] for v in values.values())
+        if ddf_total > 0 and e_total > 0:
+            k = ddf_total / e_total
+            for v in values.values():
+                v["raw"] = v["value"]
+                v["value"] *= k
+            rescale = {"factor": k, "ddf_total": ddf_total, "raw_total": e_total}
     n_c, n_r = len(chart_adjusted), len(implied)
     if variant == "per_expert":
         chart_share = (n_c / (n_c + n_r)) if n_c + n_r else None
@@ -223,7 +236,7 @@ def eddf(chart_adjusted: dict, lists: dict, vintages: dict, anchor_history: list
     return {"values": values,
             "report": {"scoring": scoring, "as_of": as_of.isoformat(), "anchors": len(anchors),
                        "rankers": status, "charts": sorted(chart_adjusted),
-                       "variant": variant, "chart_weight_share": chart_share,
+                       "variant": variant, "rescale": rescale, "chart_weight_share": chart_share,
                        "exclude_positions": list(cfg["exclude_positions"])}}
 
 

@@ -103,7 +103,22 @@
       var keys = Object.keys(parts).sort();
       if (keys.length) values[pk] = { value: keys.reduce(function (a, k) { return a + parts[k]; }, 0) / keys.length, count: keys.length, sources: keys };
     });
-    return { values: values, rankers: status };
+    var rescale = null;
+    if (cfg.rescale_to_ddf_total !== false) {
+      var ddfTotal = 0, eTotal = 0;
+      Object.keys(posOf).forEach(function (pk) {
+        var n = 0, t = 0;
+        Object.keys(chartAdjusted).forEach(function (c) { var v = chartAdjusted[c][pk]; if (v !== undefined && v !== null) { t += v; n += 1; } });
+        if (n) ddfTotal += t / n;
+      });
+      Object.keys(values).forEach(function (pk) { eTotal += values[pk].value; });
+      if (ddfTotal > 0 && eTotal > 0) {
+        var k = ddfTotal / eTotal;
+        Object.keys(values).forEach(function (pk) { values[pk].raw = values[pk].value; values[pk].value *= k; });
+        rescale = { factor: k, ddf_total: ddfTotal, raw_total: eTotal };
+      }
+    }
+    return { values: values, rankers: status, rescale: rescale };
   }
 
   var api = { isotonicNonincreasing: isotonicNonincreasing, stableAnchors: stableAnchors, impliedValues: impliedValues, eddf: eddf };

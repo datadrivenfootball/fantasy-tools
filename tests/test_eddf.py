@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "pipelines"))
 import eddf  # noqa: E402
 
 CFG = {"stale_days": 14, "anchor_weeks": 3, "anchor_stability": 0.10, "anchor_floor_frac": 0.05,
-       "min_anchors": 3, "exclude_positions": ["QB"],
+       "min_anchors": 3, "exclude_positions": ["QB"], "rescale_to_ddf_total": False,
        "rankers": [{"id": "a", "scoring": ["half_ppr"]}, {"id": "b", "scoring": ["half_ppr"]},
                    {"id": "c", "scoring": ["ppr"]}]}
 POS = {1: "RB", 2: "WR", 3: "WR", 4: "TE", 5: "RB", 6: "QB", 7: "RB"}
@@ -143,6 +143,54 @@ class Variants(unittest.TestCase):
     def test_unknown_variant_is_refused(self):
         with self.assertRaises(ValueError):
             self.go("loudest")
+
+
+class Rescale(unittest.TestCase):
+    """Jeremy, 2026-11-28: EDDF is rescaled to the league value total DDF Value holds."""
+
+    ON = {**CFG, "rescale_to_ddf_total": True,
+          "rankers": [{"id": "a", "scoring": ["half_ppr"], "group": "G"}, {"id": "b", "scoring": ["half_ppr"], "group": "G"}]}
+
+    def go(self, variant="per_expert", cfg=None):
+        return eddf.eddf(CHARTS, {"a": RANKS, "b": {k: v + 1 for k, v in RANKS.items()}},
+                         {"a": "2026-11-25", "b": "2026-11-25"}, HIST, POS, cfg or self.ON, TODAY, "half_ppr", variant)
+
+    def test_every_variant_sums_to_the_ddf_total(self):
+        ddf_total = sum(eddf.chart_only(CHARTS, POS).values())
+        for variant in eddf.VARIANTS:
+            res = self.go(variant)
+            self.assertAlmostEqual(sum(v["value"] for v in res["values"].values()), ddf_total, delta=1e-6)
+            self.assertAlmostEqual(res["report"]["rescale"]["ddf_total"], ddf_total, delta=1e-9)
+
+    def test_rescale_is_one_factor_so_order_is_unchanged(self):
+        on, off = self.go(), self.go(cfg={**self.ON, "rescale_to_ddf_total": False})
+        self.assertEqual(sorted(on["values"], key=lambda k: -on["values"][k]["value"]),
+                         sorted(off["values"], key=lambda k: -off["values"][k]["value"]))
+        f = on["report"]["rescale"]["factor"]
+        for k, v in on["values"].items():
+            self.assertAlmostEqual(v["value"], off["values"][k]["value"] * f, places=9)
+        self.assertIsNone(off["report"]["rescale"])
+
+    def test_sum_holds_on_real_values_for_every_scoring_and_team_count(self):
+        import value_reference as vr
+        inp = vr.Inputs.load(vr.FIXTURE, vr.PLAYERS)
+        cfg = eddf.load_config()
+        self.assertTrue(cfg["rescale_to_ddf_total"])
+        raw = json.loads((ROOT / "docs/research/data/jeg1735/lists.json").read_text())
+        for scoring in ("ppr", "half_ppr", "standard"):
+            lists = {r: {int(k): v for k, v in d[scoring]["ranks"].items()} for r, d in raw.items() if scoring in d}
+            vint = {r: d[scoring]["vintage"] for r, d in raw.items() if scoring in d}
+            for teams in (8, 10, 12, 14, 16):
+                s = vr.Setting(inp, scoring, teams, 0)
+                st, rows = s.state(), s.result()["rows"]
+                charts = [k for k in st["included"] if vr.FAMILY[k] == "chart" and k not in st["hidden"]]
+                adj = {c: {pk: r["adjusted"][c] for pk, r in rows.items() if r["adjusted"].get(c) is not None} for c in charts}
+                hist = [eddf.chart_only(adj, rows)] * 3
+                res = eddf.eddf(adj, lists, vint, hist, {pk: r["pos"] for pk, r in rows.items()}, cfg, date(2026, 11, 27), scoring)
+                ddf_total = sum(r["ddf"]["blended"]["value"] for r in rows.values() if r["ddf"]["blended"]["value"] is not None)
+                self.assertGreater(len(res["report"]["rankers"]), 0)
+                self.assertAlmostEqual(sum(v["value"] for v in res["values"].values()), ddf_total, delta=1e-6,
+                                       msg=f"{scoring} {teams} teams")
 
 
 class Registry(unittest.TestCase):
