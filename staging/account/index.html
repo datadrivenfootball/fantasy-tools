@@ -10,10 +10,11 @@
 <!-- The live site's own stylesheet and the Add your league page's own styles (connect-page.css, copied verbatim). -->
 <link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/styles.css">
 <link rel="icon" href="https://datadrivenfootball.github.io/fantasy-tools/icon.jpg">
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/actionbar.css">
 <link rel="stylesheet" href="connect-page.css">
 <style>
   /* Staging-only additions, built from the site's tokens (styles.css :root). */
-  .connect .staging-flag{display:inline-block;font:600 11px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--attention-text);background:var(--attention);border-radius:4px;padding:4px 8px;margin:0}
+  .connect .staging-tag{font:500 10px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#cfe3d6;border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:2px 7px;margin-left:10px;vertical-align:middle}
   .connect .msg{padding:13px 16px;border-radius:10px;margin:16px 0;max-width:72ch}
   .connect .msg.err{background:var(--attention);color:var(--attention-text)}
   .connect .msg.ok{background:#e8f5ee;color:#176c4d}
@@ -44,10 +45,9 @@
 </style>
 </head>
 <body class="connect">
-<header class="entry-head"><div class="entry-head-inner"><a class="entry-wordmark" href="https://datadrivenfootball.github.io/fantasy-tools/">DDF</a>
+<header class="entry-head"><div class="entry-head-inner"><span><a class="entry-wordmark" href="https://datadrivenfootball.github.io/fantasy-tools/">DDF</a><span class="staging-tag" title="Private test build, not the live site">staging</span></span>
   <ol class="entry-steps" id="steps" aria-label="Add your league progress"><li data-step="signin">1. Sign in</li><li data-step="connect">2. Connect</li><li data-step="team">3. Your team</li><li data-step="settings">4. League settings</li></ol></div></header>
 <main>
-  <p class="staging-flag">Private test build · not the live site</p>
   <h1>Add your league</h1>
   <p class="muted">Sign in once and DDF reads your league straight from ESPN, Yahoo or Sleeper and keeps it current. No copy and paste. DDF only reads, and never asks for your ESPN, Yahoo or Sleeper password.</p>
   <div class="msg" id="msg" role="status" aria-live="polite"></div>
@@ -146,7 +146,7 @@
     </section>
   </div>
 </main>
-<footer class="cn-foot">Data Driven Football · private test build · you stay signed in only in this tab</footer>
+<footer class="cn-foot">Data Driven Football</footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
 <script src="https://datadrivenfootball.github.io/fantasy-tools/site.js"></script>
 <script src="app.js"></script>
