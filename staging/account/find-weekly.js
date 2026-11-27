@@ -154,11 +154,13 @@
   /* who else this pickup helps, with their FAAB and waiver priority: context for a bid, never a bid */
   function rivalsLine(a) {
     var me = (state.rec && state.rec.me) || {}, rv = a.rivals || [];
-    var money = function (x) { return isNum(x) ? "$" + Math.round(x) : "FAAB unknown"; };
+    var st = ((window.DDFStaging && window.DDFStaging.summary) || {}).settings || {}, noFaab = st.waiver_type && st.waiver_type !== "faab";
+    var money = function (x) { return isNum(x) ? "$" + Math.round(x) : noFaab ? "no FAAB" : "FAAB unknown"; };
     var mine = "You have " + money(me.faab) + (isNum(me.waiver_priority) ? ", waiver priority " + me.waiver_priority : "") + ".";
     if (!rv.length) return el("p", {class: "fw-rivals", text: "No other team's lineup gains a point or more from him. " + mine});
-    return el("p", {class: "fw-rivals", text: "Also helps: " + rv.map(function (r) {
-      return r.name + " +" + r.gain.toFixed(1) + " (" + money(r.faab) + (isNum(r.waiver_priority) ? ", priority " + r.waiver_priority : "") + ")";
+    /* a rival's gain is before any drop (yours counts your cheapest drop), so the line says so */
+    return el("p", {class: "fw-rivals", text: "Also helps, before any drop: " + rv.map(function (r) {
+      return r.name + " " + (isNum(r.gain) ? "+" + r.gain.toFixed(1) : "— (" + (r.why || "a week has no projection") + ")") + " (" + money(r.faab) + (isNum(r.waiver_priority) ? ", priority " + r.waiver_priority : "") + ")";
     }).join("; ") + ". " + mine});
   }
   function addCard(a) {

@@ -10,6 +10,9 @@
   var S = window.DDFStaging;
   if (!S) return;
   var isNum = function (x) { return typeof x === "number" && isFinite(x); };
+  function summaryOf() { var S = window.DDFStaging; return (S && S.summary) || {}; }
+  function platformName() { var p = String(summaryOf().platform || ""); return {yahoo: "Yahoo", espn: "ESPN", sleeper: "Sleeper"}[p] || "the league's platform"; }
+  function noFaab() { var st = summaryOf().settings || {}; return st.waiver_type && st.waiver_type !== "faab"; }
   function el(tag, attrs) {
     var n = document.createElement(tag);
     Object.keys(attrs || {}).forEach(function (k) {
@@ -29,10 +32,10 @@
 
   var data = null; /* {byName: {name: [team]}, byIndex: [team], fine: string} */
   var COLS = [
-    {key: "wl", head: "W-L", info: "Win-loss record, as Yahoo had it when the league data was pulled."},
+    {key: "wl", head: "W-L", info: "Win-loss record, as the league's platform had it when the league data was pulled."},
     {key: "playoffs", head: "PLAYOFFS", info: "Share of simulated seasons in which this team makes the playoffs."},
     {key: "title", head: "TITLE", info: "Share of simulated seasons in which this team wins the championship. Shown only when the full bracket can be played out."},
-    {key: "faab", head: "FAAB", info: "Waiver budget left, as Yahoo had it when the league data was pulled."}
+    {key: "faab", head: "FAAB", info: "Waiver budget left, as the league's platform had it when the league data was pulled."}
   ];
 
   function build(d) {
@@ -56,7 +59,7 @@
         (sb && sb.rescored === false ? " in each source's default scoring (your league's settings are not in the data)" : " rescored with your league's scoring settings") +
         "; games independent, tiebreak points for. Title odds need the full bracket. DDF Value is not used."
       : "Playoffs and Title odds are not available: " + planError + ".";
-    fine += " W-L and FAAB (waiver budget left) are as Yahoo had them when the league data was pulled. A dash (—) means the number is missing, not zero.";
+    fine += " W-L and FAAB (waiver budget left) are as " + platformName() + " had them when the league data was pulled. A dash (—) means the number is missing, not zero.";
     return {byName: byName, byIndex: teams, fine: fine, planError: planError, noTitle: !!plan && teams.every(function (t) { return !isNum(t.title_p); })};
   }
 
@@ -78,7 +81,7 @@
       td("wl", isNum(t.wins) && isNum(t.losses) ? t.wins + "-" + t.losses + (t.ties ? "-" + t.ties : "") : na("Record not read from the league")),
       td("playoffs", pct(t.playoff_p, noOdds)),
       td("title", pct(t.title_p, t.odds ? "Title odds need the full bracket, and the playoff weeks are not all in the data" : noOdds)),
-      td("faab", isNum(t.faab) ? "$" + t.faab : na("FAAB not read from the league"))
+      td("faab", isNum(t.faab) ? "$" + t.faab : noFaab() ? na("This league has no FAAB") : na("FAAB not read from the league"))
     ];
   }
 

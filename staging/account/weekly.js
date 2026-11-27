@@ -752,8 +752,10 @@
       a.rivals = others.map(function (o) {
         var g = 0, ok = true;
         weeks.forEach(function (w) { var t = teamWeek(summary, weekly, o.t.roster.concat([fa]), w, slots).total; if (t === null || o.base[w] === null) ok = false; else g += t - o.base[w]; });
-        return ok ? {team_key: o.t.team_key, name: o.t.name, gain: r1(g), faab: num(o.t.faab_remaining), waiver_priority: num(o.t.waiver_priority)} : null;
-      }).filter(function (x) { return x && x.gain >= 1; }).sort(function (x, y) { return y.gain - x.gain; }).slice(0, 3);
+        // a team with a week nobody can score is listed with no number and the reason (after the teams with a number)
+        return {team_key: o.t.team_key, name: o.t.name, gain: ok ? r1(g) : null, why: ok ? null : "a week of their lineup has no projection",
+          faab: num(o.t.faab_remaining), waiver_priority: num(o.t.waiver_priority), before_drop: true};
+      }).filter(function (x) { return x.gain === null || x.gain >= 1; }).sort(function (x, y) { return (y.gain === null ? -1 : y.gain) - (x.gain === null ? -1 : x.gain); }).slice(0, 3);
     });
     // trades: one for one with each other team, both sides' weekly lineups; kept when I gain and they do not lose much
     var trades = [];
