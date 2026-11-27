@@ -1,0 +1,67 @@
+/* Trade & Waiver Recommendations by weekly gain (JEG-1736, staging). Layout only: the cards are the live page's
+   .pkg cards, the colours are the live tokens (styles.css :root and find.html). Nothing new is introduced. */
+.fw{--fw-mono:"IBM Plex Mono",ui-monospace,monospace;min-width:0}
+.fw [hidden]{display:none!important}
+.fw h2{font-size:23px;margin:0 0 6px}
+.fw h3{font-size:18px;margin:26px 0 0;display:flex;align-items:center;gap:10px}
+.fw h3 .cnt{background:#eef1ec;color:#39413b;border-radius:99px;padding:2px 11px;font:600 13px var(--fw-mono)}
+.fw .def{margin:6px 0 0;max-width:72ch;color:var(--muted);font-size:14px}
+.fw .fw-na{color:var(--muted);cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.fw .fw-msg{margin:20px 0}
+.fw .fw-below{margin:26px 0 0;font-size:13px}
+.fw .fw-src{margin:22px 0 0;font-size:13px;max-width:none}
+
+/* Your moves, in time order: one list, the deadline first */
+.fw-moves{border-left:3px solid var(--green)}
+.fw-moves>p{margin:0 0 4px}
+.fw-movelist{list-style:none;margin:10px 0 0;padding:0}
+.fw-movelist li{display:grid;grid-template-columns:minmax(0,170px) auto minmax(0,1fr) auto;gap:6px 14px;align-items:baseline;padding:12px 0;border-top:1px solid var(--border)}
+.fw-when{font:600 12.5px/1.4 var(--fw-mono);color:#17364c}
+.fw-kind{justify-self:start;font:600 11px/1.5 var(--fw-mono);letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:2px 9px;background:#eef1ec;color:#12202c;white-space:nowrap}
+.fw-kind[data-kind=add]{background:var(--attention);color:var(--attention-text)}
+.fw-kind[data-kind=start]{background:var(--green-soft);color:#0f5238}
+.fw-kind[data-kind=trade]{background:var(--hdr);color:#fff}
+.fw-what{min-width:0;overflow-wrap:anywhere;font-weight:600}
+.fw-what small,.fw-gain small{display:block;font-weight:400;font-size:12.5px;color:var(--muted)}
+.fw-gain{text-align:right;white-space:nowrap}
+.fw-gain b{font:700 15px var(--fw-mono);font-variant-numeric:tabular-nums}
+.fw-gain b[data-dir=up]{color:var(--green)}
+.fw-gain b[data-dir=down]{color:#8f2c20}
+.fw-more{margin-top:14px;min-height:40px}
+
+/* Sort */
+.fw-sortrow{display:grid;grid-template-columns:auto minmax(0,320px);gap:6px 10px;align-items:center;margin:16px 0 0}
+.fw-sortrow label{font-size:13px;font-weight:600}
+.fw-sortrow select{width:100%;min-width:0;padding:8px 10px}
+.fw-sortrow [role=note]{grid-column:1/-1;font-size:13px;color:var(--muted);max-width:72ch}
+
+/* the game a pickup is for */
+.fw-game{margin:18px 0 0;font:600 13px var(--fw-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--green);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.fw-game small{font:600 11px var(--fw-mono);letter-spacing:.04em;color:#39413b;background:#eef1ec;border-radius:99px;padding:1px 8px}
+.fw-game+.pkgs{margin-top:8px}
+
+/* cards: the live .pkg, two columns when there is no action button */
+.fw .fw-card{animation:none;grid-template-columns:minmax(0,1.7fr) minmax(170px,.8fr) auto}
+.fw .fw-card .pk-main{min-width:0}
+.fw .fw-card .gain{font-size:28px}
+.fw .fw-card .pk-total{display:block;margin-top:6px;font:500 12px var(--fw-mono);color:var(--muted);text-transform:none;letter-spacing:0}
+.fw-flag{margin:10px 0 0;font-size:13px;line-height:1.4;padding:6px 10px;border-radius:6px;background:#eef1ec;color:#12202c}
+.fw-flag[data-dir=up]{background:var(--attention);color:var(--attention-text)}
+
+/* per-week chips */
+.fw-chips{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0;padding:0}
+.fw-chip{display:inline-flex;align-items:baseline;gap:6px;border-radius:99px;padding:3px 10px;font:500 12px/1.5 var(--fw-mono);font-variant-numeric:tabular-nums;background:#e9ecef;color:#39413b;white-space:nowrap}
+.fw-chip .fw-wk{font-weight:600;opacity:.8}
+.fw-chip b{font-weight:700}
+.fw-chip[data-dir=up]{background:#e3f1ea;color:#176c4d}
+.fw-chip[data-dir=down]{background:#f8e4e0;color:#8f2c20}
+.fw-chip[data-playoff]{box-shadow:inset 0 0 0 1px currentColor}
+.fw-chip .fw-win{font-weight:500}
+
+@media(max-width:760px){
+  .fw-movelist li{grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px}
+  .fw-when{grid-column:1/-1}
+  .fw-sortrow{grid-template-columns:minmax(0,1fr)}
+  .fw .fw-card{grid-template-columns:minmax(0,1fr)}
+  .fw .fw-card .pk-act .button{width:100%;text-align:center}
+}
