@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DDF · Add your league (staging)</title>
+<script>/* ESPN phone hand-off (bookmarklet / Shortcut): take it out of the address bar before any other script runs. */
+(function(){var m=/[#&]espn=([^&]+)/.exec(location.hash);if(m){window.__ddfEspnHandoff=m[1];history.replaceState(null,"",location.pathname+location.search);}})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- The live site's own stylesheet and the Add your league page's own styles (connect-page.css, copied verbatim). -->
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/styles.css">
+<link rel="icon" href="https://datadrivenfootball.github.io/fantasy-tools/icon.jpg">
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/actionbar.css">
+<link rel="stylesheet" href="connect-page.css">
+<style>
+  /* Staging-only additions, built from the site's tokens (styles.css :root). */
+  .connect .staging-tag{font:500 10px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#cfe3d6;border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:2px 7px;margin-left:10px;vertical-align:middle}
+  .connect .msg{padding:13px 16px;border-radius:10px;margin:16px 0;max-width:72ch}
+  .connect .msg.err{background:var(--attention);color:var(--attention-text)}
+  .connect .msg.ok{background:#e8f5ee;color:#176c4d}
+  .connect .msg:empty{display:none}
+  .connect .entry-steps li.done::before{content:"✓ "}
+  .connect .whoami{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:14px}
+  .connect .conn-list,.connect .pick-list{list-style:none;padding:0;margin:12px 0 0}
+  .connect .conn-list li,.connect .pick-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid #dbe0dc}
+  .connect .conn-list li>span,.connect .pick-list li>span{min-width:0;overflow-wrap:anywhere}
+  .connect .seg-field{margin:16px 0}
+  .connect .seg-field h3{margin:0 0 8px}
+  .connect .roster-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;max-width:520px}
+  .connect .roster-grid label{font-size:13px;font-weight:600}
+  .connect .roster-grid input{display:block;width:100%;margin-top:4px}
+  .connect .kv{display:grid;grid-template-columns:minmax(120px,40%) 1fr;gap:6px 14px;font-size:15px;margin:0}
+  .connect .kv dt{color:var(--muted)}
+  .connect .kv dd{margin:0;font-weight:600}
+  .connect tr.mine td{background:#e8f5ee;font-weight:650}
+  .connect td.number,.connect th.number{text-align:right;font-variant-numeric:tabular-nums}
+  .connect pre{white-space:pre-wrap;word-break:break-word;background:#142b25;color:#d7ecd9;padding:14px;border-radius:10px;font:12px/1.5 "IBM Plex Mono",monospace;max-height:70vh;overflow:auto}
+  .connect .danger{color:var(--attention-text);border-color:var(--attention-text)}
+  .connect .way ol{padding-left:20px;margin:8px 0}
+  .connect .way code{font:13px "IBM Plex Mono",monospace;background:#eef1ec;border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+  .connect .way input[type=email]{flex:1 1 180px;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #bec8c1;border-radius:8px;font:inherit}
+  .connect .way form>input[type=text]{display:block;width:100%;margin-bottom:8px}
+  .connect .espn-steps{padding-left:22px;margin:12px 0}
+  .connect .espn-steps>li{margin:10px 0}
+  .connect #bm-code{width:100%;margin:8px 0}
+  /* JEG-1732 connect flow: one card at a time, large targets, small pictures drawn in CSS */
+  .connect .platform-panel .routes{grid-template-columns:minmax(0,1fr)!important}
+  .connect [hidden]{display:none!important}
+  .connect .big{min-height:52px;font-size:17px;padding-left:24px;padding-right:24px}
+  .connect a.button.primary{display:inline-flex;align-items:center;justify-content:center;background:var(--green);color:#fff;border-radius:8px;font-weight:600;text-decoration:none}
+  .connect .alt-line{margin:16px 0 0}
+  .connect .eyebrow{font:600 12px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .connect .eyebrow:empty{display:none}
+  .connect .way ol.trail{list-style:none;display:flex;gap:8px;padding:0;margin:0 0 18px;max-width:560px}
+  .connect .trail li{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:14px;line-height:1.35;background:var(--green-soft);border-radius:10px;padding:12px}
+  .connect .trail-n{font:600 12px "IBM Plex Mono",ui-monospace,monospace;color:#fff;background:var(--green);border-radius:99px;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center}
+  .connect .addr{display:flex;align-items:center;gap:10px;margin:14px 0 4px;padding:10px 14px;border:1px solid #cfd8d2;border-radius:99px;background:#f3f5f2;max-width:520px;overflow:hidden}
+  .connect .addr-dot{flex:none;width:10px;height:10px;border-radius:50%;background:#8fa496}
+  .connect .addr-text{font:13px/1.4 "IBM Plex Mono",ui-monospace,monospace;color:var(--muted);white-space:nowrap;overflow:hidden;min-width:0}
+  .connect .addr mark{background:#d7ecd9;color:#142b25;font-weight:600;border-radius:4px;padding:2px 5px;box-shadow:inset 0 0 0 1px var(--green)}
+  .connect .choice{border-top:1px solid #dbe0dc;padding:18px 0 4px;margin-top:18px}
+  .connect .choice h4{font:600 18px/1.35 var(--serif);margin:0 0 6px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .connect .choice>p{font-size:15px;margin:0 0 14px}
+  .connect .choice-tag{font:600 11px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--green);background:var(--green-soft);border-radius:99px;padding:3px 9px}
+  .connect .switch-art{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:420px;margin:0 0 16px;padding:12px 14px;border:1px solid #cfd8d2;border-radius:10px;background:#fbfcfa;font-size:14px;font-weight:600}
+  .connect .switch-pill{flex:none;display:inline-flex;justify-content:flex-end;align-items:center;width:64px;height:30px;border-radius:99px;background:var(--green);padding:3px}
+  .connect .switch-pill span{display:inline-flex;align-items:center;justify-content:center;width:34px;height:24px;border-radius:99px;background:#fff;color:var(--green);font:600 11px "IBM Plex Mono",ui-monospace,monospace}
+  .connect .retry-line{margin:14px 0 0}
+  .connect details.acct{margin:32px 0 0}
+  .connect details.acct>p{margin:12px 0}
+  @media(max-width:760px){.connect .big,.connect .choice .cluster>button{width:100%}.connect .way form .cluster>input[type=text]{flex-basis:100%}.connect .trail li{padding:10px;font-size:13px}}
+  .connect button[disabled]{opacity:.55;cursor:not-allowed}
+  @media(max-width:760px){.connect .roster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body class="connect">
+<header class="entry-head"><div class="entry-head-inner"><span><a class="entry-wordmark" href="https://datadrivenfootball.github.io/fantasy-tools/">DDF</a><span class="staging-tag" title="Private test build, not the live site">staging</span></span>
+  <ol class="entry-steps" id="steps" aria-label="Add your league progress"><li data-step="signin">1. Sign in</li><li data-step="connect">2. Connect</li><li data-step="team">3. Your team</li><li data-step="settings">4. League settings</li></ol></div></header>
+<main>
+  <h1>Add your league</h1>
+  <p class="muted">Sign in once and DDF reads your league straight from ESPN, Yahoo or Sleeper and keeps it current. No copy and paste. DDF only reads, and never sees your ESPN, Yahoo or Sleeper password.</p>
+  <div class="msg" id="msg" role="status" aria-live="polite"></div>
+
+  <section class="step" id="signin" aria-labelledby="signin-title" hidden>
+    <h2 id="signin-title"><span class="step-num">Step 1</span>Sign in to DDF</h2>
+    <div class="routes">
+      <div class="way"><h3>Email me a sign-in link</h3>
+        <p>We email you a link. Tap it on this phone and you're in.</p>
+        <form id="email-form"><label for="email">Email</label><div class="cluster"><input type="email" id="email" autocomplete="email" required placeholder="you@example.com"><button class="primary" type="submit">Email me a link</button></div></form>
+      </div>
+      <div class="way-or" aria-hidden="true"><span>or</span></div>
+      <div class="way"><h3>Use your Google account</h3><p>Sign in with the Google account you use for email.</p><button type="button" id="google">Sign in with Google</button></div>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <p class="whoami">Signed in as <strong id="who"></strong><button type="button" class="link-button" id="signout">Sign out</button></p>
+
+    <section class="step" id="connect" aria-labelledby="connect-title">
+      <h2 id="connect-title"><span class="step-num">Step 2</span>Connect your league</h2>
+      <div class="provider-field"><span class="provider-label">Where is your league?</span>
+        <div class="provider-toggle" role="group" aria-label="Where is your league?"><button type="button" data-provider="espn" aria-pressed="true" class="selected">ESPN</button><button type="button" data-provider="yahoo" aria-pressed="false">Yahoo</button><button type="button" data-provider="sleeper" aria-pressed="false">Sleeper</button></div></div>
+
+      <div class="platform-panel" data-panel="espn">
+        <!-- One screen at a time: start (league link, or one-button sign-in where DDF can offer it), then, only for a private league, the ways in. -->
+        <div id="espn-start">
+          <div class="routes"><div class="way">
+            <div id="espn-fast" hidden>
+              <h3>Connect ESPN</h3>
+              <p id="espn-fast-p">ESPN's own sign-in opens. Sign in there, then pick your league. DDF never sees your ESPN password.</p>
+              <ol class="trail" aria-label="How it works">
+                <li><span class="trail-n">1</span><span>Tap <strong>Connect ESPN</strong></span></li>
+                <li><span class="trail-n">2</span><span>Sign in at ESPN</span></li>
+                <li><span class="trail-n">3</span><span>Pick your league</span></li>
+              </ol>
+              <button type="button" class="primary big" id="espn-go">Connect ESPN</button>
+              <details class="id-help" id="espn-id-fold"><summary>Use a league link instead</summary></details>
+            </div>
+            <div id="espn-id-block">
+              <h3 id="espn-id-title">Your ESPN league</h3>
+              <p>Paste your league link, or type your league ID. For most leagues that's all it takes.</p>
+              <form id="espn-form"><label for="espn-id">League link or ID</label><div class="cluster"><input type="text" id="espn-id" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456"><button class="primary big" type="submit">Connect</button></div></form>
+              <details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
+                <div class="addr" aria-hidden="true"><span class="addr-dot"></span><span class="addr-text">espn.com/…/league?leagueId=<mark>123456</mark></span></div>
+                <ol><li>Open <a href="https://fantasy.espn.com/football/" target="_blank" rel="noopener">fantasy.espn.com</a> in your browser and open your league.</li>
+                  <li>Your league ID is the number after <strong>leagueId=</strong> in the address.</li>
+                  <li>Copy the whole address and paste it here. DDF finds the number for you.</li></ol></details>
+            </div>
+            <p class="alt-line" id="espn-alt"><button type="button" class="link-button" id="espn-is-private">My league is private</button></p>
+          </div></div>
+        </div>
+
+        <div id="espn-private" hidden>
+          <div class="routes"><div class="way">
+            <p class="eyebrow" id="espn-private-eyebrow"></p>
+            <h3 id="espn-private-title" tabindex="-1">This league is private</h3>
+            <p id="espn-private-p">ESPN only shows it to league members who are signed in. Pick whichever is easier. Each takes about a minute.</p>
+
+            <section class="choice" id="choice-signin" hidden>
+              <h4><span class="choice-tag">Fastest</span>Sign in at ESPN</h4>
+              <p id="choice-signin-p">ESPN's own sign-in opens. DDF never sees your ESPN password.</p>
+              <button type="button" class="primary big" id="espn-go2">Connect ESPN</button>
+            </section>
+
+            <section class="choice" id="choice-helper" hidden>
+              <h4><span class="choice-tag">On this computer</span>Sign in at ESPN</h4>
+              <p>Add the DDF helper to Chrome once. After that, connecting is one click, and DDF never sees your ESPN password.</p>
+              <a class="button primary big" id="helper-store" target="_blank" rel="noopener" hidden>Add the DDF helper to Chrome</a>
+              <details class="id-help" id="ext-help"><summary>Add the DDF helper (early test build)</summary>
+                <ol><li><a href="ddf-espn-extension.zip">Download the DDF helper</a> and open the zip. You get a folder named <strong>ddf-espn-extension</strong>.</li>
+                  <li>In Chrome, open the menu, then <strong>Extensions</strong>, then <strong>Manage Extensions</strong>.</li>
+                  <li>Switch on <strong>Developer mode</strong> (top right), click <strong>Load unpacked</strong>, and choose that folder.</li>
+                  <li>Sign in at <a href="https://www.espn.com/fantasy/football/" target="_blank" rel="noopener">espn.com</a> in Chrome, then come back to this tab.</li></ol>
+                <button type="button" id="helper-check">I've added it</button></details>
+            </section>
+
+            <section class="choice" id="choice-ask">
+              <h4><span class="choice-tag" id="ask-tag">No sign-in needed</span>Ask your league manager</h4>
+              <p>One switch in ESPN's league settings lets DDF read your league. It only lets people look. Nobody can change anything.</p>
+              <div class="switch-art" aria-hidden="true"><span class="switch-label">Make League Viewable to Public</span><span class="switch-pill"><span>Yes</span></span></div>
+              <div class="cluster"><button type="button" class="primary big" id="ask-share">Send the request</button><span class="muted" id="ask-status" role="status"></span></div>
+              <details class="id-help" id="lm-help"><summary>I'm the league manager</summary>
+                <ol><li>Open your league at <a id="lm-link" href="https://fantasy.espn.com/football/" target="_blank" rel="noopener">fantasy.espn.com</a>.</li>
+                  <li>Open <strong>LM Tools</strong>, then <strong>Basic Settings</strong>, then <strong>Edit</strong>.</li>
+                  <li>Set <strong>Make League Viewable to Public</strong> to <strong>Yes</strong> and save.</li></ol></details>
+              <p class="retry-line" id="retry-line" hidden><button type="button" id="espn-retry">It's public now. Try again</button></p>
+            </section>
+
+            <section class="choice" id="choice-computer" hidden>
+              <h4>Or finish on a computer</h4>
+              <p>On a computer, signing in at ESPN takes two clicks. Send yourself this page and open it there.</p>
+              <div class="cluster"><button type="button" id="send-self">Send myself the link</button><span class="muted" id="self-status" role="status"></span></div>
+            </section>
+
+            <details class="id-help" id="espn-phone" hidden><summary>None of these work for me</summary>
+              <p>A last resort for phones: save a special bookmark once, then tap it on espn.com.</p>
+              <ol class="espn-steps">
+                <li><strong>Save the DDF ESPN bookmark.</strong>
+                  <div class="cluster" style="margin:8px 0"><button type="button" id="bm-copy">Copy the bookmark</button><span class="muted" id="bm-copied" role="status"></span></div>
+                  <textarea id="bm-code" rows="2" readonly spellcheck="false" aria-label="The DDF ESPN bookmark" style="min-height:0;font:12px ui-monospace,monospace"></textarea>
+                  <p><strong>iPhone:</strong> tap Share, then <strong>Add Bookmark</strong>, and save it as <strong>DDF ESPN</strong>. Open Bookmarks, tap <strong>Edit</strong>, tap <strong>DDF ESPN</strong>, clear the address, paste, and tap Done.</p>
+                  <p><strong>Android:</strong> tap the star to bookmark this page, tap <strong>Edit</strong>, name it <strong>DDF ESPN</strong>, and paste over the address.</p></li>
+                <li><strong>Open ESPN in this tab and sign in.</strong><div class="cluster" style="margin-top:8px"><button type="button" id="espn-open">Open ESPN</button></div></li>
+                <li><strong>Tap the DDF ESPN bookmark</strong> while you're on espn.com. On Android, type <strong>DDF ESPN</strong> in the address bar and tap the bookmark. You come back here with your leagues listed.</li>
+              </ol></details>
+
+            <p class="alt-line"><button type="button" class="link-button" id="espn-back">Back</button></p>
+          </div></div>
+        </div>
+
+        <div id="espn-dev" hidden>
+          <p class="muted"><small>Developer test path (not shown to users).</small></p>
+          <form id="espn-private-form"><label for="espn-pid">League link or ID</label><input type="text" id="espn-pid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required>
+            <label for="espn-s2">espn_s2</label><input type="text" id="espn-s2" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required>
+            <label for="espn-swid">SWID</label><div class="cluster"><input type="text" id="espn-swid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required><button type="submit">Connect</button></div></form>
+        </div>
+      </div>
+
+      <div class="platform-panel" data-panel="yahoo" hidden>
+        <div class="routes"><div class="way"><h3>Sign in with Yahoo</h3>
+          <p id="yahoo-note">Official Yahoo sign-in. DDF reads leagues, rosters, standings and settings.</p>
+          <button type="button" class="primary" id="yahoo">Connect Yahoo</button></div></div>
+      </div>
+
+      <div class="platform-panel" data-panel="sleeper" hidden>
+        <div class="routes"><div class="way"><h3>Your Sleeper username</h3>
+          <p>No password: your username is under your profile picture in the Sleeper app.</p>
+          <form id="sleeper-form"><label for="sleeper-user">Sleeper username</label><div class="cluster"><input type="text" id="sleeper-user" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="Your Sleeper username"><button class="primary" type="submit">Find my leagues</button></div></form></div></div>
+      </div>
+
+      <div id="picker" hidden><h3 style="margin-top:24px" id="picker-title" tabindex="-1">Pick your league</h3><ul class="pick-list" id="league-options"></ul></div>
+    </section>
+
+    <section class="card" id="mine" aria-labelledby="mine-title" hidden>
+      <h2 id="mine-title">Your connections and leagues</h2>
+      <ul class="conn-list" id="conn-list"></ul>
+      <ul class="conn-list" id="league-list"></ul>
+    </section>
+
+    <section class="card connect-recognition" id="league" aria-labelledby="lg-title" hidden>
+      <div class="row"><h2 id="lg-title" tabindex="-1"></h2><div class="cluster"><button type="button" id="refresh">Refresh now</button><button type="button" class="link-button" id="close-league">Close</button></div></div>
+      <p class="muted" id="lg-meta"></p>
+
+      <fieldset class="team-pick" id="team-step"><legend><h3>Step 3 · Which team is yours?</h3></legend>
+        <div class="team-pick-list" id="team-pick-list"></div></fieldset>
+
+      <form id="settings-form">
+        <h3 style="margin-top:24px">Step 4 · Confirm your league settings</h3>
+        <p class="muted" id="settings-help">Read from the league. Once you confirm, these drive DDF for this league.</p>
+        <div class="seg-field"><h3 id="sc-t">Scoring</h3><div class="scoring-seg" role="group" aria-labelledby="sc-t" data-seg="scoring"><button type="button" data-v="ppr" aria-pressed="false">PPR</button><button type="button" data-v="half_ppr" aria-pressed="false">Half PPR</button><button type="button" data-v="standard" aria-pressed="false">Standard</button></div></div>
+        <div class="seg-field"><h3 id="tm-t">Teams DDF values</h3><div class="scoring-seg" role="group" aria-labelledby="tm-t" data-seg="teams"><button type="button" data-v="8" aria-pressed="false">8</button><button type="button" data-v="10" aria-pressed="false">10</button><button type="button" data-v="12" aria-pressed="false">12</button><button type="button" data-v="14" aria-pressed="false">14</button></div></div>
+        <div class="seg-field"><h3 id="sf-t">Superflex</h3><div class="scoring-seg" role="group" aria-labelledby="sf-t" data-seg="superflex"><button type="button" data-v="no" aria-pressed="false">No</button><button type="button" data-v="yes" aria-pressed="false">Yes</button></div></div>
+        <div class="seg-field"><h3>Starting lineup and bench</h3><div class="roster-grid" id="s-roster"></div></div>
+        <p class="muted" id="unread-note"></p>
+        <div class="row"><button class="primary" type="submit">Confirm settings</button><span class="muted" id="confirmed-at"></span></div>
+      </form>
+
+      <div class="row" style="margin-top:28px"><h2 style="margin:0">Here's what we read</h2>
+        <div class="cluster"><span id="dev-views" hidden><button type="button" data-view="plain" aria-pressed="true">Plain</button><button type="button" data-view="json" aria-pressed="false">JSON</button><button type="button" class="link-button" id="raw">Raw platform data</button></span></div></div>
+      <div id="plain"></div>
+      <pre id="json" hidden></pre>
+      <p><button type="button" class="link-button danger" id="delete-league">Remove this league</button></p>
+    </section>
+
+    <details class="id-help acct"><summary>Your DDF account</summary>
+      <p class="muted">Deleting your account removes every connection, stored sign-in and league. It can't be undone.</p>
+      <button type="button" class="danger" id="delete-account">Delete my DDF account</button>
+    </details>
+  </div>
+</main>
+<footer class="cn-foot">Data Driven Football</footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
+<script src="https://datadrivenfootball.github.io/fantasy-tools/site.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

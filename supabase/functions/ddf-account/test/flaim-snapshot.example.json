@@ -1,0 +1,64 @@
+{
+  "shape": "ddf-connected-league/0",
+  "source": { "kind": "flaim", "note": "Stand-in until Yahoo approves DDF's app" },
+  "platform": "yahoo",
+  "league_key": "470.l.848938",
+  "season": 2026,
+  "name": "USO Season XVIII",
+  "pulled_at": "2026-11-27T20:14:00Z",
+  "current_week": 13,
+  "my_team_key": "470.l.848938.t.2",
+  "settings": {
+    "num_teams": 12,
+    "ddf": { "scoring": "half_ppr", "superflex": false, "teams": 12, "roster": { "QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "BENCH": 6, "K": 1, "DST": 1 } },
+    "fit": null,
+    "roster_positions": ["QB", "WR", "WR", "WR", "RB", "RB", "TE", "W/R/T", "K", "DEF", "BN", "BN", "BN", "BN", "BN", "BN", "IR"],
+    "scoring_raw": null,
+    "playoff_start_week": 15,
+    "playoff_teams": 6,
+    "last_regular_week": 14,
+    "trade_deadline": { "week": null, "date": "2026-11-28", "none": false, "source": "flaim:yahoo settings.trade_end_date" },
+    "waiver_type": "faab",
+    "faab_budget": 100
+  },
+  "teams": [
+    {
+      "team_key": "470.l.848938.t.2",
+      "name": "Tiny Hands",
+      "managers": [{ "id": "G2", "name": "Jeremy" }],
+      "standings": { "wins": 8, "losses": 4, "ties": 0, "points_for": 1460.52, "points_against": 1311.1, "rank": 2, "rank_source": "flaim:yahoo team_standings.rank" },
+      "faab_remaining": 55,
+      "waiver_priority": 7,
+      "roster": [
+        { "player_id": "470.p.33536", "name": "Jaxon Smith-Njigba", "position": "WR", "nfl_team": "SEA", "slot": "WR", "status": null, "eligible_positions": ["WR", "W/R/T"] },
+        { "player_id": "470.p.40041", "name": "Example Backup RB", "position": "RB", "nfl_team": "KC", "slot": "BN", "status": "Q", "eligible_positions": ["RB", "W/R/T"] }
+      ]
+    },
+    {
+      "team_key": "470.l.848938.t.5",
+      "name": "Good Morning My Nabers",
+      "managers": [{ "id": "G5", "name": "Opponent" }],
+      "standings": { "wins": 7, "losses": 5, "ties": 0, "points_for": 1402.0, "points_against": 1380.4, "rank": 4, "rank_source": "flaim:yahoo team_standings.rank" },
+      "faab_remaining": 12,
+      "waiver_priority": 3,
+      "roster": [
+        { "player_id": "470.p.30121", "name": "Josh Jacobs", "position": "RB", "nfl_team": "GB", "slot": "RB", "status": null, "eligible_positions": ["RB", "W/R/T"] }
+      ]
+    }
+  ],
+  "schedule": [
+    { "week": 12, "matchups": [{ "team_keys": ["470.l.848938.t.2", "470.l.848938.t.5"], "points": [121.4, 98.2], "projected_points": [117.2, 111.3], "win_probability": [1, 0], "is_playoffs": false, "status": "final" }] },
+    { "week": 13, "matchups": [{ "team_keys": ["470.l.848938.t.2", "470.l.848938.t.5"], "points": [null, null], "projected_points": [117.5, 100.5], "win_probability": [0.71, 0.29], "is_playoffs": false, "status": "not_started" }] }
+  ],
+  "free_agents": [
+    { "player_id": "470.p.41000", "name": "Example Waiver WR", "position": "WR", "nfl_team": "NYJ", "status": null, "eligible_positions": ["WR", "W/R/T"], "percent_owned": 31, "projected_points": [{ "week": 13, "points": 9.4 }] },
+    { "player_id": "470.p.100029", "name": "Example DEF", "position": "DEF", "nfl_team": "PIT", "status": null, "eligible_positions": ["DEF"], "percent_owned": 22, "projected_points": [{ "week": 13, "points": 7.1 }] }
+  ],
+  "transactions": [
+    { "at": "2026-11-26T09:02:00Z", "type": "add/drop", "team_keys": ["470.l.848938.t.2"], "adds": ["470.p.40041"], "drops": ["470.p.39999"], "note": "FAAB $6" }
+  ],
+  "missing": [
+    { "path": "teams[].roster[].projected_points", "reason": "Yahoo's API has no per-player weekly projections; weekly player values come from the ESPN/Sleeper warehouse" }
+  ],
+  "sources": ["flaim:get_league_info", "flaim:get_standings", "flaim:get_roster", "flaim:get_matchups", "flaim:get_free_agents", "flaim:get_transactions"]
+}

@@ -16,10 +16,17 @@ class EdgeFunctionParseTests(unittest.TestCase):
 
     @unittest.skipIf(shutil.which("deno") is None, "deno not installed")
     def test_entrypoints_parse(self):
-        for entry in ("get-values/index.ts", "mcp/index.ts"):
+        for entry in ("get-values/index.ts", "mcp/index.ts", "ddf-account/index.ts"):
             out = subprocess.run(["deno", "cache", "--no-check", str(FUNCTIONS / entry)],
                                  capture_output=True, text=True, timeout=120)
             self.assertEqual(out.returncode, 0, entry + "\n" + out.stderr)
+
+    @unittest.skipIf(shutil.which("deno") is None, "deno not installed")
+    def test_ddf_account_unit_tests(self):
+        """JEG-1732: sign-in and league connections (hermetic: fixtures, no network, no database)."""
+        out = subprocess.run(["deno", "test", "--allow-read", str(FUNCTIONS / "ddf-account" / "test")],
+                             capture_output=True, text=True, timeout=300)
+        self.assertEqual(out.returncode, 0, out.stdout[-4000:] + out.stderr[-2000:])
 
 
 if __name__ == "__main__":
