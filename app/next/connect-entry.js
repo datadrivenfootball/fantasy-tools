@@ -320,10 +320,62 @@
   }
   function hideEditNames() { var box = $("edit-names"); if (box) box.hidden = true; }
 
+  /* ---------- ESPN's data view, copied (the shorter copy path) ----------
+     "Open my league on ESPN" opens ESPN's own data view of the league (lm-api-reads, every roster, slot and setting as
+     plain text) in a new tab, where the reader's ESPN sign-in applies. They select all, copy, come back and tap Use what
+     I copied (or paste into the box). That text is JSON: read here with espn-import.js, so settings come with it. */
+  var COPIED = {
+    cut: "That copy looks cut off: it starts like ESPN's league data but ends early. On the ESPN tab, select all the text again, copy it, and tap Use what I copied.",
+    "private": "ESPN did not show the league, so you may not be signed in. Sign in on espn.com, open your league again with the button above, then copy.",
+    notfound: "ESPN could not find that league for this season. Check your league ID, then open it again.",
+    notleague: "That is data from ESPN, but not a league with rosters. Open your league with the button above and copy all of it.",
+    empty: "That ESPN league has no rosters yet. Once the draft is done, try again."
+  };
+  function espnCopied(text) {
+    var t = String(text || "").trim();
+    if (t.charAt(0) !== "{") return null;
+    var j = null;
+    try { j = JSON.parse(t); } catch (e) {
+      return /"(teams|members|rosterSettings|scoringPeriodId|seasonId)"\s*:/.test(t) ? {ok: false, code: "cut"} : null;
+    }
+    if (!j || typeof j !== "object") return null;
+    if (!j.teams && Array.isArray(j.messages)) {
+      var types = (j.details || []).map(function (d) { return d && d.type; }).join(" ");
+      return {ok: false, code: /AUTH/.test(types) || /not authorized/i.test(j.messages.join(" ")) ? "private" : /NOT_FOUND/.test(types) ? "notfound" : "notleague"};
+    }
+    if (!j.settings || !Array.isArray(j.teams)) return /"(seasonId|scoringPeriodId)"/.test(t) ? {ok: false, code: "notleague"} : null;
+    return {ok: true, json: j};
+  }
+  /* -> a promise when the text is ESPN's data (read or explained), else null for the paste reader */
+  function readEspnCopied(text, scroll) {
+    var got = espnCopied(text);
+    if (!got || !DDF.espn) return null;
+    $("one-team-error").hidden = true;
+    /* a failed copy replaces nothing: the league read before it is dropped, as a paste we cannot read drops it */
+    if (!got.ok) { hideResult(); hideEditNames(); drop(); status(COPIED[got.code] || COPIED.notleague, "warn"); return Promise.resolve({ok: false, code: got.code}); }
+    status("Reading your league from ESPN's data...", "");
+    return whenRows().then(function (rows) {
+      var j = got.json, out = DDF.espn.fromLeague(j, j, j.id, {rows: rows, table: table(), strategy: "espn-copy"});
+      if (!out.ok) { hideResult(); drop(); status(COPIED[out.code] || COPIED.notleague, "warn"); return out; }
+      var res = out.result;
+      hideEditNames();
+      showResult(res, "espn");
+      var rec = DDF.leaguePaste.record(res, "espn");
+      if (out.settings) rec.importSettings = out.settings;
+      save(rec);
+      askBookmark(res);
+      status("Read from ESPN: check the list below, then pick your team.", "ok");
+      if (scroll) $("recognized").scrollIntoView({block: "start"});
+      return res;
+    }, function () { status("Player values are still loading. Try again in a moment.", "warn"); return null; });
+  }
+
   /* ---------- reading ---------- */
   var busy = false;
   function check(focus, scroll) {
     var text = $("rosters").value;
+    var copied = readEspnCopied(text, scroll);
+    if (copied) return copied;
     var oneTeam = $("one-team-error");
     oneTeam.hidden = true;
     $("rosters").removeAttribute("aria-invalid");
@@ -746,7 +798,7 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 
   DDF.connectEntry = {check: check, detectDevice: detectDevice, editing: function () { return !!editing; }, sleeperGo: sleeperGo, espnLookup: espnLookup,
-    platformOf: platformOf, followLink: followLink,
+    platformOf: platformOf, followLink: followLink, readEspnCopied: readEspnCopied, espnCopied: espnCopied,
     teamChoice: teamChoice, pickTeam: pickTeam,
     scoringChoice: scoringChoice, pickScoring: pickScoring};
 })();
