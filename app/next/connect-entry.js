@@ -292,6 +292,15 @@
     var rec = kept();
     if (needsScoring(rec) && rec.scoring && scoringChoice() !== "n/a") applyScoring(rec.scoring);
   }
+  /* Settings read from the league (Sleeper, ESPN: ddf:pasted importSettings) reach the league's settings on Next, as the
+     picked scoring does (#1536): while editing, reading a league changes nothing until Next, so "Keep my league" leaves
+     the settings as they were. Only a league read on this page counts (the read card is showing). */
+  function applyImported() {
+    var rec = kept(), card = $("recognized");
+    if (!rec || !rec.importSettings || !card || card.hidden || !DDF.engine || !DDF.engine.apply) return;
+    if (rec.source !== "sleeper" && rec.source !== "espn") return;
+    try { DDF.engine.apply(rec.importSettings); } catch (e) { /* settings.html asks */ }
+  }
   /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
   function scoringChoice() {
     var box = $("scoring-pick"), card = $("recognized");
@@ -543,7 +552,9 @@
   function sleeperFind(name) {
     var el = wayEls();
     if (sleeperFinding === name) return Promise.resolve(null);   /* leaving the box, then tapping Find: one lookup */
-    if (sleeperUser && sleeperUser.input === name && (document.querySelector("#link-result [data-sleeper-league]") || (kept() && kept().source === "sleeper"))) return Promise.resolve(null);
+    /* the same username again: nothing to do while its list shows or the league it loaded is the one kept */
+    if (sleeperUser && sleeperUser.input === name && (document.querySelector("#link-result [data-sleeper-league]")
+      || (kept() && kept().source === "sleeper" && sleeperUser.loaded && kept().leagueId === sleeperUser.loaded))) return Promise.resolve(null);
     sleeperFinding = name;
     var seq = ++sleeperSeq;
     var current = function () { return seq === sleeperSeq && provider() === "sleeper" && DDF.sleeper.parseUsername(el.input.value) === name; };
@@ -574,35 +585,36 @@
       if (name) return sleeperFind(name);
       linkMsg(el.input.value.trim() ? DDF.sleeper.MESSAGES.invalid() : "Type your Sleeper username, or paste your league link or ID.", "error"); return Promise.resolve(null);
     }
-    var byUser = !!opts.id && !!sleeperUser;
+    var user = opts.id && sleeperUser ? sleeperUser : null, byUser = !!user;   /* this request's user, whatever the box does meanwhile */
     if (sleeperLast === id && kept() && kept().source === "sleeper" && kept().leagueId === id) return Promise.resolve(null);
     /* a newer request (another ID, or switching away from Sleeper) wins; an older answer is dropped */
     var seq = ++sleeperSeq;
     var current = function () {
-      return seq === sleeperSeq && provider() === "sleeper" && (byUser ? DDF.sleeper.parseUsername(el.input.value) === sleeperUser.input : DDF.sleeper.parseId(el.input.value) === id);
+      return seq === sleeperSeq && provider() === "sleeper" && (byUser ? DDF.sleeper.parseUsername(el.input.value) === user.input : DDF.sleeper.parseId(el.input.value) === id);
     };
     sleeperBusy = true; el.btn.disabled = true; el.btn.setAttribute("aria-busy", "true");
     linkMsg("Loading your league from Sleeper...", "loading");
     return whenRows().then(function (rows) {
-      return DDF.sleeper.load(id, {rows: rows, table: table(), userId: byUser ? sleeperUser.id : null}).then(function (out) {
+      return DDF.sleeper.load(id, {rows: rows, table: table(), userId: byUser ? user.id : null}).then(function (out) {
         if (!current()) { if (seq === sleeperSeq) { sleeperDone(el); linkMsg("", ""); } return null; }   /* the field changed meanwhile */
         sleeperDone(el);
         if (!out || !out.ok) { sleeperLast = null; linkMsg(DDF.sleeper.MESSAGES[(out && out.code) || "network"](out), "error"); return out; }
         sleeperLast = id;
         var res = out.result;
-        if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
+        /* the settings reach the league on Next (applyImported): editing, Keep my league leaves them as they were */
         hideEditNames();
         showResult(res, "sleeper");
         /* the settings Sleeper gave (sleeper-import.js settingsOf), so settings.html can show them as read from the league */
         var srec = DDF.leaguePaste.record(res, "sleeper");
         if (out.settings) srec.importSettings = out.settings;
         var mine = byUser && Number.isInteger(out.mine) && res.teams[out.mine] ? out.mine : null;
+        if (byUser) user.loaded = id;
         if (mine !== null) { srec.me = mine; srec.own = mine; }
         save(srec);
         askBookmark(res);
         var lg = res.league || {};
         linkMsg("We found: " + (lg.leagueName || "your league") + ", " + plural(res.teams.length, "team") + ", " + plural(res.matched, "player") + ". "
-          + (mine !== null ? "Your team: " + res.teams[mine].name + ", matched to " + sleeperUser.name + ". Change it below if that is not yours." : "Check the list below, then pick your team."), "ok");
+          + (mine !== null ? "Your team: " + res.teams[mine].name + ", matched to " + user.name + ". Change it below if that is not yours." : "Check the list below, then pick your team."), "ok");
         if (byUser) { var card = $("recognized"); if (card && card.scrollIntoView) card.scrollIntoView({block: "start"}); }
         status("", "");
         return out;
@@ -670,7 +682,7 @@
     if (scoringBox) scoringBox.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-scoring]"); if (b) pickScoring(b.getAttribute("data-scoring")); });
     /* Next (to the team page or League settings): the scoring picked on the card becomes the league's */
     var scoringNext = $("connect-next");
-    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) applyPickedScoring(); });
+    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) { applyPickedScoring(); applyImported(); } });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);

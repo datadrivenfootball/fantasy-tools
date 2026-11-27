@@ -32,6 +32,9 @@ FX = ROOT / "tests" / "fixtures" / "sleeper"
 ID = "100000000000000001"
 USER = "alpha_user"
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste && DDF.sleeper"
+# any entry page: the engine has loaded (DDF.engine.settings exists before then and throws until it has)
+ENGINE_LOADED = "() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())"
+USO = (ROOT / "tests" / "fixtures" / "entry_flow" / "uso-rosters.txt").read_text()
 HEADER_STEPS = ["1. League rosters", "2. Your team", "3. League settings"]
 PHONE, DESKTOP = 375, 1280
 OFFSITE_ID = {PHONE: 6, DESKTOP: 3}
@@ -237,6 +240,83 @@ class SleeperUsernameTest(unittest.TestCase):
         self.assertTrue(page.text_content("#link-result").endswith("Check the list below, then pick your team."))
         self.assertFalse(any("/user/" in u for u in page.calls), "no username lookup for an ID")
         self.assert_page_ok(page)
+
+    # ---- 4b: editing a league (the #1536 rule: nothing changes until Next) ----
+    def saved_league(self, page):
+        """A saved league (the USO paste) at PPR, 10 teams, 2 WR, then Edit league."""
+        page.goto(f"{self.base}/connect.html", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        Run(page, PHONE).paste("#rosters", USO)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        page.click("#scoring-pick [data-scoring=ppr]")
+        page.click('#team-pick-list .team-pick-option:has-text("Team 3")')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        page.wait_for_timeout(300)
+        if page.is_visible("#settings-edit") and page.is_hidden("#editor"):
+            page.click("#settings-edit")
+        if page.eval_on_selector("#scoring", "e => e.value") != "PPR":
+            page.click('[aria-labelledby=lbl-scoring] button[data-value="PPR"]')
+        page.click('[aria-labelledby=lbl-teams] button[data-value="10"]')
+        while int(page.input_value("#lineup-wr")) > 2:
+            page.click('button[aria-label="Decrease WR"]')
+        while int(page.input_value("#lineup-wr")) < 2:
+            page.click('button[aria-label="Increase WR"]')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/team.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        before = page.evaluate("DDF.engine.settings()")
+        self.assertEqual((before["scoring"], before["teams"], before["roster"]["WR"]), ("ppr", 10, 2))
+        page.goto(f"{self.base}/connect.html?edit=1", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        page.click("[data-provider=sleeper]")
+        return before
+
+    def test_editing_then_keep_my_league_leaves_the_settings_as_they_were(self):
+        for how in ("username", "league ID"):
+            with self.subTest(how=how):
+                page = self.page(PHONE)
+                before = self.saved_league(page)
+                page.fill("#league-ref", USER if how == "username" else ID)
+                page.click("#get-link")
+                page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+                mid = page.evaluate("DDF.engine.settings()")
+                self.assertEqual((mid["scoring"], mid["teams"], mid["roster"]["WR"]), ("ppr", 10, 2), "reading the Sleeper league changes nothing yet")
+                page.click("#entry-keep")
+                page.wait_for_url("**/team.html", timeout=30000)
+                page.wait_for_function(ENGINE_LOADED, timeout=60000)
+                self.assertEqual(page.evaluate("DDF.engine.settings()"), before, "Keep my league: the settings are as they were")
+                self.assertEqual(page.errors, [])
+
+    def test_editing_then_next_uses_the_sleeper_settings(self):
+        page = self.page(PHONE)
+        self.saved_league(page)
+        page.fill("#league-ref", USER)
+        page.click("#get-link")
+        page.wait_for_selector("#recognized:not([hidden])", timeout=20000)
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        s = page.evaluate("DDF.engine.settings()")
+        self.assertEqual((s["scoring"], s["teams"]), ("half_ppr", 8), "the fixture league: Half PPR, 4 teams valued at 8")
+        page.wait_for_selector("#settings-summary:not([hidden])", timeout=30000)
+        self.assertEqual(page.text_content("#settings-source"), "From Sleeper")
+        self.assertEqual(page.errors, [])
+
+    def test_editing_the_username_while_a_league_loads_drops_the_old_answer(self):
+        page = self.connect(PHONE, "two")
+        page.click("[data-provider=sleeper]")
+        page.fill("#league-ref", USER)
+        page.click("#get-link")
+        page.wait_for_selector("#link-result [data-sleeper-league]", timeout=20000)
+        page.route(f"https://api.sleeper.app/v1/league/{ID}/rosters", lambda r: (page.wait_for_timeout(800), r.fallback()))
+        page.locator("#link-result [data-sleeper-league]").first.click()
+        page.fill("#league-ref", "someone_else")
+        page.wait_for_timeout(1500)
+        self.assertFalse(page.is_disabled("#get-link"), "Find my league works again")
+        self.assertTrue(page.is_hidden("#recognized"), "the old answer is dropped")
+        self.assertEqual(page.errors, [])
 
     # ---- 5 ----
     def finish(self, page, run, pick=True):
