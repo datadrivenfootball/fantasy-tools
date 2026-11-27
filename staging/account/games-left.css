@@ -1,0 +1,163 @@
+/* Games left (JEG-1736, staging). Layout only, built from the live site's tokens (styles.css :root).
+   The amber pair is team.html's "Average" tier; red is --attention; nothing new is introduced. */
+.gl{--gl-amber-bg:#fdf1d6;--gl-amber-tx:#6b3a00;--gl-mono:"IBM Plex Mono",ui-monospace,monospace}
+.gl-shell{overflow-x:hidden}
+.gl-staging{font:500 10px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:#cfe3d6;border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:2px 7px;margin-left:-18px}
+@media(min-width:901px){.gl-shell .morewrap{display:none}}
+@media(max-width:900px){.gl-staging{margin-left:0;margin-right:auto}}
+.gl [hidden]{display:none!important}
+.gl .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.gl h1{margin-bottom:4px}
+.gl h2{margin:0 0 8px}
+.gl .eyebrow{margin:0}
+.gl .gl-record{font-size:17px;margin:0 0 16px}
+.gl .gl-record strong{font-weight:700}
+.gl .mono,.gl .num{font-family:var(--gl-mono);font-variant-numeric:tabular-nums}
+.gl .na{color:var(--muted);cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.gl .fine{font-size:var(--text-small);color:var(--muted);margin:10px 0 0}
+
+/* need sentences: team.html's context callout */
+.gl-need{margin:0 0 20px;padding:14px 18px;background:var(--green-soft);border-left:3px solid var(--green);border-radius:0 10px 10px 0;font-size:16px;line-height:1.5}
+.gl-need p{margin:0}
+.gl-need p+p{margin-top:6px}
+.gl-need p:first-child{font-weight:700}
+
+/* sim facts: team.html's league-facts tiles */
+.gl-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:0 0 20px}
+.gl-facts>div{padding:14px 16px;border:1px solid var(--border);border-radius:var(--card-radius);background:var(--surface)}
+.gl-facts dt{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+.gl-facts dd{margin:0;font:600 26px/1.15 var(--gl-mono);font-variant-numeric:tabular-nums}
+.gl-facts dd small{display:block;font:400 var(--text-small)/1.4 "Archivo",system-ui,sans-serif;margin-top:4px}
+
+.gl-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.gl-top .card{margin:0}
+.gl-goals{list-style:none;margin:0;padding:0}
+.gl-goals li{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:4px 14px;align-items:baseline;padding:12px 0}
+.gl-goals li+li{border-top:1px solid var(--border)}
+.gl-goals span{font-size:14.5px}
+
+/* chips: the site's badge shape; goal chips are quiet, type chips carry the colour */
+.gl .gchip,.gl .type,.gl .st{display:inline-block;border-radius:99px;font:600 11px/1.5 var(--gl-mono);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;padding:2px 9px;border:1px solid currentColor}
+.gl .gchip{color:#33424e;background:var(--surface);border-color:#c5ccc7;text-transform:none;letter-spacing:0;font-size:12px}
+.gl .gchip.goal-label{background:#dcead9;color:var(--hdr);border-color:transparent;font-size:12.5px;justify-self:start;white-space:normal}
+.gl .type.must_win{color:var(--attention-text);background:var(--attention)}
+.gl .type.bankable{color:#0f5238;background:var(--green-soft)}
+.gl .type.favored{color:#0f5238;background:#fff}
+.gl .type.uphill{color:var(--attention-text);background:#fff}
+.gl .type.seed_game{color:var(--gl-amber-tx);background:var(--gl-amber-bg)}
+.gl .type.free{color:#4b5a66;background:#f3f5f2;border-color:#c5ccc7}
+.gl .type.playoff{color:#fff;background:var(--hdr);border-color:var(--hdr)}
+.gl .st{font-size:10px;padding:0 6px;margin-left:6px;color:var(--attention-text);background:var(--attention);vertical-align:1px}
+.gl .st.bye{color:#4b5a66;background:#f3f5f2;border-color:#c5ccc7;margin-left:0}
+.gl .src{font:500 10.5px var(--gl-mono);color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:0 6px;margin-left:6px;white-space:nowrap}
+
+/* wins distribution */
+.gl-dist{display:grid;grid-template-columns:auto minmax(60px,1fr) auto;gap:10px 12px;align-items:center;margin:14px 0 0}
+.gl-dist .lab{font-weight:600;font-size:14.5px}
+.gl-dist .lab small{display:block;font-weight:400}
+.gl-dist .track{height:14px;background:var(--neutral);border-radius:7px;overflow:hidden}
+.gl-dist .fill{display:block;height:100%;background:var(--green);border-radius:7px}
+.gl-dist .val{text-align:right;font:600 15px var(--gl-mono);font-variant-numeric:tabular-nums}
+
+/* games table */
+.gl-games-wrap{border:1px solid var(--border);border-radius:var(--card-radius);background:var(--surface);overflow:hidden;margin-top:12px}
+.gl-games{table-layout:auto}
+.gl-games>thead th{text-transform:uppercase;letter-spacing:.04em;font-size:11px;color:#17364c;padding:12px 10px}
+.gl-games>tbody>tr>td{padding:14px 10px;vertical-align:top}
+.gl-games>tbody>tr.phase>th{background:var(--surface);color:var(--green);font:600 13px var(--gl-mono);letter-spacing:.08em;text-transform:uppercase;padding:14px 10px 8px;border-bottom:2px solid var(--border)}
+.gl-games>tbody>tr.game{cursor:pointer}
+.gl-games>tbody>tr.game:hover{background:#f3f7f4}
+.gl-games>tbody>tr.game.open{background:var(--green-soft)}
+.gl-games>tbody>tr.game.open>td{border-bottom-color:transparent}
+.gl-games>tbody>tr.game.open>td:first-child{box-shadow:inset 3px 0 0 var(--green)}
+.gl-games .wk{font:600 16px var(--gl-mono);white-space:nowrap}
+.gl-games .wk small{font:500 10px var(--gl-mono);letter-spacing:.08em;text-transform:uppercase;display:inline;margin-right:4px}
+.gl-games .opp b{display:block;font-weight:700;font-size:15px}
+.gl-games .opp small{font-size:13px}
+.gl-games .line{white-space:nowrap}
+.gl-games .line .pair{font:600 15px var(--gl-mono);font-variant-numeric:tabular-nums}
+.gl-games .line .them{font-weight:400;color:#33424e}
+.gl-games .win .big{font:600 22px/1.1 var(--gl-mono);font-variant-numeric:tabular-nums}
+.gl-games .win .yh{margin-top:6px;font-size:13px;color:#33424e}
+.gl-games .win .yh b{font:600 14px var(--gl-mono)}
+.gl-games .goals .chips{display:flex;flex-wrap:wrap;gap:5px}
+.gl-games .moves ul{margin:0;padding:0;list-style:none}
+.gl-games .moves li{font-size:14px;line-height:1.4}
+.gl-games .moves li+li{margin-top:8px}
+.gl-games .moves .kind{font:600 10.5px var(--gl-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin-right:6px}
+.gl-games .moves .gain{font:600 13px var(--gl-mono);white-space:nowrap}
+.gl-games .moves .gain.neg{color:var(--attention-text)}
+.gl-games .cell-label{display:none}
+.gl .gl-toggle{border:0;background:transparent;padding:6px 8px;color:var(--green);font-weight:600;font-size:13px;white-space:nowrap;border-radius:8px}
+.gl .gl-toggle::after{content:"▾";margin-left:6px;display:inline-block;font-size:18px;line-height:1}
+.gl .gl-toggle[aria-expanded=true]::after{transform:rotate(180deg)}
+.gl .gl-toggle .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* opened game: both best lineups */
+.gl-games>tbody>tr.detail>td{background:#fbfcfa;padding:16px 16px 20px;box-shadow:inset 3px 0 0 var(--green)}
+.gl-detail-facts{display:flex;flex-wrap:wrap;gap:6px 22px;margin:0 0 14px;font-size:14px;color:#33424e}
+.gl-detail-facts b{color:var(--text)}
+.gl-lineups{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.gl-lu{border:1px solid var(--border);border-radius:var(--card-radius);background:var(--surface);overflow:hidden;min-width:0}
+.gl-lu-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.gl-lu-head h3{margin:0;font-size:18px}
+.gl-lu-head .tot{font:600 18px var(--gl-mono);white-space:nowrap}
+.gl-lu table{font-size:14px}
+.gl-lu th{text-transform:uppercase;letter-spacing:.04em;font-size:11px;padding:8px 10px}
+.gl-lu td{padding:9px 10px;vertical-align:top}
+.gl-lu td.slot{font:600 12px/1.7 var(--gl-mono);color:var(--muted);white-space:nowrap;width:1%}
+.gl-lu td.pts,.gl-lu th.pts{text-align:right;font-family:var(--gl-mono);font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;width:1%}
+.gl-lu td.who{overflow-wrap:anywhere}
+.gl-lu td.who b{font-weight:600}
+.gl-lu td.who small{margin-top:1px}
+.gl-lu tr.empty td.who{color:var(--muted);font-style:italic}
+.gl-lu .why{color:var(--attention-text)}
+.gl-lu details{border-top:1px solid var(--border)}
+.gl-lu details>summary{cursor:pointer;padding:10px 14px;font-weight:600;font-size:14px;color:var(--green);min-height:44px;display:flex;align-items:center}
+.gl-lu .unscored,.gl-lu .lu-note{margin:0;padding:10px 14px;border-top:1px solid var(--border);font-size:13px;color:#33424e}
+.gl-lu .unscored li{margin-left:16px}
+.gl-lu-none{padding:16px 14px;color:var(--muted);margin:0}
+
+.gl-prov ul{margin:6px 0 14px;padding-left:20px;font-size:14px;color:#33424e}
+.gl-prov h3{font-size:17px;margin:14px 0 0;font-family:"Archivo",system-ui,sans-serif!important;font-weight:700!important}
+.gl-prov .flaim{font-size:13px;color:var(--muted);margin:0}
+
+@media(max-width:760px){
+  .gl-top{grid-template-columns:minmax(0,1fr)}
+  .gl-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .gl-facts>div{padding:12px}
+  .gl-facts>div:first-child:nth-last-child(odd){grid-column:1/-1}
+  .gl-facts dd{font-size:22px}
+  .gl-goals li{grid-template-columns:minmax(0,1fr)}
+  /* each game becomes a card */
+  .gl-games-wrap{border:0;background:transparent;overflow:visible;border-radius:0}
+  .gl-games,.gl-games>tbody{display:block}
+  .gl-games>thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .gl-games>tbody>tr.phase{display:block}
+  .gl-games>tbody>tr.phase>th{display:block;background:transparent;border:0;padding:18px 0 8px}
+  .gl-games>tbody>tr.game{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"wk type" "opp opp" "line win" "goals goals" "moves moves" "tog tog";gap:12px 14px;padding:16px;margin:0 0 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius)}
+  .gl-games>tbody>tr.game.open{background:var(--surface);border-color:var(--green);border-radius:var(--card-radius) var(--card-radius) 0 0;margin-bottom:0}
+  .gl-games>tbody>tr.game.open>td:first-child{box-shadow:none}
+  .gl-games>tbody>tr.game:hover{background:var(--surface)}
+  .gl-games>tbody>tr.game>td{display:block;padding:0;border:0;min-width:0}
+  .gl-games td.wk{grid-area:wk;align-self:center}
+  .gl-games td.typ{grid-area:type;justify-self:end;align-self:center}
+  .gl-games td.opp{grid-area:opp}
+  .gl-games td.opp b{font-size:18px;font-family:var(--serif)}
+  .gl-games td.line{grid-area:line;white-space:normal}
+  .gl-games td.win{grid-area:win}
+  .gl-games td.goals{grid-area:goals}
+  .gl-games td.moves{grid-area:moves}
+  .gl-games td.tog{grid-area:tog;border-top:1px solid var(--border)!important;margin:0 -16px -16px}
+  .gl-games td.moves:empty,.gl-games td.moves.none{display:none}
+  .gl-games .cell-label{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 3px}
+  .gl-games .line .pair{font-size:18px}
+  .gl .gl-toggle{width:100%;min-height:44px;font-size:14px}
+  .gl .gl-toggle .lbl{position:static;width:auto;height:auto;clip:auto}
+  .gl-games>tbody>tr.detail{display:block;margin:0 0 12px}
+  .gl-games>tbody>tr.detail>td{display:block;padding:14px 12px 16px;border:1px solid var(--green);border-top:0;border-radius:0 0 var(--card-radius) var(--card-radius);box-shadow:none}
+  .gl-lineups{grid-template-columns:minmax(0,1fr)}
+  .gl-lu td,.gl-lu th{padding:9px 8px}
+}
+.gl .src.src-default{color:var(--attention-text);border-color:var(--attention-text)}
+.gl .gl-how{margin-top:-4px}

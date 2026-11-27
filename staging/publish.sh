@@ -12,7 +12,9 @@ touch "$work/.nojekyll"
   && cd "$work/.ext" && zip -qr -X "$work/ddf-espn-extension.zip" ddf-espn-extension ) && rm -rf "$work/.ext"
 # Version-stamp the page's own files so phones never pair a new page with a cached old script.
 ver="$(git -C "$here" rev-parse --short HEAD)-$(date +%s)"
-sed -i.bak -e "s|src=\"app.js\"|src=\"app.js?v=$ver\"|" -e "s|href=\"connect-page.css\"|href=\"connect-page.css?v=$ver\"|" "$work/index.html" && rm "$work/index.html.bak"
+for page in "$work"/*.html; do
+  sed -i.bak -E -e "s#(src|href)=\"([a-z0-9-]+\.(js|css))\"#\1=\"\2?v=$ver\"#g" "$page" && rm "$page.bak"
+done
 cd "$work"
 git add -A
 if git diff --cached --quiet; then echo "staging already up to date"; exit 0; fi

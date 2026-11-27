@@ -2,6 +2,7 @@
 // Storage for ddf_accounts (JEG-1732). PgStore talks to Postgres directly (the
 // schema is not exposed to PostgREST); MemoryStore backs the tests.
 import type { Platform } from "./shape.ts";
+import type { ScheduleGame, WarehouseRow } from "./weekly.ts";
 
 export type ConnectionPlatform = Platform | "flaim"; // flaim: admin-loaded stand-in snapshots (JEG-1732)
 export type Connection = {
@@ -64,6 +65,9 @@ export interface Store {
   deleteUserData(userId: string): Promise<void>;
   cacheGet(key: string): Promise<{ body: unknown; fetched_at: string } | null>;
   cachePut(key: string, body: unknown): Promise<void>;
+  // JEG-1736: the weekly projection warehouse (read only, latest run per source) and the nflverse schedule.
+  warehouseRows(season: number, fromWeek: number, espnIds: string[], sleeperIds: string[]): Promise<WarehouseRow[]>;
+  nflSchedule(season: number): Promise<ScheduleGame[]>;
 }
 
 export function publicConnection(c: Connection): PublicConnection {
@@ -168,6 +172,25 @@ export class PgStore implements Store {
     await this.sql`insert into ddf_accounts.platform_cache (key, body, fetched_at) values (${key}, ${this.sql.json(body)}, now())
       on conflict (key) do update set body = excluded.body, fetched_at = now()`;
   }
+  async warehouseRows(season: number, fromWeek: number, espnIds: string[], sleeperIds: string[]) {
+    if (!espnIds.length && !sleeperIds.length) return [];
+    const rows = await this.sql`with latest as (
+        select distinct on (source) run_id, source, as_of from public.source_projection_runs
+        where source in ('espn', 'sleeper') and season = ${season} order by source, as_of desc)
+      select w.source, l.as_of, w.target_week, w.source_player_id, w.sleeper_id, w.team, w.position,
+             w.points_std::float8 as points_std, w.points_half_ppr::float8 as points_half_ppr, w.points_ppr::float8 as points_ppr, w.stats
+      from public.source_weekly_projections w join latest l on l.run_id = w.run_id and l.source = w.source
+      where w.target_week >= ${fromWeek}
+        and ((w.source = 'espn' and w.source_player_id = any(${espnIds})) or (w.source = 'sleeper' and w.sleeper_id = any(${sleeperIds})))`;
+    return rows.map((r: Record<string, unknown>) => ({ ...r, as_of: new Date(r.as_of as string).toISOString() })) as WarehouseRow[];
+  }
+  async nflSchedule(season: number) {
+    const rows = await this.sql`with latest as (
+        select run_id, as_of from public.source_projection_runs where source = 'nflverse_schedule' order by as_of desc limit 1)
+      select s.week::int as week, s.home_team, s.away_team, s.gameday::text as gameday, s.gametime, l.as_of from public.nflverse_schedule_snapshots s join latest l using (run_id)
+      where s.season = ${season} and s.game_type = 'REG'`;
+    return rows.map((r: Record<string, unknown>) => ({ ...r, as_of: new Date(r.as_of as string).toISOString() })) as ScheduleGame[];
+  }
 }
 
 export class MemoryStore implements Store {
@@ -246,4 +269,10 @@ export class MemoryStore implements Store {
   }
   async cacheGet(key: string) { return this.cache.get(key) ?? null; }
   async cachePut(key: string, body: unknown) { this.cache.set(key, { body, fetched_at: new Date().toISOString() }); }
+  warehouse: WarehouseRow[] = [];
+  schedule: ScheduleGame[] = [];
+  async warehouseRows(_season: number, fromWeek: number, espnIds: string[], sleeperIds: string[]) {
+    return this.warehouse.filter((r) => r.target_week >= fromWeek && (r.source === "espn" ? espnIds.includes(r.source_player_id) : !!r.sleeper_id && sleeperIds.includes(r.sleeper_id)));
+  }
+  async nflSchedule(_season: number) { return this.schedule; }
 }

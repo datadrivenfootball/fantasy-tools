@@ -10,6 +10,7 @@ import { type EspnSession, espnFanLeagues, espnSeasonNow, parseEspnLeagueId, rea
 import { pullSleeper, sleeperLeagues, sleeperPlayerIndex, sleeperUser } from "./sleeper.ts";
 import { SIZES, type DdfSettings } from "./shape.ts";
 import { type Connection, publicConnection, type Store } from "./store.ts";
+import { buildWeekly, fetchEspnKdef, fetchXwalk, type KdefRow, type XwalkRow } from "./weekly.ts";
 import { authorizeUrl, exchangeCode, pullYahoo, refreshTokens, yahooConfig, yahooLeagues, type YahooTokens } from "./yahoo.ts";
 
 export type AuthUser = { id: string; email: string | null; email_confirmed: boolean };
@@ -27,6 +28,8 @@ export type Deps = {
 };
 
 const SLEEPER_CACHE = "sleeper_players_v1";
+const XWALK_CACHE = "player_id_xwalk_v1"; // Sleeper + Dynasty Daddy ids, daily
+const KDEF_CACHE = "espn_kdef_weekly_v2:"; // v2 keeps the stat lines // + season, every 6 hours
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = 86400000;
 
@@ -102,6 +105,23 @@ export function makeApp(d: Deps) {
   async function espnSession(conn: Connection): Promise<EspnSession | undefined> {
     if (!conn.secret_ciphertext || !conn.secret_iv) return undefined;
     return await unseal<EspnSession>(await d.tokenKey(), { ciphertext: conn.secret_ciphertext, iv: conn.secret_iv }, aad(conn));
+  }
+
+  async function cached<T>(key: string, maxAgeMs: number, load: () => Promise<T>): Promise<T | null> {
+    const hit = await d.store.cacheGet(key);
+    if (hit && d.now().getTime() - Date.parse(hit.fetched_at) <= maxAgeMs) return hit.body as T;
+    const fresh = await load().catch(() => null);
+    if (fresh) { await d.store.cachePut(key, fresh); return fresh; }
+    return (hit?.body as T) ?? null; // a stale copy beats nothing; the as_of on the response says how old
+  }
+
+  async function weekly(summary: unknown) {
+    return await buildWeekly(summary, {
+      rows: (season, from, e, s) => d.store.warehouseRows(season, from, e, s),
+      schedule: (season) => d.store.nflSchedule(season),
+      xwalk: async () => (await cached<XwalkRow[]>(XWALK_CACHE, DAY, () => fetchXwalk(d.fetch))) ?? [],
+      kdef: (season) => cached<{ as_of: string; players: KdefRow[] }>(KDEF_CACHE + season, DAY / 4, () => fetchEspnKdef(d.fetch, season, d.now())),
+    });
   }
 
   async function sleeperNames(ids: string[]) {
@@ -240,6 +260,7 @@ export function makeApp(d: Deps) {
           const { raw: _r, ...rest } = lg;
           return json({ league: rest });
         }
+        if (m === "GET" && c === "weekly") return json({ weekly: await weekly(lg.summary) });
         if (m === "DELETE" && !c) return json({ deleted: await d.store.deleteLeague(user.id, b) });
         if (m === "POST" && c === "refresh") {
           const conn = await d.store.connection(user.id, lg.connection_id);
