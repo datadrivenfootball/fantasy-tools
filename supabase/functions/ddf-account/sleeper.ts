@@ -1,6 +1,6 @@
 // Sleeper: public API, no credentials (https://docs.sleeper.com). Read-only.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const API = "https://api.sleeper.app/v1/";
 
@@ -175,7 +175,7 @@ export async function pullSleeper(f: Fetch, leagueId: string, sleeperUserId: str
       week: i + 1,
       matchups: Object.values(groups).map((g) => ({
         team_keys: g.map((m) => String(m.roster_id)),
-        points: g.map((m) => (played(i + 1) ? num(m.points) : null)),
+        points: g.map((m) => (played(i + 1) ? pts(m.points) : null)),
         projected_points: g.map(() => null),
         is_playoffs: false,
       })),

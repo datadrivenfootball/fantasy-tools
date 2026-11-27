@@ -2,7 +2,7 @@
 // Since 2026-07-22 Yahoo approves each app before its Fantasy API answers (JEG-1151);
 // before approval every Fantasy call returns 403 and this module says so.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const AUTH = "https://api.login.yahoo.com/oauth2/request_auth";
 const TOKEN = "https://api.login.yahoo.com/oauth2/get_token";
@@ -185,7 +185,7 @@ export async function pullYahoo(f: Fetch, token: string, leagueKey: string, now 
       managers: (team.managers || []).map((m: J) => m.manager).filter(Boolean).map((m: J) => ({ id: String(m.guid || m.manager_id), name: m.nickname ?? null })),
       standings: {
         wins: int(ot.wins, 0, 99), losses: int(ot.losses, 0, 99), ties: int(ot.ties, 0, 99),
-        points_for: num(st.points_for), points_against: num(st.points_against),
+        points_for: pts(st.points_for), points_against: pts(st.points_against),
         rank: int(st.rank, 1, 64), rank_source: int(st.rank, 1, 64) !== null ? "yahoo:team_standings.rank" : null,
       },
       faab_remaining: usesFaab ? int(team.faab_balance, 0, 100000) : null,
@@ -211,8 +211,8 @@ export async function pullYahoo(f: Fetch, token: string, leagueKey: string, now 
         return {
           team_keys: sides.map((s: J) => String(s.team_key)),
           // Yahoo sends 0.00 before a week is played: not a score.
-          points: sides.map((s: J) => (curWeek === null || weeks[i + j] <= curWeek ? num(s.team_points?.total) : null)),
-          projected_points: sides.map((s: J) => num(s.team_projected_points?.total)),
+          points: sides.map((s: J) => (curWeek === null || weeks[i + j] <= curWeek ? pts(s.team_points?.total) : null)),
+          projected_points: sides.map((s: J) => pts(s.team_projected_points?.total)),
           is_playoffs: String(m.is_playoffs) === "1",
         };
       });

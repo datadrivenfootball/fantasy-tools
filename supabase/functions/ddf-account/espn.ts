@@ -1,7 +1,7 @@
 // ESPN: public leagues by league ID, no cookies (private leagues need the later
 // browser-extension step). Read-only.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, int, LeagueSummary, Missing, num, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, int, LeagueSummary, Missing, num, pts, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const API = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/";
 
@@ -103,7 +103,7 @@ export function summarizeEspn(lg: J, id: string, season: number, now = new Date(
       managers: (t.owners || []).map((o: string) => ({ id: String(o), name: memberName(o) })),
       standings: {
         wins: int(rec.wins, 0, 99), losses: int(rec.losses, 0, 99), ties: int(rec.ties, 0, 99),
-        points_for: num(rec.pointsFor), points_against: num(rec.pointsAgainst),
+        points_for: pts(rec.pointsFor), points_against: pts(rec.pointsAgainst),
         rank: int(t.playoffSeed, 1, 64) ?? int(t.rankCalculatedFinal, 1, 64),
         rank_source: t.playoffSeed ? "espn:teams.playoffSeed" : t.rankCalculatedFinal ? "espn:teams.rankCalculatedFinal" : null,
       },
@@ -134,9 +134,9 @@ export function summarizeEspn(lg: J, id: string, season: number, now = new Date(
     const sides = [m.home, m.away].filter(Boolean);
     (byWeek[wk] ||= { week: wk, matchups: [] }).matchups.push({
       team_keys: sides.map((x: J) => String(x.teamId)),
-      points: sides.map((x: J) => (curWeek === null || wk <= curWeek ? num(x.totalPoints) : null)),
-      projected_points: sides.map((x: J) => num(x.totalProjectedPointsLive) ?? null),
-      is_playoffs: m.playoffTierType && m.playoffTierType !== "NONE",
+      points: sides.map((x: J) => (curWeek === null || wk <= curWeek ? pts(x.totalPoints) : null)),
+      projected_points: sides.map((x: J) => pts(x.totalProjectedPointsLive)),
+      is_playoffs: Boolean(m.playoffTierType && m.playoffTierType !== "NONE"),
     });
   }
   const pos = s.rosterSettings?.lineupSlotCounts || {};

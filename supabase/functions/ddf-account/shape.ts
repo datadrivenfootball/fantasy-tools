@@ -90,6 +90,12 @@ export function num(x: unknown): number | null {
   return typeof n === "number" && isFinite(n) ? n : null;
 }
 
+// Points to two decimals (platform sums carry float noise like 1252.3000000000002).
+export function pts(x: unknown): number | null {
+  const n = num(x);
+  return n === null ? null : Math.round(n * 100) / 100;
+}
+
 export function int(x: unknown, lo = -Infinity, hi = Infinity): number | null {
   const n = num(x);
   return n !== null && Math.floor(n) === n && n >= lo && n <= hi ? n : null;
