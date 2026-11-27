@@ -48,6 +48,7 @@ begin
     raise exception 'pulled_at must be an ISO 8601 date-time with zone';
   end;
   if v_pulled is null then raise exception 'pulled_at is required'; end if;
+  if v_pulled > now() + interval '5 minutes' then raise exception 'pulled_at is in the future (%): use the time Flaim actually read the league', v_pulled; end if;
 
   insert into ddf_accounts.connections (user_id, platform, external_id, display_name)
   values (v_user, 'flaim', 'flaim', 'Flaim (stand-in until Yahoo is approved)')

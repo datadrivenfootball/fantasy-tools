@@ -38,7 +38,7 @@ reason.
 | `league_key` | string | yes | Yahoo `470.l.848938` |
 | `season` | int | yes | 4-digit year |
 | `name` | string | yes | |
-| `pulled_at` | ISO 8601 with zone | yes | when Flaim read it |
+| `pulled_at` | ISO 8601 with zone | yes | when Flaim read it; refused if more than 5 minutes in the future |
 | `current_week` | int or null | | |
 | `my_team_key` | string or null | | e.g. `470.l.848938.t.2` (Tiny Hands) |
 | `settings` | object | yes | below |
