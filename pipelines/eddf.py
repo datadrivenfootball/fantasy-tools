@@ -20,7 +20,7 @@ Rank-implied value of one ranker, in one scoring:
 The ranker lists are rest-of-season lists and the charts are rest-of-season values; no
 weekly list is used (Jeremy, 2026-10-29: "do not blend weekly data with ROS data, ever").
 Pure functions, no I/O except `load_config`. The JS twin is
-app/trade-value-chart/assets/eddf-model.js; tests/fixtures/eddf_parity.json pins both.
+pipelines/eddf_model.js; tests/fixtures/eddf_parity.json pins both.
 """
 from __future__ import annotations
 

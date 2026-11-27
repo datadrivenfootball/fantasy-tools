@@ -5,7 +5,7 @@ Run 2026-11-27 (a Friday) on the committed fixture and `data/history`, rankers r
 Data and scripts: `docs/research/data/jeg1735/` (`lists.json`, `evidence.json`,
 `before_after_<scoring>.csv`, `variants.json`, `candidates.json`, `candidate_study.json`),
 `tools/research/eddf_prepare.py`, `eddf_evidence.py`, `eddf_variants.py`, `eddf_candidates.py`.
-Code: `pipelines/eddf.py` (reference), `app/trade-value-chart/assets/eddf-model.js` (JS twin, not
+Code: `pipelines/eddf.py` (reference), `pipelines/eddf_model.js` (JS twin, not
 wired), `config/eddf_sources.json` (registry), `tests/test_eddf.py`.
 
 ## Decisions (Jeremy)
@@ -114,7 +114,7 @@ EDDF's values a little more in points (the anchors are refit from two charts) wh
 order slightly better.
 
 Stability (week 12 vs week 11, rankers held at the read date, so only the charts vary): mean abs
-week-over-week change 0.51 (DDF) vs 0.33 (PPR), 0.39 (Half), 0.30 (standard) for EDDF. This is not
+week-over-week change 0.51 (DDF) vs 0.33 (PPR), 0.39 (Half), 0.30 (standard) for EDDF. The advantage is partly built in: the lists do not change between the two weeks, so only the charts move, and averaging in a fixed view dampens any change. This is not
 a test of rankers over time: one list date exists in this run.
 
 Coverage: DDF prices 669 players, EDDF 674 (five players the rankers list and no chart prices);
@@ -130,9 +130,9 @@ charts. Half PPR (PPR and standard are within a few hundredths):
 | variant | LOO rho | LOO rho, ranked | LOO MAE | scramble MAE / rho | drop-one MAE / rho | week-change MAE | chart weight | priced |
 | -- | -- | -- | -- | -- | -- | -- | -- | -- |
 | none | 0.919 | 0.943 | 0.73 | 2.12 / 0.696 | 0.24 / 0.980 | 0.51 | 100% | 669 |
-| per_expert | 0.803 | 0.881 | 0.81 | 2.13 / 0.706 | 0.30 / 0.990 | 0.38 | 25% | 674 |
-| site_once | 0.803 | 0.882 | 0.79 | 2.11 / 0.709 | 0.29 / 0.990 | 0.38 | 30% | 674 |
-| grouped | 0.805 | 0.888 | 0.71 | 2.05 / 0.712 | 0.21 / 0.990 | 0.42 | 75% | 674 |
+| per_expert | 0.803 | 0.881 | 0.81 | 2.13 / 0.706 | 0.30 / 0.990 | 0.39 | 25% | 674 |
+| site_once | 0.803 | 0.882 | 0.79 | 2.11 / 0.709 | 0.29 / 0.990 | 0.39 | 30% | 674 |
+| grouped | 0.805 | 0.888 | 0.71 | 2.05 / 0.712 | 0.21 / 0.990 | 0.43 | 75% | 674 |
 
 Independence of the added views, Half PPR (non-QB players all fresh lists rank): the fresh lists
 agree with one another at rank correlation 0.925 (charts with each other 0.966, lists with charts
@@ -171,6 +171,20 @@ the "rho vs feed mean" is against the fresh feed lists under the Tuesday rule:
 None of this decides a weight; it shows which views carry information the charts and the staff
 lists do not.
 
+## League value total
+
+EDDF is not held to the league value total. DDF Value sums to 2352.0 over all players in every
+scoring; EDDF sums to 2433.8 in Half PPR (+3.5%), 2378.6 in PPR (+1.1%) and 2333.2 in standard
+(-0.8%), over the same players. Jeremy is being asked whether EDDF should be rescaled to that
+total; this PR does not rescale it.
+
+## Weight and independence, together
+
+Under one vote per expert the fresh lists hold 75% of the weight in Half PPR (the charts 25%), but
+they are about 1.07 effective independent views (pair rank correlation 0.925), and all of them
+come through FantasyPros's expert pages (the staff three among them). The weight sits with one
+view, not with nine.
+
 ## Before and after
 
 `before_after_<scoring>.csv`: every player with a DDF or EDDF value, both values, ranks and source
@@ -199,7 +213,7 @@ Smith-Njigba 67.60 to 67.27, Walker 66.10 to 62.51.
 ## Recommendation
 
 Built as Jeremy ruled (one per expert, primary, Tuesday reset). Keep EDDF off. On real values
-per_expert is steadier week to week (0.38 vs 0.51 mean weekly change in Half PPR) and prices a few
+per_expert is steadier week to week (0.39 vs 0.51 mean weekly change in Half PPR; partly built in, because the lists are held fixed and only the charts move) and prices a few
 more players, but it tracks the charts less closely (leave-one-chart-out rho 0.803 vs 0.919), the
 fresh lists are about one independent view carrying 75% of the weight, and a scrambled chart moves
 it no less than DDF. The Tuesday reset also means the ranker side empties after each reset and

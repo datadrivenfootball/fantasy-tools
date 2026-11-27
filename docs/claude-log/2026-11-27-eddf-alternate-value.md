@@ -33,6 +33,10 @@ to wire the JS engine only after PR 1332 merges or the hot-file slot is released
   Tuesday is stale inside the 14-day backstop and that a Tuesday-dated list is fresh; the JS twin
   and `tests/fixtures/eddf_parity.json` (regenerated) agree. Evidence reruns: 9 fresh lists in Half
   PPR instead of 14; the numbers in `docs/research/jeg-1735-eddf.md` are the Tuesday-rule run.
+- Review fixes (db2e50315 review): JS twin moved out of app/ to `pipelines/eddf_model.js` so it is not
+  published; `tests.test_eddf` now covers a disabled row and the all-candidates-disabled check;
+  amendment date corrected to 2026-11-28; `docs/decisions.md` entry added; league value total and
+  weight-vs-independence added to the write-up.
 - Candidate-file study: `tools/research/eddf_candidates.py` -> `candidate_study.json`
   (seven files, all disabled registry rows).
 

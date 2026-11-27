@@ -161,6 +161,21 @@ class Registry(unittest.TestCase):
                   lists={"a": RANKS, "b": RANKS, "d": RANKS})
         self.assertEqual(res["values"][1]["count"], 5)
 
+    def test_a_disabled_row_is_excluded_with_a_reason(self):
+        cfg = {**CFG, "rankers": [{"id": "a", "scoring": ["half_ppr"]},
+                                  {"id": "b", "scoring": ["half_ppr"], "enabled": False}]}
+        res = run(cfg=cfg)
+        status = {s["id"]: s for s in res["report"]["rankers"]}
+        self.assertFalse(status["b"]["in"])
+        self.assertIn("disabled", status["b"]["reason"])
+        self.assertNotIn("b", res["values"][1]["sources"])
+        self.assertEqual(res["values"][1]["sources"], ["a", "x", "y"])
+
+    def test_registry_candidates_are_all_disabled(self):
+        for r in eddf.load_config()["rankers"]:
+            if r.get("candidate"):
+                self.assertIs(r["enabled"], False, r["id"])
+
     def test_duplicate_ids_are_refused(self):
         import tempfile
         p = Path(tempfile.mkdtemp()) / "c.json"
@@ -200,7 +215,7 @@ class JsParity(unittest.TestCase):
         code = ("const m=require(process.argv[1]);const fx=JSON.parse(require('fs').readFileSync(process.argv[2]));"
                 "const r=m.eddf(fx.charts,fx.lists,fx.vintages,fx.history,fx.pos,fx.config,fx.as_of,fx.scoring);"
                 "const o={};for(const k in r.values)o[k]=r.values[k].value;console.log(JSON.stringify(o));")
-        out = subprocess.run(["node", "-e", code, str(ROOT / "app/trade-value-chart/assets/eddf-model.js"),
+        out = subprocess.run(["node", "-e", code, str(ROOT / "pipelines/eddf_model.js"),
                               str(ROOT / "tests/fixtures/eddf_parity.json")], capture_output=True, text=True, check=True)
         js = json.loads(out.stdout)
         self.assertEqual(set(js), set(fx["expected"]))

@@ -92,7 +92,8 @@ def main():
                 wm_prev = {w: wm[w] for w in (11, 10)}
                 prev = {pk: x["value"] for pk, x in E.eddf.eddf({c: wm[11][c] for c in charts}, lists, vint,
                         [E.chart_mean({c: wm[w][c] for c in charts}) for w in (11, 10)], pos_of, cfg, as_of, scoring, v)["values"].items()}
-            P = [pk for pk in full[v] if pk in prev]
+            none_prev = E.eddf.chart_only({c: wm[11][c] for c in charts}, pos_of)
+            P = [pk for pk in full[v] if pk in prev and pk in full["none"] and pk in none_prev]  # the population DDF prices both weeks
             row["stability_mae_week_change"] = E.mae([full[v][p] for p in P], [prev[p] for p in P])
             # coverage and weight dominance
             row["priced"] = len(full[v])

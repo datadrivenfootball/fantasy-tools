@@ -156,7 +156,7 @@ See also: `docs/modular-pipeline.md` for the four-stage flow these rules guard.
   rankings, never values: no value-building stage, fixture, edge function or
   page reads that table, and the trade-value importer keeps its ECR hard
   exclusion (`tests/test_ros_rankings.py` pins both). Any use of them in DDF
-  Value or DDF Projections is a separate decision for Jeremy. Amended 2026-11-27 (JEG-1735,
+  Value or DDF Projections is a separate decision for Jeremy. Amended 2026-11-28 (JEG-1735,
   Jeremy: "A"): an alternate version, EDDF (`pipelines/eddf.py`, `config/eddf_sources.json`), may read
   the individual expert lists as rank-implied values beside the charts. It is off by default,
   DDF Value and DDF Projections never read it, and no EDDF number is published or wired into the page
