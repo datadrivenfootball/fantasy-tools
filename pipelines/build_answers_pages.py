@@ -86,7 +86,9 @@ def cache_key(dist: Path, tag: str | None, cells: list[str] | None) -> str:
     # The day (the week choice falls back to the calendar when history does not match the build) and node's version
     # are inputs too.
     import datetime
-    day = os.environ.get("TRADE_VALUE_TODAY") or datetime.date.today().isoformat()
+    from zoneinfo import ZoneInfo
+    # answer_tables' todayIso() uses the America/New_York date.
+    day = os.environ.get("TRADE_VALUE_TODAY") or datetime.datetime.now(ZoneInfo("America/New_York")).date().isoformat()
     node = subprocess.run(["node", "--version"], capture_output=True, text=True).stdout.strip() if shutil.which("node") else "-"
     h = hashlib.sha256(f"{tag}|{','.join(cells or [])}|{day}|{node}".encode())
     files = [dist / f for f in TABLE_INPUTS] + sorted((dist / "assets" / "history").glob("*.json")) + [ROOT / f for f in CODE_INPUTS]
