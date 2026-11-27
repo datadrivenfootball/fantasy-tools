@@ -28,6 +28,7 @@ from pathlib import Path
 
 from tests import _render_env
 from tests._dist_server import serve
+from tests.test_entry_platform_link_render import espn_data_view
 
 ROOT = Path(__file__).resolve().parents[1]
 FX = ROOT / "tests" / "fixtures" / "espn"
@@ -36,6 +37,7 @@ TEAMS = json.loads((FX / "teams.json").read_text())
 ESPN_ID = "1086064"
 ESPN_LINK = f"https://fantasy.espn.com/football/league?leagueId={ESPN_ID}"
 ESPN_ROSTERS = f"https://fantasy.espn.com/football/league/rosters?leagueId={ESPN_ID}"
+ESPN_DATA_VIEW = espn_data_view(ESPN_ID)   # when ESPN cannot be read from the page: the copy path (#1550)
 YAHOO_ROSTERS = f"https://football.fantasysports.yahoo.com/f1/{ESPN_ID}/starters"
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste && DDF.espn"
 # any entry page: the engine has loaded (DDF.engine.settings exists before then and throws until it has)
@@ -233,8 +235,8 @@ class EspnLoadTest(unittest.TestCase):
         page.wait_for_function(ENGINE_READY, timeout=60000)
         run.paste("#league-ref", ESPN_LINK, "paste the ESPN league link")
         page.wait_for_selector("#link-result a.button", timeout=10000)
-        self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_ROSTERS)
-        run.count(1, "Open your ESPN rosters page")
+        self.assertEqual(page.get_attribute("#link-result a.rosters-instead", "href"), ESPN_ROSTERS, "the rosters page, under the data view")
+        run.count(1, "Or copy the rosters page instead")
         run.count(OFFSITE[width], "on the rosters page: select all, copy, back")
         run.paste("#rosters", paste_text(), "paste every team's roster")
         page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
@@ -278,7 +280,8 @@ class EspnLoadTest(unittest.TestCase):
                 Run(page, width).paste("#league-ref", ESPN_LINK)
                 page.wait_for_selector("#link-result .espn-why", timeout=10000)
                 self.assertIn("This ESPN league is private", page.text_content("#link-result .espn-why"))
-                self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_ROSTERS)
+                self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_DATA_VIEW, "the copy path: ESPN's data view")
+                self.assertEqual(page.get_attribute("#link-result a.rosters-instead", "href"), ESPN_ROSTERS)
                 self.assertIn("League manager?", page.text_content("#link-result"))
                 self.assertNotIn("is-error", page.get_attribute("#link-result", "class") or "")
                 self.assertTrue(page.is_hidden("#recognized"))
@@ -306,7 +309,7 @@ class EspnLoadTest(unittest.TestCase):
                 Run(page, PHONE).paste("#league-ref", ESPN_LINK)
                 page.wait_for_selector("#link-result .espn-why", timeout=10000)
                 self.assertIn(text, page.text_content("#link-result"))
-                self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_ROSTERS, "the copy path stays one tap away")
+                self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_DATA_VIEW, "the copy path stays one tap away")
                 page.espn_mode = "public"
                 for r in page.espn_pending:
                     try:

@@ -114,7 +114,7 @@ class FitNoticeTest(unittest.TestCase):
             self.tap(page, ".setup-option >> nth=1", "your team")
             self.tap(page, ".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(500)
         return page
 
@@ -172,7 +172,7 @@ class FitNoticeTest(unittest.TestCase):
             with self.subTest(teams=teams):
                 page = self.page(DESKTOP)
                 page.goto(f"{self.base}/team.html#?scoring=ppr&teams={teams}", wait_until="networkidle", timeout=60000)
-                page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings && DDF.engine.settings().teams", timeout=60000)
+                page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls()) && DDF.engine.settings().teams", timeout=60000)
                 page.wait_for_timeout(500)
                 self.assertEqual(page.evaluate("DDF.engine.settings().teams"), used)
 
@@ -183,7 +183,7 @@ class FitNoticeTest(unittest.TestCase):
         page.wait_for_url("**/team.html", timeout=30000)
         card = "your team on the card" in page.taps
         self.assertEqual(len(page.taps), SLEEPER_TAPS_MAIN - (1 if card else 0), page.taps)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         self.assertEqual(page.evaluate("DDF.engine.settings().teams"), 14)
 
 

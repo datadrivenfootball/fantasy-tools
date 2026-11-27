@@ -33,6 +33,18 @@ YAHOO_LINK = "https://football.fantasysports.yahoo.com/f1/848938"
 YAHOO_ROSTERS = "https://football.fantasysports.yahoo.com/f1/848938/starters"
 ESPN_LINK = "https://fantasy.espn.com/football/league?leagueId=123456"
 ESPN_ROSTERS = "https://fantasy.espn.com/football/league/rosters?leagueId=123456"
+
+
+def espn_data_view(league_id: str) -> str:
+    """ESPN's data view of a league, which the ESPN Open button opens (the shorter copy path): this season by the page's rule."""
+    import datetime
+    d = datetime.date.today()
+    season = d.year - 1 if d.month < 3 else d.year
+    return (f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{league_id}"
+            "?view=mTeam&view=mRoster&view=mSettings")
+
+
+ESPN_OPEN = espn_data_view("123456")   # the ESPN Open button: ESPN's data view (the rosters page is the link under it)
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste && DDF.sleeper"
 HEADER_STEPS = ["1. League rosters", "2. Your team", "3. League settings"]
 PHONE, DESKTOP = 375, 1280
@@ -162,7 +174,7 @@ class PlatformLinkTest(unittest.TestCase):
     # ---- 1 ----
     def test_a_link_sets_its_platform(self):
         cases = [("espn", YAHOO_LINK, "yahoo", YAHOO_ROSTERS, "That is a Yahoo link, so we switched to Yahoo."),
-                 ("yahoo", ESPN_LINK, "espn", ESPN_ROSTERS, "That is an ESPN link, so we switched to ESPN."),
+                 ("yahoo", ESPN_LINK, "espn", ESPN_OPEN, "That is an ESPN link, so we switched to ESPN."),
                  ("sleeper", YAHOO_LINK, "yahoo", YAHOO_ROSTERS, "That is a Yahoo link, so we switched to Yahoo.")]
         for width in (PHONE, DESKTOP):
             for start, link, want, rosters, note in cases:
@@ -212,7 +224,7 @@ class PlatformLinkTest(unittest.TestCase):
     # ---- 3 ----
     def test_a_bare_number_keeps_the_chosen_platform(self):
         for width in (PHONE, DESKTOP):
-            for start, want in (("yahoo", YAHOO_ROSTERS), ("espn", "https://fantasy.espn.com/football/league/rosters?leagueId=848938")):
+            for start, want in (("yahoo", YAHOO_ROSTERS), ("espn", espn_data_view("848938"))):
                 with self.subTest(width=width, start=start):
                     page = self.connect(width)
                     page.click(f"[data-provider={start}]")
@@ -279,7 +291,7 @@ class PlatformLinkTest(unittest.TestCase):
             run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         run.card = card
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(300)
         if page.eval_on_selector("#scoring", "e => e.value") != "Half PPR":
             run.tap('[aria-labelledby=lbl-scoring] button[data-value="Half PPR"]', "Half PPR")
@@ -291,7 +303,7 @@ class PlatformLinkTest(unittest.TestCase):
             self.assertEqual(int(page.input_value(f"#lineup-{key}")), want)
         run.tap(".ddf-actionbar__next", "Looks right, continue")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 3, 5))
         self.assertEqual(page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted')).me"), 2, "Team 3 is yours")

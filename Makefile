@@ -766,6 +766,8 @@ test-core:
 	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
 	# League entry (Jeremy, 2026-11-24): a public ESPN league loads from its ID (ESPN faked); 375px and desktop. Light (about 50 s), so in shard 1.
 	python3 -m unittest tests.test_entry_espn_load_render
+	# League entry (Jeremy, 2026-11-24): the shorter ESPN copy path (ESPN's data view, Use what I copied); 375px and desktop. Light (about 40 s), so in shard 1.
+	python3 -m unittest tests.test_entry_espn_copy_render
 	# ESPN import reader: fixture responses, no live calls (node, under a second).
 	node tests/test_espn_import.js
 	# League entry (Jeremy, 2026-11-24): a Sleeper username finds your leagues and your team (Sleeper faked); 375px and desktop. About 3 min, in shard 1 (the lightest).
@@ -1005,6 +1007,8 @@ test-core-shard-1:
 	python3 -m unittest tests.test_entry_espn_yahoo_quick_render
 	# League entry (Jeremy, 2026-11-24): a public ESPN league loads from its ID (ESPN faked); 375px and desktop. Light (about 50 s), so in shard 1.
 	python3 -m unittest tests.test_entry_espn_load_render
+	# League entry (Jeremy, 2026-11-24): the shorter ESPN copy path (ESPN's data view, Use what I copied); 375px and desktop. Light (about 40 s), so in shard 1.
+	python3 -m unittest tests.test_entry_espn_copy_render
 	# ESPN import reader: fixture responses, no live calls (node, under a second).
 	node tests/test_espn_import.js
 	# League entry (Jeremy, 2026-11-24): a Sleeper username finds your leagues and your team (Sleeper faked); 375px and desktop. About 3 min, in shard 1 (the lightest).

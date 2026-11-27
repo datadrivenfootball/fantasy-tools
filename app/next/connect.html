@@ -72,6 +72,7 @@ body.connect{scrollbar-color:#176c4d #eef1ec;caret-color:#176c4d}.connect ::sele
 /* ESPN and Yahoo: the rosters link shows as soon as the box holds a league ID, so there is no "Get rosters link" step */
 .connect:not([data-entry-provider="sleeper"]) #get-link{display:none}
 .connect .entry-forget-row{margin:4px 0 0;font-size:14px}.connect #entry-forget,.connect #entry-to-sleeper{min-height:44px}
+.connect .copy-steps{margin:10px 0 6px;padding-left:22px;font-size:14.5px;display:flex;flex-direction:column;gap:4px}.connect .rosters-instead{display:inline-flex;align-items:center;min-height:44px;font-size:14px;font-weight:600;color:#176c4d}
 /* a public ESPN league read from its ID: the copy steps step aside, as for Sleeper (the paste box stays one tap away) */
 .connect.espn-loaded .way-how,.connect.espn-loaded .way-or,.connect.espn-loaded .jump-paste,.connect.espn-loaded:not(.show-paste) #entry{display:none}.connect.espn-loaded .routes{grid-template-columns:minmax(0,1fr)!important}
 .connect #link-result .espn-out{display:flex;flex-direction:column;align-items:flex-start;gap:8px}.connect #link-result.is-loading,.connect #link-result.is-note{color:#3d4a55}.connect #link-result.is-note .espn-why{font-weight:600;color:#12202c}.connect .espn-why-tip{font-size:14px;color:#5c6a76}.connect .espn-why-tip .link-button{min-height:44px}.connect .espn-look-title{color:#12202c}.connect .espn-prog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14.5px}.connect .espn-prog li{display:flex;align-items:center;gap:8px}.connect .espn-prog li::before{content:"";flex:none;width:14px;height:14px;border-radius:50%;box-sizing:border-box;border:2px solid #176c4d}.connect .espn-prog li.done::before{background:#176c4d}.connect .espn-prog li.on::before{border-right-color:transparent}@media (prefers-reduced-motion:no-preference){.connect .espn-prog li.on::before{animation:espn-spin .8s linear infinite}}@keyframes espn-spin{to{transform:rotate(360deg)}}.connect .espn-look-note{font-size:13px;color:#5c6a76}
@@ -189,7 +190,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 <section class="step" id="step-1" aria-labelledby="step1-title">
 <h2 id="step1-title"><span class="step-num">Step 1</span>Open your rosters page</h2>
 <div class="routes" id="routes">
-<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID. We read public ESPN leagues straight from ESPN; for any other league we give you the link to your rosters page.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p class="sleeper-example" id="sleeper-example" hidden>Your username is under your profile picture in the Sleeper app; no password. A league link looks like sleeper.com/leagues/1234567890123456.</p><p id="link-platform" class="link-platform" role="status" hidden></p><p id="link-result" aria-live="polite"></p><p class="entry-forget-row"><button type="button" class="link-button" id="entry-forget" hidden>Forget this league</button></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
+<div class="way way-link"><h3>Have a link or league ID?</h3><p>Paste a link from your league, or your league ID. We read public ESPN leagues straight from ESPN; for any other league we show you what to copy.</p><label for="league-ref">League link or ID</label><div class="cluster"><input type="text" id="league-ref" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="A league link or ID, such as 123456"><button type="button" id="get-link">Get rosters link</button></div><p class="sleeper-example" id="sleeper-example" hidden>Your username is under your profile picture in the Sleeper app; no password. A league link looks like sleeper.com/leagues/1234567890123456.</p><p id="link-platform" class="link-platform" role="status" hidden></p><p id="link-result" aria-live="polite"></p><p class="entry-forget-row"><button type="button" class="link-button" id="entry-forget" hidden>Forget this league</button></p><details class="id-help" id="id-help"><summary>Where do I find my league ID?</summary>
 <div data-idhelp="espn"><p><strong>ESPN Fantasy app</strong></p><ol><li>Open your league in the ESPN Fantasy app.</li><li>Tap the <strong>League</strong> tab.</li><li>Tap <strong>League Info</strong>.</li><li>Check <strong>League ID</strong> under Basic Settings.</li></ol>
 <p>In a web address it is the number after <code>leagueId=</code>:</p><p class="id-example">fantasy.espn.com/football/league?leagueId=<strong>123456</strong></p>
 <div class="id-shots"><figure><a href="img/league-id/espn-app-league.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league.jpg" alt="ESPN Fantasy app, League tab: League Info is the first icon in the row under the league name" width="600" height="483" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League tab: tap League Info.</figcaption></figure><figure><a href="img/league-id/espn-app-league-info.jpg" target="_blank" rel="noopener"><img src="img/league-id/espn-app-league-info.jpg" alt="ESPN Fantasy app, League Info screen: League ID is listed under Basic Settings" width="600" height="1062" loading="lazy" decoding="async"><span class="sr-only"> (opens full size)</span></a><figcaption>League ID under Basic Settings.</figcaption></figure></div></div>
@@ -222,7 +223,7 @@ header :focus-visible,.entry-head :focus-visible{outline-color:#fff}
 </details></div>
 </div>
 </section>
-<section id="entry" class="step" aria-labelledby="step2-title"><h2 id="step2-title"><span class="step-num">Step 2</span>Paste every team's roster</h2><p class="step-help">We need every team in your league, not just yours.<span class="dv-desktop"> On the page that lists every team's roster, select everything (Ctrl+A, or Cmd+A on a Mac), copy it (Ctrl+C or Cmd+C), then paste it here (Ctrl+V or Cmd+V).</span></p><p class="phone-tip dv-phone" id="phone-tip">On iPhone: long-press the page, tap Select All, tap Copy, then paste here.</p><p class="dv-switch"><button type="button" class="dv-toggle to-desktop" data-show-device="desktop">On a computer</button><button type="button" class="dv-toggle to-phone" data-show-device="phone">On a phone</button></p><form id="roster-form"><label for="rosters"><strong>Every team's roster</strong></label><p class="paste-rosters-row"><button type="button" class="button" id="paste-rosters">Paste rosters</button><span class="paste-rosters-help" id="paste-rosters-help" role="status"></span></p><p class="replacing-line" id="replacing-line" hidden></p><textarea aria-describedby="entry-help entry-status one-team-error-text" id="rosters" rows="6" placeholder="Paste the rosters for all teams in your league here. Messy is fine, we will clean it up."></textarea><div id="one-team-error" role="alert" hidden><h3>That looks like one team, not the whole league</h3><p id="one-team-error-text">We need every team's roster to value trades. Either copy the full rosters page (League, then Rosters) or add the teams by hand.</p><a class="button" id="error-manual" href="#manual">Enter teams manually</a></div><span id="entry-help" hidden></span><div class="row entry-actions"><a class="button" href="index.html">Back</a><div class="entry-right"><button class="primary" aria-controls="recognized" aria-expanded="false" id="recognize-button">Check my rosters</button><a class="button manual-link" id="manual-toggle" href="#manual" aria-controls="manual" aria-expanded="false">Enter rosters manually</a></div></div><p id="entry-status" role="status" class="notice"></p></form></section>
+<section id="entry" class="step" aria-labelledby="step2-title"><h2 id="step2-title"><span class="step-num">Step 2</span>Paste every team's roster</h2><p class="step-help">We need every team in your league, not just yours.<span class="dv-desktop"> On the page that lists every team's roster, select everything (Ctrl+A, or Cmd+A on a Mac), copy it (Ctrl+C or Cmd+C), then paste it here (Ctrl+V or Cmd+V).</span></p><p class="phone-tip dv-phone" id="phone-tip">On iPhone: long-press the page, tap Select All, tap Copy, then paste here.</p><p class="dv-switch"><button type="button" class="dv-toggle to-desktop" data-show-device="desktop">On a computer</button><button type="button" class="dv-toggle to-phone" data-show-device="phone">On a phone</button></p><form id="roster-form"><label for="rosters"><strong>Every team's roster</strong></label><p class="paste-rosters-row"><button type="button" class="button primary" id="paste-rosters">Use what I copied</button><span class="paste-rosters-help" id="paste-rosters-help" role="status"></span></p><p class="replacing-line" id="replacing-line" hidden></p><textarea aria-describedby="entry-help entry-status one-team-error-text" id="rosters" rows="6" placeholder="Paste the rosters for all teams in your league here. Messy is fine, we will clean it up."></textarea><div id="one-team-error" role="alert" hidden><h3>That looks like one team, not the whole league</h3><p id="one-team-error-text">We need every team's roster to value trades. Either copy the full rosters page (League, then Rosters) or add the teams by hand.</p><a class="button" id="error-manual" href="#manual">Enter teams manually</a></div><span id="entry-help" hidden></span><div class="row entry-actions"><a class="button" href="index.html">Back</a><div class="entry-right"><button class="primary" aria-controls="recognized" aria-expanded="false" id="recognize-button">Check my rosters</button><a class="button manual-link" id="manual-toggle" href="#manual" aria-controls="manual" aria-expanded="false">Enter rosters manually</a></div></div><p id="entry-status" role="status" class="notice"></p></form></section>
 <section class="card connect-recognition" id="recognized" hidden aria-labelledby="recognition-title">
 <div class="row"><h2 id="recognition-title" tabindex="-1">Here's what we read from your paste</h2><button type="button" class="link-button" id="edit-team-names">Edit team names</button></div>
 <p class="muted" id="recognition-summary" role="status"></p>
@@ -577,6 +578,16 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
     return m?(m[1]||m[0]):null;
   }
   function rostersUrl(p,id){ return p==='espn'?'https://fantasy.espn.com/football/league/rosters?leagueId='+id:'https://football.fantasysports.yahoo.com/f1/'+id+'/starters'; }
+  /* ESPN: its data view of the league (every roster, slot and setting as plain text), opened with the reader's sign-in */
+  function dataViewUrl(id){ var E=window.DDF&&DDF.espn; return E?E.leagueUrl(E.seasonNow(),id,['mTeam','mRoster','mSettings']):null; }
+  function openHtml(p,id){
+    var view=p==='espn'?dataViewUrl(id):null;
+    if(!view) return '<a class="button primary" id="open-rosters" href="'+rostersUrl(p,id)+'" target="_blank" rel="noopener">Open your '+(p==='espn'?'ESPN':'Yahoo')+' rosters page</a><br>Copy the whole page, then come back and tap Use what I copied in step 2 below.';
+    return '<a class="button primary" id="open-rosters" href="'+view+'" target="_blank" rel="noopener">Open my league on ESPN</a>'
+      +'<ol class="copy-steps"><li>A page of plain text opens: ESPN\'s own data for your league. If it says you are not authorized, sign in on espn.com first.</li>'
+      +'<li>Select all the text and copy it.</li><li>Come back here and tap <strong>Use what I copied</strong>.</li></ol>'
+      +'<a class="rosters-instead" href="'+rostersUrl(p,id)+'" target="_blank" rel="noopener">Or copy the rosters page instead</a>';
+  }
   function remember(p,id){ if(!/^\d{1,20}$/.test(String(id))) return; try{ localStorage.setItem(KEY, JSON.stringify({v:2, platform:p, id:String(id)})); }catch(e){} forgetShown(true); }
   function recall(){ try{ var r=JSON.parse(localStorage.getItem(KEY)||'null'); return r&&r.v===2&&/^(espn|yahoo|sleeper)$/.test(r.platform)&&/^\d{1,20}$/.test(r.id)?r:null; }catch(e){ return null; } }
   var forget=document.getElementById('entry-forget');
@@ -602,7 +613,7 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
       else if(out.querySelector('a.button')){ out.textContent=''; }
       return;
     }
-    var open='<a class="button primary" id="open-rosters" href="'+rostersUrl(p,id)+'" target="_blank" rel="noopener">Open your '+(p==='espn'?'ESPN':'Yahoo')+' rosters page</a><br>Copy the whole page, then come back and paste it in step 2 below.';
+    var open=openHtml(p,id);   /* ESPN: its data view with the copy steps (the rosters page under it); Yahoo: the rosters page */
     remember(p,id);
     /* ESPN: a public league loads from the ID (connect-entry.js espnLookup); the rosters link is the fallback it shows */
     if(p==='espn'&&window.DDF&&DDF.connectEntry&&DDF.connectEntry.espnLookup&&DDF.connectEntry.espnLookup(id,{button:open,restore:restoring})) return;
@@ -641,11 +652,26 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape' && wr
       help.textContent='';
       if(!navigator.clipboard||!navigator.clipboard.readText){ fallback(); return; }
       navigator.clipboard.readText().then(function(text){
-        if(!text||!text.trim()){ help.textContent='Your clipboard is empty. Copy the rosters page first.'; return; }
+        if(!text||!text.trim()){ help.textContent='Your clipboard is empty. Copy the page on ESPN or your rosters page first.'; return; }
+        /* ESPN's data view is read as it is, without filling the box with megabytes of text */
+        var CE=window.DDF&&DDF.connectEntry;
+        if(CE&&CE.readEspnCopied&&CE.espnCopied(text)){ CE.readEspnCopied(text,true); return; }
         ta.dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true}));
         ta.value=text;
         ta.dispatchEvent(new Event('input',{bubbles:true}));
       },fallback);
+    });
+    /* back from the ESPN or Yahoo tab: the one button that finishes the copy is right there */
+    var opened=false;
+    out.addEventListener('click',function(e){ if(e.target.closest&&e.target.closest('#open-rosters, .rosters-instead')) opened=true; });
+    document.addEventListener('visibilitychange',function(){
+      if(document.visibilityState!=='visible'||!opened) return;
+      opened=false;
+      var kept=null; try{ kept=DDF.state.get('pasted',null); }catch(e){}
+      if(kept&&Array.isArray(kept.teams)&&kept.teams.length>1) return;
+      help.textContent='Welcome back. Copied it? Tap Use what I copied.';
+      pb.scrollIntoView({block:'center'});
+      try{ pb.focus({preventScroll:true}); }catch(e){}
     });
   }
 })();

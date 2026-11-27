@@ -29,6 +29,18 @@ YAHOO_LINK = "https://football.fantasysports.yahoo.com/f1/848938"
 YAHOO_ROSTERS = "https://football.fantasysports.yahoo.com/f1/848938/starters"
 ESPN_LINK = "https://fantasy.espn.com/football/league?leagueId=123456"
 ESPN_ROSTERS = "https://fantasy.espn.com/football/league/rosters?leagueId=123456"
+
+
+def espn_data_view(league_id: str) -> str:
+    """ESPN's data view of a league, which the ESPN Open button opens (the shorter copy path): this season by the page's rule."""
+    import datetime
+    d = datetime.date.today()
+    season = d.year - 1 if d.month < 3 else d.year
+    return (f"https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{league_id}"
+            "?view=mTeam&view=mRoster&view=mSettings")
+
+
+ESPN_OPEN = espn_data_view("123456")   # the ESPN Open button: ESPN's data view (the rosters page is the link under it)
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste && DDF.sleeper"
 HEADER_STEPS = ["1. League rosters", "2. Your team", "3. League settings"]
 PHONE, DESKTOP = 375, 1280
@@ -165,7 +177,7 @@ class EspnYahooQuickWinsTest(unittest.TestCase):
     # ---- 1 ----
     def test_the_rosters_link_shows_as_the_box_fills(self):
         for width in (PHONE, DESKTOP):
-            for start, link, want in (("yahoo", YAHOO_LINK, YAHOO_ROSTERS), ("espn", ESPN_LINK, ESPN_ROSTERS), ("yahoo", "848938", YAHOO_ROSTERS)):
+            for start, link, want in (("yahoo", YAHOO_LINK, YAHOO_ROSTERS), ("espn", ESPN_LINK, ESPN_OPEN), ("yahoo", "848938", YAHOO_ROSTERS)):
                 with self.subTest(width=width, start=start, link=link):
                     page = self.connect(width)
                     page.click(f"[data-provider={start}]")
@@ -301,7 +313,7 @@ class EspnYahooQuickWinsTest(unittest.TestCase):
             run.tap('.setup-option:has(input[value="Team 3"])', "Team 3")
             run.tap(".ddf-actionbar__next:not([aria-disabled=true])", "Next: confirm league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         page.wait_for_timeout(300)
         if page.eval_on_selector("#scoring", "e => e.value") != "Half PPR":
             run.tap('[aria-labelledby=lbl-scoring] button[data-value="Half PPR"]', "Half PPR")
@@ -312,7 +324,7 @@ class EspnYahooQuickWinsTest(unittest.TestCase):
                 run.tap(f'button[aria-label="{"Increase" if want > cur else "Decrease"} {label}"]', f"{key} to {want}")
         run.tap(".ddf-actionbar__next", "Looks right, continue")
         page.wait_for_url("**/team.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function("() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())", timeout=60000)
         s = page.evaluate("DDF.engine.settings()")
         self.assertEqual((s["scoring"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 3, 5))
         self.assertEqual(page.errors, [])
