@@ -1,11 +1,11 @@
 {
  "meta": {
-  "as_of": "2026-11-26",
+  "as_of": "2026-11-27",
   "prior_blend_snapshot": "2026-09-23",
-  "espn_snapshot": "2026-11-26",
+  "espn_snapshot": "2026-11-27",
   "rz_snapshot": "2026-11-26",
   "cbsros_snapshot": "2026-11-26",
-  "espn_snapshot_id": "sha256:f5933666695283cfaec9c9750e5a1294e24a8c0d0f549c10a41806085758b937",
+  "espn_snapshot_id": "sha256:c75d4b76693b9bf101a56d26c5a79f3e4d197605f2501d2007792f6eecd3f956",
   "cbsros_snapshot_id": "sha256:c3f3ae6f2296e878c6d06f479960f57a71f4f130770b621efb71ed6e456d6234",
   "rz_snapshot_id": "sha256:fecb7f60e88ad17342d98378d5531e5cb76cd874e037b77a19cf368587813a55",
   "n_players": 1164,
@@ -54,19 +54,19 @@
      "snapshot": "data/raw/sources/fantasycalc/week-12/snapshot.json",
      "by_combo": {
       "half_ppr-12": {
-       "QB": 35,
+       "QB": 34,
        "RB": 59,
        "WR": 75,
        "TE": 25
       },
       "ppr-12": {
-       "QB": 35,
+       "QB": 34,
        "RB": 59,
        "WR": 75,
        "TE": 25
       },
       "standard-12": {
-       "QB": 35,
+       "QB": 34,
        "RB": 59,
        "WR": 75,
        "TE": 25
@@ -169,8 +169,8 @@
   "pricing_note": "pricing labels are uniform 'espn_only' across all positions (JEG-ECR-EXIT 2026-10-05): the primary value IS ESPN, with ESPN-purity (every ESPN-labeled field sourced ONLY from ESPN projections) for every charted position. The source-accounting audit rejects any other label.",
   "content_observation_scopes": {},
   "dataset_status": {
-   "built_at": "2026-11-26T23:27:28Z",
-   "as_of": "2026-11-26",
+   "built_at": "2026-11-27T11:46:06Z",
+   "as_of": "2026-11-27",
    "summary": {
     "live": 0,
     "stale": 4,
@@ -197,7 +197,7 @@
       "note": "Every charted player carries a current value model value."
      },
      "freshness": {
-      "snapshot_date": "2026-11-26",
+      "snapshot_date": "2026-11-27",
       "content_date": null,
       "note": "Fetch and numeric-change clocks are independent; unknown vintage is non-green.",
       "observations": [
@@ -214,7 +214,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479004Z"
+        "evaluated_at": "2026-11-27T11:46:06.010043Z"
        }
       ]
      },
@@ -244,7 +244,7 @@
       "note": "Pure read over priced components only \u2014 missing components default to 0.0 in the primary leg (fantasy_points treats 0 identically to 'missing'). No expert blend fills the gap."
      },
      "freshness": {
-      "snapshot_date": "2026-11-26",
+      "snapshot_date": "2026-11-27",
       "content_date": null,
       "note": "Fetch and numeric-change clocks are independent; unknown vintage is non-green.",
       "observations": [
@@ -261,7 +261,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479004Z"
+        "evaluated_at": "2026-11-27T11:46:06.010043Z"
        }
       ]
      },
@@ -307,7 +307,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479247Z"
+        "evaluated_at": "2026-11-27T11:46:06.010279Z"
        }
       ]
      },
@@ -353,7 +353,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479467Z"
+        "evaluated_at": "2026-11-27T11:46:06.010493Z"
        }
       ]
      },
@@ -399,7 +399,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479689Z"
+        "evaluated_at": "2026-11-27T11:46:06.010717Z"
        }
       ]
      },
@@ -445,7 +445,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.479909Z"
+        "evaluated_at": "2026-11-27T11:46:06.010923Z"
        }
       ]
      },
@@ -491,7 +491,7 @@
         "last_observed_change_at": null,
         "normalized_content_hash": null,
         "coverage": null,
-        "evaluated_at": "2026-11-26T23:27:28.480119Z"
+        "evaluated_at": "2026-11-27T11:46:06.011127Z"
        }
       ]
      },
@@ -40157,8 +40157,6 @@
    "universe_sources": [
     "cbs:superflex",
     "cbsros",
-    "fantasycalc",
-    "fantasycalc:superflex",
     "razzball",
     "usatoday",
     "usatoday:superflex"
@@ -52745,7 +52743,7 @@
    "player_key": 2648,
    "name": "Jake Browning",
    "pos": "QB",
-   "team": "CIN",
+   "team": "LAC",
    "espn_ros": {
     "standard": 0.0,
     "half_ppr": 0.0,
@@ -61656,8 +61654,6 @@
    "espn_status": "ineligible",
    "universe_sources": [
     "cbsros",
-    "fantasycalc",
-    "fantasycalc:superflex",
     "fantasypros",
     "razzball",
     "usatoday"
