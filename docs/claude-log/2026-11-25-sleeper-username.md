@@ -13,3 +13,10 @@ League entry cheap win 2 of 3 (Jeremy, 2026-11-24: cheap wins, then the Chrome h
   The username is never stored; the loaded league's ID is remembered as `{v:2, platform:'sleeper', id}` as before.
 - Tests: `tests/test_sleeper_import.js` (username case), `tests/test_entry_sleeper_username_render.py` (Sleeper faked
   by a Playwright route). Fixtures `tests/fixtures/sleeper/user.json` and `user-leagues.json`.
+
+## Lesson (review on #1549, 2026-11-27)
+
+- Imported league settings (Sleeper, ESPN) reach the engine on Next only (`applyImported` in connect-entry.js), so
+  Edit league then Keep my league leaves them as they were (the #1536 rule).
+- When a change moves *when* something is saved, grep every test that fakes that platform (`grep -ln api.sleeper.app
+  tests/*.py`) and run them all. `test_sleeper_entry` checked the old timing and was missed until review.
