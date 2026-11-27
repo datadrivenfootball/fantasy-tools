@@ -1,5 +1,7 @@
 # DDF iOS app (prototype, JEG-1732)
 
+> **On hold.** Jeremy, 2026-11-27, on shipping the app: "Website only for now." Kept as a prototype; nothing goes to TestFlight or the App Store until he reopens it.
+
 A thin SwiftUI app around the DDF "Add your league" page. Its one job beyond showing the page: let a fan
 connect a private ESPN league in three taps (Connect ESPN, sign in, pick league) without DDF ever seeing
 the ESPN password.
