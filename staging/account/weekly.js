@@ -468,5 +468,187 @@
     return best;
   }
 
-  root.DDFWeekly = {plan: plan, slotsOf: slotsOf, lineup: lineup, teamWeek: teamWeek, playerWeek: playerWeek, winChance: winChance, fitSpread: fitSpread, phi: phi, dropCandidate: dropCandidate};
+  // ---------- Cover (Team page): what each starter's absence costs, week by week, and who covers ----------
+  function teamOf(summary, key) { return (summary.teams || []).filter(function (t) { return t.team_key === key; })[0] || null; }
+  function weeksLeft(summary, weekly) { var cur = num(summary.current_week) || 1; return (weekly.weeks || []).filter(function (w) { return w >= cur; }); }
+  function cover(summary, weekly, teamKey) {
+    var t = teamOf(summary, teamKey || summary.my_team_key); if (!t) throw new Error("Pick your team first.");
+    var slots = slotsOf(summary), weeks = weeksLeft(summary, weekly), roster = t.roster || [];
+    var base = {}; weeks.forEach(function (w) { base[w] = teamWeek(summary, weekly, roster, w, slots); });
+    var startIds = {}; weeks.forEach(function (w) { base[w].starters.forEach(function (s) { if (s.player_id) startIds[s.player_id] = true; }); });
+    var starters = roster.filter(function (e) { return startIds[e.player_id] && posOf(e) !== "K" && posOf(e) !== "DEF"; }).map(function (e) {
+      var row = {player_id: e.player_id, name: e.name, pos: posOf(e), slot: e.slot || null, status: e.status || null, weeks: {}, total_cost: 0, worst: null, kind: "ok", shared_with: [], _covers: {}};
+      var rest = roster.filter(function (x) { return x.player_id !== e.player_id; });
+      weeks.forEach(function (w) {
+        var me = playerWeek(weekly, e, w), b = base[w];
+        var starts = b.starters.some(function (s) { return s.player_id === e.player_id; });
+        if (!starts) { row.weeks[w] = {points: me.points, starts: false, bye: me.bye, cost: 0, cover: null}; return; }
+        var without = lineup(slots, rest.map(function (x) { return playerWeek(weekly, x, w); }));
+        var cost = b.total !== null && without.total !== null ? r1(b.total - without.total) : null;
+        var inId = without.starters.filter(function (s) { return s.player_id && b.starters.every(function (y) { return y.player_id !== s.player_id; }); })[0] || null;
+        var emptyNow = without.empty_slots.length > b.empty_slots.length;
+        row.weeks[w] = {points: me.points, starts: true, bye: me.bye, cost: cost, cover: inId ? {player_id: inId.player_id, name: inId.name, points: inId.points} : null, empty: emptyNow};
+        if (cost === null) row.total_cost = null; else if (row.total_cost !== null) row.total_cost = r1(row.total_cost + cost);
+        if (cost !== null && (!row.worst || cost > row.worst.cost)) row.worst = {week: w, cost: cost};
+        if (inId) row._covers[inId.player_id] = (row._covers[inId.player_id] || []).concat([w]);
+        var share = me.points ? cost / me.points : null;
+        if (emptyNow || (share !== null && share >= 0.5)) row.kind = "hole";
+        else if (row.kind !== "hole" && share !== null && share >= 0.25) row.kind = "thin";
+      });
+      return row;
+    });
+    // shared cover: one backup covers two or more starters
+    var by = {}; starters.forEach(function (r) { Object.keys(r._covers).forEach(function (c) { (by[c] = by[c] || []).push(r.player_id); }); });
+    starters.forEach(function (r) {
+      Object.keys(r._covers).forEach(function (c) { by[c].forEach(function (id) { if (id !== r.player_id && r.shared_with.indexOf(id) < 0) r.shared_with.push(id); }); });
+      delete r._covers;
+    });
+    var rank = {hole: 0, thin: 1, ok: 2};
+    starters.sort(function (a, b) { return rank[a.kind] - rank[b.kind] || (b.total_cost || 0) - (a.total_cost || 0); });
+    // K and DEF: the starter, a backup on the roster, and the best add from the free agents in the data
+    var fas = summary.free_agents || [];
+    var kdef = ["K", "DEF"].filter(function (pos) { return slots.some(function (s) { return (ELIGIBLE[s] || []).indexOf(pos) >= 0; }); }).map(function (pos) {
+      var mine = roster.filter(function (e) { return posOf(e) === pos && e.slot !== "IR"; });
+      var tot = function (e) { return weeks.reduce(function (a, w) { return a + (playerWeek(weekly, e, w).points || 0); }, 0); };
+      mine.sort(function (a, b) { return tot(b) - tot(a); });
+      var cands = fas.filter(function (f) { return posOf(f) === pos; }).sort(function (a, b) { return tot(b) - tot(a); });
+      var best = cands[0] || null, cost = {};
+      weeks.forEach(function (w) {
+        var s = mine[0] ? playerWeek(weekly, mine[0], w) : null, bk = mine[1] ? playerWeek(weekly, mine[1], w) : null;
+        cost[w] = !s || s.points === null ? null : r1(s.points - (bk && bk.points !== null && !bk.bye ? bk.points : 0));
+      });
+      return {pos: pos, starter: mine[0] ? {player_id: mine[0].player_id, name: mine[0].name} : null, backup: mine[1] ? {player_id: mine[1].player_id, name: mine[1].name} : null,
+        best_add: best ? {player_id: best.player_id, name: best.name, weeks: weeks.reduce(function (o, w) { o[w] = playerWeek(weekly, best, w).points; return o; }, {})} : null, cost: cost,
+        starter_weeks: mine[0] ? weeks.reduce(function (o, w) { var x = playerWeek(weekly, mine[0], w); o[w] = {points: x.points, bye: x.bye}; return o; }, {}) : null};
+    });
+    var notes = ["Cost = your best lineup that week minus your best lineup without him, from weekly projections."];
+    return {weeks: weeks, starters: starters, kdef: kdef, notes: notes};
+  }
+
+  // ---------- Build a Trade: both sides by week, and player by player ----------
+  function swap(roster, outIds, ins) { return roster.filter(function (e) { return outIds.indexOf(e.player_id) < 0; }).concat(ins); }
+  function tradeImpact(summary, weekly, myKey, partnerKey, giveIds, getIds, opts) {
+    opts = opts || {};
+    var me = teamOf(summary, myKey || summary.my_team_key), them = teamOf(summary, partnerKey);
+    if (!me || !them) throw new Error("Pick both teams.");
+    var slots = slotsOf(summary), weeks = weeksLeft(summary, weekly);
+    var give = me.roster.filter(function (e) { return giveIds.indexOf(e.player_id) >= 0; });
+    var get = them.roster.filter(function (e) { return getIds.indexOf(e.player_id) >= 0; });
+    var myAfter = swap(me.roster, giveIds, get), theirAfter = swap(them.roster, getIds, give);
+    var sd = opts.sd || fitSpread(summary).sd;
+    var side = function (t, after) {
+      var o = {team_key: t.team_key, name: t.name, before: {}, after: {}, delta: {}, total_delta: 0, lineups: {}};
+      weeks.forEach(function (w) {
+        var b = teamWeek(summary, weekly, t.roster, w, slots), a = teamWeek(summary, weekly, after, w, slots);
+        o.before[w] = b.total; o.after[w] = a.total;
+        o.delta[w] = b.total !== null && a.total !== null ? r1(a.total - b.total) : null;
+        o.lineups[w] = {before: b, after: a};
+        if (o.delta[w] === null) o.total_delta = null; else if (o.total_delta !== null) o.total_delta = r1(o.total_delta + o.delta[w]);
+      });
+      return o;
+    };
+    var sides = [side(me, myAfter), side(them, theirAfter)];
+    var sched = {}; (summary.schedule || []).forEach(function (w) { sched[w.week] = w.matchups || []; });
+    var games = weeks.map(function (w) {
+      var m = (sched[w] || []).filter(function (x) { return x.team_keys && x.team_keys.indexOf(me.team_key) >= 0; })[0];
+      if (!m) return {week: w, opp_name: null, is_partner: false, win_before: null, win_after: null};
+      var ok = m.team_keys[1 - m.team_keys.indexOf(me.team_key)], opp = teamOf(summary, ok);
+      var isP = ok === them.team_key;
+      var ob = teamWeek(summary, weekly, opp.roster, w, slots).total;
+      var oa = isP ? sides[1].after[w] : ob;
+      var mb = sides[0].before[w], ma = sides[0].after[w];
+      return {week: w, opp_name: opp.name, is_partner: isP,
+        win_before: mb !== null && ob !== null ? r3(winChance(mb - ob, sd)) : null,
+        win_after: ma !== null && oa !== null ? r3(winChance(ma - oa, sd)) : null};
+    });
+    var moving = give.map(function (e) { return {e: e, from: me, to: them}; }).concat(get.map(function (e) { return {e: e, from: them, to: me}; }));
+    var players = moving.map(function (x) {
+      var fromSide = x.from === me ? sides[0] : sides[1], toSide = x.to === me ? sides[0] : sides[1];
+      var wk = {};
+      weeks.forEach(function (w) {
+        var p = playerWeek(weekly, x.e, w);
+        var sb = fromSide.lineups[w].before.starters.some(function (s) { return s.player_id === x.e.player_id; });
+        var sa = toSide.lineups[w].after.starters.some(function (s) { return s.player_id === x.e.player_id; });
+        wk[w] = {points: p.points, source: p.source, bye: p.bye, note: p.note, starts_before: sb, starts_after: sa};
+      });
+      return {player_id: x.e.player_id, name: x.e.name, pos: posOf(x.e), nfl_team: x.e.nfl_team || null, status: x.e.status || null, from_team: x.from.name, to_team: x.to.name, weeks: wk};
+    });
+    sides.forEach(function (s) { delete s.lineups; });
+    return {weeks: weeks, sides: sides, games: games, players: players};
+  }
+
+  // ---------- Trade & Waiver Recommendations: ranked by weekly gain ----------
+  function recommendations(summary, weekly, myKey, opts) {
+    opts = opts || {};
+    var me = teamOf(summary, myKey || summary.my_team_key); if (!me) throw new Error("Pick your team first.");
+    var slots = slotsOf(summary), weeks = weeksLeft(summary, weekly);
+    var p = opts.plan || null;
+    var weight = {}; // "For your games left": a week counts by its stake; unknown stakes count 1
+    weeks.forEach(function (w) {
+      var g = p ? p.games.filter(function (x) { return x.week === w; })[0] : null;
+      var st = g ? (g.phase === "playoffs" ? 1 : Math.max(Math.abs(g.stake.playoffs || 0), Math.abs(g.stake.seed || 0) * 0.5)) : 1;
+      weight[w] = g && g.phase === "playoffs" ? 1 : Math.max(0.05, st * 4); // a swing of 25 points of odds weighs like a playoff game
+    });
+    var base = {}; weeks.forEach(function (w) { base[w] = teamWeek(summary, weekly, me.roster, w, slots).total; });
+    var gainOver = function (roster) {
+      var by = {}, tot = 0, wt = 0, ok = true;
+      weeks.forEach(function (w) {
+        var t = teamWeek(summary, weekly, roster, w, slots).total;
+        if (t === null || base[w] === null) { by[w] = null; ok = false; return; }
+        by[w] = r1(t - base[w]); tot += t - base[w]; wt += (t - base[w]) * weight[w];
+      });
+      return {by: by, total: ok ? r1(tot) : null, weighted: ok ? r1(wt) : null};
+    };
+    // adds: each free agent, with the drop that costs least once he is in
+    var adds = (summary.free_agents || []).map(function (fa) {
+      var withFa = me.roster.concat([fa]);
+      var drop = dropCandidate(summary, weekly, withFa, slots, weeks[0], fa.player_id);
+      var after = drop ? withFa.filter(function (e) { return e.player_id !== drop.player_id; }) : withFa;
+      var g = gainOver(after);
+      return {player_id: fa.player_id, name: fa.name, pos: posOf(fa), nfl_team: fa.nfl_team || null, status: fa.status || null, percent_owned: num(fa.percent_owned),
+        drop: drop ? {player_id: drop.player_id, name: drop.name} : null, gain_by_week: g.by, total_gain: g.total, weighted_gain: g.weighted};
+    }).filter(function (a) { return a.total_gain !== null && a.total_gain >= 0.5; })
+      .sort(function (a, b) { return b.total_gain - a.total_gain; }).slice(0, opts.maxAdds || 12);
+    // trades: one for one with each other team, both sides' weekly lineups; kept when I gain and they do not lose much
+    var trades = [];
+    (summary.teams || []).forEach(function (t) {
+      if (t.team_key === me.team_key) return;
+      var tb = {}; weeks.forEach(function (w) { tb[w] = teamWeek(summary, weekly, t.roster, w, slots).total; });
+      me.roster.forEach(function (gv) {
+        if (gv.slot === "IR" || posOf(gv) === "K" || posOf(gv) === "DEF") return;
+        t.roster.forEach(function (gt) {
+          if (gt.slot === "IR" || posOf(gt) === "K" || posOf(gt) === "DEF") return;
+          var mine = gainOver(swap(me.roster, [gv.player_id], [gt]));
+          if (mine.total === null || mine.total < 2) return;
+          var theirs = 0, tok = true, after = swap(t.roster, [gt.player_id], [gv]);
+          weeks.forEach(function (w) { var a = teamWeek(summary, weekly, after, w, slots).total; if (a === null || tb[w] === null) tok = false; else theirs += a - tb[w]; });
+          if (!tok || theirs < -(opts.partnerSlack || 1)) return;
+          trades.push({partner_key: t.team_key, partner_name: t.name, give: [{player_id: gv.player_id, name: gv.name, pos: posOf(gv)}], get: [{player_id: gt.player_id, name: gt.name, pos: posOf(gt)}],
+            my_gain_by_week: mine.by, my_total: mine.total, my_weighted: mine.weighted, their_total: r1(theirs), partner_plays_me_week: playsMe(summary, me.team_key, t.team_key, weeks)});
+        });
+      });
+    });
+    var key = opts.sort === "games" ? "my_weighted" : "my_total";
+    trades.sort(function (a, b) { return (b[key] || 0) - (a[key] || 0); });
+    if (opts.sort === "games") adds.sort(function (a, b) { return (b.weighted_gain || 0) - (a.weighted_gain || 0); });
+    trades = trades.slice(0, opts.maxTrades || 15);
+    // Your moves, in time order: the planner's per-game moves, by when they must happen
+    var moves = [];
+    if (p) p.games.forEach(function (g) {
+      g.moves.forEach(function (m) {
+        if (m.kind === "bye") return;
+        moves.push({week: g.week, kind: m.kind, text: m.text, gain: m.gain, when: m.when || "week " + g.week, when_sort: g.week * 10 + (m.kind === "add" ? 0 : m.kind === "start" ? 2 : 1)});
+      });
+    });
+    var dl = summary.settings && summary.settings.trade_deadline;
+    if (trades.length && dl && dl.date) moves.push({week: null, kind: "trade", text: "Trade window: best idea " + trades[0].give[0].name + " for " + trades[0].get[0].name + " (" + (trades[0].my_total > 0 ? "+" : "") + trades[0].my_total + " over the weeks left)", gain: trades[0].my_total, when: "by " + dl.date + " (trade deadline)", when_sort: 0});
+    moves.sort(function (a, b) { return a.when_sort - b.when_sort; });
+    return {weeks: weeks, weight: weight, adds: adds, trades: trades, moves_in_time: moves};
+  }
+  function playsMe(summary, myKey, otherKey, weeks) {
+    var hit = (summary.schedule || []).filter(function (w) { return weeks.indexOf(w.week) >= 0 && (w.matchups || []).some(function (m) { return m.team_keys && m.team_keys.indexOf(myKey) >= 0 && m.team_keys.indexOf(otherKey) >= 0; }); })[0];
+    return hit ? hit.week : null;
+  }
+
+  root.DDFWeekly = {plan: plan, slotsOf: slotsOf, lineup: lineup, teamWeek: teamWeek, playerWeek: playerWeek, winChance: winChance, fitSpread: fitSpread, phi: phi, dropCandidate: dropCandidate, cover: cover, tradeImpact: tradeImpact, recommendations: recommendations};
 })(typeof globalThis !== "undefined" ? globalThis : this);

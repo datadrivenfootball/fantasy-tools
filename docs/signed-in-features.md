@@ -71,3 +71,49 @@ Lineup = {team_key, name, total|null, starters: [Player & {slot}], bench: [Playe
           unscored: [{name, reason}]}
 Player = {player_id, name, pos, nfl_team, points|null, source, status|null, bye, note|null}
 ```
+
+## Team, Find and Build on staging (pieces 2-4)
+
+The staging copies of `team.html`, `find.html` and `build.html` are the live pages (scripts and styles loaded from
+the live site by absolute URL) plus the new panels. `staging/account/league-bridge.js` reads the stored league, runs
+the live roster matcher (`DDF.leaguePaste.fromBlocks`, the same reader a paste uses) and writes the `ddf:pasted`
+record those pages already read (this tab's sessionStorage only), then loads the page scripts. Existing sections
+keep their live behaviour; only the new panels read weekly data.
+
+### `DDFWeekly.cover(summary, weekly, teamKey)` (Team › Cover panel)
+
+```
+{
+  weeks: [w, ...],
+  starters: [{player_id, name, pos, slot, status,                      // everyone who starts in a week left
+              weeks: {"<w>": {points|null, starts: bool, bye, cost|null, cover: {player_id, name, points}|null}},
+              total_cost|null, worst: {week, cost}|null, kind: "hole"|"thin"|"ok", shared_with: [player_id]}],
+  kdef: [{pos: "K"|"DEF", starter: {player_id, name}|null, backup: {player_id, name}|null,
+          best_add: {player_id, name, weeks: {"<w>": points}}|null, cost: {"<w>": number|null}}],
+  notes: [string]
+}
+```
+- cost = the best lineup that week minus the best lineup without him (who covers = the player who enters).
+- hole: no cover at all in some week (an empty slot) or the cover loses half his points or more in any week;
+  thin: the cover loses a quarter or more; shared: one backup is the cover for two or more starters.
+- Sorted holes first, then thin, then by total cost.
+
+### `DDFWeekly.tradeImpact(summary, weekly, myKey, partnerKey, give, get)` (Build a Trade › By week, Player by player)
+
+```
+{ weeks: [w...],
+  sides: [{team_key, name, before: {"<w>": total|null}, after: {...}, delta: {...}, total_delta|null}, {partner…}],
+  games: [{week, opp_name, is_partner: bool, win_before|null, win_after|null}],   // my game that week
+  players: [{player_id, name, pos, from_team, to_team, weeks: {"<w>": {points|null, starts_before, starts_after, bye}}}] }
+```
+
+### `DDFWeekly.recommendations(summary, weekly, myKey, opts)` (Trade & Waiver Recommendations)
+
+```
+{ adds: [{player_id, name, pos, drop: {player_id, name}|null, gain_by_week, total_gain, weighted_gain}],
+  trades: [{partner_key, partner_name, give: [{player_id,name}], get: [...], my_gain_by_week, my_total,
+            their_total, my_weighted, partner_plays_me_week|null}],
+  moves_in_time: [{when_sort, when, week, kind, text, gain}] }   // "Your moves, in time order"
+```
+- total_gain: sum over the weeks left; weighted_gain ("For your games left"): each week's gain times that game's
+  stake (from plan), playoff weeks at the bracket weight.

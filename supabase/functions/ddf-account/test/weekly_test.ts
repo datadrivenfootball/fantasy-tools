@@ -162,3 +162,54 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   assert(plan.need[0].startsWith("8-4, 1st."));
   assertEquals(plan.goals.map((g: { id: string }) => g.id), ["high_score", "record", "seed", "playoffs"]);
 });
+
+Deno.test("cover: cost by week, who covers, holes first, K/DEF row with the best add", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const c = W.cover(lg, wk, "470.l.1.t.1");
+  assertEquals(c.weeks, [13, 14, 15, 16]);
+  const qb = c.starters.find((s: { name: string }) => s.name === "QB1");
+  assertEquals(qb.kind, "hole"); // no backup QB: losing him leaves the slot empty
+  assertAlmostEquals(qb.weeks[13].cost, 23, 0.06);
+  assertEquals(qb.weeks[13].cover, null);
+  const rb = c.starters.find((s: { name: string }) => s.name === "RB1");
+  // week 13: RB1 out -> RB1b moves to RB, WR1c stays in flex... the player who enters is RB1b
+  assertEquals(rb.weeks[13].cover.name, "RB1b");
+  assertAlmostEquals(rb.weeks[13].cost, 16.1 - 11.5, 0.06);
+  assertEquals(c.starters[0].kind, "hole");
+  const k = c.kdef.find((x: { pos: string }) => x.pos === "K");
+  assertEquals(k.starter.name, "K1");
+  assertEquals(k.backup, null);
+  assertEquals(k.best_add.name, "FA K");
+  assertEquals(k.cost[13], 8);
+});
+
+Deno.test("trade impact: both sides by week, the game against the partner counts on both sides", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const t = W.tradeImpact(lg, wk, "470.l.1.t.1", "470.l.1.t.2", ["470.p.105"], ["470.p.205"]); // TE1 for TE2
+  assertEquals(t.sides[0].name, "Team 1");
+  assertAlmostEquals(t.sides[0].delta[13], 9 * 1.1 - 9 * 1.15, 0.06);
+  assertAlmostEquals(t.sides[1].delta[13], 9 * 1.15 - 9 * 1.1, 0.06);
+  const g13 = t.games.find((g: { week: number }) => g.week === 13);
+  assert(g13.is_partner);
+  assert(g13.win_after < g13.win_before);
+  const te = t.players.find((p: { name: string }) => p.name === "TE2");
+  assertEquals(te.to_team, "Team 1");
+  assert(te.weeks[13].starts_after);
+});
+
+Deno.test("recommendations: adds and trades ranked by weekly gain, moves in time order", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const plan = W.plan(lg, wk, { runs: 2000 });
+  const r = W.recommendations(lg, wk, "470.l.1.t.1", { plan });
+  assertEquals(r.adds[0].name, "FA WR"); // 16 a week beats the bench every week
+  assert(r.adds.some((a: { name: string; drop: { name: string } }) => a.name === "FA K" && a.drop.name === "K1"));
+  for (let i = 1; i < r.adds.length; i++) assert(r.adds[i - 1].total_gain >= r.adds[i].total_gain);
+  for (let i = 1; i < r.trades.length; i++) assert(r.trades[i - 1].my_total >= r.trades[i].my_total);
+  assert(r.trades.every((t: { my_total: number; their_total: number }) => t.my_total >= 2 && t.their_total >= -1));
+  for (let i = 1; i < r.moves_in_time.length; i++) assert(r.moves_in_time[i - 1].when_sort <= r.moves_in_time[i].when_sort);
+  const g = W.recommendations(lg, wk, "470.l.1.t.1", { plan, sort: "games" });
+  for (let i = 1; i < g.trades.length; i++) assert((g.trades[i - 1].my_weighted || 0) >= (g.trades[i].my_weighted || 0));
+});
