@@ -42,6 +42,11 @@
   .connect .way code{font:13px "IBM Plex Mono",monospace;background:#eef1ec;border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
   .connect .way input[type=email]{flex:1 1 180px;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #bec8c1;border-radius:8px;font:inherit}
   .connect .way form>input[type=text]{display:block;width:100%;margin-bottom:8px}
+  .connect .espn-steps{padding-left:22px;margin:12px 0}
+  .connect .espn-steps>li{margin:10px 0}
+  .connect .espn-steps>li.done>strong::after{content:" · added ✓";color:#176c4d}
+  .connect .espn-steps>li.done>details{display:none}
+  .connect .espn-phone{background:#e8f5ee;color:#176c4d;border-radius:8px;padding:10px 12px}
   .connect button[disabled]{opacity:.55;cursor:not-allowed}
   @media(max-width:760px){.connect .roster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -81,16 +86,26 @@
             <form id="espn-form"><label for="espn-id">League link or ID</label><div class="cluster"><input type="text" id="espn-id" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456"><button class="primary" type="submit">Connect</button></div></form>
           </div>
           <div class="way-or" aria-hidden="true"><span>or</span></div>
-          <div class="way"><h3>Private league</h3>
-            <p>ESPN shows a private league only to its members. Until the DDF browser extension is ready, add your ESPN session keys once, from a computer. They're stored encrypted and you can disconnect anytime.</p>
-            <details class="id-help"><summary>How to copy your ESPN session keys</summary>
-              <ol><li>On a computer, sign in at <strong>fantasy.espn.com</strong> and open your league.</li>
-                <li>Open the browser's developer tools (Chrome: View › Developer › Developer Tools).</li>
-                <li>Go to <strong>Application › Cookies › https://fantasy.espn.com</strong>.</li>
-                <li>Copy the value of <code>espn_s2</code> and of <code>SWID</code> into the boxes below.</li></ol></details>
-            <form id="espn-private-form"><label for="espn-pid">League link or ID</label><input type="text" id="espn-pid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456">
-              <label for="espn-s2">espn_s2</label><input type="text" id="espn-s2" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A long value starting with AE">
-              <label for="espn-swid">SWID</label><div class="cluster"><input type="text" id="espn-swid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="{1A2B3C4D-....}"><button class="primary" type="submit">Connect</button></div></form>
+          <div class="way" id="espn-account-way"><h3>Sign in with ESPN</h3>
+            <p>Private league, or several leagues? Sign in at ESPN and pick yours from a list. DDF never asks for your ESPN password.</p>
+            <p class="espn-phone" id="espn-phone" hidden>On a phone, connect ESPN once from a computer (Chrome). After that, your league works here on your phone too.</p>
+            <ol class="espn-steps" id="espn-steps">
+              <li id="espn-step-ext"><strong>Add the DDF extension</strong> to Chrome on a computer.
+                <details class="id-help" id="ext-help"><summary>How to add it (2 minutes)</summary>
+                  <ol><li><a href="ddf-espn-extension.zip">Download the DDF extension</a> and open the zip, so you have a folder named <code>ddf-espn-extension</code>.</li>
+                    <li>In Chrome, type <code>chrome://extensions</code> in the address bar and press Enter.</li>
+                    <li>Turn on <strong>Developer mode</strong> (top right).</li>
+                    <li>Click <strong>Load unpacked</strong> and choose the <code>ddf-espn-extension</code> folder.</li>
+                    <li>Come back here and reload this page. Step 1 shows as added.</li></ol></details></li>
+              <li><strong>Sign in to ESPN</strong> at <a href="https://www.espn.com/fantasy/football/" target="_blank" rel="noopener">espn.com</a> in the same browser.</li>
+              <li><strong>Pick your league.</strong><div class="cluster" style="margin-top:8px"><button type="button" class="primary" id="espn-find">Find my ESPN leagues</button></div></li>
+            </ol>
+            <div id="espn-dev" hidden>
+              <p class="muted"><small>Developer test path (not shown to users).</small></p>
+              <form id="espn-private-form"><label for="espn-pid">League link or ID</label><input type="text" id="espn-pid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required>
+                <label for="espn-s2">espn_s2</label><input type="text" id="espn-s2" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required>
+                <label for="espn-swid">SWID</label><div class="cluster"><input type="text" id="espn-swid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required><button type="submit">Connect</button></div></form>
+            </div>
           </div>
         </div>
       </div>

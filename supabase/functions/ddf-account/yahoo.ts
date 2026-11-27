@@ -2,7 +2,7 @@
 // Since 2026-07-22 Yahoo approves each app before its Fantasy API answers (JEG-1151);
 // before approval every Fantasy call returns 403 and this module says so.
 import { AppError, Fetch, getJSON } from "./errors.ts";
-import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Matchup, Missing, num, pts, settleWeek, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
+import { closestSize, DdfSettings, deriveRanks, int, LeagueSummary, Matchup, Missing, pts, settleWeek, SUMMARY_VERSION, TeamSummary } from "./shape.ts";
 
 const AUTH = "https://api.login.yahoo.com/oauth2/request_auth";
 const TOKEN = "https://api.login.yahoo.com/oauth2/get_token";

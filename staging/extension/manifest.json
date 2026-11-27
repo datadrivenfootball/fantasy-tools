@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "DDF: Connect ESPN",
+  "version": "0.1.0",
+  "description": "Lets Data Driven Football read your ESPN fantasy leagues after you sign in at espn.com. Read-only. DDF never sees your ESPN password.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA6p5apPt/q2INwdUpx6LD3+PYwH6vpaU4wuTF6bwEIcdOTjA/e8GJXmgr0iBEaMses52tqdcr6PzhENrvhF3api0JQTaHRILo28bRcq6dbBG3Au+11N6uklY0qgY3izcVSzxKDX2vVC70vahbBKzaBK/1BF0feXqp4QwcMPh8qyWzeKj6pU3VGKLx7CPkP8RW3jX8dCOLAMNW5p+oIuNlg7tVqZrCPcklzi5H/Vf4JR5WurNLu9tzhUcDVmNZ/hrh8Qtqv5f29V4qELQ9ii1PnJ4e4ijr335fSCiuvWX/Sbdx81xYrZldhuBV1WOn7J4jLLIV9uEgzsISyhYoy0iocwIDAQAB",
+  "permissions": ["cookies"],
+  "host_permissions": ["https://*.espn.com/*", "https://iskiybsimubiujwuchsl.supabase.co/*"],
+  "background": { "service_worker": "background.js" },
+  "externally_connectable": { "matches": ["https://datadrivenfootball.github.io/*", "http://localhost:8791/*"] },
+  "action": { "default_title": "DDF: Connect ESPN", "default_popup": "popup.html" }
+}

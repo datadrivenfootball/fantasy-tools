@@ -413,3 +413,67 @@ Deno.test("ESPN private league: session keys are checked, sent as cookies, seale
   const me = await (await call(h, "GET", "/me", "jwt-me")).json();
   assert(!JSON.stringify(me).includes(S2));
 });
+
+Deno.test("ESPN sign-in (extension): session checked against ESPN, leagues listed, any listed league pulls", async () => {
+  const s = await fixture("tests/fixtures/espn/settings.json");
+  const t = await fixture("tests/fixtures/espn/teams.json");
+  const lg = { ...s, ...t, settings: s.settings };
+  const S2 = "AEB" + "y".repeat(120), SWID = "{1A2B3C4D-1111-2222-3333-444455556666}";
+  const fan = { preferences: [
+    { metaData: { entry: { abbrev: "FFL", seasonId: 2026, entryLocation: "Tiny", entryNickname: "Hands", groups: [{ groupId: 111111, groupName: "Private League", groupSize: 12 }] } } },
+    { metaData: { entry: { abbrev: "FFL", seasonId: 2025, groups: [{ groupId: 222222, groupName: "Last year" }] } } },
+    { metaData: { entry: { abbrev: "FBA", seasonId: 2026, groups: [{ groupId: 333333, groupName: "Basketball" }] } } },
+  ] };
+  const urls: string[] = [];
+  const f = async (u: string | URL, init?: RequestInit) => {
+    urls.push(String(u));
+    const ok = new Headers(init?.headers).get("cookie") === `espn_s2=${S2}; SWID=${SWID}`;
+    if (!ok) return jsonRes({}, 401);
+    return String(u).includes("fan.api.espn.com") ? jsonRes(fan) : jsonRes(lg);
+  };
+  const { deps, store, logs } = makeDeps({ fetch: f });
+  const h = makeApp(deps);
+  assertEquals((await (await call(h, "POST", "/espn/session", "jwt-me", { espn_s2: "B" + S2, swid: SWID })).json()).error.code, "espn_session_rejected");
+  assertEquals(store.conns.length, 0);
+  const r = await (await call(h, "POST", "/espn/session", "jwt-me", { espn_s2: S2, swid: SWID })).json();
+  assertEquals(r.leagues, [{ league_key: "111111", name: "Private League", season: 2026, teams: 12, team_name: "Tiny Hands" }]);
+  const conn = store.conns[0];
+  assertEquals([conn.external_id, conn.display_name], [`swid:${SWID}`, "ESPN account"]);
+  assert(!new TextDecoder().decode(conn.secret_ciphertext!).includes(S2));
+  assertEquals((await (await call(h, "GET", `/connections/${conn.id}/leagues`, "jwt-me")).json()).leagues.length, 1);
+  const pulled = await call(h, "POST", "/leagues", "jwt-me", { connection_id: conn.id, league_key: "111111" });
+  assertEquals(pulled.status, 200);
+  assert(urls.at(-1)!.includes("/leagues/111111?"));
+  assertEquals((await call(h, "POST", "/leagues", "jwt-me", { connection_id: conn.id, league_key: "x; drop" })).status, 400);
+  assert(logs.every((l) => !l.includes(S2) && !l.includes("1A2B3C4D")));
+});
+
+Deno.test("DDF extension: answers only the staging page, sends ESPN cookies only to DDF, never back to the page", async () => {
+  const src = await Deno.readTextFile(new URL("staging/extension/background.js", ROOT));
+  const manifest = JSON.parse(await Deno.readTextFile(new URL("staging/extension/manifest.json", ROOT)));
+  assertEquals(manifest.permissions, ["cookies"]);
+  assertEquals(manifest.externally_connectable.matches.filter((m: string) => m.startsWith("https://")), ["https://datadrivenfootball.github.io/*"]);
+  let listener: (msg: unknown, sender: { origin: string }, reply: (r: unknown) => void) => unknown = () => {};
+  let cookies: Record<string, string> = { espn_s2: "AEB" + "z".repeat(80), SWID: "{1A2B3C4D-1111-2222-3333-444455556666}" };
+  const posted: { url: string; auth: string | null; body: string }[] = [];
+  const chromeStub = {
+    cookies: { get: ({ name }: { name: string }) => Promise.resolve(cookies[name] ? { value: cookies[name] } : null) },
+    runtime: { onMessageExternal: { addListener: (fn: typeof listener) => { listener = fn; } }, getManifest: () => manifest },
+  };
+  const fetchStub = (url: string, init: RequestInit) => {
+    posted.push({ url, auth: new Headers(init.headers).get("authorization"), body: String(init.body) });
+    return Promise.resolve(jsonRes({ connection: { id: "c1" }, season: 2026, leagues: [{ league_key: "111111" }] }));
+  };
+  new Function("chrome", "fetch", src)(chromeStub, fetchStub);
+  const ask = (msg: unknown, origin: string) => new Promise((res) => { const sync = listener(msg, { origin }, res); if (sync !== true) {/* replied */} });
+  assertEquals(await ask({ type: "ping" }, "https://evil.example"), { ok: false, code: "bad_origin" });
+  assertEquals(((await ask({ type: "ping" }, "https://datadrivenfootball.github.io")) as { ok: boolean }).ok, true);
+  const r = await ask({ type: "connect-espn", jwt: "x".repeat(40) }, "https://datadrivenfootball.github.io") as Record<string, unknown>;
+  assertEquals(r.ok, true);
+  assert(!JSON.stringify(r).includes(cookies.espn_s2)); // the page never gets the cookies
+  assertEquals(posted[0].url, "https://iskiybsimubiujwuchsl.supabase.co/functions/v1/ddf-account/espn/session");
+  assertEquals(posted[0].auth, "Bearer " + "x".repeat(40));
+  assertEquals(JSON.parse(posted[0].body), { espn_s2: cookies.espn_s2, swid: cookies.SWID });
+  cookies = {};
+  assertEquals(((await ask({ type: "connect-espn", jwt: "x".repeat(40) }, "https://datadrivenfootball.github.io")) as { code: string }).code, "espn_signed_out");
+});

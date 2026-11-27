@@ -6,7 +6,7 @@
 // only: never a body, a token, a cookie or an email.
 import { randomToken, seal, unseal } from "./crypto.ts";
 import { AppError, Fetch } from "./errors.ts";
-import { type EspnSession, espnSeasonNow, parseEspnLeagueId, readEspnLeague, summarizeEspn, validEspnSession } from "./espn.ts";
+import { type EspnSession, espnFanLeagues, espnSeasonNow, parseEspnLeagueId, readEspnLeague, summarizeEspn, validEspnSession } from "./espn.ts";
 import { pullSleeper, sleeperLeagues, sleeperPlayerIndex, sleeperUser } from "./sleeper.ts";
 import { SIZES, type DdfSettings } from "./shape.ts";
 import { type Connection, publicConnection, type Store } from "./store.ts";
@@ -123,8 +123,12 @@ export function makeApp(d: Deps) {
       ({ summary, raw } = await pullSleeper(d.fetch, leagueKey, conn.external_id, sleeperNames, d.now()));
     } else if (conn.platform === "espn") {
       const yr = season ?? espnSeasonNow(d.now());
-      raw = await readEspnLeague(d.fetch, conn.external_id, yr, await espnSession(conn));
-      summary = summarizeEspn(raw, conn.external_id, yr, d.now());
+      // A signed-in ESPN account (external_id "swid:...") pulls any of its leagues; a public-league
+      // connection is the league itself.
+      const id = conn.external_id.startsWith("swid:") ? leagueKey : conn.external_id;
+      if (!/^\d{1,12}$/.test(id)) throw new AppError(400, "invalid_league", "That is not an ESPN league ID.");
+      raw = await readEspnLeague(d.fetch, id, yr, await espnSession(conn));
+      summary = summarizeEspn(raw, id, yr, d.now());
     } else {
       ({ summary, raw } = await pullYahoo(d.fetch, await yahooToken(conn), leagueKey, d.now()));
     }
@@ -154,6 +158,16 @@ export function makeApp(d: Deps) {
       const su = await sleeperUser(d.fetch, username);
       const conn = await d.store.upsertConnection({ user_id: user.id, platform: "sleeper", external_id: su.user_id, display_name: su.display_name, secret_ciphertext: null, secret_iv: null, token_expires_at: null });
       return json({ connection: publicConnection(conn), ...(await sleeperLeagues(d.fetch, su.user_id)) });
+    }
+    if (m === "POST" && a === "espn" && b === "session") {
+      // Sent by the DDF browser extension after the user signs in at espn.com: ESPN's own session
+      // cookies, checked against ESPN, then stored sealed. DDF never sees the ESPN password.
+      const session = validEspnSession(await body<{ espn_s2?: string; swid?: string }>(req));
+      const yr = espnSeasonNow(d.now());
+      const found = await espnFanLeagues(d.fetch, session, yr);
+      const sealed = await seal(await d.tokenKey(), session, aad({ user_id: user.id, platform: "espn" }));
+      const conn = await d.store.upsertConnection({ user_id: user.id, platform: "espn", external_id: `swid:${session.swid}`, display_name: "ESPN account", secret_ciphertext: sealed.ciphertext, secret_iv: sealed.iv, token_expires_at: null });
+      return json({ connection: publicConnection(conn), ...found });
     }
     if (m === "POST" && a === "espn" && b === "connect") {
       // Always the current season (Jeremy, 2026-11-27: "Season in espn should be default current year").
@@ -196,6 +210,11 @@ export function makeApp(d: Deps) {
       if (m === "GET" && c === "leagues") {
         if (conn.platform === "sleeper") return json(await sleeperLeagues(d.fetch, conn.external_id));
         if (conn.platform === "yahoo") return json(await yahooLeagues(d.fetch, await yahooToken(conn)));
+        if (conn.external_id.startsWith("swid:")) {
+          const session = await espnSession(conn);
+          if (!session) throw new AppError(409, "espn_no_session", "Connect ESPN again with the DDF extension.");
+          return json(await espnFanLeagues(d.fetch, session, espnSeasonNow(d.now())));
+        }
         return json({ leagues: [{ league_key: conn.external_id, name: conn.display_name }] });
       }
     }

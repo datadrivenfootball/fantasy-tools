@@ -99,6 +99,38 @@
   });
   function segValue(name) { var b = document.querySelector('[data-seg="' + name + '"] [aria-pressed="true"]'); return b ? b.dataset.v : ""; }
   function setSeg(name, v) { Array.prototype.forEach.call(document.querySelectorAll('[data-seg="' + name + '"] button'), function (x) { x.setAttribute("aria-pressed", String(v !== "" && x.dataset.v === v)); }); }
+  /* ESPN sign-in through the DDF extension (staging/extension). ESPN has no OAuth: the extension reads
+     ESPN's session for espn.com and hands it to DDF's server directly; this page never sees it. */
+  var EXT_ID = "hnkkhmlmjcaofnjjekgggdhchgohlkcp";
+  var IS_PHONE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  function extCall(msg) {
+    return new Promise(function (resolve) {
+      try {
+        if (!(window.chrome && chrome.runtime && chrome.runtime.sendMessage)) return resolve(null);
+        chrome.runtime.sendMessage(EXT_ID, msg, function (r) { resolve(chrome.runtime.lastError ? null : (r || null)); });
+      } catch (e) { resolve(null); }
+    });
+  }
+  async function detectExt() {
+    var r = await extCall({type: "ping"});
+    state.ext = !!(r && r.ok);
+    $("espn-step-ext").classList.toggle("done", state.ext);
+    $("espn-phone").hidden = !IS_PHONE || state.ext;
+    $("espn-steps").hidden = IS_PHONE && !state.ext;
+  }
+  $("espn-find").addEventListener("click", busy($("espn-find"), async function () {
+    await detectExt();
+    if (!state.ext) { $("ext-help").open = true; throw new Error("Add the DDF extension first (step 1), then reload this page."); }
+    var s = (await sb.auth.getSession()).data.session;
+    if (!s) throw new Error("Sign in to DDF first.");
+    say("Asking ESPN for your leagues…");
+    var r = await extCall({type: "connect-espn", jwt: s.access_token});
+    if (!r || !r.ok) throw new Error((r && r.message) || "The DDF extension didn't answer. Reload this page and try again.");
+    say("ESPN connected. Pick your league.", "ok");
+    showOptions(r.connection, (r.leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }));
+    await loadMe();
+  }));
+  try { $("espn-dev").hidden = localStorage.getItem("ddf_dev") !== "1"; } catch (e) { /* dev path stays hidden */ }
   $("espn-private-form").addEventListener("submit", busy(null, async function () {
     var j = await api("POST", "/espn/connect", {league_id: $("espn-pid").value.trim(), espn_s2: $("espn-s2").value.trim(), swid: $("espn-swid").value.trim()});
     $("espn-s2").value = ""; $("espn-swid").value = "";
@@ -327,6 +359,7 @@
     if (!session) { step("signin"); return; }
     try { await loadMe(); } catch (err) { say(err.message, "err"); }
     placePill();
+    detectExt();
   }
   var h = new URLSearchParams(location.hash.slice(1));
   var handoff = h.get("yahoo") === "finish" ? h.get("h") : null;

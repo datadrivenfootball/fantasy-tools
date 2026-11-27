@@ -91,6 +91,33 @@ export async function readEspnLeague(f: Fetch, id: string, season: number, sessi
   return got.body as J;
 }
 
+// The signed-in user's ESPN fantasy football leagues, from ESPN's fan profile (the endpoint ESPN's own
+// site and Flaim use). Needs the user's session cookies; lists leagues so nobody types an ID.
+const FAN_API = "https://fan.api.espn.com/apis/v2/fans/";
+export async function espnFanLeagues(f: Fetch, session: EspnSession, season: number) {
+  const url = `${FAN_API}${encodeURIComponent(session.swid)}?displayEvents=false&displayNow=false&displayRecs=false&context=fantasy&source=espncom-fantasy&lang=en&section=espn&region=us`;
+  const got = await getJSON(f, url, { headers: { accept: "application/json", cookie: `espn_s2=${session.espn_s2}; SWID=${session.swid}` } }, "ESPN");
+  if (got.status === 401 || got.status === 403 || !got.body) {
+    throw new AppError(403, "espn_session_rejected", "ESPN didn't accept your sign-in. Sign in at espn.com again, then press Find my ESPN leagues.");
+  }
+  const seen = new Set<string>();
+  const leagues: { league_key: string; name: string; season: number; teams: number | null; team_name: string | null }[] = [];
+  for (const pref of (got.body as J).preferences || []) {
+    const entry = pref?.metaData?.entry;
+    if (!entry) continue;
+    const football = String(entry.abbrev || "").toUpperCase() === "FFL" || entry.gameId === 1;
+    if (!football || (int(entry.seasonId) ?? season) !== season) continue;
+    for (const g of entry.groups || []) {
+      const id = String(g?.groupId ?? "");
+      if (!/^\d{1,12}$/.test(id) || seen.has(id)) continue;
+      seen.add(id);
+      const teamName = [entry.entryLocation, entry.entryNickname].filter(Boolean).join(" ") || null;
+      leagues.push({ league_key: id, name: String(g.groupName || `ESPN league ${id}`).slice(0, 80), season, teams: int(g.groupSize, 1, 64), team_name: teamName });
+    }
+  }
+  return { season, leagues };
+}
+
 export function summarizeEspn(lg: J, id: string, season: number, now = new Date()) {
   const s = lg.settings || {};
   const miss = new Missing();

@@ -7,6 +7,9 @@ trap 'rm -rf "$work"' EXIT
 gh repo clone datadrivenfootball/ddf-staging "$work" -- -q
 rsync -a --delete --exclude .git "$here/account/" "$work/"
 touch "$work/.nojekyll"
+# The unpublished DDF ESPN extension, as a zip the staging page links to (load unpacked).
+( cd "$here" && rm -rf "$work/.ext" && mkdir -p "$work/.ext/ddf-espn-extension" && cp extension/manifest.json extension/background.js extension/popup.html "$work/.ext/ddf-espn-extension/" \
+  && cd "$work/.ext" && zip -qr -X "$work/ddf-espn-extension.zip" ddf-espn-extension ) && rm -rf "$work/.ext"
 # Version-stamp the page's own files so phones never pair a new page with a cached old script.
 ver="$(git -C "$here" rev-parse --short HEAD)-$(date +%s)"
 sed -i.bak -e "s|src=\"app.js\"|src=\"app.js?v=$ver\"|" -e "s|href=\"connect-page.css\"|href=\"connect-page.css?v=$ver\"|" "$work/index.html" && rm "$work/index.html.bak"
