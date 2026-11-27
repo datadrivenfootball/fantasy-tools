@@ -59,7 +59,8 @@
   /* ---------- sign in ---------- */
   $("email-form").addEventListener("submit", busy(null, async function () {
     var email = $("email").value.trim();
-    var res = await sb.auth.signInWithOtp({email: email, options: {emailRedirectTo: HERE}});
+    /* In the DDF app the emailed link opens the app (ddf://signin), which hands the sign-in to this page. */
+    var res = await sb.auth.signInWithOtp({email: email, options: {emailRedirectTo: IS_APP ? "ddf://signin" : HERE}});
     if (res.error) throw new Error(res.error.message);
     say("Check your email for the sign-in link. It works once and expires in an hour.", "ok");
   }));
@@ -358,7 +359,9 @@
           el("button", {type: "button", text: "Leagues", onclick: busy(null, async function () { var j = await api("GET", "/connections/" + c.id + "/leagues"); showOptions(c, j.leagues.map(function (l) { return Object.assign({season: j.season}, l); })); })}),
           el("button", {type: "button", class: "danger", text: "Disconnect", onclick: busy(null, async function () {
             if (!confirm("Disconnect " + (NAMES[c.platform] || c.platform) + "? This deletes its stored sign-in and its leagues.")) return;
-            await api("DELETE", "/connections/" + c.id); say("Disconnected " + (NAMES[c.platform] || c.platform) + ".", "ok"); $("league").hidden = true; await loadMe();
+            await api("DELETE", "/connections/" + c.id);
+            if (IS_APP && c.platform === "espn") { try { await appBridge.postMessage({want: "forget"}); } catch (e) { /* the app's ESPN sign-in stays until it expires */ } }
+            say("Disconnected " + (NAMES[c.platform] || c.platform) + ".", "ok"); $("league").hidden = true; await loadMe();
           })}))));
     });
     var ll = $("league-list");

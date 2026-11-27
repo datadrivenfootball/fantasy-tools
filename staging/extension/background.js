@@ -15,7 +15,7 @@ async function espnSession() {
 async function connectEspn(jwt) {
   if (typeof jwt !== "string" || jwt.length < 20) return { ok: false, code: "signed_out", message: "Sign in to DDF first." };
   const session = await espnSession();
-  if (!session) return { ok: false, code: "espn_signed_out", message: "You're not signed in to ESPN in this browser. Sign in at espn.com, then press Find my ESPN leagues again." };
+  if (!session) return { ok: false, code: "espn_signed_out", message: "You're not signed in to ESPN in this browser. Sign in at espn.com, then press Connect ESPN again." };
   let r;
   try {
     r = await fetch(FN + "/espn/session", { method: "POST", headers: { authorization: "Bearer " + jwt, "content-type": "application/json" }, body: JSON.stringify(session) });

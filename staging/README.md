@@ -13,3 +13,9 @@ Private test build of DDF sign-in and league connections. Not the live site.
 
 Publish the page: `staging/publish.sh` (copies `staging/account/` to the staging
 repo's main branch and pushes).
+
+## ESPN connect flow and the iOS app
+- The page starts from the ESPN league link. Public leagues connect at once. A private league opens one
+  screen with the ways in: in-app sign-in (DDF app), the Chrome helper (`staging/extension/`), a ready-made
+  request to the league manager, and the bookmark as a folded last resort.
+- `staging/ios-app/`: SwiftUI prototype that wraps the page and adds the in-app ESPN sign-in. See its README.
