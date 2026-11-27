@@ -36,3 +36,11 @@ model). Defaults (push floor, personal inflation, blend) left for Jeremy.
 - `make validate` has not been re-run on this head (no files it builds
   changed).
 - Bots still nominate simply; the noisy judge centres on DDF Value.
+
+### Addendum (same PR): personal inflation is the board default
+- Jeremy, 2026-11-27: "Personal by default (Recommended)". `boardRow` uses
+  personal inflation unless `state.ourFactor = "room"`; every row carries
+  `oursInflatedRoom` for reference. The worked example gains a hand-checked
+  personal table (A's factor 0.8) next to the room table; the old
+  "room is the default" assertion flipped because the rule changed.
+  79 draft tests pass. Push floor and blend weights unchanged.

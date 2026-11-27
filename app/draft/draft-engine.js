@@ -414,11 +414,14 @@
     var ours = p.ours ? p.ours[key] : undefined;
     var market = p.market ? p.market[key] : undefined;
     var platform = p.platform ? p.platform[key] : undefined;
-    // state.ourFactor: "room" (default; the hand-checked worked example) or
-    // "personal" (our money share vs slot share; see inflation()).
-    var ourFactor = state.ourFactor === "personal" && c.ours.personalFactor != null
-      ? c.ours.personalFactor : c.ours.factor;
+    // state.ourFactor: "personal" (default; Jeremy, 2026-11-27: "Personal by
+    // default (Recommended)") = our money share vs slot share, see
+    // inflation(); or "room" = the room's factor. The room-factor price is
+    // always returned too (oursInflatedRoom), for reference.
+    var usePersonal = state.ourFactor !== "room" && c.ours.personalFactor != null;
+    var ourFactor = usePersonal ? c.ours.personalFactor : c.ours.factor;
     var oursInfl = inflatedPrice(ours, ourFactor, minBid);
+    var oursInflRoom = inflatedPrice(ours, c.ours.factor, minBid);
     var marketInfl = c.market ? inflatedPrice(market, c.market.factor, minBid) : null;
     var platformInfl = c.platform ? inflatedPrice(platform, c.platform.factor, minBid) : null;
     var myMax = maxBid(me, league);
@@ -437,7 +440,8 @@
       pushFloor = b >= minBid ? b : null;
     }
     return { key: key, pos: pos, ours: ours, market: market, platform: platform,
-      oursInflated: oursInfl, marketInflated: marketInfl, platformInflated: platformInfl,
+      oursInflated: oursInfl, oursInflatedRoom: oursInflRoom, ourFactor: usePersonal ? "personal" : "room",
+      marketInflated: marketInfl, platformInflated: platformInfl,
       walkAway: walkAway, pushFloor: pushFloor, myMaxBid: myMax, rivalCeiling: rivalCeiling };
   }
 

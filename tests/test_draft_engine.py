@@ -41,8 +41,9 @@ def _node():
     return node
 
 
-def run(mode, file=FIXTURE, variant=None, driver=DRIVER):
-    cmd = [_node(), str(driver), mode, str(file)] + ([variant] if variant else [])
+def run(mode, file=FIXTURE, variant=None, driver=DRIVER, factor=None):
+    cmd = [_node(), str(driver), mode, str(file)] + ([variant or "-"] if (variant or factor) else []) + \
+        ([factor] if factor else [])
     out = subprocess.run(cmd, capture_output=True, text=True, check=True, cwd=ROOT)
     return json.loads(out.stdout)
 
@@ -82,12 +83,21 @@ def worked_mismatches(board, expected, rows_only=None):
 
 class WorkedExample(unittest.TestCase):
     def test_board_matches_hand_check_to_the_dollar(self):
-        board = run("worked")
+        board = run("worked", factor="room")
         self.assertEqual(worked_mismatches(board, fixture()["auction"]["expected"]), [])
+
+    def test_default_personal_inflation_matches_hand_check(self):
+        """Jeremy, 2026-11-27: "Personal by default (Recommended)". A's
+        personal factor is 0.8; the room price stays on the row for reference."""
+        exp = fixture()["auction"]["expected_personal"]
+        board = run("worked")
+        self.assertAlmostEqual(board["inflation"]["ours"]["personalFactor"], exp["personalFactor"])
+        self.assertEqual(worked_mismatches(board, exp["rows"], rows_only=True), [])
+        self.assertTrue(all(r["ourFactor"] == "personal" for r in board["rows"]))
 
     def test_rival_cap_variant(self):
         a = fixture()["auction"]
-        board = run("worked", variant="variant_rival_cap")
+        board = run("worked", variant="variant_rival_cap", factor="room")
         self.assertEqual(worked_mismatches(board, a["variant_rival_cap"]["expected_rows"], rows_only=True), [])
 
     def test_pricing_splits_the_whole_budget(self):
@@ -118,7 +128,7 @@ class GuardsCatchMutations(unittest.TestCase):
         shutil.copy(ROOT / "app" / "trade-value-chart" / "assets" / "value-model.js",
                     tmp / "app" / "trade-value-chart" / "assets" / "value-model.js")
         shutil.copy(DRIVER, tmp / "tests" / "draft_engine_driver.js")
-        return run("worked", variant=variant, driver=tmp / "tests" / "draft_engine_driver.js")
+        return run("worked", variant=variant, driver=tmp / "tests" / "draft_engine_driver.js", factor="room")
 
     def test_guard_max_bid_without_slot_reserve(self):
         board = self._mutated("team.budgetLeft - minBid * (open - 1)", "team.budgetLeft")

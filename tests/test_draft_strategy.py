@@ -52,7 +52,7 @@ class OpponentModel(unittest.TestCase):
 
 class PushFloorCandidates(unittest.TestCase):
     def test_candidate_a_is_the_board_rule(self):
-        got = _cjs("['P5','P6','P8','P9','P11'].map(k=>E.pushFloors(st(),k).pushFloor.A)")
+        got = _cjs("['P5','P6','P8','P9','P11'].map(k=>E.pushFloors(st({ourFactor:'room'}),k).pushFloor.A)")
         self.assertEqual(got, [13, 8, 3, 5, 1])
 
     def test_candidate_b_never_above_roster_value(self):
@@ -98,7 +98,7 @@ class PushFloorCandidates(unittest.TestCase):
 
     def test_bench_only_player_worth_half_to_us(self):
         # A has no RB slot and no bench: worth 0 to us. Give A a bench slot only.
-        got = _cjs("E.pushFloors(st({teams:[{id:'A',budgetLeft:15,open:{BN:3}},W.teams[1],W.teams[2]]}),'P7')")
+        got = _cjs("E.pushFloors(st({ourFactor:'room',teams:[{id:'A',budgetLeft:15,open:{BN:3}},W.teams[1],W.teams[2]]}),'P7')")
         self.assertAlmostEqual(got["rosterValue"], 9.75 * 0.5)
         self.assertEqual(got["buyLimit"], 4)
 
@@ -114,8 +114,13 @@ class PersonalInflation(unittest.TestCase):
         self.assertAlmostEqual(row["oursInflated"], 1 + 9 * 0.8)
         self.assertEqual(row["walkAway"], 8)
 
-    def test_room_factor_is_the_default(self):
-        self.assertEqual(_cjs("E.boardRow(st(),'P6').walkAway"), 12)
+    def test_personal_is_the_default_room_on_request(self):
+        # Jeremy, 2026-11-27: "Personal by default (Recommended)" (the rule
+        # changed, so this assertion flipped from the room factor).
+        row = _cjs("E.boardRow(st(),'P6')")
+        self.assertEqual((row["ourFactor"], row["walkAway"]), ("personal", 8))
+        self.assertAlmostEqual(row["oursInflatedRoom"], 12.25)
+        self.assertEqual(_cjs("E.boardRow(st({ourFactor:'room'}),'P6').walkAway"), 12)
 
 
 class Nominations(unittest.TestCase):

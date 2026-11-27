@@ -1,7 +1,8 @@
 // Node driver for the draft engine tests (JEG-1667).
 //
 // Usage: node tests/draft_engine_driver.js <case> [args...]
-//   worked <fixture.json> [variant]   board for the worked-example auction
+//   worked <fixture.json> [variant|-] [room|personal]   board for the worked
+//                                     example (factor omitted = engine default)
 //   pricing <fixture.json>            prices for the worked-example weights
 //   build <input.json>                ours/market prices for a full league
 // Prints JSON on stdout.
@@ -12,14 +13,15 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const DraftEngine = require(path.join(ROOT, "app", "draft", "draft-engine.js"));
 
-const [mode, file, variant] = process.argv.slice(2);
+const [mode, file, variantArg, factor] = process.argv.slice(2);
+const variant = variantArg && variantArg !== "-" ? variantArg : null;
 const doc = JSON.parse(fs.readFileSync(file, "utf8"));
 
-function workedState(auction, teams) {
+function workedState(auction, teams, ourFactor) {
   const pos = {}, ours = {}, market = {};
   Object.entries(auction.players).forEach(([k, p]) => { pos[k] = p.pos; ours[k] = p.ours; market[k] = p.market; });
   return { league: auction.league, me: auction.me, teams, available: Object.keys(auction.players),
-    pos, prices: { ours, market } };
+    pos, prices: { ours, market }, ...(ourFactor ? { ourFactor } : {}) };
 }
 
 let out;
@@ -29,7 +31,7 @@ if (mode === "pricing") {
 } else if (mode === "worked") {
   const a = doc.auction;
   const teams = variant ? a[variant].teams : a.teams;
-  out = DraftEngine.board(workedState(a, teams));
+  out = DraftEngine.board(workedState(a, teams, factor));
 } else if (mode === "build") {
   const res = DraftEngine.ddfDraftValues(doc);
   const ours = DraftEngine.ourPrices(res.values, doc.league);

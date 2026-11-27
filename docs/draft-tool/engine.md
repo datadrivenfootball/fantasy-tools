@@ -88,7 +88,7 @@ available players, and the three pre-draft price maps.
 | Inflated price | `$1 + (price - $1) x factor` |
 | Max bid (per team) | `money left - $1 x (open slots - 1)` |
 | Walk-away | Our inflated price rounded down to whole dollars, capped at our max bid and at the best max bid among rivals who can roster him + $1 (no rival can force us past that). $1 when he is outside our priced pool but we have a slot; $0 when we have no slot. |
-| Push floor | Below. **What the board does today:** `board()` / `boardRow()` show push floor rule A and walk-aways on the room inflation factor. The candidates below are in `pushFloors()` and personal inflation is `state.ourFactor = "personal"`; neither is the board default until Jeremy decides. |
+| Push floor | Below. **What the board does today:** walk-aways use **personal inflation by default** (Jeremy, 2026-11-27: "Personal by default (Recommended)"); each row also carries `oursInflatedRoom`, the room-factor price, for reference, and `state.ourFactor = "room"` switches back. The push floor shown is still rule A; the candidates below are in `pushFloors()` until Jeremy decides. |
 
 The inflation factor itself is not bounded: late in a draft it can be large
 (review probe: $20 and 2 open slots against a rival with $3 for 1 slot and
@@ -202,8 +202,9 @@ What it shows:
    +0.1 +/- 0.5); C only loses under our own values. Pushing past our value
    neither helps nor clearly hurts, and it gets us stuck 2.6 times a draft.
 
-Recommendation (Jeremy decides; the board keeps rule A and the room factor
-until then): **B with personal inflation.** Limits: bots do not nominate
+Personal inflation is the board default since 2026-11-27 (Jeremy:
+"Personal by default (Recommended)"). Recommendation for the push floor,
+still Jeremy's call (the board shows rule A until then): **B.** Limits: bots do not nominate
 strategically; one league shape; the noisy judge still centres on DDF Value.
 (The reviewer's probe on the earlier code, 100 drafts on seed 2, found
 B - A = -1.7 +/- 0.9 under the market judge; this run, after the Vegas fill
@@ -249,6 +250,27 @@ caps P6's push, the walk-away caps P5's push, the missing slot zeroes P7.
 **Variant (rival cap).** Same money and counts, but only B has an open QB
 slot (B: QB, WR; C: RB, WR, TE). P5's best rival is now B at $13, so his
 push floor is min(13, 18, 12) = **$12**.
+
+The tables above use the room factor (`ourFactor: "room"`). **With the
+default personal inflation** (since 2026-11-27): A holds $12 of the room's
+$50 surplus but 3 of its 8 open valued slots, so A's factor is
+12 / (40 x 3/8) = **0.8**; market prices stay on the room factor (1.25).
+Ours inflated = 1 + (ours - 1) x 0.8:
+
+| Player | Ours | Ours infl. (personal) | Room, for reference | Walk-away | Push floor (rule A) |
+| --- | --- | --- | --- | --- | --- |
+| P5 | 12 | 9.8 | 14.75 | **9** | min(9, 18, 26) = **9** |
+| P6 | 10 | 8.2 | 12.25 | **8** | min(8, 8, 26) = **8** |
+| P7 | 8 | 6.6 | 9.75 | **0** (no RB slot) | none |
+| P8 | 6 | 5.0 | 7.25 | **5** | min(5, 3, 12) = **3** |
+| P9 | 6 | 5.0 | 7.25 | **5** | min(5, 5, 26) = **5** |
+| P11 | 2 | 1.8 | 2.25 | **1** | min(1, 1, 12) = **1** |
+| P12 | 2 | 1.8 | 2.25 | **1** | min(1, 0, 26) < 1: **none** |
+
+A is short of money for its open slots (it overspent on P1), so personal
+inflation lowers its bids; a team holding more than its share bids higher.
+Both tables are tests (`test_board_matches_hand_check_to_the_dollar` for the
+room factor, `test_default_personal_inflation_matches_hand_check`).
 
 The review cases (tests `ReviewCases`) add the late-draft probe (walk-away
 $4, push floor $2), the outside-pool $1 walk-away, per-slot and IR handling,
