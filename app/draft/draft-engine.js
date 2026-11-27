@@ -132,106 +132,118 @@
   }
 
   // ------------------------------------------------------- ours: DDF values
-  // Jeremy, 2026-11-27: "Our values are going to be informed by market +
-  // vegas projected performance outcomes, calculated up in to DDF draft
-  // values." DDF Value's default basis averages the chart sources only
-  // (JEG-1073), so a projection would not move ours. Ours therefore uses the
-  // value build's own "blend" basis (VP-6.3, basisConfig) over three groups;
-  // each group's weight is split evenly across its sources, and a player's
-  // mean is re-normalised over the sources that price him (vpWeightedMean).
-  // This is the one named setting for the blend (percent per group).
-  var DRAFT_BASIS_WEIGHTS = { market: 50, projections: 25, vegas: 25 };
+  // Jeremy, 2026-11-27: "Vegas when available is there, then projections,
+  // then market. We are picking by what's available, not averaging."
+  // So ours is a fallback, per player and per stat:
+  //   1. a Vegas season prop line, where one passed the parser;
+  //   2. otherwise that stat from the projection (FantasyPros);
+  //   3. a player with no projection and no prop takes his market value.
+  // The merged stat line goes through the existing value build once (one
+  // projection source; its DDF "projections" version is ours, since with no
+  // chart source the blended version is empty). Sources:
+  //   "vegas"       every stat the projection has came from a prop
+  //   "vegas+proj"  some stats from props, the rest from the projection
+  //   "proj"        projection only
+  //   "market"      no projection: market value, mapped into DDF units
+  var SOURCE_LABELS = ["vegas", "vegas+proj", "proj", "market"];
+  var VEGAS_STATS = Object.keys(VEGAS_MARKETS).map(function (m) { return VEGAS_MARKETS[m]; });
 
-  function draftBasisConfig(groups, weights) {
-    var w = weights || DRAFT_BASIS_WEIGHTS;
-    var out = { mode: "blend", sources: [], weights: {} };
-    Object.keys(groups).forEach(function (g) {
-      var keys = groups[g];
-      var gw = Number(w[g]) || 0;
-      if (!keys.length || gw <= 0) return;
-      keys.forEach(function (k) { out.sources.push(k); out.weights[k] = gw / keys.length; });
+  // One player's stat line by source order. vegas: a vegasStatLine result
+  // (stats + covered) or a plain stat line (every stat present counts).
+  function mergeStatLine(vegas, proj) {
+    var covered = vegas ? (vegas.covered || STAT_KEYS.filter(function (k) { return isFinite(Number(vegas[k])); })) : [];
+    var out = {}, fromVegas = 0, relevant = 0;
+    STAT_KEYS.forEach(function (k) {
+      var pv = proj && isFinite(Number(proj[k])) ? Number(proj[k]) : 0;
+      var useV = covered.indexOf(k) !== -1 && isFinite(Number(vegas[k]));
+      out[k] = useV ? Number(vegas[k]) : pv;
+      // Only stats Vegas has a market for decide the label (no book posts
+      // season fumbles, so those always come from the projection).
+      if (VEGAS_STATS.indexOf(k) !== -1 && (pv !== 0 || useV)) relevant += 1;
+      if (useV) fromVegas += 1;
     });
-    return out.sources.length ? out : null;
+    var source = !fromVegas ? "proj" : (!proj || fromVegas >= relevant ? "vegas" : "vegas+proj");
+    return { line: out, source: source };
   }
 
   // input = {league, players: {key: {pos, name?}},
-  //   projections: {sourceKey: {playerKey: stat line | season points}},
-  //   vegas: {playerKey: stat line from vegasStatLine} (optional; players
-  //   without a prop take the vegasFallback projection's line, default the
-  //   first projection source),
-  //   markets: {sourceKey: {playerKey: native value (dollars or chart value)}},
-  //   lineupConfig: config/lineup_parameters.json (required: it sets DDF's
-  //   bench share), basisWeights: {market, projections, vegas} (optional;
-  //   default DRAFT_BASIS_WEIGHTS), overrides: {playerKey: DDF value}}.
-  // Projections and Vegas enter the value build as "projection" sources in
-  // points per game; markets as "chart" sources. Returns {values: {key: DDF
-  // Value}, pipeline, basis}.
+  //   projections: {sourceKey: {playerKey: stat line | season points}} (the
+  //     first source, or input.projectionSource, is the projection used),
+  //   vegas: {playerKey: vegasStatLine result} (optional),
+  //   vegasStatus: "ok" (default) | "stale" | "rejected": anything but "ok"
+  //     ignores the props, so every player falls back to his projection,
+  //   markets: {sourceKey: {playerKey: market value}} (only for players with
+  //     no projection and no prop; the first source is used),
+  //   lineupConfig: config/lineup_parameters.json (required: DDF's bench
+  //     share), overrides: {playerKey: DDF value}}.
+  // Returns {values: {key: DDF Value}, source: {key: label}, counts, pipeline}.
   function ddfDraftValues(input) {
     var league = input.league;
     if (!input.lineupConfig) throw new Error("lineupConfig is required (it sets DDF's bench share)");
-    var sources = {};
-    var groups = { market: [], projections: [], vegas: [] };
-    var addProjection = function (src, table, group) {
-      var vals = {};
-      Object.keys(table).forEach(function (k) {
-        var row = table[k];
-        var pts = typeof row === "number" ? row : fantasyPoints(row, league.scoring);
-        if (isFinite(pts)) vals[k] = pts / SEASON_GAMES;
-      });
-      sources[src] = { family: "projection", status: "included", values: vals, label: src };
-      groups[group].push(src);
-    };
-    Object.keys(input.projections || {}).forEach(function (src) {
-      addProjection(src, input.projections[src], "projections");
-    });
-    // Vegas covers only the players with props (about 113 of 399 in 2026).
-    // A source that lists only them would get its own replacement line from
-    // the weakest prop player and its own full share of the pie, distorting
-    // ours even when every line agrees with FantasyPros (review of f662c66).
-    // So Vegas covers the same pool as the fallback projection: a player
-    // without a prop takes that projection's line.
-    if (input.vegas && Object.keys(input.vegas).length) {
-      var fbKey = input.vegasFallback || Object.keys(input.projections || {})[0];
-      var fb = fbKey ? input.projections[fbKey] : null;
-      var vegasTable = {};
-      if (fb) Object.keys(fb).forEach(function (k) { vegasTable[k] = fb[k]; });
-      Object.keys(input.vegas).forEach(function (k) { vegasTable[k] = input.vegas[k]; });
-      addProjection("vegas", vegasTable, "vegas");
-    }
-    Object.keys(input.markets || {}).forEach(function (src) {
-      var vals = {};
-      var table = input.markets[src];
-      Object.keys(table).forEach(function (k) {
-        var v = Number(table[k]);
-        if (isFinite(v)) vals[k] = v;
-      });
-      sources[src] = { family: "chart", status: "included", values: vals, label: src };
-      groups.market.push(src);
-    });
-    var players = {};
+    var projKey = input.projectionSource || Object.keys(input.projections || {})[0];
+    var proj = projKey ? input.projections[projKey] : {};
+    var vegasOk = !!input.vegas && (input.vegasStatus == null || input.vegasStatus === "ok");
+    var vegas = vegasOk ? input.vegas : {};
+    var skill = {};
     Object.keys(input.players).forEach(function (k) {
       var p = input.players[k];
-      if (SKILL_POSITIONS.indexOf(p.pos) !== -1) players[k] = { pos: p.pos, name: p.name };
+      if (SKILL_POSITIONS.indexOf(p.pos) !== -1) skill[k] = { pos: p.pos, name: p.name };
     });
-    var basis = draftBasisConfig(groups, input.basisWeights);
+    var source = {}, ppg = {};
+    var keys = {};
+    Object.keys(proj).forEach(function (k) { keys[k] = 1; });
+    Object.keys(vegas).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+      if (!skill[k]) return;
+      var row = proj[k];
+      var pts;
+      if (typeof row === "number") { pts = row; source[k] = "proj"; }
+      else {
+        var m = mergeStatLine(vegas[k], row);
+        pts = fantasyPoints(m.line, league.scoring);
+        source[k] = m.source;
+      }
+      if (isFinite(pts)) ppg[k] = pts / SEASON_GAMES;
+    });
+    var players = {};
+    Object.keys(ppg).forEach(function (k) { players[k] = skill[k]; });
     var pipeline = ValueModel.runValuePipeline({
       setting: pipelineSetting(league),
       players: players,
-      sources: sources,
-      basisConfig: basis,
+      sources: { draft: { family: "projection", status: "included", values: ppg, label: "draft" } },
       lineup: preseasonLineup(input.lineupConfig, input.contentWeek)
     });
     var values = {};
     Object.keys(pipeline.rows || {}).forEach(function (k) {
-      var entry = pipeline.rows[k].ddfByVersion && pipeline.rows[k].ddfByVersion.blended;
+      var entry = pipeline.rows[k].ddfByVersion && pipeline.rows[k].ddfByVersion.projections;
       var v = entry ? entry.value : null;
       if (typeof v === "number" && isFinite(v)) values[k] = v;
+    });
+    // Market fallback: players with neither a projection nor a prop. Their
+    // market value is mapped into DDF units with the ratio of DDF Value to
+    // market value over the players priced by both.
+    var mktKey = Object.keys(input.markets || {})[0];
+    var mkt = mktKey ? input.markets[mktKey] : {};
+    var sumV = 0, sumM = 0;
+    Object.keys(values).forEach(function (k) {
+      var mv = Number(mkt[k]);
+      if (isFinite(mv) && mv > 0) { sumV += values[k]; sumM += mv; }
+    });
+    var ratio = sumM > 0 ? sumV / sumM : 0;
+    Object.keys(mkt).forEach(function (k) {
+      if (!skill[k] || source[k]) return;
+      var mv = Number(mkt[k]);
+      if (isFinite(mv) && mv > 0 && ratio > 0) { values[k] = mv * ratio; source[k] = "market"; }
     });
     Object.keys(input.overrides || {}).forEach(function (k) {
       var v = Number(input.overrides[k]);
       if (isFinite(v) && v >= 0) values[k] = v;
     });
-    return { values: values, pipeline: pipeline, basis: basis };
+    var counts = {};
+    SOURCE_LABELS.forEach(function (l) { counts[l] = 0; });
+    Object.keys(values).forEach(function (k) { if (source[k]) counts[source[k]] += 1; });
+    return { values: values, source: source, counts: counts, pipeline: pipeline,
+      vegasUsed: vegasOk && Object.keys(input.vegas || {}).length > 0 };
   }
 
   // ---------------------------------------------------------------- dollars
@@ -441,7 +453,8 @@
       var pb = Math.min(buyLimit, rivalCeiling - minBid);
       pushFloor = pb >= minBid ? pb : null;
     }
-    return { key: key, pos: pos, ours: ours, market: market, platform: platform,
+    var src = state.priceSource ? state.priceSource[key] || null : null;
+    return { key: key, pos: pos, source: src, ours: ours, market: market, platform: platform,
       oursInflated: oursInfl, oursInflatedRoom: oursInflRoom, ourFactor: usePersonal ? "personal" : "room",
       marketInflated: marketInfl, platformInflated: platformInfl,
       walkAway: walkAway, rosterValue: rosterVal, buyLimit: buyLimit, pushFloor: pushFloor,
@@ -648,8 +661,8 @@
     leagueShape: leagueShape,
     pipelineSetting: pipelineSetting,
     preseasonLineup: preseasonLineup,
-    DRAFT_BASIS_WEIGHTS: DRAFT_BASIS_WEIGHTS,
-    draftBasisConfig: draftBasisConfig,
+    SOURCE_LABELS: SOURCE_LABELS,
+    mergeStatLine: mergeStatLine,
     ddfDraftValues: ddfDraftValues,
     pricesFromWeights: pricesFromWeights,
     ourPrices: ourPrices,

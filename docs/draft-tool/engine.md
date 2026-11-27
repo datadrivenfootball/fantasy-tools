@@ -13,51 +13,49 @@ browser; only the recurring data (the daily pull) comes from Supabase.
 
 | Price | Built from | Function |
 | --- | --- | --- |
-| Ours (DDF draft value) | Market values, FantasyPros season projections and Vegas props, blended by the existing value build `ValueModel.runValuePipeline` | `ddfDraftValues`, then `ourPrices` |
+| Ours (DDF draft value) | By availability, not averaged: Vegas prop per stat, else FantasyPros projection, else market; through the existing value build `ValueModel.runValuePipeline` | `ddfDraftValues`, then `ourPrices` |
 | Market | FantasyPros consensus rank mapped onto a dollar curve, plus any market dollar source (ESPN average auction value), rescaled to the league | `rankImpliedDollars`, `blendDollars`, `rescaleDollars` |
 | Platform | The dollars ESPN, Yahoo or Sleeper shows in its draft room, rescaled to the league | `rescaleDollars` |
 
-### Ours: the existing value build, not a fork
+### Ours: one source per stat, by availability
 
-`ddfDraftValues` shapes inputs and calls `ValueModel.runValuePipeline` once:
+Jeremy, 2026-11-27: "Vegas when available is there, then projections, then
+market. We are picking by what's available, not averaging." (This replaces
+the 50/25/25 blend of the same day; no source weights remain.)
 
-- Setting from the league: teams, QB/RB/WR/TE slots, FLEX, SUPERFLEX, bench.
-- Projections enter as `projection` sources in points per game (season
-  points / 17), scored with the league's own scoring (`fantasyPoints`).
-- Vegas enters as one more projection: `vegasStatLine` takes the season prop
-  lines (pass/rush/receiving yards and TDs, receptions) and fills any stat
-  without a prop from the FantasyPros line for the same player. **A player
-  with no prop takes his FantasyPros line** in the Vegas source, so Vegas
-  covers the same pool as FantasyPros. (Review of f662c66: a Vegas source
-  listing only the ~113 prop players drew its replacement line from the
-  weakest prop player and gave its whole pie to them, so ours moved even
-  when every line agreed with FantasyPros; McCaffrey, no prop, $58.8 to
-  $53.2. Test `test_vegas_equal_to_fp_leaves_ours_unchanged`: Vegas equal to
-  FantasyPros prices exactly like FantasyPros carrying the Vegas weight.)
-- Market values enter as a `chart` source; with the live `charts` split they
-  set the position split of the pie.
-- **The blend.** DDF Value's default basis averages the chart sources only
-  (JEG-1073), so on that basis a player's own projections or Vegas lines do
-  not move ours (review, 2026-11-27: a 1.6x projection moved a test RB
-  $15.04 to $15.04). Jeremy, 2026-11-27: "Our values are going to be informed
-  by market + vegas projected performance outcomes, calculated up in to DDF
-  draft values." So ours uses the value build's own `blend` basis (VP-6.3,
-  `basisConfig`): the weighted mean of each source's Adjusted value, over the
-  sources that price the player. No new math.
-- **One named setting:** `DRAFT_BASIS_WEIGHTS` = market 50, FantasyPros
-  projections 25, Vegas 25 (percent; each group's weight is split evenly
-  across its sources). A caller can pass `basisWeights`. The backtest
-  sensitivity table and the A/B/C decision are in `backtest.md`. Test: a
-  1.6x projection now moves the test RB $15.73 to $25.43; 2x Vegas $16.39 to
-  $27.64; 1.6x market $15.73 to $21.68.
-- The live page's expected-starts parameters (`config/lineup_parameters.json`)
-  set the bench share, so ours uses DDF's bench share. `lineupConfig` is
-  required: without it the build would fall back to a fixed 15% share. At
-  draft time the window opens at week 1 (`preseasonLineup`).
-- Overrides replace a player's DDF Value after the build.
+`ddfDraftValues`, per player and per stat:
 
-The result is DDF Value, a share of a fixed pie, read from
-`rows[key].ddfByVersion.blended.value`.
+1. **Vegas:** the season prop line, where one passed the paste parser
+   (passing, rushing and receiving yards and TDs, receptions).
+2. **Projection:** every other stat from the FantasyPros projection.
+   The fallback is per stat: a receiver with only a receiving-yards prop
+   takes his receptions and TDs from the projection.
+3. **Market:** a player with no projection and no prop takes his market
+   value, mapped into DDF units by the ratio of DDF Value to market value
+   over the players priced by both.
+
+A snapshot marked stale or rejected (`vegasStatus` other than "ok") is
+ignored, so every player falls back to his projection, never to zero.
+
+The merged stat line is scored with the league's scoring and goes through
+the existing value build once, as one projection source in points per game
+(`ValueModel.runValuePipeline`, expected-starts bench share from
+`config/lineup_parameters.json`, preseason window from week 1). Ours is that
+build's DDF Value, projections version: with no chart source the blended
+version is empty. No math is forked.
+
+Each player records where his price came from (`source`, and on the board
+row): **vegas** (every Vegas-tradable stat from props), **vegas+proj**,
+**proj**, or **market**. 2026 data: 25 vegas, 88 vegas+proj, 286 proj,
+0 market (every player in the FantasyPros list has a projection).
+
+Tests (`FullLeagueBuild`): all props present price from Vegas; partial props
+fill the rest from the projection; no props use the projection; no
+projection uses the market; Vegas lines equal to the projection price exactly
+like the projection alone (max difference 0); a stale or rejected snapshot
+falls back to the projection.
+
+Overrides replace a player's DDF Value after the build.
 
 ### Dollars and snake rank
 
@@ -177,41 +175,42 @@ Three judges score our starting lineup:
   estimates; the lineup is scored by the true values. Here ours can be wrong
   and lose, so this is the judge that can contradict our own numbers.
 
-Mean per draft (starter value; ours and truth in DDF Value points, market in
-market dollars):
+Re-run 2026-11-27 with ours built by availability (Vegas, then projection,
+then market; no blend). Mean per draft (starter value; ours and truth in DDF
+Value points, market in market dollars):
 
 | Policy | Ours | Market | Truth | Unspent (real prices) | Bench buys at starter price |
 | --- | --- | --- | --- | --- | --- |
-| Walk-away, room inflation (first engine) | 164.9 | 124.6 | 210.5 | $55 | 5.0 |
-| Walk-away, personal inflation | 216.5 | 182.3 | 217.0 | $0 | 5.2 |
-| A, personal | 218.0 | 184.2 | 217.2 | $0 | 5.0 |
-| **B, personal (the board today)** | **221.4** | **186.5** | **220.5** | $1 | 0 |
-| C, personal | 220.0 | 185.5 | 214.5 | $1 | 2.6 |
+| Walk-away, room inflation (first engine) | 192.4 | 74.8 | 216.0 | $94 | 4.9 |
+| Walk-away, personal inflation | 250.5 | 163.8 | 216.6 | $0 | 5.1 |
+| A, personal | 251.0 | 165.8 | 216.9 | $0 | 5.0 |
+| **B, personal (the board today)** | **256.9** | 156.3 | **221.2** | $2 | 0 |
+| C, personal | 256.4 | 158.2 | 213.9 | $1 | 1.3 |
 
 Each policy minus B, paired by seed (mean +/- standard error):
 
 | Policy | Ours judge | Market judge | Truth judge |
 | --- | --- | --- | --- |
-| Walk-away, room inflation | -56.5 +/- 1.7 | -62.0 +/- 1.9 | -10.0 +/- 1.0 |
-| Walk-away, personal | -4.9 +/- 0.6 | -4.3 +/- 0.6 | -3.5 +/- 0.3 |
-| A, personal | -3.4 +/- 0.5 | -2.4 +/- 0.5 | -3.3 +/- 0.3 |
-| C, personal | -1.4 +/- 0.2 | -1.1 +/- 0.3 | -6.0 +/- 0.3 |
+| Walk-away, room inflation | -64.5 +/- 1.2 | -81.5 +/- 1.2 | -5.2 +/- 1.0 |
+| Walk-away, personal | -6.3 +/- 0.8 | +7.5 +/- 0.6 | -4.6 +/- 0.4 |
+| A, personal | -5.8 +/- 0.7 | +9.5 +/- 0.5 | -4.3 +/- 0.3 |
+| C, personal | -0.4 +/- 0.2 | +1.9 +/- 0.2 | -7.3 +/- 0.4 |
 
 What it shows:
 
-1. **B wins under all three judges,** by more than two standard errors
-   against every other policy, including the truth judge: +3.3 over A,
-   +3.5 over plain walk-away, +6.0 over C. Pushing past our value (C) is
-   clearly worse once ours can be wrong.
-2. **Personal inflation, measured alone** (personal walk-away minus room
-   walk-away, same bid rule): +51.6 +/- 1.8 (ours judge), +57.7 +/- 1.9
-   (market), **+6.5 +/- 1.1 (truth)**. The large real-price gain comes from a
-   structural mismatch in the 2026 prices: the market spreads its dollars
-   over about 120 players and ours over 156, so on room inflation our bids
-   sink and $55 goes unspent. When ours and market agree on average (truth
-   world), personal inflation still helps, by much less. Taken together with
-   B, the first engine (room walk-away) trails today's board by 56.5 / 62.0 /
-   10.0 points.
+1. **B wins under the truth judge,** the one that can contradict our values:
+   +4.3 over A, +4.6 over plain walk-away, +7.3 over C, each well over two
+   standard errors. B also wins under our own values.
+2. **Under the market judge B now loses** (A +9.5, walk-away +7.5). With
+   the fallback, ours and the market disagree on positions (ours rates RBs
+   higher; see backtest.md), and B bids hardest where ours is most sure, so
+   a market-valued lineup scores lower. This is the position-split question
+   in backtest.md, not a push-floor effect.
+3. **Personal inflation, measured alone** (personal minus room walk-away):
+   +58.2 +/- 1.4 (ours), +89.0 +/- 1.2 (market), **+0.6 +/- 1.0 (truth)**.
+   On the real 2026 prices room inflation strands $94 because ours and the
+   market price the pool very differently; when they agree on average
+   (truth world) the two factors draft alike.
 
 Limits: bots do not nominate strategically; one league shape; the truth world
 assumes ours and market are equally accurate.

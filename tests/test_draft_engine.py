@@ -145,10 +145,21 @@ class GuardsCatchMutations(unittest.TestCase):
         self.assertNotEqual(worked_mismatches(board, fixture()["auction"]["expected"]), [])
 
 
-def _league_input(scoring="half", lineup=True, bump=None, vegas=False):
-    """A synthetic 10-team league: 40 QB, 80 RB, 90 WR, 40 TE with a
-    decreasing projection, two projection sources and one market."""
-    players, p1, p2, mkt = {}, {}, {}, {}
+def _stat_line(pos, pts):
+    """A stat line worth `pts` half-PPR points (receptions 0): QBs pass,
+    RBs rush and catch, WRs and TEs catch."""
+    if pos == "QB":
+        return {"pass_yds": pts * 25.0}
+    if pos == "RB":
+        return {"rush_yds": pts * 6.0, "rec_yds": pts * 4.0}
+    return {"rec_yds": pts * 10.0}
+
+
+def _league_input(scoring="standard", lineup=True, bump=None, vegas=None, no_proj=()):
+    """A synthetic 10-team league: 40 QB, 80 RB, 90 WR, 40 TE with FantasyPros-
+    style stat-line projections and one market. vegas: {key: stat line} props.
+    no_proj: keys left out of the projection (market fallback)."""
+    players, fp, mkt = {}, {}, {}
     key = 1000
     for pos, n, top in (("QB", 40, 380.0), ("RB", 80, 300.0), ("WR", 90, 290.0), ("TE", 40, 220.0)):
         for i in range(n):
@@ -156,11 +167,10 @@ def _league_input(scoring="half", lineup=True, bump=None, vegas=False):
             k = str(key)
             players[k] = {"pos": pos, "name": f"{pos}{i + 1}"}
             pts = top * (0.985 ** i) - i * 0.6
-            p1[k] = pts
-            p2[k] = pts * (1.03 if i % 2 else 0.97)
             if bump and k in bump.get("proj", {}):
-                p1[k] *= bump["proj"][k]
-                p2[k] *= bump["proj"][k]
+                pts *= bump["proj"][k]
+            if k not in no_proj:
+                fp[k] = _stat_line(pos, pts)
             mkt[k] = max(0.0, 60.0 * (0.94 ** (i * (1.0 if pos in ("RB", "WR") else 1.6))))
             if bump and k in bump.get("market", {}):
                 mkt[k] *= bump["market"][k]
@@ -168,11 +178,11 @@ def _league_input(scoring="half", lineup=True, bump=None, vegas=False):
         "league": {"teams": 10, "budget": 200, "minBid": 1, "scoring": scoring,
                    "slots": {"QB": 1, "RB": 2, "WR": 3, "TE": 1, "FLEX": 1, "K": 1, "DST": 1, "BN": 6}},
         "players": players,
-        "projections": {"proj_a": p1, "proj_b": p2},
+        "projections": {"fp": fp},
         "markets": {"market_a": mkt},
     }
-    if vegas is not False:
-        doc["vegas"] = {k: v * (vegas or {}).get(k, 1.0) for k, v in p1.items() if players[k]["pos"] in ("RB", "WR")}
+    if vegas is not None:
+        doc["vegas"] = vegas
     if lineup:
         doc["lineupConfig"] = json.loads(LINEUP.read_text())
     return doc
@@ -183,8 +193,11 @@ PROBE_RB = "1061"  # RB20 of the synthetic league: inside the priced pool, not a
 
 class FullLeagueBuild(unittest.TestCase):
     def _build(self, **kw):
+        return self._build_doc(_league_input(**kw))
+
+    def _build_doc(self, doc):
         tmp = Path(tempfile.mkdtemp()) / "league.json"
-        tmp.write_text(json.dumps(_league_input(**kw)))
+        tmp.write_text(json.dumps(doc))
         return run("build", file=tmp)
 
     def test_uses_expected_starts_like_the_live_page(self):
@@ -211,52 +224,74 @@ class FullLeagueBuild(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError):
             self._build(lineup=False)
 
-    def test_basis_blends_market_projections_and_vegas(self):
-        out = self._build(vegas={})
-        self.assertEqual(out["basis"]["mode"], "blend")
-        w = out["basis"]["weights"]
-        self.assertEqual(set(w), {"proj_a", "proj_b", "market_a", "vegas"})
-        self.assertAlmostEqual(w["proj_a"] + w["proj_b"], 25)
-        self.assertAlmostEqual(w["market_a"], 50)
-        self.assertAlmostEqual(w["vegas"], 25)
-
     def test_projection_change_moves_ours(self):
-        """Review finding 1 (2026-11-27): with the charts-only default basis a
-        1.6x projection moved this RB $0.00."""
+        """Review of f8123a4: on the charts-only basis a 1.6x projection moved
+        this RB $0.00."""
         base = self._build()["ours"][PROBE_RB]
         up = self._build(bump={"proj": {PROBE_RB: 1.6}})["ours"][PROBE_RB]
         self.assertGreater(up - base, 3.0)
 
-    def test_vegas_change_moves_ours(self):
-        base = self._build(vegas={})["ours"][PROBE_RB]
-        up = self._build(vegas={PROBE_RB: 2.0})["ours"][PROBE_RB]
-        self.assertGreater(up - base, 1.0)
+    # Jeremy, 2026-11-27: "Vegas when available is there, then projections,
+    # then market. We are picking by what's available, not averaging."
+    def _fp(self):
+        return _league_input()["projections"]["fp"]
+
+    def test_all_props_present_price_uses_vegas(self):
+        fp = self._fp()
+        rb = dict(fp[PROBE_RB])
+        props = {"rush_yds": rb["rush_yds"] * 1.5, "rec_yds": rb["rec_yds"] * 1.5, "covered": ["rush_yds", "rec_yds"]}
+        base = self._build()
+        out = self._build(vegas={PROBE_RB: props})
+        self.assertEqual(out["source"][PROBE_RB], "vegas")
+        # The price follows the props, not an average with the projection.
+        bumped = self._build(bump={"proj": {PROBE_RB: 1.5}})
+        self.assertAlmostEqual(out["ours"][PROBE_RB], bumped["ours"][PROBE_RB], places=9)
+        self.assertGreater(out["ours"][PROBE_RB], base["ours"][PROBE_RB])
+
+    def test_partial_props_fill_missing_stats_from_projection(self):
+        fp = self._fp()
+        rb = fp[PROBE_RB]
+        out = self._build(vegas={PROBE_RB: {"rush_yds": rb["rush_yds"], "covered": ["rush_yds"]}})
+        self.assertEqual(out["source"][PROBE_RB], "vegas+proj")
+        # Rushing from Vegas (equal here) and receiving from the projection:
+        # the same line as the projection, so the same price.
+        self.assertAlmostEqual(out["ours"][PROBE_RB], self._build()["ours"][PROBE_RB], places=9)
+
+    def test_no_props_uses_projection(self):
+        out = self._build(vegas={})
+        self.assertEqual(out["source"][PROBE_RB], "proj")
+        self.assertEqual(out["counts"]["vegas"] + out["counts"]["vegas+proj"], 0)
+
+    def test_no_projection_uses_market(self):
+        out = self._build(no_proj=(PROBE_RB,))
+        self.assertEqual(out["source"][PROBE_RB], "market")
+        self.assertGreater(out["ours"][PROBE_RB], 1.0)
+        # A market change moves him; it does not move a projected player.
+        up = self._build(no_proj=(PROBE_RB,), bump={"market": {PROBE_RB: 1.6, "1062": 1.6}})
+        self.assertGreater(up["ours"][PROBE_RB] - out["ours"][PROBE_RB], 1.0)
+        self.assertAlmostEqual(up["values"]["1062"], out["values"]["1062"], places=9)
 
     def test_vegas_equal_to_fp_leaves_ours_unchanged(self):
-        """Review of f662c66, blocker 1: Vegas lines equal to FantasyPros for a
-        subset of players must price exactly like FantasyPros carrying the
-        Vegas weight. Before the fill, a prop-only Vegas source moved players
-        with no prop (McCaffrey $58.8 -> $53.2) through its own replacement line."""
-        doc = _league_input()
-        fp = doc["projections"]["proj_a"]
-        some = [k for k in fp if doc["players"][k]["pos"] in ("RB", "WR")][:40]
-        with_vegas = dict(doc, projections={"fp": fp}, vegas={k: fp[k] for k in some},
-                          basisWeights={"market": 50, "projections": 25, "vegas": 25})
-        without = dict(doc, projections={"fp": fp}, basisWeights={"market": 50, "projections": 50, "vegas": 0})
-        a, b = self._build_doc(with_vegas)["ours"], self._build_doc(without)["ours"]
+        """Vegas lines equal to the projection price exactly like the
+        projection alone (max difference 0)."""
+        fp = self._fp()
+        some = [k for k in fp if _league_input()["players"][k]["pos"] in ("RB", "WR")][:40]
+        vegas = {k: dict(fp[k], covered=list(fp[k])) for k in some}
+        a, b = self._build(vegas=vegas)["ours"], self._build()["ours"]
         self.assertEqual(set(a), set(b))
-        for k in a:
-            self.assertAlmostEqual(a[k], b[k], places=9, msg=k)
+        self.assertEqual(max(abs(a[k] - b[k]) for k in a), 0)
 
-    def _build_doc(self, doc):
-        tmp = Path(tempfile.mkdtemp()) / "league.json"
-        tmp.write_text(json.dumps(doc))
-        return run("build", file=tmp)
-
-    def test_market_change_still_moves_ours(self):
-        base = self._build()["ours"][PROBE_RB]
-        up = self._build(bump={"market": {PROBE_RB: 1.6}})["ours"][PROBE_RB]
-        self.assertGreater(up - base, 1.0)
+    def test_stale_or_rejected_vegas_falls_back_to_projection(self):
+        fp = self._fp()
+        props = {PROBE_RB: {"rush_yds": 0.0, "rec_yds": 0.0, "covered": ["rush_yds", "rec_yds"]}}
+        base = self._build()["ours"]
+        for status in ("stale", "rejected"):
+            doc = _league_input(vegas=props)
+            doc["vegasStatus"] = status
+            out = self._build_doc(doc)
+            self.assertEqual(out["source"][PROBE_RB], "proj", status)
+            self.assertAlmostEqual(out["ours"][PROBE_RB], base[PROBE_RB], places=9)
+            self.assertGreater(out["ours"][PROBE_RB], 1.0)
 
 
 class ScoringAndInputs(unittest.TestCase):

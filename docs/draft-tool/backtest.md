@@ -14,7 +14,7 @@ DST are $1 slots in the engine and are left out).
 
 | Predictor | Built from |
 | --- | --- |
-| Ours | DDF draft value: the value build blends market (FantasyPros ECR on ESPN's dollar curve), FantasyPros season projections (snapshot 2026-09-11, consensus of 2026-09-08) and Vegas season props (2026-09-12), weights 50 / 25 / 25; expected-starts bench share |
+| Ours | DDF draft value by availability, not averaged: Vegas season prop per stat (2026-09-12), else FantasyPros season projection (snapshot 2026-09-11, consensus of 2026-09-08), else market; expected-starts bench share |
 | Market | FantasyPros 2026 draft ECR (last update 2026-09-10) mapped onto ESPN's published dollar curve |
 | Platform | ESPN's published 2026 auction values |
 
@@ -33,73 +33,60 @@ market both map FantasyPros ranks onto ESPN's published dollar curve, so
 against ESPN's own average prices they share ESPN's curve shape. Platform is
 left out of auction 2 for the same reason. Auction 1 is a separate room.
 
-## Results (engine default weights, 50 / 25 / 25)
+## Results (ours by availability: Vegas, then projection, then market)
 
-Re-run 2026-11-27 after the review of f662c66: Vegas now covers the same
-pool as FantasyPros (players without a prop take their FantasyPros line).
+Re-run 2026-11-27 after Jeremy's decision: "Vegas when available is there,
+then projections, then market. We are picking by what's available, not
+averaging." Sources in the 2026 pool: 25 vegas, 88 vegas+proj, 286 proj,
+0 market. Scored players: keeper room 19 / 57 / 40 / 0, ESPN averages
+23 / 54 / 22 / 0.
 
 **Auction 1 (12-team ESPN keeper league), raw dollars**
 
 | Position | n | Ours MAE | Ours bias | Market MAE | Market bias | Platform MAE | Platform bias |
 |---|---|---|---|---|---|---|---|
-| QB | 16 | $3.4 | +1.8 | $5.5 | +3.9 | $2.5 | -1.1 |
-| RB | 41 | $5.0 | +2.7 | $5.0 | -2.1 | $4.9 | -1.2 |
-| WR | 46 | $3.7 | -2.7 | $3.8 | +1.2 | $3.5 | +1.7 |
-| TE | 13 | $2.8 | -0.3 | $2.1 | -0.4 | $2.1 | +1.1 |
-| All | 116 | $4.0 | +0.1 | $4.3 | +0.2 | $3.7 | +0.2 |
+| QB | 16 | $3.6 | +1.0 | $5.5 | +3.9 | $2.5 | -1.1 |
+| RB | 41 | $7.9 | +6.7 | $5.0 | -2.1 | $4.9 | -1.2 |
+| WR | 46 | $7.0 | -6.5 | $3.8 | +1.2 | $3.5 | +1.7 |
+| TE | 13 | $3.8 | -0.4 | $2.1 | -0.4 | $2.1 | +1.1 |
+| All | 116 | $6.5 | -0.1 | $4.3 | +0.2 | $3.7 | +0.2 |
 
-**Auction 2 (ESPN 2026 average auction values)**, shape only: predictions
-scaled so their total matches what was paid, because ESPN's averages add up
-to $1,474, not a $2,000 room.
+**Auction 2 (ESPN 2026 average auction values)**, shape only (predictions
+scaled to what was paid; ESPN's averages add up to $1,474):
 
 | Position | n | Ours MAE | Ours bias | Market MAE | Market bias |
 |---|---|---|---|---|---|
-| QB | 16 | $3.4 | -0.8 | $3.8 | +0.4 |
-| RB | 34 | $4.5 | -1.3 | $5.0 | -3.6 |
-| WR | 38 | $5.7 | +1.9 | $6.6 | +3.2 |
-| TE | 11 | $3.2 | -1.3 | $4.0 | -0.7 |
-| All | 99 | $4.7 | +0.0 | $5.3 | +0.0 |
+| QB | 16 | $3.9 | -1.1 | $3.8 | +0.4 |
+| RB | 34 | $5.5 | +0.6 | $5.0 | -3.6 |
+| WR | 38 | $6.2 | +0.6 | $6.6 | +3.2 |
+| TE | 11 | $4.1 | -2.5 | $4.0 | -0.7 |
+| All | 99 | $5.4 | +0.0 | $5.3 | +0.0 |
 
-## Blend weight sensitivity (ours, MAE per player)
-
-The weights are one named setting, `DRAFT_BASIS_WEIGHTS` in
-`app/draft/draft-engine.js` (percent: market / FantasyPros projections /
-Vegas). "Market only" is the trade chart's default basis, under which a
-player's own projections did not move ours.
-
-| Weights (market / FP projections / Vegas) | Auction | QB | RB | WR | TE | All |
-|---|---|---|---|---|---|---|
-| market only (trade-chart basis) | 12-team keeper | $5.8 | $5.4 | $5.0 | $1.9 | $4.9 |
-| market only (trade-chart basis) | ESPN avg prices (shape) | $4.0 | $5.0 | $6.6 | $4.1 | $5.4 |
-| 70 / 15 / 15 | 12-team keeper | $4.4 | $4.5 | $3.4 | $2.5 | $3.8 |
-| 70 / 15 / 15 | ESPN avg prices (shape) | $3.6 | $4.5 | $6.0 | $3.4 | $4.8 |
-| 50 / 25 / 25 | 12-team keeper | $3.4 | $5.0 | $3.7 | $2.8 | $4.0 |
-| 50 / 25 / 25 | ESPN avg prices (shape) | $3.4 | $4.5 | $5.7 | $3.2 | $4.7 |
-| 34 / 33 / 33 | 12-team keeper | $3.0 | $5.6 | $4.5 | $3.2 | $4.5 |
-| 34 / 33 / 33 | ESPN avg prices (shape) | $3.3 | $4.7 | $5.7 | $3.1 | $4.7 |
-
-Decision for Jeremy (default blend; the engine keeps 50 / 25 / 25 until he
-decides):
-
-- **A (recommended): 70 / 15 / 15.** Best on the one independent room
-  (keeper auction $3.8 vs $4.0), $0.2 behind on ESPN's averages, which share
-  ESPN's curve with ours and are the weaker test.
-- B: 50 / 25 / 25. Best on ESPN's averages ($4.7); $0.2 worse in the keeper room.
-- C: 34 / 33 / 33. Best on QBs, worst overall in the keeper room ($4.5).
+The blend-weight sensitivity table is retired with the blend.
 
 ## What it says
 
-- **Projections and Vegas still help.** Against the market-only basis, the
-  blend cuts ours' error from $4.9 to $3.8-$4.0 in the keeper room and from
-  $5.4 to $4.7 on ESPN's averages. With the Vegas fill the keeper-room gain
-  is smaller than first reported ($3.5 before the fix, a figure inflated by
-  the distortion the review found).
-- **Rooms still track the platform on QBs.** ESPN's shown values priced QBs
-  best ($2.5); ours is $1.8 high on QBs in the 1-QB keeper league.
-- **RB and WR flip with the fix:** ours now runs $2.7 high on RBs and $2.7 low
-  on WRs in the keeper room; the ESPN averages show the opposite sign on RBs.
-  Two rooms disagree, so no position adjustment yet; the third auction
-  (USO) is the tie-breaker.
+- **Picking by availability is further from what rooms paid** than the
+  earlier blend: $6.5 per player in the keeper room (blend $4.0, market $4.3,
+  platform $3.7) and $5.4 on ESPN's averages (blend $4.7, market $5.3).
+  Ours is a value, not a forecast, but the gap is now large and one-sided.
+- **The error is the position split.** Ours runs $6.7 high on RBs and $6.5
+  low on WRs in the keeper room. With no market chart in the build, the
+  pie's split across positions comes from projections alone, which in
+  standard scoring favour RBs. (The trade chart's DDF Value takes its
+  position split from the charts, JEG-1569.)
+- **Rooms still track the platform:** ESPN's shown values priced the ESPN
+  room best ($3.7 per player; QB $2.5).
+
+Decision for Jeremy (does not average player values either way):
+
+- **A (recommended): keep availability for each player's value, and let the
+  market set only the position split of the pie,** as DDF Value does on the
+  trade chart. Players are still priced from Vegas, then projection, then
+  market; the market only decides how the pie divides between QB, RB, WR
+  and TE.
+- B: keep the pure fallback as built (projections set the position split).
+- C: return to the 50 / 25 / 25 blend.
 
 ## Third auction: USO Season XVIII (waiting for the paste)
 
