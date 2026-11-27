@@ -75,11 +75,22 @@
     showOptions(j.connection, j.leagues);
     await loadMe();
   }));
-  /* provider toggle: the site's ESPN / Yahoo / Sleeper switch shows one panel */
+  /* provider toggle: the site's ESPN / Yahoo / Sleeper switch shows one panel; the selected pill slides
+     the way connect.html's does (.pill-slide, styled by connect-page.css) */
+  var toggle = document.querySelector(".provider-toggle"), pill = el("span", {class: "pill-slide", "aria-hidden": "true"});
+  toggle.style.position = "relative"; toggle.insertBefore(pill, toggle.firstChild);
+  function placePill() {
+    var on = toggle.querySelector('[aria-pressed="true"]');
+    if (!on || !on.offsetWidth) return;
+    pill.style.width = on.offsetWidth + "px"; pill.style.transform = "translateX(" + on.offsetLeft + "px)";
+    requestAnimationFrame(function () { pill.classList.add("ready"); });
+  }
+  window.addEventListener("resize", placePill);
   Array.prototype.forEach.call(document.querySelectorAll("[data-provider]"), function (b) {
     b.addEventListener("click", function () {
       Array.prototype.forEach.call(document.querySelectorAll("[data-provider]"), function (x) { var on = x === b; x.setAttribute("aria-pressed", String(on)); x.classList.toggle("selected", on); });
       Array.prototype.forEach.call(document.querySelectorAll("[data-panel]"), function (pn) { pn.hidden = pn.dataset.panel !== b.dataset.provider; });
+      placePill();
     });
   });
   /* segmented settings controls */
@@ -315,6 +326,7 @@
     $("app").hidden = !session;
     if (!session) { step("signin"); return; }
     try { await loadMe(); } catch (err) { say(err.message, "err"); }
+    placePill();
   }
   var h = new URLSearchParams(location.hash.slice(1));
   var handoff = h.get("yahoo") === "finish" ? h.get("h") : null;

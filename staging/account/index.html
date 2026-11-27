@@ -40,6 +40,8 @@
   .connect .danger{color:var(--attention-text);border-color:var(--attention-text)}
   .connect .way ol{padding-left:20px;margin:8px 0}
   .connect .way code{font:13px "IBM Plex Mono",monospace;background:#eef1ec;border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+  .connect .way input[type=email]{flex:1 1 180px;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #bec8c1;border-radius:8px;font:inherit}
+  .connect .way form>input[type=text]{display:block;width:100%;margin-bottom:8px}
   .connect button[disabled]{opacity:.55;cursor:not-allowed}
   @media(max-width:760px){.connect .roster-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
@@ -76,7 +78,7 @@
         <div class="routes">
           <div class="way"><h3>Public league</h3>
             <p>Paste your league link or ID. We read public ESPN leagues straight from ESPN, this season.</p>
-            <form id="espn-form"><label for="espn-id">League link or ID</label><div class="cluster"><input id="espn-id" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456"><button class="primary" type="submit">Connect</button></div></form>
+            <form id="espn-form"><label for="espn-id">League link or ID</label><div class="cluster"><input type="text" id="espn-id" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456"><button class="primary" type="submit">Connect</button></div></form>
           </div>
           <div class="way-or" aria-hidden="true"><span>or</span></div>
           <div class="way"><h3>Private league</h3>
@@ -86,9 +88,9 @@
                 <li>Open the browser's developer tools (Chrome: View › Developer › Developer Tools).</li>
                 <li>Go to <strong>Application › Cookies › https://fantasy.espn.com</strong>.</li>
                 <li>Copy the value of <code>espn_s2</code> and of <code>SWID</code> into the boxes below.</li></ol></details>
-            <form id="espn-private-form"><label for="espn-pid">League link or ID</label><input id="espn-pid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456">
-              <label for="espn-s2">espn_s2</label><input id="espn-s2" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A long value starting with AE">
-              <label for="espn-swid">SWID</label><div class="cluster"><input id="espn-swid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="{1A2B3C4D-....}"><button class="primary" type="submit">Connect</button></div></form>
+            <form id="espn-private-form"><label for="espn-pid">League link or ID</label><input type="text" id="espn-pid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A league link or ID, such as 123456">
+              <label for="espn-s2">espn_s2</label><input type="text" id="espn-s2" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="A long value starting with AE">
+              <label for="espn-swid">SWID</label><div class="cluster"><input type="text" id="espn-swid" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="{1A2B3C4D-....}"><button class="primary" type="submit">Connect</button></div></form>
           </div>
         </div>
       </div>
@@ -102,7 +104,7 @@
       <div class="platform-panel" data-panel="sleeper" hidden>
         <div class="routes"><div class="way"><h3>Your Sleeper username</h3>
           <p>No password: your username is under your profile picture in the Sleeper app.</p>
-          <form id="sleeper-form"><label for="sleeper-user">Sleeper username</label><div class="cluster"><input id="sleeper-user" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="Your Sleeper username"><button class="primary" type="submit">Find my leagues</button></div></form></div></div>
+          <form id="sleeper-form"><label for="sleeper-user">Sleeper username</label><div class="cluster"><input type="text" id="sleeper-user" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" required placeholder="Your Sleeper username"><button class="primary" type="submit">Find my leagues</button></div></form></div></div>
       </div>
 
       <div id="picker" hidden><h3 style="margin-top:24px">Pick a league</h3><ul class="pick-list" id="league-options"></ul></div>
