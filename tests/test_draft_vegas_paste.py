@@ -88,14 +88,14 @@ class FailsClosed(unittest.TestCase):
 
 
 class SnapshotTool(unittest.TestCase):
-    def _run(self, text):
+    def _run(self, text, extra=()):
         tmp = Path(tempfile.mkdtemp())
         (tmp / "paste.txt").write_text(text)
         players = [{"key": int(k), **v} for k, v in PLAYERS.items()]
         (tmp / "players.json").write_text(json.dumps(players))
         out = subprocess.run([_node(), "tools/draft_vegas_paste.mjs", "--in", str(tmp / "paste.txt"),
                               "--players", str(tmp / "players.json"), "--season", "2026", "--date", "2026-08-20",
-                              "--out", str(tmp / "out")], capture_output=True, text=True, cwd=ROOT)
+                              "--out", str(tmp / "out"), *extra], capture_output=True, text=True, cwd=ROOT)
         return out, tmp / "out"
 
     def test_writes_dated_snapshot_in_the_0912_shape(self):
@@ -106,6 +106,15 @@ class SnapshotTool(unittest.TestCase):
         self.assertEqual(set(rows[0]), {"name", "player_key", "team", "market", "line"})
         meta = json.loads((d / "vegas_2026-08-20.meta.json").read_text())
         self.assertEqual((meta["snapshot_date"], meta["season"], meta["label"]), ("2026-08-20", 2026, "2026 data"))
+
+    def test_sql_load_script_is_idempotent_and_escaped(self):
+        out, d = self._run(SAMPLE, extra=("--sql",))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        sql = (d / "vegas_2026-08-20.sql").read_text()
+        self.assertIn("delete from public.draft_vegas_lines where snapshot_date = '2026-08-20';", sql)
+        self.assertEqual(sql.count("('2026-08-20', 2026, 'paste',"), 12)
+        self.assertIn("'Ja''Marr Chase'", sql)
+        self.assertTrue(sql.strip().endswith("commit;"))
 
     def test_refuses_to_save_on_any_error(self):
         out, d = self._run(SAMPLE + "\nRegular Season Rushing Yards\nZed Unknownson\nO 900.5")

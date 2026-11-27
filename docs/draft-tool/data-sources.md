@@ -103,7 +103,7 @@ feeds ours through the same path (`--vegas` in the backtest and simulator;
    (`--date` = the day you copied the lines; `--season` = the season the
    lines are for).
 4. If it prints "Saved N lines", the snapshot is
-   `<folder>/vegas_<date>.json`. If it prints "Not saved", fix or remove the
+   `<folder>/vegas_<date>.json` (and `vegas_<date>.sql` with `--sql`). If it prints "Not saved", fix or remove the
    listed lines (or add a missing player name) and run it again. Nothing is
    saved while any line is unreadable.
 
@@ -116,7 +116,9 @@ an unknown player, a number outside a plausible season range, a season
 other than `--season`, two different over lines for the same player and
 market, or any over/under it cannot read.
 
-Storage: the shared Supabase table for pasted snapshots
-(`supabase/migrations/draft_vegas_lines_20261127.sql`, `draft_vegas_lines`)
-is written but **not applied**; it needs Jeremy's yes (the 2026-11-27 yes
-covered the draft-pull deploy only). Until then a snapshot is a file.
+Storage: `public.draft_vegas_lines` (applied 2026-11-27 on Jeremy's yes;
+public read, server-only write; one snapshot per date, the same for every
+league). Add `--sql` to step 3 and the tool also writes
+`<folder>/vegas_<date>.sql`; run it in the Supabase SQL editor (or ask
+Claude to run it) to load that snapshot. It replaces any rows already saved
+for that date, so re-running is safe.

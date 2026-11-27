@@ -1,8 +1,7 @@
 -- JEG-1667: pasted Vegas season player props, one dated snapshot shared by
 -- every league (Jeremy, 2026-11-27: "I'll paste the lines.").
--- NOT APPLIED: needs Jeremy's named yes (AGENTS.md: every Supabase
--- migration; the 2026-11-27 yes covered the draft-pull deploy only). Until
--- then snapshots are files written by tools/draft_vegas_paste.mjs.
+-- Applied 2026-11-27 via the Supabase MCP on Jeremy's yes ("Yes, apply it").
+-- Loaded by the SQL that tools/draft_vegas_paste.mjs --sql writes.
 -- New object only; public.vegas_season_totals (the 2026-09-12 snapshot) is
 -- not touched. Same row shape, so both feed ours the same way.
 -- Idempotent.

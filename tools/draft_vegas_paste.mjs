@@ -10,6 +10,10 @@
 // players: the FantasyPros projection export ([{key, name, pos, team}]).
 // Fails closed: any unreadable prop line -> exit 1, the lines listed, no
 // file written. Writes <out>/vegas_<date>.json and vegas_<date>.meta.json.
+// --sql also writes vegas_<date>.sql: an idempotent load of that snapshot into
+// public.draft_vegas_lines (it replaces that date's rows). Run it in the
+// Supabase SQL editor or through the Supabase connector; no key is needed
+// here, and the public key cannot write the table.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -18,7 +22,8 @@ const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const V = require(path.join(ROOT, "app", "draft", "vegas-paste.js"));
 
-const argv = process.argv.slice(2), a = {};
+const wantSql = process.argv.includes("--sql");
+const argv = process.argv.slice(2).filter(x => x !== "--sql"), a = {};
 for (let i = 0; i < argv.length; i += 2) a[argv[i].replace(/^--/, "")] = argv[i + 1];
 for (const req of ["in", "players", "season", "date", "out"]) {
   if (!a[req]) { process.stderr.write(`--${req} is required\n`); process.exit(2); }
@@ -44,4 +49,15 @@ fs.writeFileSync(path.join(a.out, `vegas_${a.date}.meta.json`), JSON.stringify({
   snapshot_date: a.date, season: res.season, label: `${res.season} data`, source: "paste",
   rows: rows.length, players: new Set(rows.map(r => r.player_key)).size, ignored_lines: res.ignored,
 }, null, 1));
+if (wantSql) {
+  const q = v => (v === null || v === undefined ? "null" : `'${String(v).replace(/'/g, "''")}'`);
+  const values = rows.map(r => `  ('${a.date}', ${Number(res.season)}, 'paste', ${r.player_key}, ${q(r.name)}, ${q(r.team)}, ${q(r.market)}, ${Number(r.line)})`);
+  fs.writeFileSync(path.join(a.out, `vegas_${a.date}.sql`), [
+    `-- Pasted Vegas season props, snapshot ${a.date} (${res.season} data), ${rows.length} lines. Idempotent.`,
+    "begin;",
+    `delete from public.draft_vegas_lines where snapshot_date = '${a.date}';`,
+    "insert into public.draft_vegas_lines (snapshot_date, season, source, player_key, player_name, team, market, line) values",
+    values.join(",\n") + ";",
+    "commit;", ""].join("\n"));
+}
 process.stdout.write(`Saved ${rows.length} lines for ${new Set(rows.map(r => r.player_key)).size} players to ${file}\n`);

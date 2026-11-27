@@ -15,3 +15,11 @@ feeding ours through the same path as the 2026-09-12 snapshot. No scraping.
 ### Claimed, not confirmed
 - Real DraftKings and FanDuel pages copy in the layouts the sample uses: the sample is invented, not copied from a book. Jeremy's first real paste is the check.
 - `draft_vegas_lines` migration written, not applied (needs Jeremy's yes).
+
+### Addendum (same PR): table applied
+- Jeremy, 2026-11-27: "Yes, apply it". `draft_vegas_lines_20261127` applied
+  to iskiybsimubiujwuchsl via the Supabase MCP. Public key read HTTP 200
+  (empty), write HTTP 401 (curl). The new `--sql` flag of
+  `tools/draft_vegas_paste.mjs` writes an idempotent load script
+  (`test_sql_load_script_is_idempotent_and_escaped`). No snapshot has been
+  loaded yet; the first real paste is pending.
