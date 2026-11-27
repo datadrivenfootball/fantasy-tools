@@ -309,6 +309,10 @@ class EspnLoadTest(unittest.TestCase):
                 Run(page, PHONE).paste("#league-ref", ESPN_LINK)
                 page.wait_for_selector("#link-result .espn-why", timeout=10000)
                 self.assertIn(text, page.text_content("#link-result"))
+                # the message says what the button under it does: open the league on ESPN (its data view) and copy it
+                self.assertIn("open your league on ESPN below and copy it instead", page.text_content("#link-result .espn-why"))
+                self.assertNotIn("rosters page instead", page.text_content("#link-result .espn-why"))
+                self.assertEqual(page.text_content("#link-result a.button"), "Open my league on ESPN")
                 self.assertEqual(page.get_attribute("#link-result a.button", "href"), ESPN_DATA_VIEW, "the copy path stays one tap away")
                 page.espn_mode = "public"
                 for r in page.espn_pending:
