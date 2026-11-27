@@ -111,19 +111,27 @@ need custom SMTP (Resend is already a secret in this project).
   Yahoo it can hold for team totals only. Player-level weekly numbers would
   need the fill-in source, labelled per cell. That is Jeremy's call (on JEG-1732).
 
-## Proposed, not built: ESPN private leagues by browser extension
+## ESPN: sign in through the DDF extension (built 2026-11-27, unpublished)
 
-- A small Manifest V3 extension (Chrome/Edge; Safari later) with host access to
-  `*.espn.com` only, plus `cookies`.
-- The user signs in to DDF on the staging page; the page hands the extension a
-  short-lived DDF token (`externally_connectable`).
-- On fantasy.espn.com, signed in, the user presses **Connect ESPN to DDF** in the
-  popup. Only then the extension reads `espn_s2` and `SWID` and posts them to
-  `ddf-account` (`POST /espn/session`), which seals them like Yahoo tokens and
-  sends them as the Cookie header to `lm-api-reads.fantasy.espn.com`.
-- Read-only by code; the cookies themselves are a full ESPN session, so the
-  connect screen says so, and Disconnect deletes them. `espn_s2` lasts about a
-  year; a 401 asks the user to reconnect.
-- Phones cannot run it (no extensions in iOS Chrome): connect once on a
-  computer; the phone then reads through DDF. Paste stays the phone fallback.
-- Needs a Chrome Web Store listing (review) and a privacy page.
+Jeremy, 2026-11-27: "only league ID should be required; and we should be setting up so the user can
+log in to espn and it pulls their league."
+
+- Public league: league link or ID only.
+- Private league or several leagues: **Sign in with ESPN**. 1. Add the DDF extension (Chrome, computer;
+  detected and checked off) 2. Sign in at espn.com 3. Find my ESPN leagues, pick one. No IDs, no keys.
+- `staging/extension/` (Manifest V3): `cookies` permission only, host access to `*.espn.com` and the
+  function origin, `externally_connectable` for the staging page only. It reads `espn_s2`/`SWID` and
+  posts them straight to `ddf-account POST /espn/session`; the page never sees them. Fixed `key`, so
+  the unpacked ID is `hnkkhmlmjcaofnjjekgggdhchgohlkcp`.
+- `POST /espn/session` checks the session against ESPN's fan API (`fan.api.espn.com/apis/v2/fans/{SWID}`),
+  seals it, and lists this season's football leagues; the account connection pulls any listed league.
+- Phones: Chrome extensions run only on desktop. The page tells phone users to connect once from a
+  computer; the league then works on the phone through DDF.
+- Install (unpacked): download `ddf-espn-extension.zip` from the staging page, unzip,
+  `chrome://extensions` › Developer mode › Load unpacked › the `ddf-espn-extension` folder, reload DDF.
+- Chrome Web Store publishing is Jeremy's call (his developer account, review, a privacy page). The
+  store assigns a new ID; update `EXT_ID` in `staging/account/app.js` then.
+- Developer test path: the old keys form, shown only when `localStorage.ddf_dev = "1"`.
+- iOS Safari: Safari supports Web Extensions on iOS 15+, but only inside an iOS app distributed through
+  the App Store or TestFlight (Xcode, Apple Developer account, App Review). Whether Safari's cookies API
+  returns ESPN's cookies on iOS is not verified. Not built.
