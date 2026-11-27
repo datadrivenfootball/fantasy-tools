@@ -187,7 +187,7 @@ export class PgStore implements Store {
   async nflSchedule(season: number) {
     const rows = await this.sql`with latest as (
         select run_id, as_of from public.source_projection_runs where source = 'nflverse_schedule' order by as_of desc limit 1)
-      select s.week::int as week, s.home_team, s.away_team, l.as_of from public.nflverse_schedule_snapshots s join latest l using (run_id)
+      select s.week::int as week, s.home_team, s.away_team, s.gameday::text as gameday, s.gametime, l.as_of from public.nflverse_schedule_snapshots s join latest l using (run_id)
       where s.season = ${season} and s.game_type = 'REG'`;
     return rows.map((r: Record<string, unknown>) => ({ ...r, as_of: new Date(r.as_of as string).toISOString() })) as ScheduleGame[];
   }

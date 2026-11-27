@@ -16,7 +16,7 @@ export type WarehouseRow = {
   source: "espn" | "sleeper"; as_of: string; target_week: number; source_player_id: string; sleeper_id: string | null;
   team: string | null; position: string | null; points_std: number | null; points_half_ppr: number | null; points_ppr: number | null;
 };
-export type ScheduleGame = { week: number; home_team: string; away_team: string; as_of: string };
+export type ScheduleGame = { week: number; home_team: string; away_team: string; as_of: string; gameday?: string | null; gametime?: string | null };
 export type XwalkRow = [sleeper: string | null, espn: string | null, yahoo: string | null, name: string, pos: string | null, team: string | null];
 export type KdefRow = { espn_id: string; name: string; pos: "K" | "DEF"; team: string | null; weeks: Record<string, number> };
 export type WeeklyDeps = {
@@ -117,6 +117,13 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
   const allTeams = new Set<string>(); for (const s of plays.values()) for (const t of s) allTeams.add(t);
   for (const t of allTeams) byes[t] = weeks.filter((w) => plays.has(w) && !plays.get(w)!.has(t));
   const isBye = (team: string | null, w: number) => { const c = teamCode(team); return !!c && plays.has(w) && !plays.get(w)!.has(c); };
+  // kickoff per NFL team per week (nflverse gameday + gametime, US Eastern), for the live week: banked vs still to play
+  const kickoffs: Record<string, Record<string, string>> = {};
+  for (const g of games) {
+    if (!weeks.includes(g.week) || !g.gameday || !g.gametime) continue;
+    const at = etIso(String(g.gameday).slice(0, 10), String(g.gametime).slice(0, 5));
+    for (const t of [g.home_team, g.away_team]) { const c = teamCode(t); if (c) (kickoffs[g.week] ||= {})[c] = at; }
+  }
 
   const espnAt = new Map<string, WarehouseRow>(), sleeperAt = new Map<string, WarehouseRow>();
   const asOf: Record<string, string | null> = { espn: null, sleeper: null, schedule: games[0]?.as_of ?? null, kdef: kd?.as_of ?? null };
@@ -125,7 +132,8 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
     else if (r.sleeper_id) { sleeperAt.set(r.sleeper_id + "|" + r.target_week, r); asOf.sleeper = r.as_of; }
   }
 
-  const kdefTeam = new Map<string, KdefRow[]>();
+  const kdefTeam = new Map<string, KdefRow[]>(), kdefById = new Map<string, KdefRow>();
+  for (const k of kd?.players || []) kdefById.set(k.espn_id, k);
   for (const k of kd?.players || []) {
     const key = k.pos + "|" + teamCode(k.team);
     if (!kdefTeam.has(key)) kdefTeam.set(key, []);
@@ -137,8 +145,13 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
     const out: Record<string, Cell> = {};
     if (p.pos === "K" || p.pos === "DEF") {
       const list = kdefTeam.get(p.pos + "|" + teamCode(p.nfl_team)) || [];
-      let k: KdefRow | undefined = list.length === 1 ? list[0] : list.find((x) => lastName(x.name) === lastName(p.name));
-      let match: string | null = !k ? null : list.length === 1 ? "team" : "team_name";
+      let k: KdefRow | undefined, match: string | null = null;
+      if (p.pos === "K") { // a kicker: his ESPN id where the crosswalk has one, else his team's ESPN kicker of the same last name
+        const r = platform === "espn" ? byEspn.get(p.player_id) ?? ([null, p.player_id] as unknown as XwalkRow) : platform === "sleeper" ? bySleeper.get(p.player_id) : byYahoo.get(yahooNum(p.player_id) ?? "");
+        k = r?.[1] ? kdefById.get(r[1]) : undefined;
+        if (k) match = "id";
+        else { k = list.find((x) => lastName(x.name) === lastName(p.name)); if (k) match = "team_name"; }
+      } else { k = list[0]; if (k) match = "team"; } // one D/ST per NFL team
       // a kicker ESPN files under another team (or none): the same full name at the same position
       if (!k && p.pos === "K") {
         const norm = (n: string) => n.toLowerCase().replace(/[^a-z]/g, "");
@@ -171,7 +184,7 @@ export async function buildWeekly(summary: J, deps: WeeklyDeps) {
     }
     players[p.player_id] = { name: p.name, pos: p.pos, nfl_team: p.nfl_team, sleeper_id: id?.sleeper_id ?? null, espn_id: id?.espn_id ?? null, match: id?.match ?? null, weeks: out };
   }
-  return { shape: "ddf-league-weekly/0", season, scoring, weeks, as_of: asOf, players, unmatched, byes };
+  return { shape: "ddf-league-weekly/0", season, scoring, weeks, as_of: asOf, players, unmatched, byes, kickoffs };
 }
 
 // ---- live sources (fetched by the function, cached in platform_cache) ----
@@ -211,5 +224,16 @@ export async function fetchEspnKdef(f: Fetch, season: number, now: Date): Promis
     for (const s of p.stats || []) if (s.statSourceId === 1 && s.statSplitTypeId === 1 && s.seasonId === season && typeof s.appliedTotal === "number") weeks[String(s.scoringPeriodId)] = s.appliedTotal;
     players.push({ espn_id: String(p.id), name: String(p.fullName || ""), pos, team: PRO_TEAM[p.proTeamId] ?? null, weeks });
   }
+  if (!players.length) throw new Error("ESPN returned no kickers or defenses"); // never cache an empty read as a success
   return { as_of: now.toISOString(), players };
+}
+
+// "2026-11-27" + "16:30" US Eastern -> ISO UTC (EST or EDT, whichever reads back as that clock time)
+export function etIso(day: string, time: string) {
+  const fmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+  for (const off of ["-05:00", "-04:00"]) {
+    const d = new Date(`${day}T${time}:00${off}`);
+    if (!isNaN(d.getTime()) && fmt.format(d) === time) return d.toISOString();
+  }
+  return new Date(`${day}T${time}:00-05:00`).toISOString();
 }

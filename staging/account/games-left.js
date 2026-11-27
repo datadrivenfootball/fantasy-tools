@@ -148,6 +148,8 @@
     var box = el("div", {class: "gl-lu"});
     if (!lu) { box.appendChild(el("div", {class: "gl-lu-head"}, el("h3", {text: title}))); box.appendChild(el("p", {class: "gl-lu-none", text: noneText})); return box; }
     box.appendChild(el("div", {class: "gl-lu-head"}, el("h3", {text: lu.name || title}), el("span", {class: "tot"}, one(lu.total, "No lineup total: no projections for these starters"))));
+    /* the live week: the total is the score so far plus the best lineup still to play */
+    if (lu.live && isNum(lu.banked)) box.appendChild(el("p", {class: "gl-lu-none", text: "Score so far " + lu.banked.toFixed(1) + (isNum(lu.still_to_come) ? " + " + lu.still_to_come.toFixed(1) + " still to play" : "")}));
     var body = el("tbody");
     (lu.starters || []).forEach(function (p) { body.appendChild(playerRow(p)); });
     (lu.empty_slots || []).forEach(function (s) {

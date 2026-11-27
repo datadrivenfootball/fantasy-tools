@@ -2,7 +2,7 @@
 // Hermetic tests for the weekly read (weekly.ts) and the staging planner (staging/account/weekly.js), JEG-1736.
 //   deno test --allow-read supabase/functions/ddf-account/test/
 import { assert, assertAlmostEquals, assertEquals } from "jsr:@std/assert@1";
-import { buildWeekly, fetchEspnKdef, leagueWeeks, type KdefRow, type ScheduleGame, type WarehouseRow, type XwalkRow } from "../weekly.ts";
+import { buildWeekly, etIso, fetchEspnKdef, leagueWeeks, type KdefRow, type ScheduleGame, type WarehouseRow, type XwalkRow } from "../weekly.ts";
 
 const ROOT = new URL("../../../../", import.meta.url);
 await import(new URL("staging/account/weekly.js", ROOT).href);
@@ -94,7 +94,8 @@ Deno.test("weekly read: ids join, ESPN first then Sleeper, byes are BYE, K/DEF f
   assertEquals(wk.players["470.p.103"].weeks[14], { points: 7.5, source: "sleeper", bye: false, note: null }); // no ESPN row that week
   assertEquals(wk.players["470.p.106"].weeks[14], { points: 0, source: "espn", bye: true, note: "BYE" }); // MIA bye
   assertEquals(wk.players["470.p.107"].weeks[13], { points: 8, source: "espn_live", bye: false, note: null });
-  assertEquals(wk.players["470.p.107"].match, "team");
+  assertEquals(wk.players["470.p.107"].match, "team_name"); // the team's ESPN kicker with the same last name
+  assertEquals(wk.players["470.p.108"].match, "team"); // one D/ST per team
   assertEquals(wk.players["470.p.108"].espn_id, "-16016");
   assertEquals(wk.players["470.p.902"].weeks[13].points, 12); // a free-agent kicker
   assertEquals(wk.byes.MIA, [14]);
@@ -222,4 +223,50 @@ Deno.test("ESPN K/DEF read keeps this season's weekly projections only (ESPN als
   ] } }] };
   const got = await fetchEspnKdef(async () => new Response(JSON.stringify(body), { status: 200 }), 2026, new Date("2026-11-27T12:00:00Z"));
   assertEquals(got.players, [{ espn_id: "-16019", name: "Giants D/ST", pos: "DEF", team: "NYG", weeks: { 15: 8.1 } }]);
+});
+
+Deno.test("review fixes: a kicker needs his name, an empty ESPN read fails, kickoff times are Eastern", async () => {
+  const lg = league();
+  lg.teams[0].roster[6] = p(107, "New Kicker", "K", "DAL", "K"); // DAL's ESPN kicker is K1: not him
+  const wk = await buildWeekly(lg, deps(lg));
+  assertEquals(wk.players["470.p.107"].weeks[13].points, null);
+  assert(wk.unmatched.some((u) => u.player_id === "470.p.107"));
+  let threw = false;
+  try { await fetchEspnKdef(async () => new Response(JSON.stringify({ players: [] }), { status: 200 }), 2026, new Date()); } catch { threw = true; }
+  assert(threw, "an empty ESPN list is not a success (it would be cached for 6 hours)");
+  assertEquals(etIso("2026-11-27", "16:30"), "2026-11-27T21:30:00.000Z"); // EST
+  assertEquals(etIso("2026-10-04", "13:00"), "2026-10-04T17:00:00.000Z"); // EDT
+});
+
+Deno.test("review fixes: reserve slots never start; exact lineup when flex slots do not nest", () => {
+  const S = { settings: { roster_positions: ["RB", "W/R", "W/T"] } };
+  const players = [{ player_id: "r", name: "R", pos: "RB", points: 10 }, { player_id: "w", name: "W", pos: "WR", points: 12 }, { player_id: "t", name: "T", pos: "TE", points: 5 }, { player_id: "r2", name: "R2", pos: "RB", points: 1 }];
+  const l = W.lineup(W.slotsOf(S), players);
+  assertEquals(l.total, 27); // RB 10, W/R W 12, W/T T 5 (greedy would put W in W/T and leave 23)
+  const wk = { weeks: [13], players: { a: { weeks: { 13: { points: 20, source: "espn", bye: false, note: null } } }, b: { weeks: { 13: { points: 9, source: "espn", bye: false, note: null } } } } };
+  const t = W.teamWeek({ settings: { roster_positions: ["RB"] } }, wk, [{ player_id: "a", name: "Taxi Rookie", position: "RB", slot: "TAXI" }, { player_id: "b", name: "Bench RB", position: "RB", slot: "BN" }], 13);
+  assertEquals(t.starters[0].name, "Bench RB");
+});
+
+Deno.test("review fixes: the live week counts the score so far plus the open slots; no title odds without the bracket", async () => {
+  const lg = league();
+  lg.current_week = 13;
+  const m = lg.schedule[1].matchups[0]; // Team 1 v Team 2, week 13
+  m.status = "live"; m.points = [40, 10];
+  const wk = await buildWeekly(lg, deps(lg));
+  // KC played already (Thursday); everyone else plays Sunday
+  wk.kickoffs = { 13: { KC: "2026-11-26T18:00:00Z", BUF: "2026-11-29T18:00:00Z", MIA: "2026-11-29T18:00:00Z", DAL: "2026-11-29T18:00:00Z", MIN: "2026-11-29T18:00:00Z", NYJ: "2026-11-29T18:00:00Z", LV: "2026-11-29T18:00:00Z" } };
+  lg.pulled_at = "2026-11-27T19:00:00Z";
+  const plan = W.plan(lg, wk, { runs: 2000, now: "2026-11-27T20:00:00Z" });
+  const g = plan.games[0];
+  assert(g.mine.live);
+  assertEquals(g.mine.banked, 40);
+  // Team 1 open slots after QB, WRa, TE (KC, played) lock: WR WRb 13.8, RB 16.1, flex WRc 12.65, K 8, DEF 6 = 56.55
+  assertAlmostEquals(g.mine.total, 96.55, 0.06);
+  assert(g.win.ddf > W.winChance(g.mine.total - g.theirs.total, plan.spread.sd), "less still to play: a lead is safer than a full-week spread says");
+  assert(!g.moves.some((mv: { kind: string; text: string }) => mv.kind === "watch" && /WR1a|QB1/.test(mv.text)));
+  const short = league(); short.current_week = 16; // final week: one round of a two-round bracket left
+  const wk2 = await buildWeekly(short, deps(short));
+  const p2 = W.plan(short, wk2, { runs: 500 });
+  assertEquals(p2.sim.title_p, null);
 });

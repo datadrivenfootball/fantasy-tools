@@ -67,7 +67,7 @@
     (summary.schedule || []).forEach(function (w) {
       (w.matchups || []).forEach(function (m) {
         var pp = m.projected_points || [], wp = m.win_probability || [];
-        if (m.status === "final" || num(pp[0]) === null || num(pp[1]) === null || num(wp[0]) === null) return;
+        if (m.status === "final" || m.status === "live" || num(pp[0]) === null || num(pp[1]) === null || num(wp[0]) === null) return;
         var p = wp[0], margin = pp[0] - pp[1];
         if (p <= 0.03 || p >= 0.97 || Math.abs(p - 0.5) < 0.04 || Math.abs(margin) < 2) return;
         var z = phiInv(p);
@@ -105,14 +105,40 @@
     return slots.map(function (s, i) { return {slot: s, i: i, w: (ELIGIBLE[s] || []).length}; })
       .sort(function (a, b) { return a.w - b.w || a.i - b.i; });
   }
+  // true when every pair of slot eligibility sets is nested or disjoint (then greedy in slotOrder is optimal)
+  function nests(slots) {
+    var sets = slots.map(function (s) { return ELIGIBLE[s] || []; });
+    return sets.every(function (a) { return sets.every(function (b) {
+      var ab = a.every(function (x) { return b.indexOf(x) >= 0; }), ba = b.every(function (x) { return a.indexOf(x) >= 0; });
+      var meet = a.some(function (x) { return b.indexOf(x) >= 0; });
+      return ab || ba || !meet;
+    }); });
+  }
+  // exhaustive search over the few players who could start (top k per position, k = slots that take it)
+  function exactPicks(slots, real) {
+    var cap = {}; slots.forEach(function (s) { (ELIGIBLE[s] || []).forEach(function (p) { cap[p] = (cap[p] || 0) + 1; }); });
+    var seen = {}, cand = real.filter(function (p) { seen[p.pos] = (seen[p.pos] || 0) + 1; return seen[p.pos] <= (cap[p.pos] || 0); });
+    var order = slotOrder(slots), best = {v: -1, pick: null}, pick = new Array(slots.length), used = {};
+    (function go(k, v) {
+      if (k === order.length) { if (v > best.v) best = {v: v, pick: pick.slice()}; return; }
+      var o = order[k], any = false;
+      cand.forEach(function (p) {
+        if (used[p.player_id] || !canFill(p, o.slot)) return;
+        any = true; used[p.player_id] = true; pick[o.i] = p; go(k + 1, v + p.points); used[p.player_id] = false;
+      });
+      pick[o.i] = null; go(k + 1, v); // leaving it empty is always legal
+    })(0, 0);
+    return best.pick;
+  }
   function lineup(slots, players) {
     // a player on bye cannot start: he sits on the bench as BYE, and a slot nobody else can fill is empty (a real 0)
     var real = players.filter(function (p) { return p.points !== null && !p.bye; })
       .sort(function (a, b) { return b.points - a.points || (a.player_id < b.player_id ? -1 : 1); });
     var missing = players.filter(function (p) { return p.points === null; });
     var used = {}, starters = new Array(slots.length), empty = [];
+    var exact = nests(slots) ? null : exactPicks(slots, real);
     slotOrder(slots).forEach(function (o) {
-      var pick = real.filter(function (p) { return !used[p.player_id] && canFill(p, o.slot); })[0];
+      var pick = exact ? exact[o.i] : real.filter(function (p) { return !used[p.player_id] && canFill(p, o.slot); })[0];
       if (pick) { used[pick.player_id] = true; starters[o.i] = Object.assign({slot: o.slot}, pick); }
       else { empty.push(o.slot); starters[o.i] = {slot: o.slot, player_id: null, name: null, pos: null, points: null, note: "Empty"}; }
     });
@@ -139,10 +165,41 @@
       slot_now: entry.slot || null, match: w.match || null
     };
   }
+  var RESERVE = {IR: true, "IR+": true, NA: true, TAXI: true}; // reserve slots cannot start without a roster move
+  function active(roster) { return (roster || []).filter(function (e) { return !RESERVE[String(e.slot || "").toUpperCase()]; }); }
   function teamWeek(summary, weekly, roster, week, slots) {
     slots = slots || slotsOf(summary);
-    return lineup(slots, (roster || []).map(function (e) { return playerWeek(weekly, e, week); }));
+    return lineup(slots, active(roster).map(function (e) { return playerWeek(weekly, e, week); }));
   }
+  // The live week: the team's score so far (Yahoo) plus the best lineup still open. A current starter whose NFL game
+  // has kicked off is locked in his slot (his points are in the score so far); the open slots take the best players
+  // who have not played yet.
+  var TEAM_ALIAS = {LAR: "LA", JAC: "JAX", WSH: "WAS"};
+  function kickoffOf(weekly, entry, week) {
+    var t = String(entry.nfl_team || "").toUpperCase(); t = TEAM_ALIAS[t] || t;
+    var at = ((weekly.kickoffs || {})[String(week)] || {})[t];
+    return at ? Date.parse(at) : null;
+  }
+  function liveWeek(summary, weekly, team, week, slots, banked, now) {
+    var full = teamWeek(summary, weekly, team.roster, week, slots);
+    if (banked === null) return full;
+    var started = function (e) { var k = kickoffOf(weekly, e, week); return k !== null && k <= now; };
+    var ros = active(team.roster);
+    var locked = ros.filter(function (e) { return e.slot && e.slot !== "BN" && ELIGIBLE[e.slot] && started(e); });
+    var open = slots.slice();
+    locked.forEach(function (e) { var i = open.indexOf(e.slot); if (i >= 0) open.splice(i, 1); });
+    var rest = ros.filter(function (e) { return locked.indexOf(e) < 0 && !started(e); }).map(function (e) { return playerWeek(weekly, e, week); });
+    var l = lineup(open, rest);
+    var lockedRows = locked.map(function (e) { var p = playerWeek(weekly, e, week); return Object.assign({}, p, {slot: e.slot, points: null, played: true, note: "Played: in the score so far"}); });
+    var stillToCome = l.total;
+    return Object.assign({}, l, {
+      total: l.total === null ? null : r1(banked + l.total), banked: banked, still_to_come: stillToCome, live: true,
+      starters: lockedRows.concat(l.starters), played: locked.map(function (e) { return e.name; }),
+      bench: l.bench.concat(ros.filter(function (e) { return locked.indexOf(e) < 0 && started(e); }).map(function (e) { return Object.assign(playerWeek(weekly, e, week), {played: true, note: "Played (bench)"}); })),
+      full_projection: full.total
+    });
+  }
+  function winChance2(margin, sdA, sdB) { return margin === null ? null : phi(margin / Math.sqrt(sdA * sdA + sdB * sdB)); }
 
   // ---------- season simulation (regular season, then the bracket) ----------
   function bracketPlan(spots) {
@@ -180,8 +237,25 @@
     });
 
     // every team's best lineup, every week
-    var tw = {}; // tw[team][week] = Lineup
-    teams.forEach(function (t) { tw[t.team_key] = {}; weeks.forEach(function (w) { tw[t.team_key][w] = teamWeek(summary, weekly, t.roster, w, slots); }); });
+    var now = opts.now ? Date.parse(opts.now) : Date.now();
+    // the score so far is as of the snapshot, so a game counts as banked only if it kicked off before the pull
+    var lockAt = Math.min(now, Date.parse(summary.pulled_at) || now);
+    var schedAt = {}; (summary.schedule || []).forEach(function (w) { schedAt[w.week] = w.matchups || []; });
+    var bankedOf = function (k, w) {
+      var m = (schedAt[w] || []).filter(function (x) { return x.status === "live" && x.team_keys && x.team_keys.indexOf(k) >= 0; })[0];
+      return m ? num((m.points || [])[m.team_keys.indexOf(k)]) : null;
+    };
+    var tw = {}, sdOf = {}; // tw[team][week] = Lineup; sdOf[team][week] = that week's spread (smaller once games are played)
+    teams.forEach(function (t) {
+      tw[t.team_key] = {}; sdOf[t.team_key] = {};
+      weeks.forEach(function (w) {
+        var b = w === cur ? bankedOf(t.team_key, w) : null;
+        var l = b === null ? teamWeek(summary, weekly, t.roster, w, slots) : liveWeek(summary, weekly, t, w, slots, b, lockAt);
+        tw[t.team_key][w] = l;
+        sdOf[t.team_key][w] = l.live && l.full_projection ? sd * Math.sqrt(Math.max(0.05, Math.min(1, (l.still_to_come || 0) / l.full_projection))) : sd;
+      });
+    });
+    var liveNote = weeks.some(function (w) { return teams.some(function (t) { return tw[t.team_key][w].live; }); });
     function proj(teamKey, w, m) { // a team week's mean: DDF's lineup, else Yahoo's projection (named in sources)
       var l = tw[teamKey] && tw[teamKey][w];
       if (l && l.total !== null) return l.total;
@@ -221,7 +295,7 @@
         score[w] = {};
         keys.forEach(function (k) {
           var mu = proj(k, w); if (mu === null) mu = weekMean[w];
-          score[w][k] = mu === null ? null : mu + sd * gauss(rand);
+          score[w][k] = mu === null ? null : mu + (sdOf[k] ? sdOf[k][w] : sd) * gauss(rand);
         });
         var best = null, bk = null;
         keys.forEach(function (k) { if (score[w][k] !== null && (best === null || score[w][k] > best)) { best = score[w][k]; bk = k; } });
@@ -272,7 +346,7 @@
     var P = function (x) { return r3(x / acc.n); };
     var simOut = {
       runs: acc.n, playoff_p: spots ? P(acc.playoff) : null, top_seed_p: P(acc.top), bye_p: bp && bp.byes ? P(acc.bye) : null,
-      title_p: bp ? P(acc.title) : null, expected_seed: r1(acc.seedSum / acc.n),
+      title_p: bp && poWeeks.length >= bp.rounds.length ? P(acc.title) : null, expected_seed: r1(acc.seedSum / acc.n),
       by_final_wins: Object.keys(byWins).map(Number).sort(function (a, b) { return a - b; }).map(function (w) {
         var b = byWins[w]; return {wins: w, p_reach: P(b.n), playoff_p: r3(b.playoff / b.n), bye_p: bp && bp.byes ? r3(b.bye / b.n) : null};
       })
@@ -294,7 +368,7 @@
       var mine = Object.assign({team_key: meKey, name: me.name}, tw[meKey][w]);
       var theirs = oppKey ? Object.assign({team_key: oppKey, name: name[oppKey]}, tw[oppKey][w]) : null;
       var margin = theirs && mine.total !== null && theirs.total !== null ? r1(mine.total - theirs.total) : null;
-      var ddf = margin === null ? null : r3(winChance(margin, sd));
+      var ddf = margin === null ? null : r3(winChance2(margin, sdOf[meKey][w], sdOf[oppKey][w]));
       var yahoo = m && num((m.win_probability || [])[i]) !== null ? m.win_probability[i] : null;
       var yp = m && num((m.projected_points || [])[i]) !== null ? {mine: m.projected_points[i], theirs: num(m.projected_points[1 - i])} : null;
       var totals = keys.map(function (k) { return {k: k, t: proj(k, w)}; }).filter(function (x) { return x.t !== null; }).sort(function (a, b) { return b.t - a.t; });
@@ -338,7 +412,7 @@
       if (phase === "regular" && g.stake.top_seed !== null && Math.abs(g.stake.top_seed) >= 0.02) g.goals.push("record");
       if (phase === "regular" && g.stake.seed !== null && Math.abs(g.stake.seed) >= 0.02) g.goals.push("seed");
       if (phase === "playoffs" || (g.stake.playoffs !== null && Math.abs(g.stake.playoffs) >= 0.02)) g.goals.push("playoffs");
-      g.moves = movesFor(summary, weekly, me, w, slots, mine, cur, m);
+      g.moves = movesFor(summary, weekly, me, w, slots, mine, cur, m, {now: now, lockAt: lockAt});
       gamesOut.push(g);
     });
 
@@ -358,12 +432,12 @@
     var left = myGames.length;
     need.push(rec(s0) + ", " + (s0.rank ? ord(s0.rank) : "rank unknown") + ". " + (left ? left + " regular-season game" + (left === 1 ? "" : "s") + " left." : "Regular season done."));
     if (spots) {
-      if (simOut.playoff_p === 1) need.push("You are in the playoffs in every run.");
-      else if (simOut.playoff_p === 0) need.push("You miss the playoffs in every run. The weekly high score is still live.");
+      if (simOut.playoff_p === 1) need.push("You make the playoffs in every simulated season.");
+      else if (simOut.playoff_p === 0) need.push("You miss the playoffs in every simulated season. The weekly high score is still live.");
       else {
         var c = simOut.clinch_wins, sf = simOut.safe_wins;
-        if (c !== null) need.push("Win " + Math.max(0, c - fw0) + " more and you are in whatever else happens" + (sf !== null && sf < c ? "; win " + Math.max(0, sf - fw0) + " and you are in " + Math.round(100 * (simOut.by_final_wins.filter(function (b) { return b.wins === sf; })[0].playoff_p)) + "% of runs." : "."));
-        else if (sf !== null) need.push("Win " + Math.max(0, sf - fw0) + " more and you are in at least 95% of runs.");
+        if (c !== null) need.push("Win " + Math.max(0, c - fw0) + " more and you make the playoffs in every simulated season" + (sf !== null && sf < c ? "; win " + Math.max(0, sf - fw0) + " and you make it in " + Math.round(100 * (simOut.by_final_wins.filter(function (b) { return b.wins === sf; })[0].playoff_p)) + "% of them." : "."));
+        else if (sf !== null) need.push("Win " + Math.max(0, sf - fw0) + " more and you make the playoffs in at least 95% of simulated seasons.");
         need.push("Playoff chance now: " + Math.round(100 * simOut.playoff_p) + "%.");
       }
       if (bp && bp.byes && simOut.bye_p !== null && simOut.bye_p > 0 && simOut.bye_p < 1) {
@@ -377,7 +451,8 @@
       var detail = g.id === "high_score" ? "Expected weekly high scores left: " + hsExpected.toFixed(1) + (/USO/i.test(summary.name || "") ? " (USO pays $50 a week)" : "")
         : g.id === "record" ? "Best record in " + Math.round(100 * simOut.top_seed_p) + "% of runs"
         : g.id === "seed" ? "Expected seed " + simOut.expected_seed + (simOut.bye_p !== null ? "; bye in " + Math.round(100 * simOut.bye_p) + "%" : "")
-        : simOut.title_p !== null ? "Playoffs in " + Math.round(100 * (simOut.playoff_p || 0)) + "%; title in " + Math.round(100 * simOut.title_p) + "%" : "Playoff format not in the data";
+        : simOut.title_p !== null ? "Playoffs in " + Math.round(100 * (simOut.playoff_p || 0)) + "%; title in " + Math.round(100 * simOut.title_p) + "%"
+        : spots ? "Playoffs in " + Math.round(100 * (simOut.playoff_p || 0)) + "%; title odds need the bracket's remaining rounds" : "Playoff format not in the data";
       return {id: g.id, label: g.label, detail: detail};
     });
 
@@ -385,7 +460,7 @@
       var s = stand[t.team_key], sc = seedCount[t.team_key];
       return {team_key: t.team_key, name: t.name, wins: s.wins, losses: s.losses, ties: s.ties, rank: s.rank, points_for: s.pf,
         playoff_p: spots ? r3(sc.slice(1, spots + 1).reduce(function (a, b) { return a + b; }, 0) / acc.n) : null,
-        title_p: bp ? r3(titleBy[t.team_key] / acc.n) : null,
+        title_p: bp && poWeeks.length >= bp.rounds.length ? r3(titleBy[t.team_key] / acc.n) : null,
         seed_p: sc.slice(1).map(function (x) { return r3(x / acc.n); })};
     }).sort(function (a, b) { return (a.rank || 99) - (b.rank || 99); });
 
@@ -394,6 +469,7 @@
     sources.push("Player projections: ESPN weekly" + (src.espn ? " (as of " + src.espn.slice(0, 16).replace("T", " ") + " UTC)" : "") + ", Sleeper where ESPN has no row.");
     sources.push("K and DEF: ESPN weekly projections, read live" + (src.kdef ? " " + src.kdef.slice(0, 16).replace("T", " ") + " UTC" : "") + ".");
     sources.push("Win chance: DDF, from both best lineups and a weekly spread of " + sd + " points per team (" + spread.basis + "). Yahoo's number is shown beside it.");
+    if (liveNote) sources.push("Week " + cur + " is under way: each team's total is its score so far (Yahoo) plus the best lineup among players whose game has not kicked off (nflverse kickoff times), with a spread that shrinks as games are played.");
     sources.push("Season and bracket: " + acc.n.toLocaleString("en-US") + " simulated runs, games independent; tiebreak points for.");
     if (summary.source && summary.source.kind === "flaim") sources.push("League data via Flaim (stand-in until Yahoo is approved).");
     (weekly.unmatched || []).forEach(function (u) { missing.push({what: u.name, reason: u.reason}); });
@@ -416,46 +492,57 @@
   }
 
   // ---------- moves aimed at one game ----------
-  function movesFor(summary, weekly, me, w, slots, mine, cur, m) {
+  function movesFor(summary, weekly, me, w, slots, mine, cur, m, ctx) {
+    ctx = ctx || {};
     var out = [];
-    var roster = me.roster || [];
-    // start/sit: only the current week has a live lineup to compare with
+    var roster = active(me.roster);
+    // one week's total for a roster: the live week counts the score so far plus the open slots
+    var totalOf = function (ros) {
+      return mine.live ? liveWeek(summary, weekly, {roster: ros}, w, slots, mine.banked, ctx.lockAt).total : teamWeek(summary, weekly, ros, w, slots).total;
+    };
+    var played = function (e) { var k = kickoffOf(weekly, e, w); return mine.live && k !== null && k <= ctx.now; };
+    // start/sit: only the current week has a set lineup to compare with; only players yet to play can move
     if (w === cur && (!m || m.status !== "final")) {
-      var startersNow = roster.filter(function (e) { return e.slot && e.slot !== "BN" && e.slot !== "IR"; }).map(function (e) { return playerWeek(weekly, e, w); });
-      var nowTotal = startersNow.reduce(function (a, p) { return a + (p.points || 0); }, 0);
-      var bestIds = mine.starters.map(function (s) { return s.player_id; });
-      var ins = mine.starters.filter(function (s) { return s.player_id && startersNow.every(function (p) { return p.player_id !== s.player_id; }); });
-      var outs = startersNow.filter(function (p) { return bestIds.indexOf(p.player_id) < 0; });
-      if (ins.length && mine.total !== null && mine.total - nowTotal >= 0.5) {
-        out.push({kind: "start", text: "Start " + ins.map(function (s) { return s.name; }).join(", ") + (outs.length ? " over " + outs.map(function (p) { return p.name; }).join(", ") : ""), gain: r1(mine.total - nowTotal), when: "before kickoff"});
+      var startersNow = roster.filter(function (e) { return e.slot && e.slot !== "BN" && ELIGIBLE[e.slot] && !played(e); }).map(function (e) { return playerWeek(weekly, e, w); });
+      var openBest = mine.starters.filter(function (s) { return s.player_id && !s.played; });
+      var nowOpen = startersNow.reduce(function (a, p) { return a + (p.points || 0); }, 0);
+      var bestOpen = openBest.reduce(function (a, p) { return a + (p.points || 0); }, 0);
+      var unknown = startersNow.some(function (p) { return p.points === null; }); // a starter with no projection: no made-up gain
+      var ins = openBest.filter(function (s) { return startersNow.every(function (p) { return p.player_id !== s.player_id; }); });
+      var outs = startersNow.filter(function (p) { return openBest.every(function (s) { return s.player_id !== p.player_id; }); });
+      if (!unknown && ins.length && mine.total !== null && bestOpen - nowOpen >= 0.5) {
+        out.push({kind: "start", text: "Start " + ins.map(function (s) { return s.name; }).join(", ") + (outs.length ? " over " + outs.map(function (p) { return p.name; }).join(", ") : ""), gain: r1(bestOpen - nowOpen), when: "before kickoff"});
       }
     }
-    // watch: a starter listed Q or D
-    if (w === cur) mine.starters.forEach(function (s) { // an injury designation is this week's news only
-      if (!s.player_id || !/^(Q|D|GTD)$/i.test(String(s.status || ""))) return;
-      var without = lineup(slots, roster.filter(function (e) { return e.player_id !== s.player_id; }).map(function (e) { return playerWeek(weekly, e, w); }));
-      var sub = without.starters.filter(function (x) { return x.player_id && mine.starters.every(function (y) { return y.player_id !== x.player_id; }); })[0];
-      out.push({kind: "watch", text: s.name + " is " + s.status + ": if he sits, " + (sub ? sub.name + " starts" : "the slot is empty"), gain: without.total !== null && mine.total !== null ? r1(without.total - mine.total) : null, when: w === cur ? "this week's lock" : null});
+    // watch: a starter listed Q or D who has not played yet (an injury designation is this week's news only)
+    if (w === cur) mine.starters.forEach(function (s) {
+      if (!s.player_id || s.played || !/^(Q|D|GTD)$/i.test(String(s.status || ""))) return;
+      var t = totalOf(roster.filter(function (e) { return e.player_id !== s.player_id; }));
+      var without = mine.live ? null : lineup(slots, roster.filter(function (e) { return e.player_id !== s.player_id; }).map(function (e) { return playerWeek(weekly, e, w); }));
+      var sub = without ? without.starters.filter(function (x) { return x.player_id && mine.starters.every(function (y) { return y.player_id !== x.player_id; }); })[0] : null;
+      out.push({kind: "watch", text: s.name + " is " + s.status + ": if he sits, " + (sub ? sub.name + " starts" : without ? "the slot is empty" : "the next best player starts"), gain: t !== null && mine.total !== null ? r1(t - mine.total) : null, when: "this week's lock"});
     });
-    // adds from the free agents in the snapshot: the best lineup gain this week, dropping my least useful bench player
-    var fas = summary.free_agents || [];
+    // adds from the free agents in the snapshot: this week's gain once the cheapest drop is made
+    var fas = (summary.free_agents || []).filter(function (fa) { return !played(fa); });
     if (fas.length && mine.total !== null) {
-      var base = roster.map(function (e) { return playerWeek(weekly, e, w); });
       var cands = fas.map(function (fa) {
         var p = playerWeek(weekly, fa, w);
-        if (p.points === null) return null;
-        var l = lineup(slots, base.concat([p]));
-        return l.total === null ? null : {fa: fa, p: p, gain: l.total - mine.total};
+        if (p.points === null || p.bye) return null;
+        var t = totalOf(roster.concat([fa]));
+        return t === null ? null : {fa: fa, p: p, gain: t - mine.total};
       }).filter(function (x) { return x && x.gain >= 2; }).sort(function (a, b) { return b.gain - a.gain; });
       var shown = {};
       cands.forEach(function (c) {
         if (shown[c.p.pos] || out.filter(function (o) { return o.kind === "add"; }).length >= 2) return;
-        shown[c.p.pos] = true;
         var drop = dropCandidate(summary, weekly, roster.concat([c.fa]), slots, w, c.fa.player_id);
-        out.push({kind: "add", text: "Add " + c.fa.name + " (" + c.p.pos + ", " + c.p.points.toFixed(1) + ")" + (drop ? "; drop " + drop.name : ""), gain: r1(c.gain), when: "before week " + w + " locks", player_id: c.fa.player_id, drop_id: drop ? drop.player_id : null});
+        var after = drop ? roster.concat([c.fa]).filter(function (e) { return e.player_id !== drop.player_id; }) : roster.concat([c.fa]);
+        var t = totalOf(after), gain = t === null ? null : t - mine.total;
+        if (gain === null || gain < 2) return;
+        shown[c.p.pos] = true;
+        out.push({kind: "add", text: "Add " + c.fa.name + " (" + c.p.pos + ", " + c.p.points.toFixed(1) + ")" + (drop ? "; drop " + drop.name : ""), gain: r1(gain), when: "before week " + w + " locks", player_id: c.fa.player_id, drop_id: drop ? drop.player_id : null});
       });
     }
-    if (mine.empty_slots.length) out.push({kind: "bye", text: "No one to start at " + mine.empty_slots.join(", ") + " (byes or outs)", gain: null, when: null});
+    if (mine.empty_slots.length) out.push({kind: "bye", text: "No one to start at " + mine.empty_slots.join(", ") + (mine.live ? " among players yet to play" : " (byes or outs)"), gain: null, when: null});
     return out;
   }
   // the bench player whose loss costs the least over the weeks left (weekly projections, never DDF Value)
@@ -464,7 +551,7 @@
     var base = {}; weeks.forEach(function (w) { base[w] = teamWeek(summary, weekly, roster, w, slots).total; });
     var best = null;
     roster.forEach(function (e) {
-      if (e.slot === "IR" || e.player_id === keepId) return;
+      if (RESERVE[String(e.slot || "").toUpperCase()] || e.player_id === keepId) return;
       var rest = roster.filter(function (x) { return x.player_id !== e.player_id; });
       var cost = 0, ok = true, own = 0;
       weeks.forEach(function (w) {
