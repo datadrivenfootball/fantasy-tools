@@ -22,6 +22,7 @@ export type RosterPlayer = {
   nfl_team: string | null;
   slot: string | null; // starter slot, BN, IR, TAXI
   status: string | null; // injury designation as the platform gives it
+  eligible_positions?: string[]; // lineup slots the platform lets him fill (Flaim/Yahoo: eligible_positions)
 };
 
 export type TeamSummary = {
@@ -48,7 +49,14 @@ export type Matchup = {
   projected_points: (number | null)[]; // team-level, platform's own; null where the platform has none
   is_playoffs: boolean;
   status: "final" | "live" | "not_started";
+  win_probability?: (number | null)[]; // platform's own, 0-1, same order as team_keys (Yahoo via Flaim)
 };
+
+// Extra blocks a full snapshot carries (Flaim today, a direct Yahoo pull later).
+export type FreeAgent = { player_id: string; name: string; position: string | null; nfl_team: string | null; status: string | null;
+  eligible_positions?: string[]; percent_owned?: number | null; projected_points?: { week: number; points: number | null }[] };
+export type Transaction = { at: string; type: string; team_keys: string[]; adds: string[]; drops: string[]; note?: string | null };
+export type SourceInfo = { kind: "direct" | "flaim"; note?: string | null };
 
 export type LeagueSummary = {
   shape: typeof SUMMARY_VERSION;
@@ -75,6 +83,9 @@ export type LeagueSummary = {
   my_team_key: string | null;
   schedule: { week: number; matchups: Matchup[] }[];
   probes?: Record<string, unknown>;
+  free_agents?: FreeAgent[];
+  transactions?: Transaction[];
+  source?: SourceInfo;
   missing: { path: string; reason: string }[];
   sources: string[];
 };

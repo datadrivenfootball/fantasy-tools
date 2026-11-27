@@ -477,3 +477,23 @@ Deno.test("DDF extension: answers only the staging page, sends ESPN cookies only
   cookies = {};
   assertEquals(((await ask({ type: "connect-espn", jwt: "x".repeat(40) }, "https://datadrivenfootball.github.io")) as { code: string }).code, "espn_signed_out");
 });
+
+Deno.test("Flaim stand-in league: reads like any league, refuses a live refresh, lists under its connection", async () => {
+  const snap = JSON.parse(await Deno.readTextFile(new URL("supabase/functions/ddf-account/test/flaim-snapshot.example.json", ROOT)));
+  assertEquals([snap.shape, snap.source.kind, snap.platform], ["ddf-connected-league/0", "flaim", "yahoo"]);
+  assert(snap.teams.length > 0 && Array.isArray(snap.schedule) && Array.isArray(snap.missing));
+  const { deps, store } = makeDeps();
+  const uid = "11111111-1111-4111-8111-111111111111";
+  const conn = await store.upsertConnection({ user_id: uid, platform: "flaim", external_id: "flaim", display_name: "Flaim", secret_ciphertext: null, secret_iv: null, token_expires_at: null });
+  store.lgs.push({ id: "00000000-0000-4000-8000-0000000000aa", user_id: uid, connection_id: conn.id, platform: "yahoo", league_key: snap.league_key, season: snap.season,
+    name: snap.name, my_team_key: snap.my_team_key, summary: snap, raw: snap, confirmed_settings: null, confirmed_at: null, pulled_at: snap.pulled_at, source: "flaim" });
+  const h = makeApp(deps);
+  const lg = await (await call(h, "GET", "/leagues/00000000-0000-4000-8000-0000000000aa", "jwt-me")).json();
+  assertEquals([lg.league.source, lg.league.summary.teams[0].name], ["flaim", "Tiny Hands"]);
+  const r = await call(h, "POST", "/leagues/00000000-0000-4000-8000-0000000000aa/refresh", "jwt-me");
+  assertEquals([r.status, (await r.json()).error.code], [409, "flaim_snapshot"]);
+  const list = await (await call(h, "GET", `/connections/${conn.id}/leagues`, "jwt-me")).json();
+  assertEquals(list.leagues.map((l: { league_key: string }) => l.league_key), ["470.l.848938"]);
+  // confirming settings works the same as for a direct league
+  assertEquals((await call(h, "POST", "/leagues/00000000-0000-4000-8000-0000000000aa/confirm", "jwt-me", { settings: snap.settings.ddf })).status, 200);
+});

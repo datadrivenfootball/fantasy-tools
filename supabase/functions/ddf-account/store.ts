@@ -3,10 +3,11 @@
 // schema is not exposed to PostgREST); MemoryStore backs the tests.
 import type { Platform } from "./shape.ts";
 
+export type ConnectionPlatform = Platform | "flaim"; // flaim: admin-loaded stand-in snapshots (JEG-1732)
 export type Connection = {
   id: string;
   user_id: string;
-  platform: Platform;
+  platform: ConnectionPlatform;
   external_id: string;
   display_name: string | null;
   secret_ciphertext: Uint8Array | null;
@@ -31,6 +32,7 @@ export type League = {
   confirmed_settings: unknown;
   confirmed_at: string | null;
   pulled_at: string;
+  source?: "direct" | "flaim"; // how the data arrived (JEG-1732: flaim = admin-loaded stand-in)
 };
 
 export type Handoff = {
@@ -54,7 +56,7 @@ export interface Store {
   takeState(state: string): Promise<{ user_id: string; platform: string; return_to: string } | null>;
   putHandoff(h: Handoff): Promise<void>;
   takeHandoff(id: string): Promise<Handoff | null>;
-  upsertLeague(l: Omit<League, "id" | "confirmed_settings" | "confirmed_at">): Promise<League>;
+  upsertLeague(l: Omit<League, "id" | "confirmed_settings" | "confirmed_at" | "source">): Promise<League>;
   leagues(userId: string): Promise<Omit<League, "raw" | "summary">[]>;
   league(userId: string, id: string): Promise<League | null>;
   updateLeague(userId: string, id: string, patch: Partial<Pick<League, "my_team_key" | "confirmed_settings" | "confirmed_at">>): Promise<League | null>;
@@ -131,12 +133,12 @@ export class PgStore implements Store {
       on conflict (user_id, platform, league_key) do update set
         connection_id = excluded.connection_id, season = excluded.season, name = excluded.name,
         my_team_key = coalesce(ddf_accounts.leagues.my_team_key, excluded.my_team_key),
-        summary = excluded.summary, raw = excluded.raw, pulled_at = excluded.pulled_at
+        summary = excluded.summary, raw = excluded.raw, pulled_at = excluded.pulled_at, source = 'direct'
       returning *`;
     return r[0];
   }
   async leagues(userId: string) {
-    return await this.sql`select id, user_id, connection_id, platform, league_key, season, name, my_team_key, confirmed_settings, confirmed_at, pulled_at
+    return await this.sql`select id, user_id, connection_id, platform, league_key, season, name, my_team_key, confirmed_settings, confirmed_at, pulled_at, source
       from ddf_accounts.leagues where user_id = ${userId} order by pulled_at desc`;
   }
   async league(userId: string, id: string) {
@@ -216,8 +218,8 @@ export class MemoryStore implements Store {
   }
   async upsertLeague(l: Parameters<Store["upsertLeague"]>[0]) {
     const cur = this.lgs.find((x) => x.user_id === l.user_id && x.platform === l.platform && x.league_key === l.league_key);
-    if (cur) { Object.assign(cur, { ...l, my_team_key: cur.my_team_key ?? l.my_team_key }); return cur; }
-    const row = { ...l, id: this.id(), confirmed_settings: null, confirmed_at: null } as League;
+    if (cur) { Object.assign(cur, { ...l, my_team_key: cur.my_team_key ?? l.my_team_key, source: "direct" }); return cur; }
+    const row = { ...l, id: this.id(), confirmed_settings: null, confirmed_at: null, source: "direct" } as League;
     this.lgs.push(row);
     return row;
   }

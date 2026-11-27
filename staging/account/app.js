@@ -369,7 +369,7 @@
     if (!state.me.leagues.length && state.me.connections.length) ll.appendChild(el("li", {class: "muted", text: "No leagues added yet. Press Leagues above to pick one."}));
     state.me.leagues.forEach(function (l) {
       ll.appendChild(el("li", {},
-        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (NAMES[l.platform] || l.platform) + " · updated " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
+        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (l.source === "flaim" ? (NAMES[l.platform] || l.platform) + " via Flaim (stand-in until Yahoo is approved) · pulled " : (NAMES[l.platform] || l.platform) + " · updated ") + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
         el("button", {type: "button", text: "Open", onclick: busy(null, async function () { var j = await api("GET", "/leagues/" + l.id); openLeague(j.league); })})));
     });
     if (!state.league) step("connect");
@@ -382,7 +382,11 @@
     var s = lg.summary;
     $("league").hidden = false;
     $("lg-title").textContent = s.name;
-    $("lg-meta").textContent = (NAMES[s.platform] || s.platform) + " · " + s.season + " · updated " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
+    /* Say honestly where the data came from (JEG-1732: Flaim stands in until Yahoo approves DDF's app). */
+    var viaFlaim = lg.source === "flaim" || (s.source && s.source.kind === "flaim");
+    $("lg-meta").textContent = (viaFlaim ? "League data via Flaim (stand-in until Yahoo is approved) · pulled " + when(lg.pulled_at)
+      : (NAMES[s.platform] || s.platform) + " · " + s.season + " · updated " + when(lg.pulled_at)) + (s.current_week ? " · week " + s.current_week : "");
+    $("refresh").hidden = viaFlaim;
     var list = $("team-pick-list");
     list.textContent = "";
     s.teams.forEach(function (t) {

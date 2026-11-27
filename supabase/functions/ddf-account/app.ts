@@ -118,6 +118,9 @@ export function makeApp(d: Deps) {
   }
 
   async function pull(user: AuthUser, conn: Connection, leagueKey: string, season?: number) {
+    if (conn.platform === "flaim") {
+      throw new AppError(409, "flaim_snapshot", "This league's data comes from a Flaim snapshot while Yahoo approval is pending. DDF reloads it; there's nothing to refresh here yet.");
+    }
     let summary, raw;
     if (conn.platform === "sleeper") {
       ({ summary, raw } = await pullSleeper(d.fetch, leagueKey, conn.external_id, sleeperNames, d.now()));
@@ -210,6 +213,9 @@ export function makeApp(d: Deps) {
       if (m === "GET" && c === "leagues") {
         if (conn.platform === "sleeper") return json(await sleeperLeagues(d.fetch, conn.external_id));
         if (conn.platform === "yahoo") return json(await yahooLeagues(d.fetch, await yahooToken(conn)));
+        if (conn.platform === "flaim") {
+          return json({ leagues: (await d.store.leagues(user.id)).filter((l) => l.connection_id === conn.id).map((l) => ({ league_key: l.league_key, name: l.name, season: l.season, league_id: l.id })) });
+        }
         if (conn.external_id.startsWith("swid:")) {
           const session = await espnSession(conn);
           if (!session) throw new AppError(409, "espn_no_session", "Connect ESPN again with the DDF extension.");
