@@ -25,7 +25,7 @@
   }
   function say(text, kind) { var m = $("msg"); m.textContent = text || ""; m.className = "msg" + (kind ? " " + kind : ""); }
   function step(name) {
-    var order = ["signin", "connect", "league", "team", "settings", "view"], at = order.indexOf(name);
+    var order = ["signin", "connect", "team", "settings", "done"], at = order.indexOf(name);
     Array.prototype.forEach.call($("steps").children, function (li) {
       var i = order.indexOf(li.dataset.step);
       li.className = i < at ? "done" : "";
@@ -75,9 +75,28 @@
     showOptions(j.connection, j.leagues);
     await loadMe();
   }));
+  /* provider toggle: the site's ESPN / Yahoo / Sleeper switch shows one panel */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-provider]"), function (b) {
+    b.addEventListener("click", function () {
+      Array.prototype.forEach.call(document.querySelectorAll("[data-provider]"), function (x) { var on = x === b; x.setAttribute("aria-pressed", String(on)); x.classList.toggle("selected", on); });
+      Array.prototype.forEach.call(document.querySelectorAll("[data-panel]"), function (pn) { pn.hidden = pn.dataset.panel !== b.dataset.provider; });
+    });
+  });
+  /* segmented settings controls */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-seg] button"), function (b) {
+    b.addEventListener("click", function () { Array.prototype.forEach.call(b.parentNode.children, function (x) { x.setAttribute("aria-pressed", String(x === b)); }); });
+  });
+  function segValue(name) { var b = document.querySelector('[data-seg="' + name + '"] [aria-pressed="true"]'); return b ? b.dataset.v : ""; }
+  function setSeg(name, v) { Array.prototype.forEach.call(document.querySelectorAll('[data-seg="' + name + '"] button'), function (x) { x.setAttribute("aria-pressed", String(v !== "" && x.dataset.v === v)); }); }
+  $("espn-private-form").addEventListener("submit", busy(null, async function () {
+    var j = await api("POST", "/espn/connect", {league_id: $("espn-pid").value.trim(), espn_s2: $("espn-s2").value.trim(), swid: $("espn-swid").value.trim()});
+    $("espn-s2").value = ""; $("espn-swid").value = "";
+    say("Connected ESPN league " + j.connection.display_name + ".", "ok");
+    showOptions(j.connection, j.leagues);
+    await loadMe();
+  }));
   $("espn-form").addEventListener("submit", busy(null, async function () {
-    var season = Number($("espn-season").value) || undefined;
-    var j = await api("POST", "/espn/connect", {league_id: $("espn-id").value.trim(), season: season});
+    var j = await api("POST", "/espn/connect", {league_id: $("espn-id").value.trim()});
     say("Connected ESPN league " + j.connection.display_name + ".", "ok");
     showOptions(j.connection, j.leagues.map(function (l) { return Object.assign({}, l, {season: j.season}); }));
     await loadMe();
@@ -105,7 +124,7 @@
         })})));
     });
     $("picker").hidden = false;
-    step("league");
+    step("connect");
     $("picker").scrollIntoView({behavior: "smooth", block: "start"});
   }
 
@@ -113,9 +132,9 @@
   async function loadMe() {
     state.me = await api("GET", "/me");
     $("who").textContent = state.me.user.email || "";
-    $("yahoo-note").firstChild.textContent = state.me.yahoo_configured
-      ? "Official Yahoo sign-in. Yahoo must approve DDF's app before leagues can be read."
-      : "Not set up yet: DDF's Yahoo app keys are not in place.";
+    $("yahoo-note").textContent = state.me.yahoo_configured
+      ? "Official Yahoo sign-in. Until Yahoo approves DDF's app for its Fantasy API, Yahoo connects but leagues can't be read yet."
+      : "Not ready yet: DDF's Yahoo app keys aren't in place. That's a one-time setup step on our side.";
     $("yahoo").disabled = !state.me.yahoo_configured;
     var cl = $("conn-list");
     cl.textContent = "";
@@ -138,7 +157,7 @@
         el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + l.platform + " · pulled " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
         el("button", {type: "button", text: "Open", onclick: busy(null, async function () { var j = await api("GET", "/leagues/" + l.id); openLeague(j.league); })})));
     });
-    if (!state.league) step(state.me.connections.length ? (state.me.leagues.length ? "league" : "connect") : "connect");
+    if (!state.league) step("connect");
   }
 
   /* ---------- one league ---------- */
@@ -147,23 +166,27 @@
     state.league = lg;
     var s = lg.summary;
     $("league").hidden = false;
-    $("lg-platform").textContent = s.platform + " · " + s.season + " · " + s.league_key;
-    $("lg-name").textContent = s.name;
-    $("lg-pulled").textContent = "Pulled " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
-    var sel = $("team-select");
-    sel.textContent = "";
-    sel.appendChild(el("option", {value: "", text: "Choose your team"}));
+    $("lg-title").textContent = s.name;
+    $("lg-meta").textContent = s.platform.toUpperCase() + " · " + s.season + " · pulled " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
+    var list = $("team-pick-list");
+    list.textContent = "";
     s.teams.forEach(function (t) {
-      var o = el("option", {value: t.team_key, text: t.name + (t.managers.length && t.managers[0].name ? " (" + t.managers[0].name + ")" : "")});
-      if (t.team_key === lg.my_team_key) o.selected = true;
-      sel.appendChild(o);
+      var input = el("input", {type: "radio", name: "my-team", value: t.team_key});
+      if (t.team_key === lg.my_team_key) input.checked = true;
+      input.addEventListener("change", busy(null, async function () {
+        var j = await api("POST", "/leagues/" + state.league.id + "/team", {team_key: t.team_key});
+        say("Saved: " + t.name + " is your team.", "ok"); openLeague(j.league);
+      }));
+      var mgr = t.managers.length && t.managers[0].name ? t.managers[0].name : "";
+      list.appendChild(el("label", {class: "team-pick-option" + (input.checked ? " selected" : "")}, input,
+        el("span", {class: "team-pick-text"}, el("strong", {text: t.name}), mgr ? el("small", {text: mgr}) : null)));
     });
     /* Only what the platform gave (or the user confirmed) is filled in; anything else is blank and must be chosen. */
     var conf = lg.confirmed_settings || s.settings.ddf || {};
     var unread = [];
-    $("s-scoring").value = conf.scoring || ""; if (!conf.scoring) unread.push("scoring");
-    $("s-teams").value = conf.teams ? String(conf.teams) : ""; if (!conf.teams) unread.push("team count");
-    $("s-sf").value = typeof conf.superflex === "boolean" ? (conf.superflex ? "yes" : "no") : ""; if (typeof conf.superflex !== "boolean") unread.push("superflex");
+    setSeg("scoring", conf.scoring || ""); if (!conf.scoring) unread.push("scoring");
+    setSeg("teams", conf.teams ? String(conf.teams) : ""); if (!conf.teams) unread.push("team count");
+    setSeg("superflex", typeof conf.superflex === "boolean" ? (conf.superflex ? "yes" : "no") : ""); if (typeof conf.superflex !== "boolean") unread.push("superflex");
     var grid = $("s-roster");
     grid.textContent = "";
     ROSTER_KEYS.forEach(function (k) {
@@ -173,27 +196,21 @@
     if (!conf.roster) unread.push("roster slots");
     $("unread-note").textContent = unread.length ? "Not read from " + s.platform + ": " + unread.join(", ") + ". Choose these before confirming." : "";
     var fit = s.settings.fit;
-    $("fit-note").textContent = fit ? ("DDF can't reflect everything here: " + Object.keys(fit).map(function (k) { return k + " " + JSON.stringify(fit[k]); }).join(", ") + ".") : "";
+    $("settings-help").textContent = "Read from the league. Once you confirm, these drive DDF for this league." + (fit ? " DDF can't reflect everything here: " + Object.keys(fit).map(function (k) { return k + " " + JSON.stringify(fit[k]); }).join(", ") + "." : "");
     $("confirmed-at").textContent = lg.confirmed_at ? "Confirmed " + when(lg.confirmed_at) : "Not confirmed yet";
     renderView();
-    step(!lg.my_team_key ? "team" : !lg.confirmed_at ? "settings" : "view");
+    step(!lg.my_team_key ? "team" : !lg.confirmed_at ? "settings" : "done");
     $("league").scrollIntoView({behavior: "smooth", block: "start"});
   }
 
-  $("team-form").addEventListener("submit", busy(null, async function () {
-    var key = $("team-select").value;
-    if (!key) throw new Error("Choose your team first.");
-    var j = await api("POST", "/leagues/" + state.league.id + "/team", {team_key: key});
-    say("Saved your team.", "ok"); openLeague(j.league);
-  }));
   $("settings-form").addEventListener("submit", busy(null, async function () {
     var missing = [], roster = {};
-    if (!$("s-scoring").value) missing.push("scoring");
-    if (!$("s-teams").value) missing.push("team count");
-    if (!$("s-sf").value) missing.push("superflex");
+    if (!segValue("scoring")) missing.push("scoring");
+    if (!segValue("teams")) missing.push("team count");
+    if (!segValue("superflex")) missing.push("superflex");
     ROSTER_KEYS.forEach(function (k) { var v = $("r-" + k).value.trim(); if (v === "") missing.push(k === "DST" ? "DEF" : k); else roster[k] = Number(v); });
     if (missing.length) throw new Error("Choose " + missing.join(", ") + " before confirming.");
-    var settings = {scoring: $("s-scoring").value, superflex: $("s-sf").value === "yes", teams: Number($("s-teams").value), roster: roster};
+    var settings = {scoring: segValue("scoring"), superflex: segValue("superflex") === "yes", teams: Number(segValue("teams")), roster: roster};
     if (settings.superflex && state.league.summary.settings.ddf && state.league.summary.settings.ddf.superflexSlots) settings.superflexSlots = state.league.summary.settings.ddf.superflexSlots;
     var j = await api("POST", "/leagues/" + state.league.id + "/confirm", {settings: settings});
     say("Settings confirmed.", "ok"); openLeague(j.league); await loadMe();
@@ -216,7 +233,7 @@
     var j = await api("GET", "/leagues/" + state.league.id + "?raw=1");
     state.view = "json"; renderView(j.league.raw);
   }));
-  Array.prototype.forEach.call(document.querySelectorAll("[data-view]"), function (b) {
+  Array.prototype.forEach.call(document.querySelectorAll("button[data-view]"), function (b) {
     b.addEventListener("click", function () { state.view = b.dataset.view; renderView(); });
   });
 

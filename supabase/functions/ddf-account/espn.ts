@@ -64,11 +64,28 @@ export function espnDdfSettings(lg: J): DdfSettings | null {
 
 const VIEWS = ["mSettings", "mTeam", "mRoster", "mMatchup", "mStatus"];
 
-export async function readEspnLeague(f: Fetch, id: string, season: number) {
+// ESPN's own session cookies for a private league. The browser extension will send these;
+// on staging they can be pasted once from a computer. Stored sealed, like Yahoo tokens.
+export type EspnSession = { espn_s2: string; swid: string };
+
+export function validEspnSession(x: { espn_s2?: unknown; swid?: unknown }): EspnSession {
+  const s2 = String(x.espn_s2 ?? "").trim().replace(/^espn_s2=/, "");
+  let swid = String(x.swid ?? "").trim().replace(/^SWID=/i, "");
+  if (/^[0-9A-F-]{36}$/i.test(swid)) swid = `{${swid}}`;
+  if (!/^[A-Za-z0-9%+/=._-]{60,2000}$/.test(s2)) throw new AppError(400, "bad_espn_s2", "That espn_s2 value doesn't look right. Copy the whole value of the espn_s2 cookie.");
+  if (!/^\{[0-9A-F-]{36}\}$/i.test(swid)) throw new AppError(400, "bad_swid", "That SWID doesn't look right. It looks like {1A2B3C4D-....}, with the curly brackets.");
+  return { espn_s2: s2, swid: swid.toUpperCase() };
+}
+
+export async function readEspnLeague(f: Fetch, id: string, season: number, session?: EspnSession) {
   const url = `${API}${season}/segments/0/leagues/${encodeURIComponent(id)}?${VIEWS.map((v) => "view=" + v).join("&")}`;
-  const got = await getJSON(f, url, { headers: { accept: "application/json" } }, "ESPN");
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (session) headers.cookie = `espn_s2=${session.espn_s2}; SWID=${session.swid}`;
+  const got = await getJSON(f, url, { headers }, "ESPN");
   if (got.status === 401 || got.status === 403) {
-    throw new AppError(403, "espn_private", "This ESPN league is private. ESPN shows it only to signed-in members; private leagues come with the DDF browser extension (a later step).");
+    throw session
+      ? new AppError(403, "espn_session_rejected", "ESPN refused those session keys for this league. Sign in to ESPN on a computer, copy espn_s2 and SWID again, and make sure you are in this league.")
+      : new AppError(403, "espn_private", "This ESPN league is private: ESPN shows it only to members who are signed in. Add your ESPN session keys below (on a computer), or wait for the DDF browser extension.");
   }
   if (got.status === 404 || !got.body) throw new AppError(404, "league_not_found", `We could not find ESPN league ${id} for ${season}.`);
   return got.body as J;

@@ -6,7 +6,7 @@
 // only: never a body, a token, a cookie or an email.
 import { randomToken, seal, unseal } from "./crypto.ts";
 import { AppError, Fetch } from "./errors.ts";
-import { parseEspnLeagueId, espnSeasonNow, readEspnLeague, summarizeEspn } from "./espn.ts";
+import { type EspnSession, espnSeasonNow, parseEspnLeagueId, readEspnLeague, summarizeEspn, validEspnSession } from "./espn.ts";
 import { pullSleeper, sleeperLeagues, sleeperPlayerIndex, sleeperUser } from "./sleeper.ts";
 import { SIZES, type DdfSettings } from "./shape.ts";
 import { type Connection, publicConnection, type Store } from "./store.ts";
@@ -99,6 +99,11 @@ export function makeApp(d: Deps) {
     return t.access_token;
   }
 
+  async function espnSession(conn: Connection): Promise<EspnSession | undefined> {
+    if (!conn.secret_ciphertext || !conn.secret_iv) return undefined;
+    return await unseal<EspnSession>(await d.tokenKey(), { ciphertext: conn.secret_ciphertext, iv: conn.secret_iv }, aad(conn));
+  }
+
   async function sleeperNames(ids: string[]) {
     let cached = await d.store.cacheGet(SLEEPER_CACHE);
     if (!cached || d.now().getTime() - Date.parse(cached.fetched_at) > DAY) {
@@ -118,7 +123,7 @@ export function makeApp(d: Deps) {
       ({ summary, raw } = await pullSleeper(d.fetch, leagueKey, conn.external_id, sleeperNames, d.now()));
     } else if (conn.platform === "espn") {
       const yr = season ?? espnSeasonNow(d.now());
-      raw = await readEspnLeague(d.fetch, conn.external_id, yr);
+      raw = await readEspnLeague(d.fetch, conn.external_id, yr, await espnSession(conn));
       summary = summarizeEspn(raw, conn.external_id, yr, d.now());
     } else {
       ({ summary, raw } = await pullYahoo(d.fetch, await yahooToken(conn), leagueKey, d.now()));
@@ -151,12 +156,16 @@ export function makeApp(d: Deps) {
       return json({ connection: publicConnection(conn), ...(await sleeperLeagues(d.fetch, su.user_id)) });
     }
     if (m === "POST" && a === "espn" && b === "connect") {
-      const { league_id, season } = await body<{ league_id: string; season?: number }>(req);
-      const parsed = parseEspnLeagueId(String(league_id ?? ""));
+      // Always the current season (Jeremy, 2026-11-27: "Season in espn should be default current year").
+      const req2 = await body<{ league_id: string; espn_s2?: string; swid?: string }>(req);
+      const parsed = parseEspnLeagueId(String(req2.league_id ?? ""));
       if (!parsed) throw new AppError(400, "invalid_league", "Paste your ESPN league link, or the number after leagueId=.");
-      const yr = Number(season) || parsed.season || espnSeasonNow(d.now());
-      const lg = await readEspnLeague(d.fetch, parsed.id, yr); // public check before storing anything
-      const conn = await d.store.upsertConnection({ user_id: user.id, platform: "espn", external_id: parsed.id, display_name: String(lg?.settings?.name || `ESPN ${parsed.id}`).slice(0, 80), secret_ciphertext: null, secret_iv: null, token_expires_at: null });
+      const yr = espnSeasonNow(d.now());
+      const session = req2.espn_s2 || req2.swid ? validEspnSession(req2) : undefined;
+      const lg = await readEspnLeague(d.fetch, parsed.id, yr, session); // check access before storing anything
+      let sealed: { ciphertext: Uint8Array; iv: Uint8Array } | null = null;
+      if (session) sealed = await seal(await d.tokenKey(), session, aad({ user_id: user.id, platform: "espn" }));
+      const conn = await d.store.upsertConnection({ user_id: user.id, platform: "espn", external_id: parsed.id, display_name: String(lg?.settings?.name || `ESPN ${parsed.id}`).slice(0, 80), secret_ciphertext: sealed?.ciphertext ?? null, secret_iv: sealed?.iv ?? null, token_expires_at: null });
       return json({ connection: publicConnection(conn), season: yr, leagues: [{ league_key: parsed.id, name: conn.display_name, season: yr, teams: lg?.settings?.size ?? null }] });
     }
     if (m === "POST" && a === "yahoo" && b === "start") {

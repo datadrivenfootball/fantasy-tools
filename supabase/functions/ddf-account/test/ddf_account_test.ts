@@ -380,3 +380,36 @@ Deno.test("ESPN: a private league is refused before anything is stored", async (
   assertEquals((await r.json()).error.code, "espn_private");
   assertEquals(store.conns.length, 0);
 });
+
+Deno.test("ESPN private league: session keys are checked, sent as cookies, sealed at rest, reused on pull", async () => {
+  const s = await fixture("tests/fixtures/espn/settings.json");
+  const t = await fixture("tests/fixtures/espn/teams.json");
+  const lg = { ...s, ...t, settings: s.settings };
+  const S2 = "AEB" + "x".repeat(120);
+  const SWID = "{1A2B3C4D-1111-2222-3333-444455556666}";
+  const cookies: (string | null)[] = [];
+  const f = async (_u: string | URL, init?: RequestInit) => {
+    const c = new Headers(init?.headers).get("cookie");
+    cookies.push(c);
+    return c === `espn_s2=${S2}; SWID=${SWID}` ? jsonRes(lg) : jsonRes({}, 401);
+  };
+  const { deps, store, logs } = makeDeps({ fetch: f });
+  const h = makeApp(deps);
+  const noKeys = await call(h, "POST", "/espn/connect", "jwt-me", { league_id: "123456" });
+  assertEquals((await noKeys.json()).error.code, "espn_private");
+  assertEquals((await call(h, "POST", "/espn/connect", "jwt-me", { league_id: "123456", espn_s2: S2, swid: "not-a-guid" })).status, 400);
+  const wrong = await call(h, "POST", "/espn/connect", "jwt-me", { league_id: "123456", espn_s2: "B" + S2, swid: SWID });
+  assertEquals((await wrong.json()).error.code, "espn_session_rejected");
+  assertEquals(store.conns.length, 0);
+  // SWID without braces is accepted and normalized
+  const ok = await (await call(h, "POST", "/espn/connect", "jwt-me", { league_id: "https://fantasy.espn.com/football/league?leagueId=123456", espn_s2: S2, swid: SWID.slice(1, -1).toLowerCase() })).json();
+  assertEquals(ok.season, 2026); // always the current season
+  const conn = store.conns[0];
+  assert(!new TextDecoder().decode(conn.secret_ciphertext!).includes(S2));
+  const pulled = await call(h, "POST", "/leagues", "jwt-me", { connection_id: conn.id, league_key: "123456" });
+  assertEquals(pulled.status, 200);
+  assertEquals(cookies.at(-1), `espn_s2=${S2}; SWID=${SWID}`);
+  assert(logs.every((l) => !l.includes(S2) && !l.includes("1A2B3C4D")));
+  const me = await (await call(h, "GET", "/me", "jwt-me")).json();
+  assert(!JSON.stringify(me).includes(S2));
+});
