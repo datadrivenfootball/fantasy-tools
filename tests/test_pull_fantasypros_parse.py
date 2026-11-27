@@ -63,6 +63,58 @@ class ParseTablesTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             fp.parse_tables(_page(positions=("Quarterback", "Running Back", "Wide Receiver")))
 
+    def test_empty_heading_between_qb_heading_and_table(self):
+        """JEG-1700: the Week 12 2026 page (run 45539703581's outline) has an
+        empty <h3></h3> between the QB heading and the QB table. It reset the
+        position, the QB table was skipped, and four ingests failed closed
+        with "found ['RB', 'WR', 'TE']". An empty heading keeps the position;
+        a heading with text still resets it."""
+        page = _page().replace("Quarterback Fantasy Football Trade Value Chart</h2>",
+                               'Quarterback Fantasy Football Trade Value Chart</h2>'
+                               '<h3 class="sr"> <span></span>\u00a0</h3>')
+        rows = fp.parse_tables(page)
+        self.assertEqual([r[0] for r in rows], ["QB", "RB", "WR", "TE"])
+        self.assertEqual(rows[0], ("QB", "Josh Allen", "BUF", 29.1))
+        self.assertEqual(fp.parse_superflex(page), {("Josh Allen", "BUF"): 69.5})
+        reset = _page().replace("Quarterback Fantasy Football Trade Value Chart</h2>",
+                                "Quarterback Fantasy Football Trade Value Chart</h2><h3>Sponsored</h3>")
+        with self.assertRaises(RuntimeError):
+            fp.parse_tables(reset)
+
+    def test_custom_table_element_does_not_swallow_the_qb_section(self):
+        """Hardening: a tag that starts with "table" (a table of contents, a
+        TablePress wrapper) must not open a lazy <table...</table> match that
+        runs on to the QB table's close and swallows the QB heading."""
+        page = _page().replace(
+            "<h2>Quarterback",
+            '<table-of-contents class="toc"><a href="#qb">QB</a></table-of-contents>'
+            "<h2>Quarterback")
+        rows = fp.parse_tables(page)
+        self.assertEqual([r[0] for r in rows], ["QB", "RB", "WR", "TE"])
+        self.assertEqual(fp.parse_superflex(page), {("Josh Allen", "BUF"): 69.5})
+
+    def test_h3_headings_and_invisible_characters(self):
+        """The Week 12 page puts the position headings in h3 under an h2;
+        a soft hyphen or zero-width space inside a heading word must not
+        hide the position."""
+        page = _page().replace("<h2>Quarterback", "<h3>Quarter\u00adback").replace(
+            "Quarterback Fantasy Football Trade Value Chart</h2>", "")
+        page = page.replace("<h3>Quarter\u00adback Fantasy Football Trade Value Chart</h2>",
+                            "<h3>Quarter\u00adback Fantasy Football Trade Value Chart</h3>")
+        page = page.replace("<h2>Running Back", "<h3>Running\u200b Back").replace(
+            "Running\u200b Back Fantasy Football Trade Value Chart</h2>",
+            "Running\u200b Back Fantasy Football Trade Value Chart</h3>")
+        rows = fp.parse_tables(page)
+        self.assertEqual([r[0] for r in rows], ["QB", "RB", "WR", "TE"])
+
+    def test_failure_names_the_page_layout(self):
+        page = _page(positions=("Running Back", "Wide Receiver", "Tight End"))
+        with self.assertRaises(RuntimeError) as cm:
+            fp.parse_tables(page)
+        msg = str(cm.exception)
+        self.assertIn("page outline:", msg)
+        self.assertIn("h2 'Running Back Fantasy Football Trade Value Chart'", msg)
+
     def test_published_date(self):
         self.assertEqual(fp.published_date(_page()), "2026-10-06")
 

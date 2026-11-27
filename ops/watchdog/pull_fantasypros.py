@@ -252,6 +252,48 @@ def published_date(html):
     return m.group(1) if m else None
 
 
+# A position heading, or a real <table> element. A heading must close at its
+# own level. A table opens only on `<table` followed by whitespace or `>`
+# (not `\b`, which also matches before a hyphen), so a custom element such as
+# <table-of-contents> cannot open a lazy match that runs on to the next real
+# table's close and swallows the heading in between.
+_SECTION_RE = re.compile(r"<(h[23])(?=[\s>])[^>]*>(.*?)</\1\s*>|<table(?=[\s>])[^>]*>.*?</table\s*>",
+                         re.S | re.I)
+# Characters that split a word without showing: soft hyphen, zero-width
+# space/joiners, word joiner, BOM.
+_INVISIBLE_RE = re.compile("[\u00ad\u200b\u200c\u200d\u2060\ufeff]")
+
+
+def _heading_text(raw):
+    return re.sub(r"\s+", " ", _INVISIBLE_RE.sub("", _cell_text(raw))).strip().lower()
+
+
+def _position_tables(html):
+    """-> [(position, table_html)]: each real table that follows a position
+    heading. Another heading with text in between resets the position; an
+    empty heading does not. The Week 12 2026 page (JEG-1700) puts an empty
+    <h3> between "Quarterback ... Trade Value Chart" and the QB table, which
+    reset the position, so the QB table was skipped and the ingest failed
+    closed four times with "found ['RB', 'WR', 'TE']"."""
+    out, pos = [], None
+    for m in _SECTION_RE.finditer(html):
+        if m.group(1) is not None:
+            head = _heading_text(m.group(2))
+            if head:
+                pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
+            continue
+        if pos is not None:
+            out.append((pos, m.group(0)))
+            pos = None
+    return out
+
+
+def _table_cells(table_html):
+    trs = re.findall(r"<tr(?=[\s>]).*?</tr\s*>", table_html, re.S | re.I)
+    return [[_cell_text(c) for c in re.findall(r"<t[dh](?=[\s>])[^>]*>(.*?)</t[dh]\s*>", tr, re.S | re.I)]
+            for tr in trs]
+
+
 def parse_tables(html):
     """-> [(position, name, team, value)] from the four position tables.
 
@@ -261,17 +303,8 @@ def parse_tables(html):
     exactly QB, RB, WR and TE are each found once with rows.
     """
     rows, seen = [], []
-    pos = None
-    for m in re.finditer(r"<h[23][^>]*>(.*?)</h[23]>|<table.*?</table>", html, re.S | re.I):
-        if m.group(1) is not None:
-            head = _cell_text(m.group(1)).lower()
-            pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
-            continue
-        if pos is None:
-            continue
-        trs = re.findall(r"<tr.*?</tr>", m.group(0), re.S | re.I)
-        cells = [[_cell_text(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)]
-                 for tr in trs]
+    for pos, table in _position_tables(html):
+        cells = _table_cells(table)
         header = cells[0] if cells else []
         if "Name" not in header or "Value" not in header:
             raise RuntimeError("FantasyPros %s table has no Name/Value header: %r" % (pos, header))
@@ -285,9 +318,9 @@ def parse_tables(html):
         if n == 0:
             raise RuntimeError("FantasyPros %s table is empty" % pos)
         seen.append(pos)
-        pos = None
     if sorted(seen) != ["QB", "RB", "TE", "WR"]:
-        raise RuntimeError("FantasyPros position tables found: %s (need QB, RB, WR, TE once each)" % seen)
+        raise RuntimeError("FantasyPros position tables found: %s (need QB, RB, WR, TE once each)\n%s"
+                           % (seen, page_outline(html)))
     return rows
 
 
@@ -300,19 +333,11 @@ SUPERFLEX_COLUMN = "2QB Value"
 def parse_superflex(html):
     """-> {(name, team): 2QB value} from the QB table; {} when the chart has
     no "2QB Value" column (never guessed)."""
-    out, pos = {}, None
-    for m in re.finditer(r"<h[23][^>]*>(.*?)</h[23]>|<table.*?</table>", html, re.S | re.I):
-        if m.group(1) is not None:
-            head = _cell_text(m.group(1)).lower()
-            pos = next((p for k, p in POSITION_HEADINGS if k in head), None)
-            continue
+    out = {}
+    for pos, table in _position_tables(html):
         if pos != "QB":
-            pos = None
             continue
-        pos = None
-        trs = re.findall(r"<tr.*?</tr>", m.group(0), re.S | re.I)
-        cells = [[_cell_text(c) for c in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", tr, re.S | re.I)]
-                 for tr in trs]
+        cells = _table_cells(table)
         header = cells[0] if cells else []
         if SUPERFLEX_COLUMN not in header or "Name" not in header:
             return {}
@@ -326,6 +351,22 @@ def parse_superflex(html):
                 continue
         return out
     return out
+
+
+def page_outline(html, limit=60):
+    """Headings and table tags in page order, for a parse failure's log:
+    a changed layout is then diagnosable from the run log alone (JEG-1700,
+    Week 12 2026 lost the QB table and the log could not say why)."""
+    out = []
+    for m in re.finditer(r"<(h[1-6])\b[^>]*>(.*?)</\1\s*>|<(/?table[^\s>]*)[^>]*>", html, re.S | re.I):
+        if m.group(1):
+            out.append("  %s %r" % (m.group(1).lower(), _cell_text(m.group(2))[:80]))
+        else:
+            out.append("  <%s> at %d" % (m.group(3), m.start()))
+        if len(out) >= limit:
+            out.append("  ...")
+            break
+    return "page outline:\n" + "\n".join(out)
 
 
 def write_saver_inputs(url, html, week, csv_path, log_path, players=None):

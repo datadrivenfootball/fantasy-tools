@@ -19,7 +19,19 @@ below are history, including any "Codex reviews and merges" line.
 
 ## Resume here
 
-### Week 12 held by the overall-scale floor (JEG-1700, Claude, 2026-11-25 UTC): PR up, urgent
+### FantasyPros Week 12 ingest failed closed on an empty heading (JEG-1700, Claude, 2026-11-25 UTC): PR #1538
+
+- `trade-chart-ingest` (fantasypros) failed four times on 2026-11-24 (18:10 to 21:10 UTC):
+  `position tables found: ['RB', 'WR', 'TE']`. The Week 12 page has an empty `<h3>` between the QB heading and the
+  QB table (outline printed by dry run 45539703581), and any heading reset the parser's position, so the QB table
+  was skipped. The site kept FantasyPros on Week 11.
+- Fix: an empty heading keeps the position (a heading with text still resets it); a table opens only on a real
+  `<table>` tag; one section walker for `parse_tables` and `parse_superflex`; a failed parse prints the page outline.
+  Fail-closed QB/RB/WR/TE check unchanged. Jeremy, 2026-11-25 03:25 UTC: "Don't wait for me, don't wait for 6 am.
+  Fix it" (merge after Codex review and CI).
+- After merge: run `trade-chart-ingest` mode=write source=fantasypros, then the chain, then check the live site.
+
+### Week 12 held by the overall-scale floor (JEG-1700, Claude, 2026-11-25 UTC): merged (#1530)
 
 - Every main chain run from 2026-11-23 06:44 UTC failed closed on one data-gate test,
   `test_static_export.test_top_indexed_values_preserve_high_overall_scale` (min chart top >= 38). The low chart is

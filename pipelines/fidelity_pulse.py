@@ -334,6 +334,9 @@ class Table:
     rows: list[list[str]] = field(default_factory=list)
 
 
+_INVISIBLE = re.compile("[\u00ad\u200b\u200c\u200d\u2060\ufeff]")
+
+
 class _TableParser(HTMLParser):
     """Every <table> as rows of cell texts, with the text of the last heading
     (h1-h4) or <caption> before it. Nested markup inside cells is flattened."""
@@ -374,7 +377,11 @@ class _TableParser(HTMLParser):
             self.title = self.title or " ".join("".join(self._tbuf).split())
             self._tbuf = None
         elif tag in self.HEADINGS and self._hbuf is not None:
-            text = " ".join("".join(self._hbuf).split())
+            # JEG-1700: an empty heading keeps the position. Zero-width characters and soft
+            # hyphens are not whitespace to str.split(), so the Week 12 2026 FantasyPros page's
+            # empty <h3> between the QB heading and the QB table replaced "Quarterback ..."
+            # and the QB table was read as no position (red publisher_vs_stored hold).
+            text = " ".join(_INVISIBLE.sub("", "".join(self._hbuf)).split())
             if text:
                 self._heading = text
                 if tag == "caption" and self._table is not None:
