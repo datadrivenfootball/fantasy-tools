@@ -1,0 +1,52 @@
+/* Build a Trade on staging (JEG-1736): "Week by week, both sides" and "Player by player".
+   Layout only, from the live build page's own tokens (styles.css :root, build.html's card and table styles).
+   Up = the site green, down = --attention-text; nothing new is introduced. */
+.build-page .bw-card{margin:12px 0}
+.build-page .bw-card h2{margin:0 0 12px}
+.build-page .bw-card[hidden]{display:none!important}
+.build-page .bw-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.build-page .bw-fine{font-size:13px;margin:10px 0 0;max-width:75ch}
+
+/* the week grid scrolls inside its own region; the page never does */
+.build-page .bw-scroll{overflow-x:auto;max-width:100%;border:1px solid #dbe0dc;border-radius:10px;background:#fff;overscroll-behavior-x:contain}
+.build-page .bw-scroll:focus-visible{outline:3px solid #176c4d;outline-offset:2px}
+.build-page .bw-table{table-layout:auto;width:100%;border-collapse:separate;border-spacing:0;margin:0}
+.build-page .bw-table th,.build-page .bw-table td{width:auto;padding:10px 12px;font-size:14px;text-align:right;white-space:nowrap;overflow-wrap:normal;letter-spacing:0;border-bottom:1px solid #dbe0dc;vertical-align:top}
+.build-page .bw-table tbody tr:last-child>*{border-bottom:0}
+.build-page .bw-table thead th{font:600 13px "IBM Plex Mono",ui-monospace,monospace;color:#17364c;background:#f2f5f1}
+.build-page .bw-table thead th small{font:500 10px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.08em;color:#5c6a76}
+.build-page .bw-table .bw-num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.build-page .bw-table .bw-lab{position:sticky;left:0;z-index:1;text-align:left;background:#fff;font-weight:600;white-space:normal;min-width:128px;max-width:190px;box-shadow:1px 0 0 #dbe0dc}
+.build-page .bw-table thead .bw-lab{background:#f2f5f1}
+.build-page .bw-table .bw-lab small{display:block;font-weight:500;font-size:12px;color:#5c6a76}
+.build-page .bw-table .bw-total{font-weight:600;border-left:1px solid #dbe0dc}
+.build-page .bw-table .bw-group th{position:static;text-align:left;background:#e8f5ee;color:#0f4c35;font:700 13px "Archivo",system-ui,sans-serif;padding:8px 12px;white-space:normal}
+.build-page .bw-table .bw-group th small{font-weight:500;color:#0f4c35}
+.build-page .bw-table .bw-change td{font-weight:600}
+.build-page .bw-table [data-dir=up]{color:#176c4d}
+.build-page .bw-table [data-dir=down]{color:var(--attention-text,#a83e12)}
+.build-page .bw-table .bw-opp td{font-family:"Archivo",system-ui,sans-serif;font-size:13px;white-space:normal;min-width:96px}
+.build-page .bw-oppname{display:block}
+.build-page .bw-chip{display:inline-block;margin-top:3px;font:600 10.5px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase;color:var(--attention-text,#a83e12);background:var(--attention,#fff0e8);border:1px solid #eccbb9;border-radius:99px;padding:1px 7px;white-space:nowrap}
+.build-page .bw-twice-note{margin:0 0 12px;padding:12px 16px;background:var(--attention,#fff0e8);color:#7a2e0c;border:1px solid #eccbb9;border-radius:10px;font-size:14px;max-width:none}
+
+/* Player by player */
+.build-page .bw-players .bw-pname{display:block}
+.build-page .bw-players td .bw-pts,.build-page .bw-players td .bw-na{display:block;font-weight:600}
+.build-page .bw-role{display:inline-block;margin-top:3px;font:600 10.5px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.04em;text-transform:uppercase;border-radius:99px;padding:1px 7px;border:1px solid #c5ccc7;color:#4b5a66;background:#f3f5f2}
+.build-page .bw-role[data-starts=yes]{color:#0f5238;background:#e8f5ee;border-color:#b9dcc8}
+.build-page .bw-bye{display:inline-block;font:600 11px "IBM Plex Mono",ui-monospace,monospace;letter-spacing:.06em;color:#4b5a66;background:#f3f5f2;border:1px solid #c5ccc7;border-radius:99px;padding:1px 8px}
+
+/* "—" and its reason */
+.build-page .bw-na{color:#5c6a76;cursor:help}
+.build-page .bw-na sup{font-size:9px;margin-left:1px}
+.build-page .bw-notes{margin:10px 0 0;padding:0 0 0 20px;font-size:13px;color:#5c6a76}
+.build-page .bw-notes li{margin:2px 0}
+
+@media(max-width:600px){
+ .build-page .bw-table th,.build-page .bw-table td{padding:9px 7px;font-size:13px}
+ .build-page .bw-table .bw-opp td{font-size:12px;min-width:84px}
+ .build-page .bw-table .bw-lab{min-width:104px;max-width:128px}
+ .build-page .bw-table .bw-group th{padding:8px}
+}
+.bw-src{display:block;font:500 10px "IBM Plex Mono",ui-monospace,monospace;color:var(--muted);white-space:nowrap}
