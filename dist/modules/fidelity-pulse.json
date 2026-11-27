@@ -1,7 +1,7 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-27T12:34:55.293790Z",
- "run_id": "0833fbdc-2443-4be8-a04e-e8eb3d88ab7c",
+ "checked_at": "2026-11-27T12:40:21.280203Z",
+ "run_id": "44833d44-d544-480a-b161-85cbbd9dddec",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
@@ -45,8 +45,20 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-27@2026-11-27T11:26:01.127051Z",
    "measured_site": "2026-11-26",
-   "since": "2026-11-27T12:34:55.293790Z",
+   "since": "2026-11-27T12:40:21.280203Z",
    "summary": "the chart's snapshot 2026-11-26 is no longer stored: the stored set is now 2026-11-27; the chart is behind until the next chain run rebuilds it"
+  },
+  "cbsros": {
+   "stage": "publisher_vs_stored",
+   "stages": [
+    "publisher_vs_stored"
+   ],
+   "hold_level": "amber",
+   "reason": "fidelity: publisher_vs_stored",
+   "identity": "2026-11-26@2026-11-26T23:26:01.718577Z",
+   "measured_site": "2026-11-26",
+   "since": "2026-11-27T00:40:19.729039Z",
+   "summary": "1089/1089 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 4 players at the page's last listed value swapped in or out (ties at the row cap: CJ Donaldson, Hunter Long, Kaytron Allen, Luke Schoonmaker); parse notes: RB: 2 players listed with another posit"
   },
   "draftsharks": {
    "stage": "stored_vs_chart",
@@ -57,7 +69,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-27@2026-11-27T04:45:38.758849Z",
    "measured_site": null,
-   "since": "2026-11-27T12:34:55.293790Z",
+   "since": "2026-11-27T12:40:21.280203Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -69,7 +81,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-27@2026-11-27T12:18:34.114161Z",
    "measured_site": null,
-   "since": "2026-11-27T12:34:55.293790Z",
+   "since": "2026-11-27T12:40:21.280203Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -1407,14 +1419,14 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-27@2026-11-27T11:26:01.127051Z",
     "measured_site": "2026-11-26",
-    "since": "2026-11-27T12:34:55.293790Z",
+    "since": "2026-11-27T12:40:21.280203Z",
     "summary": "the chart's snapshot 2026-11-26 is no longer stored: the stored set is now 2026-11-27; the chart is behind until the next chain run rebuilds it"
    }
   },
   {
    "source": "cbsros",
    "label": "CBS rest of season",
-   "status": "green",
+   "status": "amber",
    "stored_week": null,
    "chart_week": null,
    "content_week": 12,
@@ -1423,19 +1435,19 @@
    "stored_bake": "2026-11-26",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1092/1092 values match exactly across 3 columns; 3 players at the page's last listed value swapped in or out (ties at the row cap: CJ Donaldson, Elijah Mitchell, Luke Schoonmaker); parse notes: RB: 2 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)', 'Max Hurleman (WR)']",
+     "status": "amber",
+     "summary": "1089/1089 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 4 players at the page's last listed value swapped in or out (ties at the row cap: CJ Donaldson, Hunter Long, Kaytron Allen, Luke Schoonmaker); parse notes: RB: 2 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)', 'Max Hurleman (WR)']; TE: 1 players listed with another position in the cell (kept as TE): ['Connor Heyward (FB)']",
      "counts": {
-      "publisher_players": 366,
+      "publisher_players": 365,
       "stored_players": 365,
-      "compared": 1092,
-      "matched": 1092,
+      "compared": 1089,
+      "matched": 1089,
       "mismatched": 0,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 3,
-      "unresolved_names": 0
+      "list_churn": 4,
+      "unresolved_names": 1
      },
      "url": "https://www.cbssports.com/fantasy/football/stats/QB/2026/restofseason/projections/nonppr/",
      "publisher_vintage": null,
@@ -1443,32 +1455,44 @@
      "stored_saved_at": "2026-11-26T23:26:01.718577Z",
      "grains": {
       "full|1": {
-       "left": 366,
+       "left": 365,
        "right": 365,
        "mismatched": 0,
        "missing": 2,
-       "extra": 1
+       "extra": 2
       },
       "half|1": {
-       "left": 366,
+       "left": 365,
        "right": 365,
        "mismatched": 0,
        "missing": 2,
-       "extra": 1
+       "extra": 2
       },
       "std|1": {
-       "left": 366,
+       "left": 365,
        "right": 365,
        "mismatched": 0,
        "missing": 2,
-       "extra": 1
+       "extra": 2
       }
      },
      "publisher_version": null,
      "resync": null,
      "examples": [],
      "outside_universe": [],
-     "unresolved": []
+     "unresolved": [
+      {
+       "name": "Connor Heyward",
+       "pos": "TE",
+       "team": "LV",
+       "reason": "position_conflict",
+       "values": {
+        "full|1": "5.8",
+        "half|1": "3.3",
+        "std|1": "0.8"
+       }
+      }
+     ]
     },
     "stored_vs_chart": {
      "status": "green",
@@ -1535,7 +1559,7 @@
         "QB": 66,
         "RB": 100,
         "WR": 100,
-        "TE": 100
+        "TE": 99
        },
        "stored": {
         "QB": 66,
@@ -1580,7 +1604,18 @@
     "stage": "publisher_vs_stored",
     "week": 12
    },
-   "hold": null
+   "hold": {
+    "stage": "publisher_vs_stored",
+    "stages": [
+     "publisher_vs_stored"
+    ],
+    "hold_level": "amber",
+    "reason": "fidelity: publisher_vs_stored",
+    "identity": "2026-11-26@2026-11-26T23:26:01.718577Z",
+    "measured_site": "2026-11-26",
+    "since": "2026-11-27T00:40:19.729039Z",
+    "summary": "1089/1089 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; 4 players at the page's last listed value swapped in or out (ties at the row cap: CJ Donaldson, Hunter Long, Kaytron Allen, Luke Schoonmaker); parse notes: RB: 2 players listed with another posit"
+   }
   },
   {
    "source": "razzball",
@@ -1947,7 +1982,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-27@2026-11-27T04:45:38.758849Z",
     "measured_site": null,
-    "since": "2026-11-27T12:34:55.293790Z",
+    "since": "2026-11-27T12:40:21.280203Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -2016,7 +2051,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-27@2026-11-27T12:18:34.114161Z",
     "measured_site": null,
-    "since": "2026-11-27T12:34:55.293790Z",
+    "since": "2026-11-27T12:40:21.280203Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
