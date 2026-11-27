@@ -1,0 +1,45 @@
+/* Cover panel on Team (JEG-1736, staging). Built from the live page's own pieces: .card, .tier chips,
+   .team-context, the pos-table name/players pair, and styles.css tokens. */
+.team-page .cover{margin:24px 0}
+.team-page .cover .cv-intro{margin:0 0 4px}
+.team-page .cover .cv-sum{margin:14px 0!important}
+.team-page .cover .table-wrap{border:1px solid var(--border);border-radius:12px;background:#fff;margin-top:8px}
+.team-page .cover .cv-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.team-page .cv-table tbody tr{cursor:default}
+.team-page .cv-table tbody tr:hover{background:transparent}
+.team-page .cv-table th,.team-page .cv-table td{padding:12px 10px;vertical-align:top;text-align:left}
+.team-page .cv-table thead th{font-size:11px;letter-spacing:.04em}
+.team-page .cv-table tbody th[scope=row]{background:#fff;color:var(--text);font-size:inherit;white-space:normal;min-width:150px}
+.team-page .cv-table .posname{font-weight:700;font-size:15px;display:block}
+.team-page .cv-table .players{display:block;color:#33424e;font-size:13px;margin-top:2px}
+.team-page .cv-table .cv-state small{margin-top:5px;font-size:12px;color:#33424e}
+.team-page .cv-table .cv-wk,.team-page .cv-table .num{text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+.team-page .cv-table td.cv-wk small{font-family:"Archivo",system-ui,sans-serif;font-size:12px;color:#33424e;white-space:normal}
+.team-page .cv-table .cv-cost{font-weight:600}
+.team-page .cv-table .cv-cost.big{color:var(--attention-text)}
+.team-page .cv-table .cv-total{font-weight:600}
+.team-page .cv-table .cv-bye,.team-page .cv-table .cv-out{font-size:11px;font-weight:600;letter-spacing:.04em;color:#4b5a66}
+.team-page .cv-table .cv-bye{background:#f3f5f2;border:1px solid #c5ccc7;border-radius:99px;padding:1px 7px}
+.team-page .cv-table .cv-out{font-weight:400;text-transform:none}
+.team-page .cv-na{color:var(--muted);cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.team-page .cv-st{display:inline-block;margin-left:6px;padding:0 6px;border-radius:99px;border:1px solid currentColor;color:var(--attention-text);background:var(--attention);font:600 10px/1.6 "IBM Plex Mono",monospace;vertical-align:1px}
+.team-page .cv-table tr.cv-sep th{white-space:normal;background:#fff;color:var(--green);font:600 12px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;padding:16px 10px 8px;border-bottom:2px solid var(--border)}
+.team-page .cv-notes{margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+@media(max-width:760px){
+  /* each starter becomes a card; the weeks sit in a grid under his name */
+  .team-page .cover .table-wrap{border:0;background:transparent;overflow:visible}
+  .team-page .cv-table{min-width:0!important;display:block}
+  .team-page .cv-table thead{display:none} /* each cell carries its week label instead (td::before) */
+  .team-page .cv-table tbody{display:block}
+  .team-page .cv-table tbody tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:14px 0;border-top:1px solid var(--border)}
+  .team-page .cv-table tbody tr:first-child{border-top:0}
+  .team-page .cv-table tbody tr>*{padding:0;border:0;min-width:0}
+  .team-page .cv-table tbody th[scope=row]{grid-column:1/3}
+  .team-page .cv-table .cv-state{grid-column:3;text-align:right}
+  .team-page .cv-table .cv-state small{grid-column:1/-1}
+  .team-page .cv-table td.cv-wk,.team-page .cv-table td.cv-total{text-align:left;background:#f7f8f5;border-radius:8px;padding:8px}
+  .team-page .cv-table td.cv-wk::before,.team-page .cv-table td.cv-total::before{content:attr(data-week);display:block;font:500 10px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+  .team-page .cv-table td.cv-wk small{overflow-wrap:anywhere}
+  .team-page .cv-table tr.cv-sep{display:block;padding:18px 0 4px}
+  .team-page .cv-table tr.cv-sep th{display:block;padding:0;border:0}
+}

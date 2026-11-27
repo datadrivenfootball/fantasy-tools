@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>DDF · Team (staging)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://datadrivenfootball.github.io/fantasy-tools/styles.css">
+<link rel="icon" href="https://datadrivenfootball.github.io/fantasy-tools/icon.jpg">
+</head>
+<body>
+<!-- A shell. league-bridge.js signs in, reads the stored league, then writes the live Team page (as published) into
+     this document with the league loaded, and adds the Cover panel (team-cover.js). Nothing of the live page is copied here. -->
+<header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div></div></header>
+<main><p class="muted" id="bridge-status" role="status" aria-live="polite">Loading your league…</p></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.js" integrity="sha384-rwykjmWNwVxboyFmvK9OXN0wj9hnMHA2aAHtits54DuACyCq0M2PrSNxhRb+hvXT" crossorigin="anonymous"></script>
+<script src="weekly.js"></script>
+<script src="league-bridge.js" data-live-page="team.html" data-add="team-cover.css,team-cover.js" data-staging-pages="team.html,find.html,build.html"></script>
+</body>
+</html>
