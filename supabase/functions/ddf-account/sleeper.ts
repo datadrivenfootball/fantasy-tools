@@ -167,7 +167,9 @@ export async function pullSleeper(f: Fetch, leagueId: string, sleeperUserId: str
   );
   sources.push(`sleeper:league/matchups/1..${weeks}`);
   // Weeks after the current one are not played yet: Sleeper sends 0 there, which is not a score.
-  const curWeek = int(state?.week, 0, 22);
+  // Sleeper's week is the current season's: a past season's league has every week played.
+  const stateSeason = int(state?.season ?? state?.league_season, 2000, 2100), lgSeason = int(lg.season, 2000, 2100);
+  const curWeek = stateSeason !== null && lgSeason !== null && lgSeason < stateSeason ? 99 : int(state?.week, 0, 22);
   if (curWeek === null) miss.add("current_week", "Sleeper state/nfl returned no week; unplayed weeks are told apart only by all-zero scores");
   const schedule = matchupRows.map((rows, i) => {
     const groups: Record<string, J[]> = {};

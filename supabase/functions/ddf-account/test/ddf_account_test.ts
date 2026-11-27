@@ -98,6 +98,13 @@ Deno.test("Sleeper: an unstarted current week and a missing FAAB spend are null,
   assert(summary.missing.some((m) => m.path === "teams[].faab_remaining"));
 });
 
+Deno.test("Sleeper: refreshing a past season's league keeps its played weeks", async () => {
+  const { live, fetch } = await sleeperFetch();
+  const f = async (u: string | URL) => String(u).endsWith("/state/nfl") ? jsonRes({ ...live.state, season: "2027", league_season: "2027", week: 1 }) : fetch(u);
+  const { summary } = await pullSleeper(f, live.league.league_id, "u1", async () => ({}));
+  assert(summary.schedule[9].matchups.every((m) => m.status === "final" && m.points.some((p) => p !== null)));
+});
+
 // ---------- ESPN ----------
 Deno.test("ESPN settings match the site's settingsOf, and the summary reads teams", async () => {
   const s = await fixture("tests/fixtures/espn/settings.json");
