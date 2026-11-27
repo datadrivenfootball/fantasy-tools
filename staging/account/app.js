@@ -139,6 +139,8 @@
     "if(!/(^|[.])espn[.]com$/.test(location.hostname)){alert('Open espn.com first, signed in, then tap DDF ESPN.');return}" +
     "var g=function(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?m[1]:''};" +
     "var s2=g('espn_s2'),sw=decodeURIComponent(g('SWID'));" +
+    "var inEspn=!!(window.espn&&espn.core&&espn.core.loggedIn);" +
+    "if(!s2&&inEspn){alert('ESPN shows you signed in, but did not let DDF read your sign-in. Tell DDF (code s2-hidden).');return}" +
     "if(!s2||!sw){alert('Sign in to ESPN first, then tap DDF ESPN again.');return}" +
     "location.href='" + HERE + "#espn='+encodeURIComponent(btoa(JSON.stringify({espn_s2:s2,swid:sw})))})()";
   $("bm-code").value = BOOKMARKLET;
