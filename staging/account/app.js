@@ -44,7 +44,7 @@
     if (!s) throw new Error("Sign in first.");
     var r = await fetch(FN + path, {method: method, headers: {authorization: "Bearer " + s.access_token, apikey: PUBLISHABLE_KEY, "content-type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body)});
     var j = await r.json().catch(function () { return {}; });
-    if (!r.ok) throw new Error((j.error && j.error.message) || ("DDF answered " + r.status));
+    if (!r.ok) { var err = new Error((j.error && j.error.message) || "Something went wrong on our side. Try again in a minute."); err.code = (j.error && j.error.code) || ""; throw err; }
     return j;
   }
   function busy(btn, fn) {
@@ -100,10 +100,32 @@
   });
   function segValue(name) { var b = document.querySelector('[data-seg="' + name + '"] [aria-pressed="true"]'); return b ? b.dataset.v : ""; }
   function setSeg(name, v) { Array.prototype.forEach.call(document.querySelectorAll('[data-seg="' + name + '"] button'), function (x) { x.setAttribute("aria-pressed", String(v !== "" && x.dataset.v === v)); }); }
-  /* ESPN sign-in through the DDF extension (staging/extension). ESPN has no OAuth: the extension reads
-     ESPN's session for espn.com and hands it to DDF's server directly; this page never sees it. */
+  /* ---------- ESPN (JEG-1732) ----------
+     ESPN has no sign-in for other apps, so DDF never asks for the ESPN password. The flow starts from the
+     league link: a public league connects at once. A private league needs ESPN's own session, which DDF
+     can get three ways without seeing a password:
+       - the DDF app: the app opens ESPN's sign-in in its own web view and hands this page the session;
+       - the DDF helper for Chrome (staging/extension): sends the session straight to DDF's server;
+       - last resort on phones: a bookmark run on espn.com.
+     Or the league manager makes the league viewable to the public, and no sign-in is needed at all. */
   var EXT_ID = "hnkkhmlmjcaofnjjekgggdhchgohlkcp";
+  var EXT_STORE_URL = ""; /* the helper's Chrome Web Store page, once it is listed: turns the install into one click */
   var IS_PHONE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var appBridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.ddfEspn;
+  var IS_APP = !!appBridge;
+  var espn = {privateId: "", busy: false};
+  /* What the server says, in a fan's words. Codes come from supabase/functions/ddf-account. */
+  var ESPN_SAYS = {
+    espn_session_rejected: "ESPN didn't accept that sign-in. Sign in at ESPN again, then try once more.",
+    espn_no_session: "Your ESPN sign-in has run out. Connect ESPN again.",
+    bad_espn_s2: "ESPN's sign-in didn't come through whole. Sign in at ESPN again, then try once more.",
+    bad_swid: "ESPN's sign-in didn't come through whole. Sign in at ESPN again, then try once more.",
+    bad_league_id: "We couldn't find a league ID in that. Paste your league link, or just the number after leagueId=."
+  };
+  function espnSay(err) { return ESPN_SAYS[err && err.code] || (err && err.message) || String(err); }
+  function withTeam(leagues) { return (leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }); }
+  function leagueUrl(id) { return "https://fantasy.espn.com/football/league?leagueId=" + encodeURIComponent(id); }
+
   function extCall(msg) {
     return new Promise(function (resolve) {
       try {
@@ -112,29 +134,144 @@
       } catch (e) { resolve(null); }
     });
   }
-  async function detectExt() {
-    var r = await extCall({type: "ping"});
-    state.ext = !!(r && r.ok);
-    $("espn-step-ext").classList.toggle("done", state.ext);
-    $("espn-phone").hidden = !IS_PHONE || state.ext;
-    $("espn-steps").hidden = IS_PHONE && !state.ext;
+  /* Lays the ESPN panel out for where the page is running: in the app or with the helper, signing in is the
+     one big button and the league link folds away; otherwise the league link is the one thing on screen. */
+  function layoutEspn() {
+    var fast = IS_APP || !!state.ext;
+    $("espn-fast").hidden = !fast;
+    var block = $("espn-id-block"), home = fast ? $("espn-id-fold") : $("espn-fast").parentNode;
+    if (block.parentNode !== home) { if (fast) home.appendChild(block); else home.insertBefore(block, $("espn-alt")); }
+    $("espn-id-title").hidden = fast;
+    $("espn-alt").hidden = fast;
+    $("espn-fast-p").textContent = IS_APP ? "ESPN's own sign-in opens. Sign in there, then pick your league. DDF never sees your ESPN password."
+      : "You're set up on this computer. DDF finds the leagues for the ESPN account signed in to Chrome, and never sees your ESPN password.";
+    $("espn-fast").querySelector(".trail").hidden = !IS_APP;
+    /* the ways in for a private league */
+    $("choice-signin").hidden = !fast;
+    $("choice-signin-p").textContent = IS_APP ? "ESPN's own sign-in opens. DDF never sees your ESPN password." : "DDF finds the leagues for the ESPN account signed in to Chrome. It never sees your ESPN password.";
+    $("choice-helper").hidden = fast || IS_PHONE;
+    $("helper-store").hidden = !EXT_STORE_URL; if (EXT_STORE_URL) $("helper-store").href = EXT_STORE_URL;
+    $("ext-help").hidden = !!EXT_STORE_URL;
+    $("choice-computer").hidden = fast || !IS_PHONE;
+    $("espn-phone").hidden = fast || !IS_PHONE;
+    $("ask-tag").textContent = fast || !IS_PHONE ? "No sign-in needed" : "Easiest on a phone";
   }
-  $("espn-find").addEventListener("click", busy($("espn-find"), async function () {
-    await detectExt();
-    if (!state.ext) { $("ext-help").open = true; throw new Error("Add the DDF extension first (step 1), then reload this page."); }
-    var s = (await sb.auth.getSession()).data.session;
-    if (!s) throw new Error("Sign in to DDF first.");
-    say("Asking ESPN for your leagues…");
-    var r = await extCall({type: "connect-espn", jwt: s.access_token});
-    if (!r || !r.ok) throw new Error((r && r.message) || "The DDF extension didn't answer. Reload this page and try again.");
-    say("ESPN connected. Pick your league.", "ok");
-    showOptions(r.connection, (r.leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }));
+  async function detectExt() {
+    var r = IS_PHONE || IS_APP ? null : await extCall({type: "ping"});
+    state.ext = !!(r && r.ok);
+    layoutEspn();
+    return state.ext;
+  }
+  function showPrivate(id) {
+    espn.privateId = id || "";
+    $("espn-private-eyebrow").textContent = id ? "ESPN league " + id : "";
+    $("espn-private-title").textContent = id ? "This league is private" : "Private league";
+    $("lm-link").href = id ? leagueUrl(id) : "https://fantasy.espn.com/football/";
+    $("retry-line").hidden = !id;
+    $("ask-status").textContent = ""; $("self-status").textContent = "";
+    $("espn-start").hidden = true; $("espn-private").hidden = false; $("picker").hidden = true;
+    say("");
+    $("espn-private-title").focus({preventScroll: true});
+    $("connect").scrollIntoView({behavior: "smooth", block: "start"});
+  }
+  function showStart() { $("espn-private").hidden = true; $("espn-start").hidden = false; }
+  $("espn-is-private").addEventListener("click", function () { var p = /\d{3,}/.exec($("espn-id").value); showPrivate(p ? p[0] : ""); });
+  $("espn-back").addEventListener("click", function () { showStart(); $("espn-id").focus(); });
+
+  /* The app hands back ESPN's session after the user signs in at ESPN inside it. The promise resolves
+     with {espn_s2, swid}, or {cancelled: true} when the sign-in sheet is closed. */
+  async function sessionFromApp() {
+    var r = await appBridge.postMessage({want: "session"});
+    if (!r || r.cancelled) return null;
+    return {espn_s2: r.espn_s2, swid: r.swid};
+  }
+  async function afterEspnSession(conn, leagues) {
+    showStart();
+    var list = withTeam(leagues), want = espn.privateId, hit = null;
+    espn.privateId = "";
+    /* The league they typed first is the one they want: no second pick. */
+    if (want) hit = list.filter(function (l) { return String(l.league_key).split(":")[0] === String(want) || String(l.league_key) === String(want); })[0];
+    if (!hit && list.length === 1) hit = list[0];
     await loadMe();
+    if (hit) return addLeague(conn, hit);
+    say(list.length ? "ESPN connected. Pick your league." : "ESPN connected, but it lists no fantasy football leagues for this season.", list.length ? "ok" : "err");
+    showOptions(conn, list);
+  }
+  async function connectEspnSignin() {
+    if (espn.busy) return;
+    espn.busy = true;
+    try {
+      if (IS_APP) {
+        var keys = await sessionFromApp();
+        if (!keys) { say(""); return; }
+        say("Finding your ESPN leagues…");
+        var j = await api("POST", "/espn/session", keys);
+        keys = null;
+        await afterEspnSession(j.connection, j.leagues);
+      } else {
+        if (!(await detectExt())) throw new Error("The DDF helper isn't in this browser yet. Add it, then try again.");
+        var s = (await sb.auth.getSession()).data.session;
+        if (!s) throw new Error("Sign in to DDF first.");
+        say("Finding your ESPN leagues…");
+        var r = await extCall({type: "connect-espn", jwt: s.access_token});
+        if (!r || !r.ok) {
+          if (r && r.code === "espn_signed_out") throw new Error("You're not signed in to ESPN in this browser. Sign in at espn.com in another tab, then press Connect ESPN again.");
+          throw new Error((r && ESPN_SAYS[r.code]) || "The DDF helper didn't answer. Reload this page and try again.");
+        }
+        await afterEspnSession(r.connection, r.leagues);
+      }
+    } catch (err) { say(espnSay(err), "err"); } finally { espn.busy = false; }
+  }
+  ["espn-go", "espn-go2"].forEach(function (id) { $(id).addEventListener("click", busy($(id), connectEspnSignin)); });
+  $("helper-check").addEventListener("click", busy($("helper-check"), async function () {
+    if (await detectExt()) { say("The DDF helper is ready.", "ok"); return; }
+    throw new Error("We can't see the DDF helper yet. Finish the steps, reload this page, and try again.");
   }));
-  /* Phones: a bookmarklet run on espn.com reads ESPN's own sign-in (espn_s2 and SWID are readable by
-     page scripts; ESPN's own code reads espn_s2 the same way) and comes back to this page in the same
-     tab with it in the URL fragment, which never reaches a server. A head script takes it out of the
-     address bar at once; this page sends it to DDF's server and forgets it. */
+
+  /* From the league link: public leagues connect at once; a private one opens the ways in. */
+  async function connectEspnLeague(text) {
+    var id = (/\d{3,}/.exec(text) || [""])[0];
+    say("Looking up your league…");
+    var j;
+    try { j = await api("POST", "/espn/connect", {league_id: text}); }
+    catch (err) {
+      if (err.code === "espn_private") { showPrivate(id); return false; }
+      throw new Error(espnSay(err));
+    }
+    showStart();
+    await loadMe();
+    var list = j.leagues.map(function (l) { return Object.assign({}, l, {season: j.season}); });
+    if (list.length === 1) await addLeague(j.connection, list[0]);
+    else { say("Connected " + j.connection.display_name + ".", "ok"); showOptions(j.connection, list); }
+    return true;
+  }
+  $("espn-form").addEventListener("submit", busy(null, async function () { await connectEspnLeague($("espn-id").value.trim()); }));
+  $("espn-retry").addEventListener("click", busy($("espn-retry"), async function () {
+    var ok = await connectEspnLeague(espn.privateId);
+    if (!ok) say("ESPN still shows this league as private. Once your league manager flips the switch, try again.", "err");
+  }));
+
+  /* One tap: a ready-to-send note for the league manager, with the exact steps. */
+  function managerNote() {
+    var id = espn.privateId;
+    return "Could you make our ESPN league viewable to the public? I want to use Data Driven Football for trade values and lineup help, and it can only read leagues with that switched on. It only lets people look; nobody can change anything.\n\n" +
+      "It takes about 30 seconds:\n1. Open the league at " + (id ? leagueUrl(id) : "fantasy.espn.com") + "\n2. LM Tools > Basic Settings > Edit\n3. Set \"Make League Viewable to Public\" to Yes and save\n\nThanks!";
+  }
+  async function shareOrCopy(payload, statusEl, copiedText) {
+    if (navigator.share) {
+      try { await navigator.share(payload); statusEl.textContent = ""; return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    var text = payload.text || payload.url;
+    try { await navigator.clipboard.writeText(text); statusEl.textContent = copiedText; }
+    catch (e) { window.prompt("Copy this:", text); }
+  }
+  $("ask-share").addEventListener("click", function () { shareOrCopy({text: managerNote()}, $("ask-status"), "Copied. Paste it in your league chat or a text."); });
+  $("send-self").addEventListener("click", function () { shareOrCopy({title: "Add your league to DDF", url: HERE}, $("self-status"), "Link copied."); });
+
+  /* Last resort on phones: a bookmark run on espn.com reads ESPN's own sign-in and comes back to this
+     page in the same tab with it in the URL fragment, which never reaches a server. A head script takes
+     it out of the address bar at once; this page sends it to DDF's server and forgets it. */
   var BOOKMARKLET = "javascript:(function(){" +
     "if(!/(^|[.])espn[.]com$/.test(location.hostname)){alert('Open espn.com first, signed in, then tap DDF ESPN.');return}" +
     "var g=function(n){var m=document.cookie.match(new RegExp('(?:^|; )'+n+'=([^;]*)'));return m?m[1]:''};" +
@@ -159,13 +296,13 @@
     if (!s) { try { sessionStorage.setItem("ddf_espn_pending", raw); } catch (e) { /* ignore */ } say("Sign in to DDF in this tab to finish connecting ESPN.", "ok"); return; }
     window.__ddfEspnHandoff = null;
     try { sessionStorage.removeItem("ddf_espn_pending"); } catch (e) { /* ignore */ }
-    say("Asking ESPN for your leagues…");
-    var j = await api("POST", "/espn/session", {espn_s2: keys.espn_s2, swid: keys.swid});
-    say("ESPN connected. Pick your league.", "ok");
-    showOptions(j.connection, (j.leagues || []).map(function (l) { return Object.assign({}, l, {name: l.name + (l.team_name ? " · " + l.team_name : "")}); }));
-    await loadMe();
+    say("Finding your ESPN leagues…");
+    try { var j = await api("POST", "/espn/session", {espn_s2: keys.espn_s2, swid: keys.swid}); await afterEspnSession(j.connection, j.leagues); }
+    catch (err) { throw new Error(espnSay(err)); }
   }
-  try { $("espn-dev").hidden = localStorage.getItem("ddf_dev") !== "1"; } catch (e) { /* dev path stays hidden */ }
+  var DEV = false;
+  try { DEV = localStorage.getItem("ddf_dev") === "1"; } catch (e) { /* dev paths stay hidden */ }
+  $("espn-dev").hidden = !DEV; $("dev-views").hidden = !DEV;
   $("espn-private-form").addEventListener("submit", busy(null, async function () {
     var j = await api("POST", "/espn/connect", {league_id: $("espn-pid").value.trim(), espn_s2: $("espn-s2").value.trim(), swid: $("espn-swid").value.trim()});
     $("espn-s2").value = ""; $("espn-swid").value = "";
@@ -173,17 +310,19 @@
     showOptions(j.connection, j.leagues);
     await loadMe();
   }));
-  $("espn-form").addEventListener("submit", busy(null, async function () {
-    var j = await api("POST", "/espn/connect", {league_id: $("espn-id").value.trim()});
-    say("Connected ESPN league " + j.connection.display_name + ".", "ok");
-    showOptions(j.connection, j.leagues.map(function (l) { return Object.assign({}, l, {season: j.season}); }));
-    await loadMe();
-  }));
   $("yahoo").addEventListener("click", busy($("yahoo"), async function () {
     var j = await api("POST", "/yahoo/start", {return_to: HERE});
     location.href = j.url;
   }));
 
+  async function addLeague(conn, l) {
+    say("Reading " + l.name + " from " + (NAMES[conn.platform] || conn.platform) + "…");
+    var j = await api("POST", "/leagues", {connection_id: conn.id, league_key: l.league_key, season: l.season});
+    say("Added " + j.league.name + ". Now pick your team.", "ok");
+    $("picker").hidden = true;
+    await loadMe();
+    openLeague(j.league);
+  }
   function showOptions(conn, leagues) {
     var ul = $("league-options");
     ul.textContent = "";
@@ -191,14 +330,9 @@
     (leagues || []).forEach(function (l) {
       ul.appendChild(el("li", {},
         el("span", {}, el("strong", {text: l.name}), el("small", {class: "muted", text: "  " + [l.season, l.teams ? l.teams + " teams" : null].filter(Boolean).join(" · ")})),
-        el("button", {class: "primary", type: "button", text: "Pull this league", onclick: busy(null, async function (e) {
+        el("button", {class: "primary big", type: "button", text: "Add this league", onclick: busy(null, async function (e) {
           e.target.disabled = true;
-          say("Pulling " + l.name + " from " + conn.platform + "…");
-          var j = await api("POST", "/leagues", {connection_id: conn.id, league_key: l.league_key, season: l.season});
-          say("Pulled " + j.league.name + ".", "ok");
-          $("picker").hidden = true;
-          await loadMe();
-          openLeague(j.league);
+          try { await addLeague(conn, l); } catch (err) { throw new Error(conn.platform === "espn" ? espnSay(err) : err.message); }
         })})));
     });
     $("picker").hidden = false;
@@ -216,23 +350,23 @@
     $("yahoo").disabled = !state.me.yahoo_configured;
     var cl = $("conn-list");
     cl.textContent = "";
-    if (!state.me.connections.length) cl.appendChild(el("li", {class: "muted", text: "Nothing connected yet."}));
+    $("mine").hidden = !state.me.connections.length && !state.me.leagues.length;
     state.me.connections.forEach(function (c) {
       cl.appendChild(el("li", {},
         el("span", {}, el("strong", {text: NAMES[c.platform] || c.platform}), " " + (c.display_name || ""), el("small", {class: "muted", text: "  since " + when(c.created_at)})),
         el("span", {class: "cluster"},
           el("button", {type: "button", text: "Leagues", onclick: busy(null, async function () { var j = await api("GET", "/connections/" + c.id + "/leagues"); showOptions(c, j.leagues.map(function (l) { return Object.assign({season: j.season}, l); })); })}),
           el("button", {type: "button", class: "danger", text: "Disconnect", onclick: busy(null, async function () {
-            if (!confirm("Disconnect " + c.platform + "? This deletes its stored sign-in and its pulled leagues.")) return;
-            await api("DELETE", "/connections/" + c.id); say("Disconnected " + c.platform + ".", "ok"); $("league").hidden = true; await loadMe();
+            if (!confirm("Disconnect " + (NAMES[c.platform] || c.platform) + "? This deletes its stored sign-in and its leagues.")) return;
+            await api("DELETE", "/connections/" + c.id); say("Disconnected " + (NAMES[c.platform] || c.platform) + ".", "ok"); $("league").hidden = true; await loadMe();
           })}))));
     });
     var ll = $("league-list");
     ll.textContent = "";
-    if (!state.me.leagues.length) ll.appendChild(el("li", {class: "muted", text: "No leagues pulled yet."}));
+    if (!state.me.leagues.length && state.me.connections.length) ll.appendChild(el("li", {class: "muted", text: "No leagues added yet. Press Leagues above to pick one."}));
     state.me.leagues.forEach(function (l) {
       ll.appendChild(el("li", {},
-        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (NAMES[l.platform] || l.platform) + " · pulled " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
+        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (NAMES[l.platform] || l.platform) + " · updated " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
         el("button", {type: "button", text: "Open", onclick: busy(null, async function () { var j = await api("GET", "/leagues/" + l.id); openLeague(j.league); })})));
     });
     if (!state.league) step("connect");
@@ -245,7 +379,7 @@
     var s = lg.summary;
     $("league").hidden = false;
     $("lg-title").textContent = s.name;
-    $("lg-meta").textContent = (NAMES[s.platform] || s.platform) + " · " + s.season + " · pulled " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
+    $("lg-meta").textContent = (NAMES[s.platform] || s.platform) + " · " + s.season + " · updated " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
     var list = $("team-pick-list");
     list.textContent = "";
     s.teams.forEach(function (t) {
@@ -272,7 +406,7 @@
       grid.appendChild(el("label", {}, k === "DST" ? "DEF" : k === "BENCH" ? "Bench" : k, el("input", {type: "number", min: "0", max: k === "K" || k === "DST" ? "3" : "20", id: "r-" + k, value: v == null ? "" : String(v)})));
     });
     if (!conf.roster) unread.push("roster slots");
-    $("unread-note").textContent = unread.length ? "Not read from " + s.platform + ": " + unread.join(", ") + ". Choose these before confirming." : "";
+    $("unread-note").textContent = unread.length ? "Not read from " + (NAMES[s.platform] || s.platform) + ": " + unread.join(", ") + ". Choose these before confirming." : "";
     var fit = s.settings.fit;
     $("settings-help").textContent = "Read from the league. Once you confirm, these drive DDF for this league." + (fit ? " DDF can't reflect everything here: " + Object.keys(fit).map(function (k) { return k + " " + JSON.stringify(fit[k]); }).join(", ") + "." : "");
     $("confirmed-at").textContent = lg.confirmed_at ? "Confirmed " + when(lg.confirmed_at) : "Not confirmed yet";
@@ -294,7 +428,7 @@
     say("Settings confirmed.", "ok"); openLeague(j.league); await loadMe();
   }));
   $("refresh").addEventListener("click", busy($("refresh"), async function () {
-    say("Refreshing from " + state.league.platform + "…");
+    say("Refreshing from " + (NAMES[state.league.platform] || state.league.platform) + "…");
     var j = await api("POST", "/leagues/" + state.league.id + "/refresh");
     say("Refreshed.", "ok"); openLeague(j.league); await loadMe();
   }));
@@ -376,14 +510,14 @@
     if (s.missing.length) {
       var ul = el("ul");
       s.missing.forEach(function (m) { ul.appendChild(el("li", {}, el("span", {class: "mono", text: m.path}), " — " + m.reason)); });
-      box.appendChild(el("h3", {text: "Not available from " + s.platform, style: "margin-top:22px"}));
+      box.appendChild(el("h3", {text: "Not available from " + (NAMES[s.platform] || s.platform), style: "margin-top:22px"}));
       box.appendChild(ul);
     }
-    if (s.probes) {
+    if (s.probes && DEV) {
       box.appendChild(el("h3", {text: "Yahoo projection probe", style: "margin-top:22px"}));
       box.appendChild(el("pre", {text: JSON.stringify(s.probes, null, 2)}));
     }
-    box.appendChild(el("p", {class: "muted"}, el("small", {text: "Sources: " + s.sources.join(", ")})));
+    if (DEV) box.appendChild(el("p", {class: "muted"}, el("small", {text: "Sources: " + s.sources.join(", ")})));
   }
 
   /* ---------- boot ---------- */
