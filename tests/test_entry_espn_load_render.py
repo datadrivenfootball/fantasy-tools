@@ -38,6 +38,8 @@ ESPN_LINK = f"https://fantasy.espn.com/football/league?leagueId={ESPN_ID}"
 ESPN_ROSTERS = f"https://fantasy.espn.com/football/league/rosters?leagueId={ESPN_ID}"
 YAHOO_ROSTERS = f"https://football.fantasysports.yahoo.com/f1/{ESPN_ID}/starters"
 ENGINE_READY = "() => window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls() && DDF.leaguePaste && DDF.espn"
+# any entry page: the engine has loaded (DDF.engine.settings exists before then and throws until it has)
+ENGINE_LOADED = "() => !!(window.DDF && DDF.engine && DDF.engine.controls && DDF.engine.controls())"
 HEADER_STEPS = ["1. League rosters", "2. Your team", "3. League settings"]
 PHONE, DESKTOP = 375, 1280
 OFFSITE = {PHONE: 4, DESKTOP: 3}
@@ -126,7 +128,7 @@ class EspnLoadTest(unittest.TestCase):
         context = self.browser.new_context(**ctx)
         self.addCleanup(context.close)
         page = context.new_page()
-        page.espn_mode, page.espn_calls, page.espn_pending = mode, [], []
+        page.espn_mode, page.espn_calls, page.espn_pending, page.espn_settings = mode, [], [], SETTINGS
 
         def espn(route):
             req = route.request
@@ -141,7 +143,7 @@ class EspnLoadTest(unittest.TestCase):
                 code = 401 if m == "private" else 404
                 msg = "You are not authorized to view this League." if m == "private" else "Not found"
                 return route.fulfill(status=code, body=json.dumps({"messages": [msg]}), content_type="application/json", headers=cors)
-            body = SETTINGS if "view=mSettings" in req.url else TEAMS
+            body = page.espn_settings if "view=mSettings" in req.url else TEAMS
             route.fulfill(status=200, body=json.dumps(body), content_type="application/json", headers=cors)
 
         page.route(lambda u: not (u.startswith("http://127.0.0.1") or u.startswith("http://localhost")) and "lm-api-reads.fantasy.espn.com" not in u,
@@ -240,7 +242,7 @@ class EspnLoadTest(unittest.TestCase):
         run.tap('#team-pick-list .team-pick-option:has-text("Team Panettone")', "your team on the card")
         run.tap(".ddf-actionbar__next", "Next: league settings")
         page.wait_for_url("**/settings.html", timeout=30000)
-        page.wait_for_function("() => window.DDF && DDF.engine && DDF.engine.settings", timeout=60000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
         page.wait_for_timeout(300)
         if page.is_visible("#settings-edit") and page.is_hidden("#editor"):
             run.tap("#settings-edit", "Edit")
@@ -258,7 +260,7 @@ class EspnLoadTest(unittest.TestCase):
             with self.subTest(width=width):
                 before, _ = self.before_path(width)
                 after, page = self.after_path(width)
-                page.wait_for_function("() => { try { return !!(window.DDF && DDF.engine && DDF.engine.settings && DDF.engine.settings()); } catch (e) { return false; } }", timeout=60000)
+                page.wait_for_function(ENGINE_LOADED, timeout=60000)
                 s = page.evaluate("DDF.engine.settings()")
                 self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 12, 3, 5))
                 self.assertEqual(page.evaluate("JSON.parse(sessionStorage.getItem('ddf:pasted')).me"), 4, "Team Panettone is yours")
@@ -343,6 +345,92 @@ class EspnLoadTest(unittest.TestCase):
         page.wait_for_selector("#link-result a.button", timeout=10000)
         page.wait_for_timeout(600)
         self.assertEqual(len(page.espn_calls), calls, "a kept league is not read again on its own")
+        self.assert_page_ok(page)
+
+    # ---- 4b: editing a league (the #1536 rule: nothing changes until Next) ----
+    def saved_league(self, page):
+        """A saved league at PPR, 10 teams, 2 WR (a paste of the fixture league), then Edit league."""
+        page.goto(f"{self.base}/connect.html", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        page.espn_mode = "down"
+        Run(page, PHONE).paste("#rosters", paste_text())
+        page.wait_for_selector("#recognized:not([hidden])", timeout=30000)
+        page.click("#scoring-pick [data-scoring=ppr]")
+        page.click('#team-pick-list .team-pick-option:has-text("Team Panettone")')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        page.wait_for_timeout(300)
+        if page.is_visible("#settings-edit") and page.is_hidden("#editor"):
+            page.click("#settings-edit")
+        if page.eval_on_selector("#scoring", "e => e.value") != "PPR":
+            page.click('[aria-labelledby=lbl-scoring] button[data-value="PPR"]')
+        page.click('[aria-labelledby=lbl-teams] button[data-value="10"]')
+        while int(page.input_value("#lineup-wr")) > 2:
+            page.click('button[aria-label="Decrease WR"]')
+        while int(page.input_value("#lineup-wr")) < 2:
+            page.click('button[aria-label="Increase WR"]')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/team.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        before = page.evaluate("DDF.engine.settings()")
+        self.assertEqual((before["scoring"], before["teams"], before["roster"]["WR"]), ("ppr", 10, 2))
+        page.goto(f"{self.base}/connect.html?edit=1", wait_until="networkidle", timeout=60000)
+        page.wait_for_function(ENGINE_READY, timeout=60000)
+        page.espn_mode = "public"
+        return before
+
+    def test_editing_then_keep_my_league_leaves_the_settings_as_they_were(self):
+        page = self.page(PHONE)
+        before = self.saved_league(page)
+        Run(page, PHONE).paste("#league-ref", ESPN_LINK)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=10000)
+        mid = page.evaluate("DDF.engine.settings()")
+        self.assertEqual((mid["scoring"], mid["teams"], mid["roster"]["WR"]), ("ppr", 10, 2), "reading the ESPN league changes nothing yet")
+        page.click("#entry-keep")
+        page.wait_for_url("**/team.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        self.assertEqual(page.evaluate("DDF.engine.settings()"), before, "Keep my league: the settings are as they were")
+        self.assertEqual(page.errors, [])
+
+    def test_editing_then_next_uses_the_espn_settings(self):
+        page = self.page(PHONE)
+        self.saved_league(page)
+        Run(page, PHONE).paste("#league-ref", ESPN_LINK)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=10000)
+        page.click('#team-pick-list .team-pick-option:has-text("Team Panettone")')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.wait_for_function(ENGINE_LOADED, timeout=60000)
+        s = page.evaluate("DDF.engine.settings()")
+        self.assertEqual((s["scoring"], s["teams"], s["roster"]["WR"], s["roster"]["BENCH"]), ("half_ppr", 12, 3, 5))
+        page.wait_for_selector("#settings-summary:not([hidden])", timeout=30000)
+        self.assertEqual(page.text_content("#settings-source"), "From ESPN")
+        self.assertEqual(page.errors, [])
+
+    def test_clearing_the_box_mid_lookup_then_the_same_id_looks_it_up_again(self):
+        page = self.connect(PHONE)
+        page.fill("#league-ref", ESPN_ID)
+        page.fill("#league-ref", "")
+        page.wait_for_timeout(600)   # past the 350 ms pause
+        self.assertNotIn("Looking up", page.text_content("#link-result"), "no stale progress")
+        page.fill("#league-ref", ESPN_ID)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=10000)
+        self.assert_page_ok(page)
+
+    def test_an_idp_league_says_so_on_league_settings(self):
+        page = self.page(PHONE)
+        idp = json.loads(json.dumps(SETTINGS))
+        idp["settings"]["rosterSettings"]["lineupSlotCounts"].update({"10": 2, "14": 1})
+        page.espn_settings = idp
+        self.connect(PHONE, page=page)
+        Run(page, PHONE).paste("#league-ref", ESPN_LINK)
+        page.wait_for_selector("#recognized:not([hidden])", timeout=10000)
+        page.click('#team-pick-list .team-pick-option:has-text("Team Panettone")')
+        page.click(".ddf-actionbar__next")
+        page.wait_for_url("**/settings.html", timeout=30000)
+        page.wait_for_selector("#fit-notice:not([hidden])", timeout=30000)
+        self.assertIn("Your league starts 3 defensive players (IDP).", page.text_content("#fit-notice"))
         self.assert_page_ok(page)
 
     # ---- 5 ----

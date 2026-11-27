@@ -293,6 +293,15 @@
     var rec = kept();
     if (needsScoring(rec) && rec.scoring && scoringChoice() !== "n/a") applyScoring(rec.scoring);
   }
+  /* Settings read from the league (Sleeper, ESPN: ddf:pasted importSettings) reach the league's settings on Next, as the
+     picked scoring does (#1536): while editing, reading a league changes nothing until Next, so "Keep my league" leaves
+     the settings as they were. Only a league read on this page counts (the read card is showing). */
+  function applyImported() {
+    var rec = kept(), card = $("recognized");
+    if (!rec || !rec.importSettings || !card || card.hidden || !DDF.engine || !DDF.engine.apply) return;
+    if (rec.source !== "sleeper" && rec.source !== "espn") return;
+    try { DDF.engine.apply(rec.importSettings); } catch (e) { /* settings.html asks */ }
+  }
   /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
   function scoringChoice() {
     var box = $("scoring-pick"), card = $("recognized");
@@ -608,22 +617,23 @@
     var inBox = new RegExp("(^|\\D)" + id + "(\\D|$)");   /* the box still holds this ID (a link, a bare number or text around it) */
     var current = function () { return seq === espnSeq && provider() === "espn" && inBox.test(el.input.value); };
     var started = Date.now();
+    /* a lookup the box no longer asks for (emptied, edited, another platform) takes its progress away with it */
+    var stale = function () { if (seq === espnSeq && espnShown(id)) { var o = $("link-result"); o.innerHTML = ""; o.className = ""; } };
     document.body.classList.remove("espn-loaded");
     espnProgress(id, [{text: "Asking ESPN for league " + id}]);
     /* a short pause, so typing an ID digit by digit asks ESPN once */
     setTimeout(function () {
-      if (!current()) return;
+      if (!current()) { stale(); return; }
       whenRows().then(function (rows) {
-        if (!current()) return null;
+        if (!current()) { stale(); return null; }
         return DDF.espn.load(id, {rows: rows, table: table(), season: ref.season || null, onProgress: function (p) {
           if (!current()) return;
           espnProgress(id, [{text: "Found an ESPN league" + (p.name ? ": " + p.name : ""), done: true},
             {text: p.teams ? "Reading " + plural(p.teams, "roster") : "Reading every roster"}]);
         }}).then(function (out) {
-          if (!current()) return null;
+          if (!current()) { stale(); return null; }
           if (!out || !out.ok) { espnFail(id, out, espnLast.button); return out; }
           var res = out.result;
-          if (out.settings && DDF.engine && DDF.engine.apply) { try { DDF.engine.apply(out.settings); } catch (e) { /* settings.html asks */ } }
           hideEditNames();
           showResult(res, "espn");
           var rec = DDF.leaguePaste.record(res, "espn");
@@ -710,7 +720,7 @@
     if (scoringBox) scoringBox.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("[data-scoring]"); if (b) pickScoring(b.getAttribute("data-scoring")); });
     /* Next (to the team page or League settings): the scoring picked on the card becomes the league's */
     var scoringNext = $("connect-next");
-    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) applyPickedScoring(); });
+    if (scoringNext) scoringNext.addEventListener("click", function () { if (scoringNext.getAttribute("href")) { applyPickedScoring(); applyImported(); } });
     $("edit-team-names").addEventListener("click", editNamesFromCard);
     $("manual-names").addEventListener("input", manualNames);
     $("manual-team").addEventListener("change", manualRender);
