@@ -174,7 +174,8 @@ class EspnCopyPathTest(unittest.TestCase):
                 if width == PHONE:
                     for sel in ("#link-result a.button", "#link-result a.rosters-instead", "#paste-rosters"):
                         self.assertGreaterEqual(page.locator(sel).bounding_box()["height"], 44, sel)
-                self.assertEqual([u for u in page.offsite if "espn.com" in u], [], "nothing is asked of ESPN from the page")
+                # the page asks ESPN's data service first (a public league loads by itself); unreachable here, so the copy path
+                self.assertTrue(all("lm-api-reads.fantasy.espn.com" in u for u in page.offsite if "espn.com" in u), page.offsite)
                 self.assert_page_ok(page)
                 page.click("[data-provider=yahoo]")
                 page.fill("#league-ref", YAHOO_LINK)
