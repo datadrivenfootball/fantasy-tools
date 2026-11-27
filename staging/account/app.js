@@ -10,6 +10,7 @@
      site (datadrivenfootball.github.io), and other tabs on it cannot read another tab's sessionStorage. */
   var sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {auth: {flowType: "implicit", detectSessionInUrl: true, persistSession: true, storage: window.sessionStorage}});
   var $ = function (id) { return document.getElementById(id); };
+  var NAMES = {espn: "ESPN", yahoo: "Yahoo", sleeper: "Sleeper"};
   var state = {me: null, league: null, view: "plain"};
 
   function el(tag, attrs) {
@@ -184,7 +185,7 @@
     if (!state.me.connections.length) cl.appendChild(el("li", {class: "muted", text: "Nothing connected yet."}));
     state.me.connections.forEach(function (c) {
       cl.appendChild(el("li", {},
-        el("span", {}, el("strong", {text: c.platform[0].toUpperCase() + c.platform.slice(1)}), " " + (c.display_name || ""), el("small", {class: "muted", text: "  since " + when(c.created_at)})),
+        el("span", {}, el("strong", {text: NAMES[c.platform] || c.platform}), " " + (c.display_name || ""), el("small", {class: "muted", text: "  since " + when(c.created_at)})),
         el("span", {class: "cluster"},
           el("button", {type: "button", text: "Leagues", onclick: busy(null, async function () { var j = await api("GET", "/connections/" + c.id + "/leagues"); showOptions(c, j.leagues.map(function (l) { return Object.assign({season: j.season}, l); })); })}),
           el("button", {type: "button", class: "danger", text: "Disconnect", onclick: busy(null, async function () {
@@ -197,7 +198,7 @@
     if (!state.me.leagues.length) ll.appendChild(el("li", {class: "muted", text: "No leagues pulled yet."}));
     state.me.leagues.forEach(function (l) {
       ll.appendChild(el("li", {},
-        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + l.platform + " · pulled " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
+        el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (NAMES[l.platform] || l.platform) + " · pulled " + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
         el("button", {type: "button", text: "Open", onclick: busy(null, async function () { var j = await api("GET", "/leagues/" + l.id); openLeague(j.league); })})));
     });
     if (!state.league) step("connect");
@@ -210,7 +211,7 @@
     var s = lg.summary;
     $("league").hidden = false;
     $("lg-title").textContent = s.name;
-    $("lg-meta").textContent = s.platform.toUpperCase() + " · " + s.season + " · pulled " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
+    $("lg-meta").textContent = (NAMES[s.platform] || s.platform) + " · " + s.season + " · pulled " + when(lg.pulled_at) + (s.current_week ? " · week " + s.current_week : "");
     var list = $("team-pick-list");
     list.textContent = "";
     s.teams.forEach(function (t) {
