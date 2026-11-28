@@ -60,7 +60,7 @@
   function whenFull(iso) { var d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"}); }
   var TYPES = {must_win: "Must-win", bankable: "Bankable", favored: "Favored", uphill: "Uphill", seed_game: "Seed game", free: "Free", playoff: "Playoff"};
   var GOAL_SHORT = {high_score: "High score", record: "Record", seed: "Seed", playoffs: "Playoffs"};
-  var KINDS = {start: "Start", add: "Add", watch: "Watch", bye: "Bye"};
+  var KINDS = {start: "Start", add: "Add", watch: "Watch", bye: "Bye", assumed: "Assumed"};
   var STATUS = {midevent: "In progress", live: "In progress", postevent: "Final", final: "Final"};
   var SOURCES = {espn: "ESPN", sleeper: "Sleeper", espn_live: "ESPN live"};
   /* Why a figure is missing, from plan.missing, when one entry names this week. */
@@ -128,6 +128,22 @@
     (plan.goals || []).forEach(function (g) { gl.appendChild(el("li", {}, el("b", {class: "gchip goal-label", text: g.label || GOAL_SHORT[g.id] || g.id}), el("span", {text: g.detail || ""}))); });
     goals.appendChild(gl);
     top.appendChild(goals);
+    /* waiver money: who will still have FAAB when it matters (balances only go down) */
+    if ((plan.faab || []).length) {
+      var mine0 = plan.faab.filter(function (f) { return f.me; })[0] || {};
+      var money = el("section", {class: "card", "aria-labelledby": "gl-faab-t"}, el("h2", {id: "gl-faab-t", text: "Waiver money"}));
+      var richer = plan.faab.filter(function (f) { return !f.me && isNum(f.faab) && isNum(mine0.faab) && f.faab > mine0.faab; });
+      money.appendChild(el("p", {text: (isNum(mine0.faab) ? "You have $" + mine0.faab + (isNum(mine0.waiver_priority) ? ", waiver priority " + mine0.waiver_priority : "") + ". " : "") +
+        (richer.length ? richer.length + (richer.length === 1 ? " team has" : " teams have") + " more: " + richer.map(function (f) { return f.name + " $" + f.faab; }).join(", ") + "." : "No team has more.")}));
+      var ul = el("ul", {class: "gl-faab"});
+      plan.faab.forEach(function (f) {
+        ul.appendChild(el("li", {class: f.me ? "me" : ""}, el("b", {text: f.name}), el("span", {class: "mono", text: isNum(f.faab) ? " $" + f.faab : " —"}),
+          el("small", {text: isNum(f.playoff_p) ? " · playoffs " + pctText(f.playoff_p) : ""})));
+      });
+      money.appendChild(ul);
+      money.appendChild(el("p", {class: "fine", text: "FAAB never comes back, so today's balance is the most each team can have at any later waiver run. Spending before then only lowers it. Balances as of the league data's pull."}));
+      top.appendChild(money);
+    }
 
     var dist = el("section", {class: "card", "aria-labelledby": "gl-wins-t"}, el("h2", {id: "gl-wins-t", text: "Wins from the games left"}));
     var rows = el("div", {class: "gl-dist"}), byFinal = {};
@@ -241,7 +257,11 @@
     if (g.status && !/^(upcoming|scheduled|pre|preevent|not_started)$/i.test(g.status)) oppCell.appendChild(el("small", {class: "mono", text: STATUS[String(g.status).toLowerCase()] || String(g.status).replace(/_/g, " ")}));
 
     var theirsWhy = g.theirs ? "No lineup total: no projections for their starters" : (why || "The opponent is not known yet");
-    var line = el("td", {class: "line"}, lab("You – them"),
+    var tg = g.target; /* a playoff game: the score to clear, from who gets in and how they score */
+    var line = tg && isNum(tg.score) ? el("td", {class: "line"}, lab("You – score to clear"),
+      el("span", {class: "pair"}, one(g.mine && g.mine.total, "No lineup total for your team"), el("span", {class: "them"}, " – ", one(tg.score))),
+      el("small", {class: "mono tgt", text: "Most likely you need about " + tg.score.toFixed(1) + "; in half the outcomes it's " + tg.low.toFixed(1) + "–" + tg.high.toFixed(1)}))
+      : el("td", {class: "line"}, lab("You – them"),
       el("span", {class: "pair"}, one(g.mine && g.mine.total, "No lineup total for your team"), el("span", {class: "them"}, " – ", one(g.theirs && g.theirs.total, theirsWhy))),
       isNum(g.margin) ? el("small", {class: "mono", text: signed(g.margin) + " on lineups"}) : null);
 
@@ -264,7 +284,7 @@
     if ((g.moves || []).length) {
       var ul = el("ul");
       g.moves.forEach(function (m) {
-        var li = el("li", {}, el("span", {class: "kind", text: KINDS[m.kind] || m.kind || "Move"}), m.text || "");
+        var li = el("li", {class: m.kind === "assumed" ? "assumed" : ""}, el("span", {class: "kind", text: KINDS[m.kind] || m.kind || "Move"}), m.text || "");
         if (isNum(m.gain)) { li.appendChild(document.createTextNode(" ")); li.appendChild(el("span", {class: "gain" + (m.gain < 0 ? " neg" : ""), text: signed(m.gain)})); }
         if (m.when) { var w = when(m.when); li.appendChild(el("small", {text: /^\d{4}-\d\d-\d\d/.test(m.when) ? "By " + w : w.charAt(0).toUpperCase() + w.slice(1)})); }
         ul.appendChild(li);

@@ -19,7 +19,7 @@
     points: "The plain sum of projected points gained in your best lineup over the weeks left."
   };
   var TYPES = {must_win: "Must-win", bankable: "Bankable", favored: "Favored", seed_game: "Seed game", free: "Free", playoff: "Playoff"};
-  var KINDS = {start: "Start", add: "Add", watch: "Watch", trade: "Trade"};
+  var KINDS = {start: "Start", add: "Add", watch: "Watch", trade: "Trade", assumed: "Assumed"};
   var MOVES_SHOWN = 6, CARDS_SHOWN = 5;
   var state = {data: null, plan: null, sort: "games", rec: null, impact: {}, showAllMoves: false, showAll: {adds: false, trades: false}};
 

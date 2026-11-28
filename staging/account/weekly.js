@@ -179,9 +179,29 @@
   }
   var RESERVE = {IR: true, "IR+": true, NA: true, TAXI: true}; // reserve slots cannot start without a roster move
   function active(roster) { return (roster || []).filter(function (e) { return !RESERVE[String(e.slot || "").toUpperCase()]; }); }
+  // K and DEF streaming (Jeremy, 2026-11-27): when a team's kicker or defense is on bye or at replacement value, assume
+  // a waiver pickup worth the average of the top four available that week (so it does not hinge on winning one claim).
+  // Same for opponents. It is a quiet assumed move, not a call-out.
+  function streamPlayers(summary, weekly, week, slots, startedFn) {
+    var out = [];
+    ["K", "DEF"].forEach(function (pos) {
+      if (!slots.some(function (sl) { return (ELIGIBLE[sl] || []).indexOf(pos) >= 0; })) return;
+      var pool = (summary.free_agents || []).filter(function (f) { return posOf(f) === pos && !(startedFn && startedFn(f)); })
+        .map(function (f) { return playerWeek(weekly, f, week); })
+        .filter(function (p) { return p.points !== null && !p.bye && p.points > 0; })
+        .sort(function (a, b) { return b.points - a.points; }).slice(0, 4);
+      if (!pool.length) return;
+      var avg = pool.reduce(function (a, p) { return a + p.points; }, 0) / pool.length;
+      out.push({player_id: "stream:" + pos, name: "Waiver " + (pos === "K" ? "kicker" : "defense"), pos: pos, nfl_team: null, points: r1(avg), source: "assumed", status: null, bye: false,
+        assumed: true, rescored: true, source_tag: "Waiver avg", pool: pool.map(function (p) { return p.name + " " + p.points.toFixed(1); }),
+        source_label: "Assumed waiver pickup: the average of the top " + pool.length + " available (" + pool.map(function (p) { return p.name + " " + p.points.toFixed(1); }).join(", ") + ")",
+        note: "Assumed pickup (top-" + pool.length + " waiver average)"});
+    });
+    return out;
+  }
   function teamWeek(summary, weekly, roster, week, slots) {
     slots = slots || slotsOf(summary);
-    return lineup(slots, active(roster).map(function (e) { return playerWeek(weekly, e, week); }));
+    return lineup(slots, active(roster).map(function (e) { return playerWeek(weekly, e, week); }).concat(streamPlayers(summary, weekly, week, slots)));
   }
   // The live week: the team's score so far (Yahoo) plus the best lineup still open. A current starter whose NFL game
   // has kicked off is locked in his slot (his points are in the score so far); the open slots take the best players
@@ -201,18 +221,19 @@
     opts = opts || {};
     var ros = active(roster);
     var gone = function (e, p) { return p.bye || p.points === 0 || (week === opts.cur && OUTS[String(e.status || "").toUpperCase()]); };
-    var need = slots.slice(), kept = [], holes = [], used = {};
+    var need = slots.slice(), kept = [], holes = [], used = {}, stream = streamPlayers(summary, weekly, week, slots, opts.started);
     ros.forEach(function (e) {
       if (!e.slot || e.slot === "BN" || !ELIGIBLE[e.slot]) return;
       var i = need.indexOf(e.slot); if (i < 0) return;
       need.splice(i, 1); used[e.player_id] = true;
       var p = playerWeek(weekly, e, week);
-      if (gone(e, p)) holes.push({slot: e.slot, out: p}); else kept.push(Object.assign({slot: e.slot}, p));
+      var st = (p.pos === "K" || p.pos === "DEF") && p.points !== null ? stream.filter(function (x) { return x.pos === p.pos; })[0] : null;
+      if (gone(e, p) || (st && p.points <= st.points)) holes.push({slot: e.slot, out: p}); else kept.push(Object.assign({slot: e.slot}, p));
     });
     need.forEach(function (sl) { holes.push({slot: sl, out: null}); });
     var bench = ros.filter(function (e) { return !used[e.player_id]; }).map(function (e) { return playerWeek(weekly, e, week); })
       .filter(function (p) { return !(p.bye || p.points === 0 || (week === opts.cur && OUTS[String(p.status || "").toUpperCase()])); });
-    var fill = lineup(holes.map(function (h) { return h.slot; }), bench);
+    var fill = lineup(holes.map(function (h) { return h.slot; }), bench.concat(stream));
     var missing = kept.filter(function (k) { return k.points === null; });
     var total = missing.length || fill.total === null ? null : r1(kept.reduce(function (a, k) { return a + k.points; }, 0) + fill.total);
     var order = function (x) { var i = slots.indexOf(x.slot); return i < 0 ? 99 : i; };
@@ -238,7 +259,8 @@
     var open = slots.slice();
     locked.forEach(function (e) { var i = open.indexOf(e.slot); if (i >= 0) open.splice(i, 1); });
     var restRos = ros.filter(function (e) { return locked.indexOf(e) < 0 && !started(e); });
-    var l = rule === "set" ? setFilled(summary, weekly, restRos, week, open, {cur: week}) : lineup(open, restRos.map(function (e) { return playerWeek(weekly, e, week); }));
+    var l = rule === "set" ? setFilled(summary, weekly, restRos, week, open, {cur: week, started: started})
+      : lineup(open, restRos.map(function (e) { return playerWeek(weekly, e, week); }).concat(streamPlayers(summary, weekly, week, open, started)));
     var GAME_MS = 3.5 * 3600 * 1000; // a game's length, for the share of a game in progress still to come
     var inPlay = 0;
     var lockedRows = locked.map(function (e) {
@@ -338,7 +360,7 @@
     var seedCount = {}; keys.forEach(function (k) { seedCount[k] = new Array(teams.length + 1).fill(0); });
     var byWins = {}; // my final wins -> {n, playoff, bye}
     var byGame = myGames.map(function () { return {win: {n: 0, playoff: 0, bye: 0, top: 0, title: 0, runner: 0}, loss: {n: 0, playoff: 0, bye: 0, top: 0, title: 0, runner: 0}}; });
-    var poStake = {}; // poStake[w] = my playoff game that week, won or lost -> title and runner-up counts
+    var poStake = {}, poScores = {}; // poStake[w] = my playoff game that week, won or lost -> title and runner-up counts
     // League payouts in dollars where known (JEG-1734 fills the table later). USO pays $50 to each week's top scorer
     // (Jeremy, 2026-11-27); the title, runner-up and best-record payouts are not in the data yet.
     var payouts = opts.payouts || st.payouts || (/USO/i.test(summary.name || "") ? {high_score_week: 50} : {});
@@ -394,6 +416,7 @@
             if (a === meKey || b === meKey) {
               var o = a === meKey ? b : a;
               poOpp[w][o] = (poOpp[w][o] || 0) + 1; poAlive[w]++;
+              var os = o === a ? sa : sb; if (os !== null) (poScores[w] = poScores[w] || []).push(os); // the score I would need to beat
               if (win === meKey) poWin[w]++;
               myPo.push({w: w, won: win === meKey});
             }
@@ -473,6 +496,11 @@
         g.likely = Object.keys(poOpp[w] || {}).map(function (k) { return {team_key: k, name: name[k], p: r3(poOpp[w][k] / Math.max(1, alive)), total: r1(proj(k, w))}; })
           .sort(function (a, b) { return b.p - a.p; }).slice(0, 3);
         if (alive) g.win.ddf = r3(poWin[w] / alive);
+        // the score to clear (Jeremy, 2026-11-27): from who gets in and how they score, the opponent's score across the
+        // runs where you play this game; most likely target = the median, range = the middle half of outcomes
+        var sc = (poScores[w] || []).slice().sort(function (x, y) { return x - y; });
+        var q = function (f) { return sc.length ? r1(sc[Math.min(sc.length - 1, Math.floor(f * sc.length))]) : null; };
+        if (sc.length) g.target = {score: q(0.5), low: q(0.25), high: q(0.75), runs: sc.length, mine: mine.total};
         if (g.likely.length && g.likely[0].total !== null && mine.total !== null) g.margin = r1(mine.total - g.likely[0].total);
       }
       var gi = myGames.map(function (x) { return x.week; }).indexOf(w);
@@ -566,6 +594,7 @@
     if (sb.text) sources.push(sb.text + ((sb.missing || []).length ? " Not in the projected stat lines, so not counted: " + sb.missing.join(", ") + "." : "") + ((sb.notes || []).length ? " " + sb.notes.join("; ") + "." : ""));
     if (liveNote) sources.push("Week " + cur + " is under way: each team's total is its score so far (Yahoo) plus the best lineup among players whose game has not kicked off (nflverse kickoff times), with a spread that shrinks as games are played.");
     sources.push("Lineups: yours is your best legal lineup; each opponent's is the lineup they have set, with players on bye, Out or IR (or projected 0) and empty slots filled by their best bench player, nothing else changed. Yahoo's win chance is shown for the current week only, because for later weeks Yahoo projects lineups as they sit today.");
+    sources.push("Kickers and defenses: when a team's kicker or defense is on bye, or no better than the average of the top four available on waivers that week, that average is counted as an assumed pickup (so it does not depend on winning one claim). Every team gets the same assumption.");
     sources.push("Stakes: what winning a game instead of losing it is worth across the title, runner-up and best record, in dollars where the league's payout is known" + (isNum(payouts.high_score_week) ? " (the weekly high score pays $" + payouts.high_score_week + "; it is shown on its own, since points decide it, not the result)" : "") + ". Payouts not set yet count as points of title odds (1 = one point of title chance; best record = 20).");
     sources.push("Season and bracket: " + acc.n.toLocaleString("en-US") + " simulated runs, games independent; tiebreak points for.");
     if (summary.source && summary.source.kind === "flaim") sources.push("League data via Flaim (stand-in until Yahoo is approved).");
@@ -584,6 +613,11 @@
         num_teams: teams.length, trade_deadline: st.trade_deadline || null, scoring: (st.ddf && st.ddf.scoring) || null, pulled_at: summary.pulled_at || null},
       me: {team_key: meKey, name: me.name, wins: s0.wins, losses: s0.losses, ties: s0.ties, rank: s0.rank, points_for: s0.pf},
       standings: standings, spread: spread, wins: winsOut, sim: simOut, need: need, goals: goals, games: gamesOut,
+      // waiver money (Jeremy, 2026-11-27): FAAB never comes back, so today's balance is the most a team can have later
+      faab: st.waiver_type && st.waiver_type !== "faab" ? null : teams.map(function (t) {
+        var sp = standings.filter(function (x) { return x.team_key === t.team_key; })[0] || {};
+        return {team_key: t.team_key, name: t.name, faab: num(t.faab_remaining), waiver_priority: num(t.waiver_priority), playoff_p: sp.playoff_p, me: t.team_key === meKey};
+      }).sort(function (a, b) { return (b.faab === null ? -1 : b.faab) - (a.faab === null ? -1 : a.faab); }),
       sources: sources, missing: missing, spreads: sdOf[meKey], payouts: payouts,
       lineup_rule: "Your lineup: your best legal lineup. Opponents: their lineup as set, with byes, Outs and empty slots filled from their bench (nothing else changed).",
       win_note: "How the Sim is calculated: your best legal lineup against the opponent's lineup as set (byes, Outs and empty slots filled from their bench), from weekly player projections" + (sb.rescored ? " rescored to your league's scoring" : " (each source's default scoring, not your league's)") + "; the gap becomes a chance with a weekly spread of " + sd + " points per team. Yahoo's number, shown for this week only, is Yahoo's own."
@@ -621,14 +655,15 @@
     if (w === cur) adv.starters.forEach(function (s) {
       if (!s.player_id || s.played || !/^(Q|D|GTD)$/i.test(String(s.status || ""))) return;
       var t = totalOf(roster.filter(function (e) { return e.player_id !== s.player_id; }));
-      var without = mine.live ? null : lineup(slots, roster.filter(function (e) { return e.player_id !== s.player_id; }).map(function (e) { return playerWeek(weekly, e, w); }));
+      var without = mine.live ? null : teamWeek(summary, weekly, roster.filter(function (e) { return e.player_id !== s.player_id; }), w, slots);
       var sub = without ? without.starters.filter(function (x) { return x.player_id && mine.starters.every(function (y) { return y.player_id !== x.player_id; }); })[0] : null;
       var sk = kickoffOf(weekly, s, w);
       out.push({kind: "watch", text: s.name + " is " + s.status + ": if he sits, " + (sub ? sub.name + " starts" : without ? "the slot is empty" : "the next best player starts"), gain: t !== null && mine.total !== null ? r1(t - mine.total) : null,
         when: sk !== null ? "decide before his game, " + kickText(sk) : "decide before his game starts"});
     });
     // adds from the free agents in the snapshot: this week's gain once the cheapest drop is made
-    var fas = (summary.free_agents || []).filter(function (fa) { return !played(fa); });
+    // K and DEF come from the assumed waiver pickup (top-4 average), so they are not separate add moves
+    var fas = (summary.free_agents || []).filter(function (fa) { return !played(fa) && posOf(fa) !== "K" && posOf(fa) !== "DEF"; });
     if (fas.length && mine.total !== null) {
       var cands = fas.map(function (fa) {
         var p = playerWeek(weekly, fa, w);
@@ -650,6 +685,9 @@
           player_id: c.fa.player_id, drop_id: drop ? drop.player_id : null});
       });
     }
+    mine.starters.filter(function (x) { return x.assumed; }).forEach(function (x) {
+      out.push({kind: "assumed", text: "Pick up a " + (x.pos === "K" ? "kicker" : "defense") + " from waivers: counted at the top-" + x.pool.length + " average, " + x.points.toFixed(1) + " (" + x.pool.join(", ") + ")", gain: null, when: null});
+    });
     if (mine.empty_slots.length) out.push({kind: "bye", text: "No one to start at " + mine.empty_slots.join(", ") + (mine.live ? " among players yet to play" : " (byes or outs)"), gain: null, when: null});
     return out;
   }
@@ -693,7 +731,7 @@
         var me = playerWeek(weekly, e, w), b = base[w];
         var starts = b.starters.some(function (s) { return s.player_id === e.player_id; });
         if (!starts) { row.weeks[w] = {points: me.points, starts: false, bye: me.bye, cost: 0, cover: null}; return; }
-        var without = lineup(slots, rest.map(function (x) { return playerWeek(weekly, x, w); }));
+        var without = teamWeek(summary, weekly, rest, w, slots);
         var cost = b.total !== null && without.total !== null ? r1(b.total - without.total) : null;
         var inId = without.starters.filter(function (s) { return s.player_id && b.starters.every(function (y) { return y.player_id !== s.player_id; }); })[0] || null;
         var emptyNow = without.empty_slots.length > b.empty_slots.length;
@@ -722,13 +760,17 @@
       var tot = function (e) { return weeks.reduce(function (a, w) { return a + (playerWeek(weekly, e, w).points || 0); }, 0); };
       mine.sort(function (a, b) { return tot(b) - tot(a); });
       var cands = fas.filter(function (f) { return posOf(f) === pos; }).sort(function (a, b) { return tot(b) - tot(a); });
-      var best = cands[0] || null, cost = {};
+      // the cover is the better of a rostered backup and the assumed waiver pickup (top-4 average that week)
+      var cost = {}, waiver = {};
       weeks.forEach(function (w) {
+        var st = streamPlayers(summary, weekly, w, slots).filter(function (x) { return x.pos === pos; })[0];
+        waiver[w] = st ? st.points : null;
         var s = mine[0] ? playerWeek(weekly, mine[0], w) : null, bk = mine[1] ? playerWeek(weekly, mine[1], w) : null;
-        cost[w] = !s || s.points === null ? null : r1(s.points - (bk && bk.points !== null && !bk.bye ? bk.points : 0));
+        var repl = Math.max(bk && bk.points !== null && !bk.bye ? bk.points : 0, st ? st.points : 0);
+        cost[w] = !s || s.points === null ? null : s.bye ? 0 : r1(Math.max(0, s.points - repl));
       });
       return {pos: pos, starter: mine[0] ? {player_id: mine[0].player_id, name: mine[0].name} : null, backup: mine[1] ? {player_id: mine[1].player_id, name: mine[1].name} : null,
-        best_add: best ? {player_id: best.player_id, name: best.name, weeks: weeks.reduce(function (o, w) { o[w] = playerWeek(weekly, best, w).points; return o; }, {})} : null, cost: cost,
+        best_add: {player_id: "stream:" + pos, name: "Waiver average (top 4)", weeks: waiver}, cost: cost,
         starter_weeks: mine[0] ? weeks.reduce(function (o, w) { var x = playerWeek(weekly, mine[0], w); o[w] = {points: x.points, bye: x.bye}; return o; }, {}) : null};
     });
     var notes = ["Cost = your best lineup that week minus your best lineup without him, from weekly projections."];
@@ -867,7 +909,7 @@
     if (p) p.games.forEach(function (g) {
       g.moves.forEach(function (m) {
         if (m.kind === "bye") return;
-        moves.push({week: g.week, kind: m.kind, text: m.text, gain: m.gain, when: m.when || "week " + g.week, when_sort: g.week * 10 + (m.kind === "add" ? 0 : m.kind === "start" ? 2 : 1)});
+        moves.push({week: g.week, kind: m.kind, text: m.text, gain: m.gain, when: m.when || "week " + g.week, when_sort: g.week * 10 + (m.kind === "add" ? 0 : m.kind === "start" ? 2 : m.kind === "assumed" ? 5 : 1)}); // assumed K/DEF pickups: quiet, after the real moves
       });
     });
     var dl = summary.settings && summary.settings.trade_deadline;

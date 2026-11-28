@@ -139,8 +139,9 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   assertEquals(plan.games.map((g: { week: number }) => g.week), [13, 14, 15, 16]);
   const g13 = plan.games[0];
   assertEquals(g13.opp.name, "Team 2");
-  // by hand: team 1 starters wk13 = QB 23 + WRa 17.25 + WRb 13.8 + RB 16.1 + TE 10.35 + flex WRc 12.65 + K 8 + DEF 6 = 107.15
-  assertAlmostEquals(g13.mine.total, 107.15, 0.06);
+  // by hand: team 1 starters wk13 = QB 23 + WRa 17.25 + WRb 13.8 + RB 16.1 + TE 10.35 + flex WRc 12.65 + DEF 6
+  // + K: the waiver kicker (top-4 average = FA K, 12) beats K1 (8), so the assumed pickup starts = 111.15
+  assertAlmostEquals(g13.mine.total, 111.15, 0.06);
   assertEquals(g13.win.yahoo, 0.66);
   assertAlmostEquals(g13.win.ddf, W.winChance(g13.mine.total - g13.theirs.total, plan.spread.sd), 1e-3);
   const dist = plan.wins.dist.reduce((a: number, d: { p: number }) => a + d.p, 0);
@@ -155,7 +156,8 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   assert(["seed_game", "free"].includes(g13.type), g13.type); // labels stay, with the stake beside them (Jeremy, 2026-11-27)
   assert(!g13.goals.includes("playoffs"));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "add"), "FA WR (16) beats the team's WRc in week 13");
-  assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && m.text === "Add FA K (K, 12.0); drop K1"), "FA K 12 beats K1 8, and K1 is then the free drop");
+  assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "assumed" && /kicker from waivers: counted at the top-1 average, 12\.0/.test(m.text)), "K is an assumed waiver pickup, not a call-out");
+  assert(!g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && /FA K/.test(m.text)));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "start"), "WRc on the bench outscores RBb in the flex");
   const g14 = plan.games[1];
   assert(g14.mine.starters.every((s: { name: string | null }) => s.name !== "RB1b" && s.name !== "WR1c"), "a bye player does not start");
@@ -182,8 +184,9 @@ Deno.test("cover: cost by week, who covers, holes first, K/DEF row with the best
   const k = c.kdef.find((x: { pos: string }) => x.pos === "K");
   assertEquals(k.starter.name, "K1");
   assertEquals(k.backup, null);
-  assertEquals(k.best_add.name, "FA K");
-  assertEquals(k.cost[13], 8);
+  assertEquals(k.best_add.name, "Waiver average (top 4)");
+  assertEquals(k.best_add.weeks[13], 12);
+  assertEquals(k.cost[13], 0); // K1 (8) is below the waiver average (12): losing him costs nothing
 });
 
 Deno.test("trade impact: both sides by week, the game against the partner counts on both sides", async () => {
@@ -207,7 +210,7 @@ Deno.test("recommendations: adds and trades ranked by weekly gain, moves in time
   const plan = W.plan(lg, wk, { runs: 2000 });
   const r = W.recommendations(lg, wk, "470.l.1.t.1", { plan });
   assertEquals(r.adds[0].name, "FA WR"); // 16 a week beats the bench every week
-  assert(r.adds.some((a: { name: string; drop: { name: string } }) => a.name === "FA K" && a.drop.name === "K1"));
+  assert(!r.adds.some((a: { pos: string }) => a.pos === "K"), "a kicker no better than the waiver average is not a pickup");
   for (let i = 1; i < r.adds.length; i++) assert(r.adds[i - 1].total_gain >= r.adds[i].total_gain);
   for (let i = 1; i < r.trades.length; i++) assert(r.trades[i - 1].my_total >= r.trades[i].my_total);
   assert(r.trades.every((t: { my_total: number; their_total: number }) => t.my_total >= 2 && t.their_total >= -1));
@@ -262,8 +265,8 @@ Deno.test("review fixes: the live week counts the score so far plus the open slo
   const g = plan.games[0];
   assert(g.mine.live);
   assertEquals(g.mine.banked, 40);
-  // Team 1 open slots after QB, WRa, TE (KC, played) lock: WR WRb 13.8, RB 16.1, flex WRc 12.65, K 8, DEF 6 = 56.55
-  assertAlmostEquals(g.mine.total, 96.55, 0.06);
+  // Team 1 open slots after QB, WRa, TE (KC, played) lock: WR WRb 13.8, RB 16.1, flex WRc 12.65, K (waiver avg) 12, DEF 6 = 60.55
+  assertAlmostEquals(g.mine.total, 100.55, 0.06);
   assert(g.win.ddf > W.winChance(g.mine.total - g.theirs.total, plan.spread.sd), "less still to play: a lead is safer than a full-week spread says");
   assert(!g.moves.some((mv: { kind: string; text: string }) => mv.kind === "watch" && /WR1a|QB1/.test(mv.text)));
   const short = league(); short.current_week = 16; // final week: one round of a two-round bracket left
@@ -325,7 +328,7 @@ Deno.test("review fixes 2: advice uses the current time; a game in progress keep
   lg.pulled_at = "2026-11-29T19:00:00Z";
   const q = W.plan(lg, wk, { runs: 500, now: "2026-11-29T19:00:00Z" });
   const left = 2.5 / 3.5, kc = (20 + 15 + 9) * 1.15;
-  assertAlmostEquals(q.games[0].mine.still_to_come, 13.8 + 16.1 + 12.65 + 8 + 6 + kc * left, 0.1);
+  assertAlmostEquals(q.games[0].mine.still_to_come, 13.8 + 16.1 + 12.65 + 12 + 6 + kc * left, 0.1);
   // cover, trade impact and recommendations count from next week once the current week has kicked off
   assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
   assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
@@ -390,4 +393,23 @@ Deno.test("review fixes 3: no title stake without the bracket; partner rows use 
   const t = W.tradeImpact(league(), wk, "470.l.1.t.1", "470.l.1.t.2", ["470.p.105"], ["470.p.205"]);
   assertEquals(t.sides[1].rule, "set");
   assertEquals(t.sides[0].rule, "best");
+});
+
+Deno.test("rulings 2026-11-27 (2): K/DEF waiver average for us and opponents; playoff score to clear; waiver money", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  // an opponent's set K (K2, 8) is below the waiver average (12): his slot takes the assumed pickup too
+  const theirs = p.games[0].theirs;
+  const k = theirs.starters.find((x: { slot: string }) => x.slot === "K");
+  assert(k.assumed && k.points === 12, JSON.stringify(k));
+  // playoff games carry the score to clear: median, with an 80% range around it
+  const po = p.games.filter((g: { phase: string }) => g.phase === "playoffs");
+  for (const g of po) {
+    assert(g.target && g.target.low <= g.target.score && g.target.score <= g.target.high, JSON.stringify(g.target));
+    assert(g.target.score > 50 && g.target.score < 200);
+  }
+  // waiver money: every team's FAAB, most first, mine marked
+  assertEquals(p.faab.length, 4);
+  assert(p.faab.some((f: { me: boolean; faab: number }) => f.me && f.faab === 50));
 });
