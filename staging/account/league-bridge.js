@@ -186,7 +186,8 @@
           a.href = u.href;
         }
       });
-      Array.prototype.forEach.call(nav.querySelectorAll('a[href$="team.html"]'), function (team) {
+      // the Team link, matched by its path (its href now carries ?league=)
+      Array.prototype.filter.call(nav.querySelectorAll("a[href]"), function (x) { try { return /\/team\.html$/.test(new URL(x.href, location.href).pathname); } catch (e) { return false; } }).forEach(function (team) {
         var next = team.nextElementSibling;
         if (next && next.dataset && next.dataset.staging === "games-left") return;
         var g = document.createElement("a");
