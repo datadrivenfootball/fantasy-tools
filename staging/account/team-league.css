@@ -1,0 +1,19 @@
+/* W-L, odds and FAAB columns in Team › "How the league compares" (JEG-1736, staging). The live table's own cells and
+   header; only alignment and width are set here, from styles.css tokens. */
+.team-page .team-table .tl-col{width:1%;text-align:right;white-space:nowrap;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.team-page .team-table td.tl-col{font-weight:500}
+.team-page .team-table tr.selected td.tl-col{font-weight:700}
+.team-page .team-table th.tl-col{font-size:11px;font-weight:600;cursor:help}
+.team-page .team-table td.tl-col:last-child,.team-page .team-table th.tl-col:last-child{padding-right:14px}
+.team-page .team-table .tl-na{color:var(--muted);cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.team-page .team-table .tl-fine{margin:10px 0 0;font-size:13px;color:var(--muted);max-width:none}
+/* Four more columns only just fit the page column beside the live value cells (number + tier chip): the team column is
+   held to 150px so the value cells are not squeezed into two lines, and below a full-width desktop the table keeps
+   its width and scrolls inside its own box with the team name pinned, as the live page already does on a phone. */
+.team-page .team-table.tl-on .table-wrap{overflow:auto}
+.team-page .team-table.tl-on table{min-width:980px}
+.team-page .team-table.tl-on thead th:first-child{width:150px}
+.team-page .team-table.tl-on tbody td:first-child,.team-page .team-table.tl-on thead th:first-child{position:sticky;left:0;z-index:2;background:#fff}
+.team-page .team-table.tl-on thead th:first-child{background:#eef1ec}
+.team-page .team-table.tl-on tbody tr.selected td:first-child{background:#e8f5ee}
+.team-page .team-table.tl-on tbody tr:not(.selected):hover td:first-child{background:#f3f7f4}

@@ -1,4 +1,4 @@
-/* DDF staging: Games left (JEG-1736). Renders DDFWeekly.plan(summary, weekly, {}) as documented in
+/* DDF staging: Season Plan (JEG-1736; named Games left until Jeremy renamed it, spec decision 2A, 2026-11-27). Renders DDFWeekly.plan(summary, weekly, {}) as documented in
  * docs/signed-in-features.md. Every league string is written with textContent, never as HTML.
  * A missing value is never 0: null renders as "—" with its reason. */
 (function () {
@@ -60,7 +60,7 @@
   function whenFull(iso) { var d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleString(undefined, {month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"}); }
   var TYPES = {must_win: "Must-win", bankable: "Bankable", favored: "Favored", uphill: "Uphill", seed_game: "Seed game", free: "Free", playoff: "Playoff"};
   var GOAL_SHORT = {high_score: "High score", record: "Record", seed: "Seed", playoffs: "Playoffs"};
-  var KINDS = {start: "Start", add: "Add", watch: "Watch", bye: "Bye"};
+  var KINDS = {start: "Start", add: "Add", watch: "Watch", bye: "Bye", assumed: "Assumed"};
   var STATUS = {midevent: "In progress", live: "In progress", postevent: "Final", final: "Final"};
   var SOURCES = {espn: "ESPN", sleeper: "Sleeper", espn_live: "ESPN live"};
   /* Why a figure is missing, from plan.missing, when one entry names this week. */
@@ -69,11 +69,40 @@
     return hit ? hit.reason : null;
   }
 
+  /* Data age (JEG-1736): the league data is a snapshot that does not refresh by itself, so every page says how old it
+   * is. Attention when it is over 6 hours old, or when a game of the current week has kicked off since the pull.
+   * league-bridge.js carries the same function for Team, Find and Build (this page does not load the bridge). */
+  function dataAge(summary, weekly, now) {
+    var flaim = !!(summary.source && summary.source.kind === "flaim"), site = String(summary.platform || "");
+    var from = "League data from " + (site ? site.charAt(0).toUpperCase() + site.slice(1) : "your league site") + (flaim ? " via Flaim" : "");
+    var tail = flaim ? " It does not refresh on its own yet." : "";
+    var at = Date.parse(summary.pulled_at || "");
+    if (!isFinite(at)) return {text: from + ". The time it was pulled was not recorded." + tail, stale: true};
+    var mins = Math.max(0, Math.floor((now - at) / 60000)), hours = Math.floor(mins / 60), days = Math.floor(hours / 24);
+    var ago = mins < 1 ? "just now" : mins < 60 ? mins + (mins === 1 ? " minute ago" : " minutes ago") : hours < 48 ? hours + (hours === 1 ? " hour ago" : " hours ago") : days + " days ago";
+    var local = new Date(at).toLocaleString(undefined, {weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short"});
+    var ko = ((weekly && weekly.kickoffs) || {})[String(summary.current_week)] || {};
+    var kicked = Object.keys(ko).map(function (t) { return Date.parse(ko[t]); }).filter(function (k) { return isFinite(k) && k <= now; });
+    var behind = kicked.length > 0 && at < Math.max.apply(null, kicked); /* the latest kickoff that has passed came after the pull */
+    return {text: from + ", pulled " + ago + " (" + local + ")." + tail + (behind ? " Games have kicked off since, so scores and lineups here are behind." : ""), stale: behind || now - at > 6 * 3600000};
+  }
+  var AGE_STYLE = "margin:0 0 16px;font-size:13px;line-height:1.45;color:var(--muted)";
+  var AGE_STALE = "margin:0 0 16px;font-size:13px;line-height:1.45;padding:8px 12px;border-left:3px solid var(--attention-text);border-radius:0 8px 8px 0;background:var(--attention);color:var(--attention-text)";
+  var ageTimer = null;
+  function ageStrip(summary, weekly) {
+    var p = el("p", {id: "gl-data-age"});
+    function draw() { var a = dataAge(summary, weekly, Date.now()); p.textContent = a.text; p.setAttribute("style", a.stale ? AGE_STALE : AGE_STYLE); }
+    draw();
+    if (ageTimer) clearInterval(ageTimer);
+    ageTimer = setInterval(draw, 60000); /* the relative time, and a kickoff passing, while the tab stays open */
+    return p;
+  }
+
   /* ---------- header ---------- */
   function renderHeader(plan) {
     var lg = plan.league || {}, me = plan.me || {}, sim = plan.sim || {}, wins = plan.wins || {}, box = el("section", {"aria-labelledby": "gl-title"});
     box.appendChild(el("p", {class: "eyebrow", text: [lg.name, lg.season, isNum(lg.current_week) ? "Week " + lg.current_week : null, MOCK ? "Sample data" : null].filter(Boolean).join(" · ")}));
-    box.appendChild(el("h1", {id: "gl-title", text: "Games left"}));
+    box.appendChild(el("h1", {id: "gl-title", text: "Season Plan"}));
     var rank = ordinal(me.rank);
     box.appendChild(el("p", {class: "gl-record"}, el("strong", {text: me.name || "Your team"}), " · ", record(me) || na("Record not read from the league"), " · ",
       rank ? rank + (isNum(lg.num_teams) ? " of " + lg.num_teams : "") : na("Rank not read from the league"),
@@ -99,6 +128,22 @@
     (plan.goals || []).forEach(function (g) { gl.appendChild(el("li", {}, el("b", {class: "gchip goal-label", text: g.label || GOAL_SHORT[g.id] || g.id}), el("span", {text: g.detail || ""}))); });
     goals.appendChild(gl);
     top.appendChild(goals);
+    /* waiver money: who will still have FAAB when it matters (balances only go down) */
+    if ((plan.faab || []).length) {
+      var mine0 = plan.faab.filter(function (f) { return f.me; })[0] || {};
+      var money = el("section", {class: "card", "aria-labelledby": "gl-faab-t"}, el("h2", {id: "gl-faab-t", text: "Waiver money"}));
+      var richer = plan.faab.filter(function (f) { return !f.me && isNum(f.faab) && isNum(mine0.faab) && f.faab > mine0.faab; });
+      money.appendChild(el("p", {text: (isNum(mine0.faab) ? "You have $" + mine0.faab + (isNum(mine0.waiver_priority) ? ", waiver priority " + mine0.waiver_priority : "") + ". " : "") +
+        (richer.length ? richer.length + (richer.length === 1 ? " team has" : " teams have") + " more: " + richer.map(function (f) { return f.name + " $" + f.faab; }).join(", ") + "." : "No team has more.")}));
+      var ul = el("ul", {class: "gl-faab"});
+      plan.faab.forEach(function (f) {
+        ul.appendChild(el("li", {class: f.me ? "me" : ""}, el("b", {text: f.name}), el("span", {class: "mono", text: isNum(f.faab) ? " $" + f.faab : " —"}),
+          el("small", {text: isNum(f.playoff_p) ? " · playoffs " + pctText(f.playoff_p) : ""})));
+      });
+      money.appendChild(ul);
+      money.appendChild(el("p", {class: "fine", text: "FAAB never comes back, so today's balance is the most each team can have at any later waiver run. Spending before then only lowers it. Balances as of the league data's pull."}));
+      top.appendChild(money);
+    }
 
     var dist = el("section", {class: "card", "aria-labelledby": "gl-wins-t"}, el("h2", {id: "gl-wins-t", text: "Wins from the games left"}));
     var rows = el("div", {class: "gl-dist"}), byFinal = {};
@@ -179,12 +224,12 @@
       plan.win_note ? el("p", {class: "fine gl-how", text: plan.win_note}) : null);
     var table = el("table", {class: "gl-games"}, el("thead", {}, el("tr", {},
       el("th", {scope: "col", text: "Wk"}), el("th", {scope: "col", text: "Opponent"}), el("th", {scope: "col", text: "You – them"}), el("th", {scope: "col", text: "Win chance"}),
-      el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
+      el("th", {scope: "col", text: "Game"}), el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
     [["regular", "Regular season"], ["playoffs", "Playoffs"]].forEach(function (ph) {
       var games = (plan.games || []).filter(function (g) { return (g.phase || "regular") === ph[0]; });
       if (!games.length) return;
       var body = el("tbody");
-      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "6", scope: "rowgroup", text: ph[1]})));
+      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "7", scope: "rowgroup", text: ph[1]})));
       games.forEach(function (g) { gameRows(plan, g, goalLabel).forEach(function (r) { body.appendChild(r); }); });
       table.appendChild(body);
     });
@@ -212,24 +257,34 @@
     if (g.status && !/^(upcoming|scheduled|pre|preevent|not_started)$/i.test(g.status)) oppCell.appendChild(el("small", {class: "mono", text: STATUS[String(g.status).toLowerCase()] || String(g.status).replace(/_/g, " ")}));
 
     var theirsWhy = g.theirs ? "No lineup total: no projections for their starters" : (why || "The opponent is not known yet");
-    var line = el("td", {class: "line"}, lab("You – them"),
+    var tg = g.target; /* a playoff game: the score to clear, from who gets in and how they score */
+    var line = tg && isNum(tg.score) ? el("td", {class: "line"}, lab("You – score to clear"),
+      el("span", {class: "pair"}, one(g.mine && g.mine.total, "No lineup total for your team"), el("span", {class: "them"}, " – ", one(tg.score))),
+      el("small", {class: "mono tgt", text: "Most likely you need about " + tg.score.toFixed(1) + "; in half the outcomes it's " + tg.low.toFixed(1) + "–" + tg.high.toFixed(1)}))
+      : el("td", {class: "line"}, lab("You – them"),
       el("span", {class: "pair"}, one(g.mine && g.mine.total, "No lineup total for your team"), el("span", {class: "them"}, " – ", one(g.theirs && g.theirs.total, theirsWhy))),
       isNum(g.margin) ? el("small", {class: "mono", text: signed(g.margin) + " on lineups"}) : null);
 
     var winCell = el("td", {class: "win"}, lab("Win chance"),
       el("div", {class: "big"}, pct(win.ddf, g.theirs ? "No DDF win chance for this game" : "No DDF win chance until the opponent is known")),
-      el("small", {text: "From weekly projections"}),
-      el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo's number"));
+      el("small", {text: "Sim · from weekly projections"}),
+      /* Yahoo's number for the current week only (Jeremy, 2026-11-27): later weeks it projects lineups as they sit today */
+      g.week === plan.league.current_week ? el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo's number") : null);
+    var st0 = g.stake || {};
+    var labelCell = el("td", {class: "typ"}, lab("Game"),
+      g.type ? el("span", {class: "type " + (TYPES[g.type] ? g.type : "free"), text: TYPES[g.type] || g.type}) : null,
+      st0.text ? el("small", {class: "stake", title: (st0.unpriced || []).length ? "Payouts not set yet (" + st0.unpriced.join(", ").replace(/_/g, " ") + ") count as points of title odds: 1 = one point of title chance, best record = 20." : "", text: st0.text}) : null);
 
     /* goals live in the header (Jeremy, 2026-11-27); the week's high-score chance moves to the opened row */
     var hsLine = el("span", {}, "Weekly high score: ", hs ? pct(hs.chance, "No high-score chance for this week") : na("No high-score chance for this week"));
     if (hs && isNum(hs.my_rank)) hsLine.appendChild(document.createTextNode(" · you project " + ordinal(hs.my_rank) + (isNum(hs.of) ? " of " + hs.of : "")));
+    if (hs && isNum(hs.expected_dollars)) hsLine.appendChild(document.createTextNode(" · worth $" + hs.expected_dollars.toFixed(2) + " expected"));
 
     var movesCell = el("td", {class: "moves" + ((g.moves || []).length ? "" : " none")});
     if ((g.moves || []).length) {
       var ul = el("ul");
       g.moves.forEach(function (m) {
-        var li = el("li", {}, el("span", {class: "kind", text: KINDS[m.kind] || m.kind || "Move"}), m.text || "");
+        var li = el("li", {class: m.kind === "assumed" ? "assumed" : ""}, el("span", {class: "kind", text: KINDS[m.kind] || m.kind || "Move"}), m.text || "");
         if (isNum(m.gain)) { li.appendChild(document.createTextNode(" ")); li.appendChild(el("span", {class: "gain" + (m.gain < 0 ? " neg" : ""), text: signed(m.gain)})); }
         if (m.when) { var w = when(m.when); li.appendChild(el("small", {text: /^\d{4}-\d\d-\d\d/.test(m.when) ? "By " + w : w.charAt(0).toUpperCase() + w.slice(1)})); }
         ul.appendChild(li);
@@ -240,7 +295,7 @@
     var btn = el("button", {type: "button", class: "gl-toggle", "aria-expanded": "false", "aria-controls": id}, el("span", {class: "lbl", text: "Show both lineups, week " + g.week}));
     var row = el("tr", {class: "game"},
       el("td", {class: "wk"}, el("small", {text: "Wk"}), String(g.week)), oppCell, line, winCell,
-      movesCell, el("td", {class: "tog"}, btn));
+      labelCell, movesCell, el("td", {class: "tog"}, btn));
 
     var facts = el("p", {class: "gl-detail-facts"}, hsLine);
     if (hs && hs.top) facts.appendChild(el("span", {}, "Projected top score: ", el("b", {text: (hs.top.name || "—") + " "}), el("b", {class: "mono"}, one(hs.top.total))));
@@ -250,7 +305,7 @@
     var stakes = [isNum(st.playoffs) ? "playoff odds " + pts(st.playoffs) : null, isNum(st.seed) ? (st.seed_basis || "seed") + " odds " + pts(st.seed) : null,
       isNum(st.top_seed) && st.seed_basis !== "1st seed" ? "1st seed odds " + pts(st.top_seed) : null].filter(Boolean);
     if (stakes.length) facts.appendChild(el("span", {}, "A win instead of a loss: ", el("b", {text: stakes.join(", ")})));
-    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "6"}, facts.childNodes.length ? facts : null,
+    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "7"}, facts.childNodes.length ? facts : null,
       el("div", {class: "gl-lineups"}, renderLineup(g.mine, "Your lineup", "No lineup for your team this week."),
         renderLineup(g.theirs, opp ? opp.name : "Their lineup", g.opp_note || "The opponent is not known yet, so there is no lineup to show."))));
 
@@ -283,10 +338,12 @@
     return sec;
   }
 
-  function render(plan, flaim) {
+  function render(plan, flaim, summary, weekly) {
     var root = $("gl-root");
     root.textContent = "";
-    root.appendChild(renderHeader(plan));
+    var head = renderHeader(plan);
+    if (summary) head.insertBefore(ageStrip(summary, weekly), head.querySelector(".gl-record").nextSibling); /* under the record line */
+    root.appendChild(head);
     root.appendChild(renderGames(plan));
     root.appendChild(renderFooter(plan, flaim));
     if (plan.league && plan.league.name) $("ctx-league").textContent = "My league · " + plan.league.name;
@@ -321,7 +378,7 @@
     /* Same session as the Add your league page: this tab's sessionStorage. */
     sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {auth: {flowType: "implicit", detectSessionInUrl: true, persistSession: true, storage: window.sessionStorage}});
     var session = (await sb.auth.getSession()).data.session;
-    if (!session) { status(addLeagueLine("Sign in to see your games left.")); return; }
+    if (!session) { status(addLeagueLine("Sign in to see your Season Plan.")); return; }
     var want = QS.get("league"), id = want;
     if (!id) {
       var me = await api("GET", "/me");
@@ -336,9 +393,9 @@
     if (!window.DDFWeekly || typeof window.DDFWeekly.plan !== "function") throw new Error("The planner did not load. Reload the page.");
     /* The team picked on the Add your league page lives on the league row; the planner falls back to the summary's own. */
     /* the staging Team / Find / Build links stay on this league */
-    Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="games-left.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
+    Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="plan.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
     var plan = window.DDFWeekly.plan(league.summary, weekly, league.my_team_key ? {myTeamKey: league.my_team_key} : {});
-    render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"));
+    render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"), league.summary, weekly);
   }
   boot().catch(function (err) { status(el("p", {text: err.message || String(err)}), "err"); });
 })();

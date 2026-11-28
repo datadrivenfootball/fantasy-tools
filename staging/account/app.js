@@ -371,7 +371,7 @@
       ll.appendChild(el("li", {},
         el("span", {}, el("strong", {text: l.name || l.league_key}), el("small", {class: "muted", text: "  " + (l.source === "flaim" ? (NAMES[l.platform] || l.platform) + " via Flaim (stand-in until Yahoo is approved) · pulled " : (NAMES[l.platform] || l.platform) + " · updated ") + when(l.pulled_at) + (l.confirmed_at ? " · settings confirmed" : "")})),
         el("span", {class: "cluster"},
-          l.my_team_key ? el("a", {class: "button", href: "games-left.html?league=" + encodeURIComponent(l.id), text: "Games left"}) : null, /* same tab: the session is in this tab's sessionStorage */
+          l.my_team_key ? el("a", {class: "button", href: "plan.html?league=" + encodeURIComponent(l.id), text: "Season Plan"}) : null, /* same tab: the session is in this tab's sessionStorage */
           el("button", {type: "button", text: "Open", onclick: busy(null, async function () { var j = await api("GET", "/leagues/" + l.id); openLeague(j.league); })}))));
     });
     if (!state.league) step("connect");

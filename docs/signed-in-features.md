@@ -1,7 +1,7 @@
 # Signed-in DDF features on stored league data (JEG-1736, staging only)
 
 Spec: `06-audit/ddf-unified-framework-2026-11-27.md` revisions 3 and 4 (handoff folder). Built up from the live
-site's pages; **Games left** is the one new page. Weekly planning uses weekly scoring data only, never DDF Value.
+site's pages; **Season Plan** (`plan.html`; first built as "Games left", renamed by Jeremy, spec decision 2A) is the one new page. Weekly planning uses weekly scoring data only, never DDF Value.
 Missing is never 0: a value nothing gave is `null` with a reason.
 
 ## Data path

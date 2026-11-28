@@ -139,8 +139,9 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   assertEquals(plan.games.map((g: { week: number }) => g.week), [13, 14, 15, 16]);
   const g13 = plan.games[0];
   assertEquals(g13.opp.name, "Team 2");
-  // by hand: team 1 starters wk13 = QB 23 + WRa 17.25 + WRb 13.8 + RB 16.1 + TE 10.35 + flex WRc 12.65 + K 8 + DEF 6 = 107.15
-  assertAlmostEquals(g13.mine.total, 107.15, 0.06);
+  // by hand: team 1 starters wk13 = QB 23 + WRa 17.25 + WRb 13.8 + RB 16.1 + TE 10.35 + flex WRc 12.65 + DEF 6
+  // + K: the waiver kicker (top-4 average = FA K, 12) beats K1 (8), so the assumed pickup starts = 111.15
+  assertAlmostEquals(g13.mine.total, 111.15, 0.06);
   assertEquals(g13.win.yahoo, 0.66);
   assertAlmostEquals(g13.win.ddf, W.winChance(g13.mine.total - g13.theirs.total, plan.spread.sd), 1e-3);
   const dist = plan.wins.dist.reduce((a: number, d: { p: number }) => a + d.p, 0);
@@ -152,10 +153,11 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   // all four teams make a 4-spot bracket, so week 13 cannot move the playoff odds: it is about the seed
   assertEquals(plan.sim.playoff_p, 1);
   assertEquals(g13.stake.playoffs, 0);
-  assertEquals(g13.type, null); // game types are off the page until JEG-1737 defines them
+  assert(["seed_game", "free"].includes(g13.type), g13.type); // labels stay, with the stake beside them (Jeremy, 2026-11-27)
   assert(!g13.goals.includes("playoffs"));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "add"), "FA WR (16) beats the team's WRc in week 13");
-  assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && m.text === "Add FA K (K, 12.0); drop K1"), "FA K 12 beats K1 8, and K1 is then the free drop");
+  assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "assumed" && /kicker from waivers: counted at the top-1 average, 12\.0/.test(m.text)), "K is an assumed waiver pickup, not a call-out");
+  assert(!g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && /FA K/.test(m.text)));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "start"), "WRc on the bench outscores RBb in the flex");
   const g14 = plan.games[1];
   assert(g14.mine.starters.every((s: { name: string | null }) => s.name !== "RB1b" && s.name !== "WR1c"), "a bye player does not start");
@@ -182,8 +184,9 @@ Deno.test("cover: cost by week, who covers, holes first, K/DEF row with the best
   const k = c.kdef.find((x: { pos: string }) => x.pos === "K");
   assertEquals(k.starter.name, "K1");
   assertEquals(k.backup, null);
-  assertEquals(k.best_add.name, "FA K");
-  assertEquals(k.cost[13], 8);
+  assertEquals(k.best_add.name, "Waiver average (top 4)");
+  assertEquals(k.best_add.weeks[13], 12);
+  assertEquals(k.cost[13], 0); // K1 (8) is below the waiver average (12): losing him costs nothing
 });
 
 Deno.test("trade impact: both sides by week, the game against the partner counts on both sides", async () => {
@@ -207,7 +210,7 @@ Deno.test("recommendations: adds and trades ranked by weekly gain, moves in time
   const plan = W.plan(lg, wk, { runs: 2000 });
   const r = W.recommendations(lg, wk, "470.l.1.t.1", { plan });
   assertEquals(r.adds[0].name, "FA WR"); // 16 a week beats the bench every week
-  assert(r.adds.some((a: { name: string; drop: { name: string } }) => a.name === "FA K" && a.drop.name === "K1"));
+  assert(!r.adds.some((a: { pos: string }) => a.pos === "K"), "a kicker no better than the waiver average is not a pickup");
   for (let i = 1; i < r.adds.length; i++) assert(r.adds[i - 1].total_gain >= r.adds[i].total_gain);
   for (let i = 1; i < r.trades.length; i++) assert(r.trades[i - 1].my_total >= r.trades[i].my_total);
   assert(r.trades.every((t: { my_total: number; their_total: number }) => t.my_total >= 2 && t.their_total >= -1));
@@ -262,8 +265,8 @@ Deno.test("review fixes: the live week counts the score so far plus the open slo
   const g = plan.games[0];
   assert(g.mine.live);
   assertEquals(g.mine.banked, 40);
-  // Team 1 open slots after QB, WRa, TE (KC, played) lock: WR WRb 13.8, RB 16.1, flex WRc 12.65, K 8, DEF 6 = 56.55
-  assertAlmostEquals(g.mine.total, 96.55, 0.06);
+  // Team 1 open slots after QB, WRa, TE (KC, played) lock: WR WRb 13.8, RB 16.1, flex WRc 12.65, K (waiver avg) 12, DEF 6 = 60.55
+  assertAlmostEquals(g.mine.total, 100.55, 0.06);
   assert(g.win.ddf > W.winChance(g.mine.total - g.theirs.total, plan.spread.sd), "less still to play: a lead is safer than a full-week spread says");
   assert(!g.moves.some((mv: { kind: string; text: string }) => mv.kind === "watch" && /WR1a|QB1/.test(mv.text)));
   const short = league(); short.current_week = 16; // final week: one round of a two-round bracket left
@@ -325,9 +328,175 @@ Deno.test("review fixes 2: advice uses the current time; a game in progress keep
   lg.pulled_at = "2026-11-29T19:00:00Z";
   const q = W.plan(lg, wk, { runs: 500, now: "2026-11-29T19:00:00Z" });
   const left = 2.5 / 3.5, kc = (20 + 15 + 9) * 1.15;
-  assertAlmostEquals(q.games[0].mine.still_to_come, 13.8 + 16.1 + 12.65 + 8 + 6 + kc * left, 0.1);
+  assertAlmostEquals(q.games[0].mine.still_to_come, 13.8 + 16.1 + 12.65 + 12 + 6 + kc * left, 0.1);
   // cover, trade impact and recommendations count from next week once the current week has kicked off
   assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
   assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { now: "2026-11-29T19:00:00Z" }).weeks, [14, 15, 16]);
   assertEquals(W.cover(lg, wk, "470.l.1.t.1", { now: "2026-11-29T12:00:00Z" }).weeks, [13, 14, 15, 16]);
+});
+
+Deno.test("recommendations: who else a pickup helps, with their FAAB (context, not a bid)", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const r = W.recommendations(lg, wk, "470.l.1.t.1", {});
+  const fa = r.adds.find((a: { name: string }) => a.name === "FA WR");
+  assert(fa.rivals.length > 0);
+  assert(fa.rivals.every((x: { team_key: string; gain: number; faab: number }) => x.team_key !== "470.l.1.t.1" && x.gain >= 1 && x.faab === 50));
+  for (let i = 1; i < fa.rivals.length; i++) assert(fa.rivals[i - 1].gain >= fa.rivals[i].gain);
+  assertEquals(r.me, { faab: 50, waiver_priority: 1, faab_budget: 100 });
+});
+
+Deno.test("every staging page script parses", async () => {
+  const dir = new URL("staging/account/", ROOT);
+  for await (const f of Deno.readDir(dir)) {
+    if (!f.name.endsWith(".js")) continue;
+    const src = await Deno.readTextFile(new URL(f.name, dir));
+    try { new Function(src); } catch (e) { throw new Error(f.name + ": " + (e as Error).message); }
+  }
+});
+
+Deno.test("JEG-1737 rule A: an opponent keeps his set lineup with holes filled; Yahoo only this week; stakes priced", async () => {
+  const lg = league();
+  // Team 2 (week 13 opponent) has a bye RB in his set flex slot: MIA on bye in week 14 is RB2b (slot W/R/T)
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 2000, payouts: { title: 500, high_score_week: 50 } });
+  const g14 = p.games.find((g: { week: number }) => g.week === 14); // v Team 3
+  const theirs = g14.theirs;
+  assertEquals(theirs.rule, "set_filled");
+  // Team 3's set lineup: RB3b (MIA, bye wk14) in W/R/T is a hole; his best bench player for the flex is WR3c (MIA, bye) -> empty?
+  const flex = theirs.starters.find((x: { slot: string }) => x.slot === "W/R/T");
+  assert(flex.player_id === null || flex.name !== "RB3b", "a bye starter is replaced");
+  assert(theirs.filled.some((f: { slot: string; out: string }) => f.slot === "W/R/T" && f.out === "RB3b"));
+  // set lineup, holes filled, never better than the best lineup
+  const best = W.teamWeek(lg, wk, lg.teams[2].roster, 14);
+  assert(theirs.total <= best.total + 1e-9);
+  // Yahoo's number only for the current week (13)
+  assertEquals(p.games[0].win.yahoo, 0.66);
+  assertEquals(g14.win.yahoo, null);
+  assertEquals(g14.yahoo_proj, null);
+  // stakes: with a title payout given (old shape), the stake is the change in expected prize money, in dollars
+  const s13 = p.games[0].stake;
+  assert(typeof s13.dollars === "number" && /^\$/.test(s13.text), s13.text);
+  assertEquals(s13.unpriced, []);
+  assertAlmostEquals(p.games[0].high_score.expected_dollars, 50 * p.games[0].high_score.chance, 0.01);
+  // a playoff game has a stake too (title and runner-up)
+  assert(p.games.filter((g: { phase: string }) => g.phase === "playoffs").some((g: { stake: { dollars: number | null } }) => typeof g.stake.dollars === "number"));
+});
+
+Deno.test("review fixes 3: no title stake without the bracket; partner rows use the set lineup", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).playoff_teams = 5; // no bracket DDF can play out
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 1000 });
+  assertEquals(p.sim.title_p, null);
+  assert(/only best record counts/.test(p.games[0].stake.text), p.games[0].stake.text);
+  const t = W.tradeImpact(league(), wk, "470.l.1.t.1", "470.l.1.t.2", ["470.p.105"], ["470.p.205"]);
+  assertEquals(t.sides[1].rule, "set");
+  assertEquals(t.sides[0].rule, "best");
+});
+
+Deno.test("rulings 2026-11-27 (2): K/DEF waiver average for us and opponents; playoff score to clear; waiver money", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  // an opponent's set K (K2, 8) is below the waiver average (12): his slot takes the assumed pickup too
+  const theirs = p.games[0].theirs;
+  const k = theirs.starters.find((x: { slot: string }) => x.slot === "K");
+  assert(k.assumed && k.points === 12, JSON.stringify(k));
+  // playoff games carry the score to clear: median, with an 80% range around it
+  const po = p.games.filter((g: { phase: string }) => g.phase === "playoffs");
+  for (const g of po) {
+    assert(g.target && g.target.low <= g.target.score && g.target.score <= g.target.high, JSON.stringify(g.target));
+    assert(g.target.score > 50 && g.target.score < 200);
+  }
+  // waiver money: every team's FAAB, most first, mine marked
+  assertEquals(p.faab.length, 4);
+  assert(p.faab.some((f: { me: boolean; faab: number }) => f.me && f.faab === 50));
+});
+
+Deno.test("review fixes 4: the assumed waiver pickup is never a start move or a bench row", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 500 });
+  const g13 = p.games[0]; // K1 (8) is below the waiver average (12): the assumed kicker starts
+  assert(g13.mine.starters.some((x: { assumed: boolean }) => x.assumed));
+  assert(!g13.moves.some((m: { kind: string; text: string }) => m.kind === "start" && /Waiver/.test(m.text)), JSON.stringify(g13.moves));
+  for (const g of p.games) for (const l of [g.mine, g.theirs]) if (l) assert(!(l.bench || []).some((x: { assumed: boolean }) => x.assumed));
+});
+
+Deno.test("payouts (USO, from league emails): places 1-4, a 3rd-place game, high score through a week, no best-record goal", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { source: "from league emails, 2024-25", place: { 1: 450, 2: 300, 3: 200, 4: 100 }, high_score_week: 50, high_score_through_week: 14, best_record: 0 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  // every team makes a 4-team bracket, so the least anyone wins is $100 and the expected money is between $100 and $450
+  assert(p.money.expected >= 100 && p.money.expected <= 450, String(p.money.expected));
+  const last = p.games[p.games.length - 1];
+  assert(/the 3rd-place game in \d+%/.test(last.opp_note), last.opp_note);
+  assert(/final: \$150, 3rd-place game: \$100/.test(last.stake.text), last.stake.text);
+  const semi = p.games[p.games.length - 2];
+  assert(semi.stake.dollars > 0 && semi.stake.dollars <= 350, String(semi.stake.dollars)); // final ($300-450) v 3rd-place game ($100-200)
+  assertEquals(p.goals.map((g: { id: string }) => g.id), ["high_score", "seed", "playoffs"]); // no record prize, no goal
+  assert(typeof p.games.find((g: { week: number }) => g.week === 14).high_score.expected_dollars === "number");
+  assert(p.games.find((g: { week: number }) => g.week === 15).high_score.no_payout); // weeks after 14 pay no high score here
+  assert(/Payouts \(from league emails, 2024-25\): 1st \$450, 2nd \$300, 3rd \$200, 4th \$100/.test(p.sources.join(" ")), p.sources.join(" "));
+});
+
+Deno.test("payouts review: equal 3rd/4th pay both semifinal losers; playoff $/pt scales by the chance to reach the game", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300, 3: 100, 4: 100 }, high_score_week: 50, high_score_through_week: 14 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  assert(p.money.expected >= 100, String(p.money.expected)); // all four teams make it: nobody can finish with $0
+  const semi = p.games.find((g: { week: number }) => g.week === 15);
+  assert(semi.stake.dollars <= 350, String(semi.stake.dollars)); // final ($300-450) v a tied 3rd ($100)
+  // the second team in a 2-team bracket reaches the final only some of the time: its playoff points are worth the stake times that chance
+  const lg2 = league();
+  (lg2.settings as Record<string, unknown>).playoff_teams = 2;
+  (lg2.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300 } };
+  const p2 = W.plan(lg2, await buildWeekly(lg2, deps(lg2)), { runs: 3000, myTeamKey: "470.l.1.t.2" });
+  const fin = p2.games.find((g: { week: number }) => g.week === 15);
+  assert(fin.reach > 0.05 && fin.reach < 0.95, String(fin.reach));
+  const sdd = Math.sqrt(2) * p2.spread.sd, dens = Math.exp(-0.5 * Math.pow(fin.margin / sdd, 2)) / (sdd * Math.sqrt(2 * Math.PI));
+  assertAlmostEquals(fin.dollars_per_point, fin.reach * fin.stake.dollars * dens, 0.02);
+});
+
+Deno.test("trades: offered only when the partner could accept (the live trade-chart gate), and the top move follows", async () => {
+  const lg = league();
+  lg.teams[0].roster.push(p(121, "QB1b", "QB", "KC")); // a bench QB I do not need (23 a week)
+  lg.teams[1].roster.push(p(224, "RB2c", "RB", "BUF")); // a bench RB they do not need (15.4 a week, beats my flex)
+  lg.teams[1].roster.push(p(232, "WR2d", "WR", "BUF")); // their flex (16.5) even in the week their MIA players are on bye
+  const wk = await buildWeekly(lg, deps(lg));
+  const plan = W.plan(lg, wk, { runs: 500 });
+  assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { plan }).trades, []); // no gate, no trade ideas
+  // a gate that accepts only when they get a QB: everything else is out, and the trade line in the moves uses what is left
+  const accept = (t: { give: { pos: string }[] }) => ({ ok: t.give[0].pos === "QB", agree: t.give[0].pos === "QB" ? 1 : 0, total: 4, names: [] });
+  const r = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept });
+  assert(r.trades.every((t: { give: { pos: string }[]; market: { ok: boolean } }) => t.give[0].pos === "QB" && t.market.ok));
+  const all = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept: () => ({ ok: true, agree: 4, total: 4, names: [] }) });
+  assert(all.trades.some((t: { give: { name: string }[] }) => t.give[0].name === "QB1b"), "the spare QB is offered when the gate allows it");
+  assert(r.trades.length > 0 && r.trades.length <= all.trades.length, r.trades.length + " " + all.trades.length);
+  assertEquals(all.moves_in_time.filter((m: { kind: string }) => m.kind === "trade").length, lg.settings.trade_deadline.date ? 1 : 0);
+  const unknown = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept: () => ({ unknown: true }) });
+  assertEquals(unknown.trades, []);
+  assert(unknown.trades_unchecked > 0);
+});
+
+Deno.test("addImpact: one live pickup card's weekly gain, win change, dollars and rivals", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300, 3: 200, 4: 100 }, high_score_week: 50, high_score_through_week: 14 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const plan = W.plan(lg, wk, { runs: 1000 });
+  const fa = lg.free_agents.find((f: { name: string }) => f.name === "FA WR");
+  const a = W.addImpact(lg, wk, "470.l.1.t.1", fa, "470.p.106", { plan }); // the live card's own drop (RB1b)
+  assertEquals(a.drop.name, "RB1b");
+  assert(a.delta[13] > 0 && a.total > 0);
+  assert(a.games[0].win_after > a.games[0].win_before);
+  assert(typeof a.dollars === "number" && a.dollars > 0);
+  assertAlmostEquals(a.dollars, W.dollarsFor(plan, a.delta), 1e-9);
+  assert(a.rivals.every((r: { team_key: string }) => r.team_key !== "470.l.1.t.1"));
+  // no drop named: 9 players in 10 non-reserve spots, so nobody goes; a full roster drops the cheapest
+  assertEquals(W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }).drop, null);
+  lg.teams[0].roster.push(p(129, "WR1d", "WR", "NE"));
+  assert(W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }).drop !== null);
 });
