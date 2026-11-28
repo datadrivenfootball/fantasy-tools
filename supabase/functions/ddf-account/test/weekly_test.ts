@@ -379,3 +379,15 @@ Deno.test("JEG-1737 rule A: an opponent keeps his set lineup with holes filled; 
   // a playoff game has a stake too (title and runner-up)
   assert(p.games.filter((g: { phase: string }) => g.phase === "playoffs").some((g: { stake: { dollars: number | null } }) => typeof g.stake.dollars === "number"));
 });
+
+Deno.test("review fixes 3: no title stake without the bracket; partner rows use the set lineup", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).playoff_teams = 5; // no bracket DDF can play out
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 1000 });
+  assertEquals(p.sim.title_p, null);
+  assert(/only best record counts/.test(p.games[0].stake.text), p.games[0].stake.text);
+  const t = W.tradeImpact(league(), wk, "470.l.1.t.1", "470.l.1.t.2", ["470.p.105"], ["470.p.205"]);
+  assertEquals(t.sides[1].rule, "set");
+  assertEquals(t.sides[0].rule, "best");
+});

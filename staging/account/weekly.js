@@ -316,7 +316,7 @@
     function proj(teamKey, w, m) { // a team week's mean: DDF's lineup, else Yahoo's projection (named in sources)
       var l = tw[teamKey] && tw[teamKey][w];
       if (l && l.total !== null) return l.total;
-      if (m) { var i = m.team_keys.indexOf(teamKey), y = num((m.projected_points || [])[i]); if (y !== null) return y; }
+      if (m && w === cur) { var i = m.team_keys.indexOf(teamKey), y = num((m.projected_points || [])[i]); if (y !== null) return y; } // Yahoo only this week
       return null;
     }
     var sched = {}; (summary.schedule || []).forEach(function (w) { sched[w.week] = w.matchups || []; });
@@ -491,7 +491,10 @@
         g.type = s1 < 0.02 && s2 < 0.02 ? "free" : s2 > s1 && s2 >= 0.05 ? "seed_game"
           : (p !== null && p >= 0.75) || s1 < 0.05 ? "bankable" : p === null ? "must_win" : p > 0.65 ? "favored" : p < 0.35 ? "uphill" : "must_win";
         myWinP.push(p);
-        priceStake(g, rate(bw, "title") - rate(bl, "title"), rate(bw, "runner") - rate(bl, "runner"), tp);
+        var titleSim = !!(bp && poWeeks.length >= bp.rounds.length); // title and runner-up counts exist only with the full bracket
+        var diff = function (k) { var a = rate(bw, k), b = rate(bl, k); return a === null || b === null ? null : a - b; };
+        priceStake(g, titleSim ? diff("title") : null, titleSim ? diff("runner") : null, tp);
+        if (!titleSim && g.stake.text) g.stake.text += " (title odds need the full bracket, so only best record counts)";
       }
       if (phase === "playoffs" && poStake[w] && poStake[w].win.n && poStake[w].loss.n) {
         var pw = poStake[w].win, pl = poStake[w].loss;
@@ -744,10 +747,11 @@
     var get = them.roster.filter(function (e) { return getIds.indexOf(e.player_id) >= 0; });
     var myAfter = swap(me.roster, giveIds, get), theirAfter = swap(them.roster, getIds, give);
     var sd = opts.sd || fitSpread(summary).sd;
-    var side = function (t, after) {
-      var o = {team_key: t.team_key, name: t.name, before: {}, after: {}, delta: {}, total_delta: 0, lineups: {}};
+    var curW = num(summary.current_week);
+    var side = function (t, after, rule) { // rule "set": the partner's lineup as set, holes filled (as in the game rows)
+      var o = {team_key: t.team_key, name: t.name, before: {}, after: {}, delta: {}, total_delta: 0, lineups: {}, rule: rule};
       weeks.forEach(function (w) {
-        var b = teamWeek(summary, weekly, t.roster, w, slots), a = teamWeek(summary, weekly, after, w, slots);
+        var b = weekFor(summary, weekly, t.roster, w, slots, rule, curW), a = weekFor(summary, weekly, after, w, slots, rule, curW);
         o.before[w] = b.total; o.after[w] = a.total;
         o.delta[w] = b.total !== null && a.total !== null ? r1(a.total - b.total) : null;
         o.lineups[w] = {before: b, after: a};
@@ -755,7 +759,7 @@
       });
       return o;
     };
-    var sides = [side(me, myAfter), side(them, theirAfter)];
+    var sides = [side(me, myAfter, "best"), side(them, theirAfter, "set")];
     var sched = {}; (summary.schedule || []).forEach(function (w) { sched[w.week] = w.matchups || []; });
     var games = weeks.map(function (w) {
       var m = (sched[w] || []).filter(function (x) { return x.team_keys && x.team_keys.indexOf(me.team_key) >= 0; })[0];
