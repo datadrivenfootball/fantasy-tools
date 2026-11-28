@@ -98,7 +98,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   /* Pick players and Pick trading partners are settings along the way: they live in the step row, not the top nav (Jeremy, 2026-11-06). */
   var POST = [['team.html','Team'],['find.html','Trade &amp; Waiver Recommendations'],['build.html','Build a Trade'],['values.html','Values']];
   var MENU_PRE = [['index.html','Home'],['build.html?mode=any','Quick trade check'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['freshness.html','Source freshness'],['connect.html','Get started']];
-  var MENU_POST = [['index.html','Home'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['waivers.html','Waivers'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['freshness.html','Source freshness'],['connect.html','Paste my league'],['setup.html','Your team'],['settings.html','League settings']];
+  var MENU_POST = [['index.html','Home'],['values.html','Values'],['values.html#buy-sell','Buy / Sell'],['values.html#overrides','Overrides'],['waivers.html','Waivers'],['learn.html','Learn'],['learn.html#numbers/pie','How we get our numbers'],['ai.html','Use DDF with AI'],['freshness.html','Source freshness'],['connect.html','Paste my league'],['setup.html','Your team'],['settings.html','League settings'],['teams.html','Edit teams']];
   var PAGE_ALIAS = {'waivers.html':'find.html','check.html':'build.html','trade.html':'build.html','compare.html':'build.html'};
   function file(){ var f = location.pathname.split('/').pop() || 'index.html'; return PAGE_ALIAS[f] || f; }
   /* Values opens a small menu so Buy / Sell and Overrides have a visible way in (Jeremy, 2026-11-06). */
@@ -169,7 +169,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
     if(loaded){
       x.className = 'ddf-chipwrap';
       x.innerHTML = '<button type="button" class="ddf-chip" aria-haspopup="true" aria-expanded="false" aria-controls="ddf-chip-menu"><i aria-hidden="true"></i><span class="ddf-chip-t">Your league</span><span class="ddf-caret" aria-hidden="true">&#9662;</span></button>' +
-        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><label class="ddf-cm-va" hidden><span>Viewing as</span></label><a href="connect.html?edit=1">Edit league</a><a href="settings.html">League settings</a><button type="button" class="ddf-cm-fresh" data-start-fresh>Start fresh</button></div>';
+        '<div class="ddf-chipmenu" id="ddf-chip-menu"><p class="ddf-cm-src"></p><p class="ddf-cm-set"></p><p class="ddf-cm-age" hidden></p><label class="ddf-cm-va" hidden><span>Viewing as</span></label><a href="connect.html?edit=1">Edit league</a><a href="teams.html">Edit teams</a><a href="settings.html">League settings</a><button type="button" class="ddf-cm-fresh" data-start-fresh>Start fresh</button></div>';
       fillChipMenu(x);
       setTimeout(function(){ if(window.DDF && DDF.fitLeagueChip) DDF.fitLeagueChip(); }, 0);
     }
@@ -225,7 +225,7 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
       ['Your league', ['team.html','explore.html','partners.html']],
       ['Player values', ['values.html','values.html#buy-sell','values.html#overrides']],
       ['Learn', ['learn.html','learn.html#numbers/pie','ai.html','freshness.html']],
-      ['Settings', ['connect.html','setup.html','settings.html']]
+      ['Settings', ['connect.html','setup.html','settings.html','teams.html']]
     ];
     var links = {};
     menu.querySelectorAll(':scope > a').forEach(function(a){
@@ -1303,13 +1303,15 @@ document.querySelectorAll('[data-slideshow]').forEach(function(slideshow){
   function dismissed(b){ try{ return sessionStorage.getItem(DISMISS + b) === '1'; }catch(e){ return false; } }
   function renderBanner(){
     var main = document.querySelector('main'); if(!main) return;
-    var el = document.getElementById('ddf-fresh'), i = workspacePage() ? info() : null;
+    /* JEG-1740: Edit teams shows its own roster-age card (data-own-fresh), so the banner stays off there */
+    var el = document.getElementById('ddf-fresh'), i = workspacePage() && !document.body.hasAttribute('data-own-fresh') ? info() : null;
     var b = i && i.band, show = b && b !== 'fresh' && MESSAGES[b] && !dismissed(b);
     if(!show){ if(el) el.remove(); return; }
     if(!el){ el = document.createElement('div'); el.id = 'ddf-fresh'; el.setAttribute('role', 'status'); main.insertBefore(el, main.firstChild); }
     if(el.getAttribute('data-band') === b && el.getAttribute('data-days') === String(i.days)) return;
     el.className = 'ddf-fresh ddf-fresh-' + b; el.setAttribute('data-band', b); el.setAttribute('data-days', String(i.days));
-    var action = b === 'note' ? '' : '<a class="ddf-fresh-go" href="connect.html">' + (b === 'stale' ? 'Paste rosters again' : 'Update rosters') + '</a>';
+    /* JEG-1740: paste again keeps the league's settings, name and your team (connect.html again mode); Edit teams fixes a few moves by hand */
+    var action = b === 'note' ? '' : '<a class="ddf-fresh-go" href="connect.html?edit=1&amp;again=1">' + (b === 'stale' ? 'Paste rosters again' : 'Update rosters') + '</a><a class="ddf-fresh-edit" href="teams.html">Edit teams</a>';
     el.innerHTML = '<p class="ddf-fresh-t"></p>' + action + '<button type="button" class="ddf-fresh-x" aria-label="Dismiss this note">&times;</button>';
     el.querySelector('.ddf-fresh-t').textContent = MESSAGES[b](ageWords(i.days));
     el.querySelector('.ddf-fresh-x').addEventListener('click', function(){ try{ sessionStorage.setItem(DISMISS + b, '1'); }catch(e){} el.remove(); });

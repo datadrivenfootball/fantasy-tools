@@ -60,6 +60,23 @@
      backing out or emptying the box puts it back. A chat league's settings are saved to the engine when it is replaced,
      so settings.html still shows them. */
   var editing = null;
+  /* JEG-1740: "Paste rosters again" (Edit teams, the roster-age banner) opens connect.html?edit=1&again=1: the same league
+     with newer rosters. Its settings stay as they are (every field the new paste would set counts as confirmed at the
+     league's current value, and a Sleeper or ESPN read does not apply its settings), and its name and your team carry
+     over as in any edit. */
+  function againMode() { return !!editing && /[?&]again=1(&|$)/.test(location.search); }
+  function keepSettings(record) {
+    if (!againMode() || !record || !record.pasteSettings || !DDF.engine || !DDF.engine.settings) return record;
+    if (editing.source === "link") keepChatSettings();
+    var now = DDF.engine.settings(), roster = now.roster || {}, confirmed = Object.assign({}, record.confirmed);
+    DDF.leaguePaste.FIELDS.forEach(function (f) {
+      if (DDF.leaguePaste.inferredValue(record.pasteSettings, f) === null || Object.prototype.hasOwnProperty.call(confirmed, f)) return;
+      var v = f === "teams" ? now.teams : roster[f];
+      if (Number.isInteger(v)) confirmed[f] = v;
+    });
+    record.confirmed = confirmed;
+    return record;
+  }
   function startEditing() {
     if (!/[?&]edit=1(&|$)/.test(location.search) || !DDF.leagueMeta) return null;
     var info = DDF.leagueMeta.info();
@@ -102,7 +119,7 @@
   function withConfirmed(record) {
     var prior = kept() || dropped;
     if (record && record.pasteSettings && prior && prior.confirmed && DDF.leaguePaste.sameLeague(prior, record)) record.confirmed = prior.confirmed;
-    return record;
+    return keepSettings(record);
   }
   function save(record) {
     if (pickable(record) && !Number.isInteger(record.me)) {
@@ -113,6 +130,7 @@
       var before = kept() || dropped;
       if (before && before.scoring && DDF.leaguePaste.sameLeague(before, record)) record.scoring = before.scoring;
       else if (editing && editing.source !== "link") { try { record.scoring = DDF.engine.settings().scoring || null; } catch (e) { /* asked on the card */ } }
+      else if (againMode() && editing.settings && editing.settings.scoring) record.scoring = editing.settings.scoring;   /* JEG-1740 */
     }
     if (editing && editing.source === "link") keepChatSettings();
     try { if (DDF.link && DDF.link.clear) DDF.link.clear(); } catch (e) { /* no chat league to clear */ }
@@ -300,6 +318,7 @@
     var rec = kept(), card = $("recognized");
     if (!rec || !rec.importSettings || !card || card.hidden || !DDF.engine || !DDF.engine.apply) return;
     if (rec.source !== "sleeper" && rec.source !== "espn") return;
+    if (againMode()) return;   /* JEG-1740: loading the same league again keeps its settings */
     try { DDF.engine.apply(rec.importSettings); } catch (e) { /* settings.html asks */ }
   }
   /* "n/a" when the card does not ask (no read on this page, or not a paste); null until answered; else the token */
@@ -521,11 +540,16 @@
     if (!top) return;
     top.hidden = !info;
     if (!info) return;
-    $("entry-top-text").textContent = editing
+    $("entry-top-text").textContent = againMode()
+      ? "New rosters for " + info.name + ". Your league settings and your team stay as they are. Your current rosters stay in use until you check a new paste."
+      : editing
       ? "Replacing: " + info.name + ". Your current league stays in use until you check a new paste or enter rosters."
       : "You have a league in this browser: " + info.name + ".";
     $("entry-keep").hidden = !editing;
-    if (editing && replaced()) $("entry-top-text").textContent = "Replacing: " + (editing.name || "My league") + ". Your new rosters are read: Next confirms them, or keep your current league.";
+    if (editing) $("entry-keep").textContent = againMode() ? "Keep my current rosters" : "Keep my league";
+    if (editing && replaced()) $("entry-top-text").textContent = againMode()
+      ? "New rosters for " + (editing.name || "My league") + " are read. Next keeps your settings and your team, or keep your current rosters."
+      : "Replacing: " + (editing.name || "My league") + ". Your new rosters are read: Next confirms them, or keep your current league.";
     var line = $("replacing-line");
     if (line) { line.textContent = editing ? "Replacing: " + info.name : ""; line.hidden = !editing; }
   }

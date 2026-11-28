@@ -39,6 +39,8 @@ ROOT_PAGES = ("values.html", "learn.html", "build.html",
               "settings.html", "ai.html", "compare.html",
               # JEG-1538: the entry pages; connect.html reads pasted rosters against the engine's player rows.
               "connect.html", "setup.html",
+              # JEG-1740: Edit teams, change rosters by hand after setup (and paste again).
+              "teams.html",
               # Source freshness: reads modules/comparison-chain-status.json, no engine.
               "freshness.html")
 # A page gets the engine when its source carries the <!-- ddf-engine --> marker; ENGINE_PAGES must carry it.
@@ -68,7 +70,7 @@ ROOT_FILES = ("site.js", "styles.css", "players-table-1.json", "ddf-engine.js",
               "build-offer.js", "build-trade.js", "tradechart.js", "tradechart.css",
               "assets/howto/slides",
               # Entry pages (JEG-1538): paste reader, page scripts, league ID screenshots (actionbar.* listed above).
-              "rosterparse.js", "league-paste.js", "connect-entry.js", "setup-entry.js",
+              "rosterparse.js", "league-paste.js", "connect-entry.js", "setup-entry.js", "teams-entry.js",
               "img/league-id",
               # Sleeper import (JEG-1570): reads a public league from Sleeper's API in the browser.
               "sleeper-import.js",
