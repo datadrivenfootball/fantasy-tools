@@ -208,7 +208,8 @@
           el("span", {class: "pk-arrow", "aria-hidden": "true", text: "→"}),
           el("div", {class: "pk-side"}, el("small", {text: "You get"}), el("b", {text: t.get.map(function (p) { return p.name + " · " + p.pos; }).join(", ")}))),
         el("div", {class: "pk-meta"}, el("span", {class: "ptag", title: "Trading partner: " + t.partner_name}, "Trade with ", el("b", {text: t.partner_name})),
-          el("span", {class: "fit"}, "Their lineup ", isNum(t.their_total) ? pts(t.their_total) + " over the weeks left" : na("A starter of theirs has no projection in one of the weeks left"))),
+          el("span", {class: "fit"}, "Their lineup ", isNum(t.their_total) ? pts(t.their_total) + " over the weeks left" : na("A starter of theirs has no projection in one of the weeks left")),
+          t.market ? el("span", {class: "fit", title: "Public trade charts (Market) that call it even or better for them: " + (t.market.names || []).join(", ")}, t.market.agree + " of " + t.market.total + " trade charts: even or better for them") : null),
         flag, tradeChips(t, imp)),
       headline(t, "trade"),
       href ? el("div", {class: "pk-act"}, el("a", {class: "button", href: href}, "Build a Trade ", el("span", {class: "arr", "aria-hidden": "true", text: "→"}))) : null);
@@ -248,8 +249,8 @@
     box.textContent = "";
     var trades = state.rec.trades;
     box.appendChild(el("h3", {}, "Trades, one for one ", el("small", {class: "cnt", text: String(trades.length)})));
-    if (!trades.length) { box.appendChild(el("p", {class: "empty", text: "No one-for-one swap adds 2 points or more to your lineups over the weeks left without costing the other team more than a point."})); return; }
-    box.appendChild(el("p", {class: "def", text: "Your best lineups gain 2 points or more over the weeks left, and theirs lose no more than 1. K and DEF are left out."}));
+    if (!trades.length) { box.appendChild(el("p", {class: "empty", text: "No one-for-one swap adds 2 points or more to your lineups over the weeks left, costs the other team no more than a point, and gets at least 2 public trade charts to call it even or better for them."})); return; }
+    box.appendChild(el("p", {class: "def", text: "Your best lineups gain 2 points or more over the weeks left, theirs lose no more than 1, and at least 2 of the public trade charts (CBS Sports, USA Today, FantasyPros, FantasyCalc) call it even or better for them, the live site's Natural fit bar for a trade they would take. K and DEF are left out." + (state.rec.trades_unchecked ? " " + state.rec.trades_unchecked + " other swaps were left out: they fail that test or a player has no trade chart value." : "")}));
     var cards = el("div", {class: "pkgs"});
     trades.slice(0, state.showAll.trades ? trades.length : CARDS_SHOWN).forEach(function (t) { cards.appendChild(tradeCard(t)); });
     box.appendChild(cards);
@@ -261,8 +262,31 @@
     p.textContent = "Sources. " + lines.join(" ") + " These panels use weekly projections only, never DDF Value." + (state.data.mock ? " Sample data: an invented league." : "");
     return p;
   }
+  /* Would they say yes? The live site's Natural fit bar: at least 2 public trade charts (Market: CBS Sports, USA Today,
+     FantasyPros, FantasyCalc) call the package even or better for them. Players the engine cannot price are not offered. */
+  var CHARTS = [["cbs", "CBS Sports"], ["usat", "USA Today"], ["fp", "FantasyPros"], ["fc", "FantasyCalc"]];
+  var MIN_CHARTS = 2; /* the live site's Natural fit bar: at least 2 public trade charts call it even or better for them */
+  function marketCheck() {
+    var S = window.DDFStaging, key = {};
+    ((S && S.matched && S.matched.teams) || []).forEach(function (tm) { (tm.players || []).forEach(function (p) { if (p.key) key[p.player_id] = p.key; }); });
+    var E = window.DDF && DDF.engine;
+    var rec = function (id) { return key[id] && E && E.player ? E.player(key[id]) : null; };
+    return function (t) {
+      var them = t.give.map(function (p) { return rec(p.player_id); }), us = t.get.map(function (p) { return rec(p.player_id); });
+      if (them.concat(us).some(function (r) { return !r; })) return {ok: false, unknown: true};
+      var agree = [], total = 0;
+      CHARTS.forEach(function (c) {
+        var a = them.map(function (r) { return r[c[0]]; }), b = us.map(function (r) { return r[c[0]]; });
+        if (a.concat(b).some(function (v) { return !isNum(v); })) return; // a chart that does not list a player is not judged
+        total++;
+        var sa = a.reduce(function (x, y) { return x + y; }, 0), sb = b.reduce(function (x, y) { return x + y; }, 0);
+        if (sa >= sb) agree.push(c[1]);
+      });
+      return {ok: agree.length >= MIN_CHARTS, agree: agree.length, total: total, names: agree};
+    };
+  }
   function compute() {
-    state.rec = W.recommendations(state.data.summary, state.data.weekly, state.plan.me.team_key, {plan: state.plan, sort: state.sort === "games" ? "games" : "points"});
+    state.rec = W.recommendations(state.data.summary, state.data.weekly, state.plan.me.team_key, {plan: state.plan, sort: state.sort === "games" ? "games" : "points", accept: marketCheck()});
   }
   function renderWeekly(sec, movesBox) {
     sec.textContent = "";

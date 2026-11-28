@@ -972,6 +972,12 @@
         });
       });
     });
+    // Would they say yes? A weekly-lineup gain for us means nothing if the partner would never take it. opts.accept(t)
+    // is the live site's acceptance gate (at least one public trade chart calls the package even or better for them,
+    // Market = trade tools); the page that has the charts passes it. Without it, trades are not offered at all.
+    var before = trades.length;
+    trades = typeof opts.accept !== "function" ? [] : trades.filter(function (t) { var m = opts.accept(t); t.market = m || null; return !!(m && !m.unknown && m.ok); });
+    var unchecked = before - trades.length; // left out: fails the acceptance test, or a player has no trade chart value
     var key = opts.sort === "games" ? "my_weighted" : "my_total";
     trades.sort(function (a, b) { return (b[key] || 0) - (a[key] || 0); });
     if (opts.sort === "games") adds.sort(function (a, b) { return (b.weighted_gain || 0) - (a.weighted_gain || 0); });
@@ -991,7 +997,7 @@
       adds.forEach(function (x) { if (isNum(x.weighted_gain)) x.weighted_gain = Math.round(x.weighted_gain * 100) / 100; });
       trades.forEach(function (x) { if (isNum(x.my_weighted)) x.my_weighted = Math.round(x.my_weighted * 100) / 100; });
     }
-    return {weeks: weeks, weight: weight, weight_unit: inDollars ? "$" : "points", adds: adds, trades: trades, moves_in_time: moves,
+    return {weeks: weeks, weight: weight, weight_unit: inDollars ? "$" : "points", adds: adds, trades: trades, trades_unchecked: unchecked, moves_in_time: moves,
       me: {faab: num(me.faab_remaining), waiver_priority: num(me.waiver_priority), faab_budget: num((summary.settings || {}).faab_budget)}};
   }
   function playsMe(summary, myKey, otherKey, weeks) {

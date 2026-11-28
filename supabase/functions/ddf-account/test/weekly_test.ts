@@ -460,3 +460,24 @@ Deno.test("payouts review: equal 3rd/4th pay both semifinal losers; playoff $/pt
   const sdd = Math.sqrt(2) * p2.spread.sd, dens = Math.exp(-0.5 * Math.pow(fin.margin / sdd, 2)) / (sdd * Math.sqrt(2 * Math.PI));
   assertAlmostEquals(fin.dollars_per_point, fin.reach * fin.stake.dollars * dens, 0.02);
 });
+
+Deno.test("trades: offered only when the partner could accept (the live trade-chart gate), and the top move follows", async () => {
+  const lg = league();
+  lg.teams[0].roster.push(p(121, "QB1b", "QB", "KC")); // a bench QB I do not need (23 a week)
+  lg.teams[1].roster.push(p(224, "RB2c", "RB", "BUF")); // a bench RB they do not need (15.4 a week, beats my flex)
+  lg.teams[1].roster.push(p(232, "WR2d", "WR", "BUF")); // their flex (16.5) even in the week their MIA players are on bye
+  const wk = await buildWeekly(lg, deps(lg));
+  const plan = W.plan(lg, wk, { runs: 500 });
+  assertEquals(W.recommendations(lg, wk, "470.l.1.t.1", { plan }).trades, []); // no gate, no trade ideas
+  // a gate that accepts only when they get a QB: everything else is out, and the trade line in the moves uses what is left
+  const accept = (t: { give: { pos: string }[] }) => ({ ok: t.give[0].pos === "QB", agree: t.give[0].pos === "QB" ? 1 : 0, total: 4, names: [] });
+  const r = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept });
+  assert(r.trades.every((t: { give: { pos: string }[]; market: { ok: boolean } }) => t.give[0].pos === "QB" && t.market.ok));
+  const all = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept: () => ({ ok: true, agree: 4, total: 4, names: [] }) });
+  assert(all.trades.some((t: { give: { name: string }[] }) => t.give[0].name === "QB1b"), "the spare QB is offered when the gate allows it");
+  assert(r.trades.length > 0 && r.trades.length <= all.trades.length, r.trades.length + " " + all.trades.length);
+  assertEquals(all.moves_in_time.filter((m: { kind: string }) => m.kind === "trade").length, lg.settings.trade_deadline.date ? 1 : 0);
+  const unknown = W.recommendations(lg, wk, "470.l.1.t.1", { plan, accept: () => ({ unknown: true }) });
+  assertEquals(unknown.trades, []);
+  assert(unknown.trades_unchecked > 0);
+});
