@@ -408,7 +408,7 @@
       // the bracket, one round per playoff week; with a 3rd-place payout, the semifinal losers play for it in the last week
       if (bp && poWeeks.length >= bp.rounds.length) {
         var bySeed = {}; order.forEach(function (k, i) { bySeed[i + 1] = k; });
-        var prev = [], prevLosers = [], runner = null, third = null, fourth = null, myPo = [];
+        var prev = [], prevLosers = [], runner = null, third = null, fourth = null, myPo = [], elimPlace = null;
         var lastR = bp.rounds.length - 1;
         bp.rounds.forEach(function (round, ri) {
           var w = poWeeks[ri], next = [], losers = [];
@@ -427,7 +427,12 @@
               if (win === meKey) poWin[w]++;
               myPo.push({w: w, won: win === meKey});
             }
-            if (gm[2] === "main") { next.push(win); losers.push(lose); if (ri === lastR) runner = lose; }
+            if (gm[2] === "main") {
+              next.push(win); losers.push(lose);
+              if (ri === lastR) runner = lose;
+              // a loser before the final finishes just below the teams still alive (2 per game next round): 3rd, 5th, ...
+              else if (lose === meKey) elimPlace = 2 * bp.rounds[ri + 1].length + 1;
+            }
             else { third = win; fourth = lose; }
           });
           prev = next; prevLosers = losers;
@@ -435,7 +440,7 @@
         titleBy[prev[0]]++;
         if (prev[0] === meKey) acc.title++;
         var tWon = prev[0] === meKey, rWon = runner === meKey;
-        var place = tWon ? 1 : rWon ? 2 : third === meKey ? 3 : fourth === meKey ? 4 : null;
+        var place = tWon ? 1 : rWon ? 2 : third === meKey ? 3 : fourth === meKey ? 4 : elimPlace; // no 3rd-place game: semifinal losers tie for 3rd
         // money from where I finish (league payouts), plus a best-record prize if the league pays one
         var money = places ? (place ? (places[place] || 0) : 0) + (isNum(payouts.best_record) && mySeed === 1 ? payouts.best_record : 0) : null;
         if (money !== null) acc.money += money;
@@ -573,7 +578,9 @@
       // high-score payout times how much a point moves the chance of the week's top score (Portfolio Value in $/pt)
       if (places) {
         var sdM = sdOf[meKey][w], sdO = oppKey ? sdOf[oppKey][w] : sd, sdd = Math.sqrt(sdM * sdM + sdO * sdO);
-        var lg = isNum(g.stake.dollars) && isNum(g.margin) ? g.stake.dollars * Math.exp(-0.5 * Math.pow(g.margin / sdd, 2)) / (sdd * Math.sqrt(2 * Math.PI)) : null;
+        var reach = phase === "playoffs" ? (poAlive[w] || 0) / acc.n : 1; // the stake is conditional on playing the game; $/pt is not
+        g.reach = r3(reach);
+        var lg = isNum(g.stake.dollars) && isNum(g.margin) ? reach * g.stake.dollars * Math.exp(-0.5 * Math.pow(g.margin / sdd, 2)) / (sdd * Math.sqrt(2 * Math.PI)) : null;
         var lh = hsWeekPays(w) ? payouts.high_score_week * hsSlope(w) : 0;
         g.dollars_per_point = lg === null && !lh ? null : Math.round(((lg || 0) + lh) * 100) / 100;
       }

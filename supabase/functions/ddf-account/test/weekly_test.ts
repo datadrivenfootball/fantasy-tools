@@ -441,3 +441,22 @@ Deno.test("payouts (USO, from league emails): places 1-4, a 3rd-place game, high
   assert(p.games.find((g: { week: number }) => g.week === 15).high_score.no_payout); // weeks after 14 pay no high score here
   assert(/Payouts \(from league emails, 2024-25\): 1st \$450, 2nd \$300, 3rd \$200, 4th \$100/.test(p.sources.join(" ")), p.sources.join(" "));
 });
+
+Deno.test("payouts review: equal 3rd/4th pay both semifinal losers; playoff $/pt scales by the chance to reach the game", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300, 3: 100, 4: 100 }, high_score_week: 50, high_score_through_week: 14 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  assert(p.money.expected >= 100, String(p.money.expected)); // all four teams make it: nobody can finish with $0
+  const semi = p.games.find((g: { week: number }) => g.week === 15);
+  assert(semi.stake.dollars <= 350, String(semi.stake.dollars)); // final ($300-450) v a tied 3rd ($100)
+  // the second team in a 2-team bracket reaches the final only some of the time: its playoff points are worth the stake times that chance
+  const lg2 = league();
+  (lg2.settings as Record<string, unknown>).playoff_teams = 2;
+  (lg2.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300 } };
+  const p2 = W.plan(lg2, await buildWeekly(lg2, deps(lg2)), { runs: 3000, myTeamKey: "470.l.1.t.2" });
+  const fin = p2.games.find((g: { week: number }) => g.week === 15);
+  assert(fin.reach > 0.05 && fin.reach < 0.95, String(fin.reach));
+  const sdd = Math.sqrt(2) * p2.spread.sd, dens = Math.exp(-0.5 * Math.pow(fin.margin / sdd, 2)) / (sdd * Math.sqrt(2 * Math.PI));
+  assertAlmostEquals(fin.dollars_per_point, fin.reach * fin.stake.dollars * dens, 0.02);
+});
