@@ -152,7 +152,7 @@ Deno.test("planner: games, wins distribution, bracket, goals and moves", async (
   // all four teams make a 4-spot bracket, so week 13 cannot move the playoff odds: it is about the seed
   assertEquals(plan.sim.playoff_p, 1);
   assertEquals(g13.stake.playoffs, 0);
-  assertEquals(g13.type, null); // game types are off the page until JEG-1737 defines them
+  assert(["seed_game", "free"].includes(g13.type), g13.type); // labels stay, with the stake beside them (Jeremy, 2026-11-27)
   assert(!g13.goals.includes("playoffs"));
   assert(g13.moves.some((m: { kind: string }) => m.kind === "add"), "FA WR (16) beats the team's WRc in week 13");
   assert(g13.moves.some((m: { kind: string; text: string }) => m.kind === "add" && m.text === "Add FA K (K, 12.0); drop K1"), "FA K 12 beats K1 8, and K1 is then the free drop");
@@ -350,4 +350,32 @@ Deno.test("every staging page script parses", async () => {
     const src = await Deno.readTextFile(new URL(f.name, dir));
     try { new Function(src); } catch (e) { throw new Error(f.name + ": " + (e as Error).message); }
   }
+});
+
+Deno.test("JEG-1737 rule A: an opponent keeps his set lineup with holes filled; Yahoo only this week; stakes priced", async () => {
+  const lg = league();
+  // Team 2 (week 13 opponent) has a bye RB in his set flex slot: MIA on bye in week 14 is RB2b (slot W/R/T)
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 2000, payouts: { title: 500, high_score_week: 50 } });
+  const g14 = p.games.find((g: { week: number }) => g.week === 14); // v Team 3
+  const theirs = g14.theirs;
+  assertEquals(theirs.rule, "set_filled");
+  // Team 3's set lineup: RB3b (MIA, bye wk14) in W/R/T is a hole; his best bench player for the flex is WR3c (MIA, bye) -> empty?
+  const flex = theirs.starters.find((x: { slot: string }) => x.slot === "W/R/T");
+  assert(flex.player_id === null || flex.name !== "RB3b", "a bye starter is replaced");
+  assert(theirs.filled.some((f: { slot: string; out: string }) => f.slot === "W/R/T" && f.out === "RB3b"));
+  // set lineup, holes filled, never better than the best lineup
+  const best = W.teamWeek(lg, wk, lg.teams[2].roster, 14);
+  assert(theirs.total <= best.total + 1e-9);
+  // Yahoo's number only for the current week (13)
+  assertEquals(p.games[0].win.yahoo, 0.66);
+  assertEquals(g14.win.yahoo, null);
+  assertEquals(g14.yahoo_proj, null);
+  // stakes: dollars for the title (payout given), points of title odds for best record (no payout)
+  const s13 = p.games[0].stake;
+  assert(typeof s13.dollars === "number" && /\$/.test(s13.text), s13.text);
+  assertEquals(s13.unpriced, ["runner_up", "best_record"]);
+  assertAlmostEquals(p.games[0].high_score.expected_dollars, 50 * p.games[0].high_score.chance, 0.01);
+  // a playoff game has a stake too (title and runner-up)
+  assert(p.games.filter((g: { phase: string }) => g.phase === "playoffs").some((g: { stake: { dollars: number | null } }) => typeof g.stake.dollars === "number"));
 });

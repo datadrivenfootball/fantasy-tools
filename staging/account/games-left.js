@@ -208,12 +208,12 @@
       plan.win_note ? el("p", {class: "fine gl-how", text: plan.win_note}) : null);
     var table = el("table", {class: "gl-games"}, el("thead", {}, el("tr", {},
       el("th", {scope: "col", text: "Wk"}), el("th", {scope: "col", text: "Opponent"}), el("th", {scope: "col", text: "You – them"}), el("th", {scope: "col", text: "Win chance"}),
-      el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
+      el("th", {scope: "col", text: "Game"}), el("th", {scope: "col", text: "Moves"}), el("th", {scope: "col"}, el("span", {class: "sr", text: "Lineups"})))));
     [["regular", "Regular season"], ["playoffs", "Playoffs"]].forEach(function (ph) {
       var games = (plan.games || []).filter(function (g) { return (g.phase || "regular") === ph[0]; });
       if (!games.length) return;
       var body = el("tbody");
-      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "6", scope: "rowgroup", text: ph[1]})));
+      body.appendChild(el("tr", {class: "phase"}, el("th", {colspan: "7", scope: "rowgroup", text: ph[1]})));
       games.forEach(function (g) { gameRows(plan, g, goalLabel).forEach(function (r) { body.appendChild(r); }); });
       table.appendChild(body);
     });
@@ -247,12 +247,18 @@
 
     var winCell = el("td", {class: "win"}, lab("Win chance"),
       el("div", {class: "big"}, pct(win.ddf, g.theirs ? "No DDF win chance for this game" : "No DDF win chance until the opponent is known")),
-      el("small", {text: "From weekly projections"}),
-      el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo's number"));
+      el("small", {text: "Sim · from weekly projections"}),
+      /* Yahoo's number for the current week only (Jeremy, 2026-11-27): later weeks it projects lineups as they sit today */
+      g.week === plan.league.current_week ? el("div", {class: "yh"}, el("b", {}, pct(win.yahoo, why || "Yahoo has no win chance for this game yet")), " Yahoo's number") : null);
+    var st0 = g.stake || {};
+    var labelCell = el("td", {class: "typ"}, lab("Game"),
+      g.type ? el("span", {class: "type " + (TYPES[g.type] ? g.type : "free"), text: TYPES[g.type] || g.type}) : null,
+      st0.text ? el("small", {class: "stake", title: (st0.unpriced || []).length ? "Payouts not set yet (" + st0.unpriced.join(", ").replace(/_/g, " ") + ") count as points of title odds: 1 = one point of title chance, best record = 20." : "", text: st0.text}) : null);
 
     /* goals live in the header (Jeremy, 2026-11-27); the week's high-score chance moves to the opened row */
     var hsLine = el("span", {}, "Weekly high score: ", hs ? pct(hs.chance, "No high-score chance for this week") : na("No high-score chance for this week"));
     if (hs && isNum(hs.my_rank)) hsLine.appendChild(document.createTextNode(" · you project " + ordinal(hs.my_rank) + (isNum(hs.of) ? " of " + hs.of : "")));
+    if (hs && isNum(hs.expected_dollars)) hsLine.appendChild(document.createTextNode(" · worth $" + hs.expected_dollars.toFixed(2) + " expected"));
 
     var movesCell = el("td", {class: "moves" + ((g.moves || []).length ? "" : " none")});
     if ((g.moves || []).length) {
@@ -269,7 +275,7 @@
     var btn = el("button", {type: "button", class: "gl-toggle", "aria-expanded": "false", "aria-controls": id}, el("span", {class: "lbl", text: "Show both lineups, week " + g.week}));
     var row = el("tr", {class: "game"},
       el("td", {class: "wk"}, el("small", {text: "Wk"}), String(g.week)), oppCell, line, winCell,
-      movesCell, el("td", {class: "tog"}, btn));
+      labelCell, movesCell, el("td", {class: "tog"}, btn));
 
     var facts = el("p", {class: "gl-detail-facts"}, hsLine);
     if (hs && hs.top) facts.appendChild(el("span", {}, "Projected top score: ", el("b", {text: (hs.top.name || "—") + " "}), el("b", {class: "mono"}, one(hs.top.total))));
@@ -279,7 +285,7 @@
     var stakes = [isNum(st.playoffs) ? "playoff odds " + pts(st.playoffs) : null, isNum(st.seed) ? (st.seed_basis || "seed") + " odds " + pts(st.seed) : null,
       isNum(st.top_seed) && st.seed_basis !== "1st seed" ? "1st seed odds " + pts(st.top_seed) : null].filter(Boolean);
     if (stakes.length) facts.appendChild(el("span", {}, "A win instead of a loss: ", el("b", {text: stakes.join(", ")})));
-    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "6"}, facts.childNodes.length ? facts : null,
+    var detail = el("tr", {class: "detail", id: id, hidden: ""}, el("td", {colspan: "7"}, facts.childNodes.length ? facts : null,
       el("div", {class: "gl-lineups"}, renderLineup(g.mine, "Your lineup", "No lineup for your team this week."),
         renderLineup(g.theirs, opp ? opp.name : "Their lineup", g.opp_note || "The opponent is not known yet, so there is no lineup to show."))));
 
