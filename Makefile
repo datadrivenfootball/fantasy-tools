@@ -154,6 +154,11 @@ test-unit-modules:
 	python3 -m unittest tests.test_draft_vegas_paste
 	python3 -m unittest tests.test_draft_auction_paste
 	python3 -m unittest tests.test_draft_outcome
+	# JEG-1667 Phase 1: draft tool core (worked example through the board state, link round trip, stale rule; node),
+	# league import (JEG-1672; node) and the page (keyboard mock auction, recompute under 200 ms; headless browser).
+	python3 -m unittest tests.test_draft_core
+	python3 -m unittest tests.test_draft_league
+	python3 -m unittest tests.test_draft_app_render
 	# JEG-1543: the answers version shows no source name or source number and the same DDF Value (needs dist/answers).
 	python3 -m unittest tests.test_answers_site
 	# JEG-1334: fractional flex and bench seats helper (option B, JEG-1286).

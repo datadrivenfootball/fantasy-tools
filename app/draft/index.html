@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<title>DDF · Auction draft</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="draft.css">
+</head>
+<body>
+<header class="site"><div class="header-inner">
+  <div class="brand">DDF<small>AUCTION DRAFT</small></div>
+  <nav class="tabs" aria-label="Draft tool screens">
+    <button type="button" data-view="board" aria-pressed="true">Board</button>
+    <button type="button" data-view="values" aria-pressed="false">Values</button>
+    <button type="button" data-view="roster" aria-pressed="false">My roster</button>
+    <button type="button" data-view="setup" aria-pressed="false">Setup</button>
+  </nav>
+  <div class="header-right">
+    <button type="button" id="save-link">Copy link</button>
+    <button type="button" id="help-open" aria-label="Keyboard help">?</button>
+  </div>
+</div></header>
+<main id="app" aria-live="polite"><p class="muted">Loading draft data…</p></main>
+<footer class="credits" id="credits"></footer>
+<dialog id="help">
+  <h2>Keyboard</h2>
+  <div class="keys">
+    <span><kbd>↑</kbd> <kbd>↓</kbd></span><span>Move through players (<kbd>PgUp</kbd> <kbd>PgDn</kbd> by ten)</span>
+    <span><kbd>/</kbd></span><span>Search by name; <kbd>Enter</kbd> picks the first match, <kbd>Esc</kbd> clears</span>
+    <span><kbd>0</kbd>-<kbd>9</kbd></span><span>Type the current bid (<kbd>+</kbd> <kbd>-</kbd> step it, <kbd>Backspace</kbd> erases)</span>
+    <span><kbd>W</kbd></span><span>Bid walk-away</span>
+    <span><kbd>P</kbd></span><span>Bid push floor</span>
+    <span><kbd>M</kbd></span><span>My buy at the current bid</span>
+    <span><kbd>S</kbd></span><span>Sold at the current bid, then the buyer's letter</span>
+    <span><kbd>U</kbd></span><span>Undo the last sale</span>
+    <span><kbd>B</kbd> <kbd>V</kbd> <kbd>R</kbd> <kbd>L</kbd></span><span>Board, Values, My roster, Setup (league)</span>
+    <span><kbd>?</kbd></span><span>This help</span>
+  </div>
+  <p class="small muted">Walk-away is the most we pay. Push floor is as high as we bid to make a rival pay; above it no rival can top us. Buy limit is what he is worth to our roster as it stands.</p>
+  <div class="row" style="margin-top:12px"><button type="button" class="primary" id="help-close">Close</button></div>
+</dialog>
+<script src="../trade-value-chart/assets/value-model.js"></script>
+<script src="draft-engine.js"></script>
+<script src="draft-data.js"></script>
+<script src="draft-core.js"></script>
+<script src="../v2/roster-paste.js"></script>
+<script src="../next/rosterparse.js"></script>
+<script src="../next/league-paste.js"></script>
+<script src="draft-league.js"></script>
+<script src="draft-app.js"></script>
+<script>DraftApp.init();</script>
+</body>
+</html>

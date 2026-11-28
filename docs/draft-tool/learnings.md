@@ -12,3 +12,6 @@ Methods tried, what held, what failed. One line each, newest last.
 - Vegas season lines sit 7-19% below FantasyPros 2026 projections by market (median line / projection; the scale factors are 1.07-1.24); scaling them to the projection level cut the keeper-room error $6.5 to $5.6 (2026-11-27).
 - The market position split (two passes: chart weights, then `position_shares`) was tried and lost the 2026 outcome test against realized value; Jeremy chose the projection split (2026-11-27).
 - Rooms pay closer to the market; realized 2026 value lands closer to ours (outcome test, `tools/draft_outcome.mjs`) (2026-11-27).
+- A tier rule on the gap to the next player (new tier at a $2 or 15% drop) put 30 RBs in tier 1 on 2026 prices; bands off each tier's best player ($3 or 20%) give 6 to 10 usable tiers (Phase 1, 2026-11-28).
+- Projection rows have no name and `public.players` is not public, so a client-side page needs a published name table or a public view (Phase 1, 2026-11-28).
+- ESPN, Yahoo and Sleeper settings pages all need a sign-in, so real settings-page fixtures can only come from Jeremy's own paste (Phase 1, 2026-11-28).
