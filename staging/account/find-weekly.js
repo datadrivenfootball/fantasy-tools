@@ -250,7 +250,7 @@
     var trades = state.rec.trades;
     box.appendChild(el("h3", {}, "Trades, one for one ", el("small", {class: "cnt", text: String(trades.length)})));
     if (!trades.length) { box.appendChild(el("p", {class: "empty", text: "No one-for-one swap adds 2 points or more to your lineups over the weeks left, costs the other team no more than a point, and gets at least 2 public trade charts to call it even or better for them."})); return; }
-    box.appendChild(el("p", {class: "def", text: "Your best lineups gain 2 points or more over the weeks left, theirs lose no more than 1, and at least 2 of the public trade charts (CBS Sports, USA Today, FantasyPros, FantasyCalc) call it even or better for them, the live site's Natural fit bar for a trade they would take. K and DEF are left out." + (state.rec.trades_unchecked ? " " + state.rec.trades_unchecked + " other swaps were left out: they fail that test or a player has no trade chart value." : "")}));
+    box.appendChild(el("p", {class: "def", text: "Your best lineups gain 2 points or more over the weeks left, theirs lose no more than 1, and at least 2 of the live public trade charts call it even or better for them (within the live site's even band), its Natural fit bar for a trade they would take. K and DEF are left out." + (state.rec.trades_unchecked ? " " + state.rec.trades_unchecked + " other swaps were left out: they fail that test or a player has no trade chart value." : "")}));
     var cards = el("div", {class: "pkgs"});
     trades.slice(0, state.showAll.trades ? trades.length : CARDS_SHOWN).forEach(function (t) { cards.appendChild(tradeCard(t)); });
     box.appendChild(cards);
@@ -262,25 +262,31 @@
     p.textContent = "Sources. " + lines.join(" ") + " These panels use weekly projections only, never DDF Value." + (state.data.mock ? " Sample data: an invented league." : "");
     return p;
   }
-  /* Would they say yes? The live site's Natural fit bar: at least 2 public trade charts (Market: CBS Sports, USA Today,
-     FantasyPros, FantasyCalc) call the package even or better for them. Players the engine cannot price are not offered. */
-  var CHARTS = [["cbs", "CBS Sports"], ["usat", "USA Today"], ["fp", "FantasyPros"], ["fc", "FantasyCalc"]];
-  var MIN_CHARTS = 2; /* the live site's Natural fit bar: at least 2 public trade charts call it even or better for them */
+  /* Would they say yes? The live site's own test (app/v2/finder.js judgeSums + find-engine context().gate): on each live
+     trade chart (Market; a chart on hold is not counted), the side you get may beat the side you give by no more than the
+     even band, max(1, 3% of the average side). The Natural fit bar: at least 2 live charts agree. A player a chart does not
+     price leaves that chart out; a player the engine cannot price is not offered. */
+  var CHART_FIELD = {cbs: ["cbs", "CBS Sports"], usatoday: ["usat", "USA Today"], fantasypros: ["fp", "FantasyPros"], fantasycalc: ["fc", "FantasyCalc"]};
+  var MIN_CHARTS = 2;
   function marketCheck() {
     var S = window.DDFStaging, key = {};
     ((S && S.matched && S.matched.teams) || []).forEach(function (tm) { (tm.players || []).forEach(function (p) { if (p.key) key[p.player_id] = p.key; }); });
     var E = window.DDF && DDF.engine;
+    var ctx = window.DDF && DDF.find && DDF.find.context ? DDF.find.context() : null;
+    var gate = (ctx && ctx.gate && ctx.gate.length ? ctx.gate : Object.keys(CHART_FIELD)).filter(function (k) { return CHART_FIELD[k]; });
     var rec = function (id) { return key[id] && E && E.player ? E.player(key[id]) : null; };
+    var band = function (a, b) { return Math.max(1, 0.03 * ((a + b) / 2)); };
     return function (t) {
-      var them = t.give.map(function (p) { return rec(p.player_id); }), us = t.get.map(function (p) { return rec(p.player_id); });
-      if (them.concat(us).some(function (r) { return !r; })) return {ok: false, unknown: true};
+      var give = t.give.map(function (p) { return rec(p.player_id); }), get = t.get.map(function (p) { return rec(p.player_id); });
+      if (give.concat(get).some(function (r) { return !r; })) return {ok: false, unknown: true};
       var agree = [], total = 0;
-      CHARTS.forEach(function (c) {
-        var a = them.map(function (r) { return r[c[0]]; }), b = us.map(function (r) { return r[c[0]]; });
-        if (a.concat(b).some(function (v) { return !isNum(v); })) return; // a chart that does not list a player is not judged
+      gate.forEach(function (k) {
+        var f = CHART_FIELD[k][0];
+        var g = give.map(function (r) { return r[f]; }), r = get.map(function (x) { return x[f]; });
+        if (g.concat(r).some(function (v) { return !isNum(v); })) return; // not priced on this chart: not judged
         total++;
-        var sa = a.reduce(function (x, y) { return x + y; }, 0), sb = b.reduce(function (x, y) { return x + y; }, 0);
-        if (sa >= sb) agree.push(c[1]);
+        var sg = g.reduce(function (x, y) { return x + y; }, 0), sr = r.reduce(function (x, y) { return x + y; }, 0), net = sr - sg;
+        if (Math.abs(net) < band(sg, sr) || net <= 0) agree.push(CHART_FIELD[k][1]); // even or better for them
       });
       return {ok: agree.length >= MIN_CHARTS, agree: agree.length, total: total, names: agree};
     };

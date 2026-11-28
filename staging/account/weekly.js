@@ -973,8 +973,8 @@
       });
     });
     // Would they say yes? A weekly-lineup gain for us means nothing if the partner would never take it. opts.accept(t)
-    // is the live site's acceptance gate (at least one public trade chart calls the package even or better for them,
-    // Market = trade tools); the page that has the charts passes it. Without it, trades are not offered at all.
+    // is the live site's acceptance test (Find passes its Natural fit bar: at least 2 live public trade charts call the
+    // package even or better for them, Market = trade tools). Without it, trades are not offered at all.
     var before = trades.length;
     trades = typeof opts.accept !== "function" ? [] : trades.filter(function (t) { var m = opts.accept(t); t.market = m || null; return !!(m && !m.unknown && m.ok); });
     var unchecked = before - trades.length; // left out: fails the acceptance test, or a player has no trade chart value
