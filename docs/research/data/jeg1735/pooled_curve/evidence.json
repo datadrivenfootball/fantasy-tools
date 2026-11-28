@@ -1,0 +1,1375 @@
+{
+ "as_of": "2026-11-27",
+ "config": {
+  "version": 1,
+  "note": "One row per ranker. Add a ranker = add a row (and make sure its list reaches ros_rankings or the same-shaped snapshot). EDDF is off by default (JEG-1735). `group` is the publisher whose lists share one vote under the optional site_once variant (default per_expert: every list its own vote). Rows with candidate:true are study-only (Jeremy, 2026-11-28) and stay enabled:false until the consensus study decides. stale_weekday 1 = Tuesday: a list is fresh only if updated on or after the most recent Tuesday (Jeremy, 2026-11-27); stale_days stays as a backstop. rescale_to_ddf_total: EDDF is multiplied by one factor so its league total equals DDF Value's (Jeremy, 2026-11-28). Enabled 2026-11-28 (Jeremy): cand-razzball (all three scorings), cand-rotoballer (half_ppr, ppr), cand-stm (ppr). Still disabled: cand-fanduel (needs a stated scoring and an update date on the page; the page states neither on 2026-11-27), cand-rsj-wolf (duplicate of fp-wolf-of-roto-street), cand-footballguys-qb (QBs only), cand-gwttkb (stale on the Tuesday rule; re-check after the next Tuesday reset). A source is simply absent in a scoring it does not list.",
+  "stale_days": 14,
+  "anchor_weeks": 3,
+  "anchor_stability": 0.1,
+  "anchor_floor_frac": 0.05,
+  "min_anchors": 8,
+  "exclude_positions": [
+   "QB"
+  ],
+  "stale_weekday": 1,
+  "rescale_to_ddf_total": true
+ },
+ "scorings": {
+  "ppr": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "charts_excluded": {
+    "fantasypros": "held: fidelity: publisher_vs_stored"
+   },
+   "weeks": [
+    12,
+    11,
+    10
+   ],
+   "report": {
+    "scoring": "ppr",
+    "as_of": "2026-11-27",
+    "anchors": 520,
+    "rankers": [
+     {
+      "id": "fp-aaron-st-denis",
+      "in": false,
+      "reason": "stale: list updated 2026-11-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-andrew-erickson",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-brad-beatson",
+      "in": false,
+      "reason": "stale: list updated 2026-09-26, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-chris-dell",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "fp-david-heilman",
+      "in": false,
+      "reason": "stale: list updated 2026-11-07, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-derek-brown",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-james-emrick-wilson",
+      "in": false,
+      "reason": "stale: list updated 2026-11-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jeff-boggis",
+      "in": false,
+      "reason": "stale: list updated 2026-09-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jonathan-stone",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-justin-fuhr",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-kelly-smelser",
+      "in": false,
+      "reason": "stale: list updated 2026-09-17, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kev-wheeler",
+      "in": false,
+      "reason": "stale: list updated 2026-11-18, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kyle-yates",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-matheus-chaves",
+      "in": false,
+      "reason": "stale: list updated 2026-10-01, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-mike-maher",
+      "in": false,
+      "reason": "stale: list updated 2026-11-19, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-owen-maccarrick",
+      "in": false,
+      "reason": "stale: list updated 2026-09-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-pat-fitzmaurice",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-ryan-linkletter",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-tal-malachovsky",
+      "in": false,
+      "reason": "stale: list updated 2026-11-21, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-ted-chmyz",
+      "in": false,
+      "reason": "stale: list updated 2026-09-23, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-wolf-of-roto-street",
+      "in": false,
+      "reason": "no ppr list in the registry"
+     },
+     {
+      "id": "cand-rsj-wolf",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-rotoballer",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "cand-gwttkb",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-razzball",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "cand-fanduel",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-stm",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "cand-footballguys-qb",
+      "in": false,
+      "reason": "disabled in the registry"
+     }
+    ],
+    "charts": [
+     "cbs",
+     "fantasycalc",
+     "usatoday"
+    ],
+    "variant": "per_expert",
+    "rescale": {
+     "factor": 0.993191516161843,
+     "ddf_total": 2352.0,
+     "raw_total": 2368.123329415085
+    },
+    "chart_weight_share": 0.21428571428571427,
+    "exclude_positions": [
+     "QB"
+    ]
+   },
+   "coverage": {
+    "ddf": {
+     "priced": 669,
+     "one_source": 0,
+     "three_plus": 669
+    },
+    "eddf": {
+     "priced": 674,
+     "one_source": 1,
+     "three_plus": 671
+    },
+    "eddf_only_priced_by_rankers": 5
+   },
+   "loo": {
+    "QB excluded (default)": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.8997219962576032,
+      "rho_eddf": 0.8129359895722965,
+      "mae_ddf": 0.8363586468986123,
+      "mae_eddf": 0.9962273667679623,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9006368227474397,
+      "ranked_rho_eddf": 0.824225532432546,
+      "ranked_mae_ddf": 1.0981195417450322,
+      "ranked_mae_eddf": 1.3202443872967033,
+      "top_n": 54,
+      "top_rho_ddf": 0.8752264203049122,
+      "top_rho_eddf": 0.8278715427610784,
+      "top_mae_ddf": 6.503273064147697,
+      "top_mae_eddf": 7.319427737233305
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9104845577820962,
+      "rho_eddf": 0.8030329212324853,
+      "mae_ddf": 0.6253699324688702,
+      "mae_eddf": 0.7804434497059819,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9165874394759735,
+      "ranked_rho_eddf": 0.8260446220769666,
+      "ranked_mae_ddf": 0.7795244958257724,
+      "ranked_mae_eddf": 0.9970707064353184,
+      "top_n": 46,
+      "top_rho_ddf": 0.9044094973789701,
+      "top_rho_eddf": 0.8796176379895159,
+      "top_mae_ddf": 4.321599866362189,
+      "top_mae_eddf": 5.198825676410829
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9151957303240761,
+      "rho_eddf": 0.8061424782849098,
+      "mae_ddf": 0.7525225320720229,
+      "mae_eddf": 0.7758787156096507,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9204619556282312,
+      "ranked_rho_eddf": 0.8226400552031508,
+      "ranked_mae_ddf": 0.9901248178937804,
+      "ranked_mae_eddf": 1.0139161145505546,
+      "top_n": 34,
+      "top_rho_ddf": 0.8624724921868246,
+      "top_rho_eddf": 0.8380095248494923,
+      "top_mae_ddf": 6.684593678421397,
+      "top_mae_eddf": 6.7562240698932055
+     }
+    ],
+    "QB included": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.8997219962576032,
+      "rho_eddf": 0.7846345492102086,
+      "mae_ddf": 0.8363586468986123,
+      "mae_eddf": 1.0862582752695178,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9006368227474397,
+      "ranked_rho_eddf": 0.8133198317134441,
+      "ranked_mae_ddf": 1.0981195417450322,
+      "ranked_mae_eddf": 1.3659531364522766,
+      "top_n": 54,
+      "top_rho_ddf": 0.8752264203049122,
+      "top_rho_eddf": 0.80857881487285,
+      "top_mae_ddf": 6.503273064147697,
+      "top_mae_eddf": 7.9267644328226305
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9104845577820962,
+      "rho_eddf": 0.7933512029412869,
+      "mae_ddf": 0.6253699324688702,
+      "mae_eddf": 0.7831455249044716,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9165874394759735,
+      "ranked_rho_eddf": 0.8256044231255845,
+      "ranked_mae_ddf": 0.7795244958257724,
+      "ranked_mae_eddf": 0.9662185044117652,
+      "top_n": 46,
+      "top_rho_ddf": 0.9044094973789701,
+      "top_rho_eddf": 0.9089731729879741,
+      "top_mae_ddf": 4.321599866362189,
+      "top_mae_eddf": 4.857628775309209
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9151957303240761,
+      "rho_eddf": 0.7840598829359748,
+      "mae_ddf": 0.7525225320720229,
+      "mae_eddf": 0.81911697379758,
+      "ranked_n": 479,
+      "ranked_rho_ddf": 0.9204619556282312,
+      "ranked_rho_eddf": 0.8173636900723089,
+      "ranked_mae_ddf": 0.9901248178937804,
+      "ranked_mae_eddf": 1.01937600439883,
+      "top_n": 34,
+      "top_rho_ddf": 0.8624724921868246,
+      "top_rho_eddf": 0.8429021183169588,
+      "top_mae_ddf": 6.684593678421397,
+      "top_mae_eddf": 6.902140746059328
+     }
+    ]
+   },
+   "robustness": {
+    "drop": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "n": 669,
+       "mae": 0.27878621563287076,
+       "rho": 0.9735329880400521
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.3228203102716453,
+       "rho": 0.9764472301377343
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "n": 669,
+       "mae": 0.2084566441562901,
+       "rho": 0.9853920904124667
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.16008955962584137,
+       "rho": 0.9956509113503174
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "n": 669,
+       "mae": 0.25084084402400764,
+       "rho": 0.9750302872628591
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.23860597009630546,
+       "rho": 0.990573341666555
+      }
+     }
+    ],
+    "scramble": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "mae": 2.095442272989818,
+       "rho": 0.6954926294539266,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 2.521557602827518,
+       "rho": 0.691063583416087,
+       "n": 674
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "mae": 2.1287968246228055,
+       "rho": 0.7078385290314333,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.5362530332221003,
+       "rho": 0.712477425590278,
+       "n": 674
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "mae": 2.1119554267709453,
+       "rho": 0.6840602230104107,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.435104600252094,
+       "rho": 0.7080151474673478,
+       "n": 674
+      }
+     }
+    ]
+   },
+   "stability": {
+    "n": 662,
+    "ddf_mae_week_change": 0.5096573923603084,
+    "eddf_mae_week_change": 0.30800556919468475,
+    "note": "anchor history for the prior week uses only two pulls (weeks 11 and 10)"
+   },
+   "weights": {
+    "by_ranker_count": [
+     {
+      "rankers": 0,
+      "chart_weight_share": 1.0,
+      "mae_vs_ddf": 0.0,
+      "rho_vs_ddf": 1.0
+     },
+     {
+      "rankers": 1,
+      "chart_weight_share": 0.75,
+      "mae_vs_ddf": 0.23648882058127293,
+      "rho_vs_ddf": 0.9410998596904533
+     },
+     {
+      "rankers": 3,
+      "chart_weight_share": 0.5,
+      "mae_vs_ddf": 0.3929940254650359,
+      "rho_vs_ddf": 0.888792144380256
+     },
+     {
+      "rankers": 5,
+      "chart_weight_share": 0.375,
+      "mae_vs_ddf": 0.44633370998520305,
+      "rho_vs_ddf": 0.8782648741030181
+     },
+     {
+      "rankers": 8,
+      "chart_weight_share": 0.2727272727272727,
+      "mae_vs_ddf": 0.4971398092853702,
+      "rho_vs_ddf": 0.8673457252455592
+     },
+     {
+      "rankers": 10,
+      "chart_weight_share": 0.23076923076923078,
+      "mae_vs_ddf": 0.5136779110384294,
+      "rho_vs_ddf": 0.8601022121033013
+     },
+     {
+      "rankers": 11,
+      "chart_weight_share": 0.21428571428571427,
+      "mae_vs_ddf": 0.5175819171339915,
+      "rho_vs_ddf": 0.8588044156429128
+     }
+    ],
+    "charts": 3,
+    "fresh_rankers": 11,
+    "pooled_vs_separate": {
+     "mae": 0.3506527419478392,
+     "rho": 0.9993809036791651,
+     "pooled_chart_weight_share": 0.75
+    }
+   },
+   "before_after": {
+    "n": 669,
+    "rho": 0.8588044156429128,
+    "mae": 0.5175819171339915,
+    "max_abs_diff": 9.71519110481086,
+    "top24_overlap": 22
+   }
+  },
+  "half_ppr": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "charts_excluded": {
+    "fantasypros": "held: fidelity: publisher_vs_stored"
+   },
+   "weeks": [
+    12,
+    11,
+    10
+   ],
+   "report": {
+    "scoring": "half_ppr",
+    "as_of": "2026-11-27",
+    "anchors": 522,
+    "rankers": [
+     {
+      "id": "fp-aaron-st-denis",
+      "in": false,
+      "reason": "stale: list updated 2026-11-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-andrew-erickson",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-brad-beatson",
+      "in": false,
+      "reason": "stale: list updated 2026-09-26, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-chris-dell",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "fp-david-heilman",
+      "in": false,
+      "reason": "stale: list updated 2026-11-07, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-derek-brown",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-james-emrick-wilson",
+      "in": false,
+      "reason": "stale: list updated 2026-11-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jeff-boggis",
+      "in": false,
+      "reason": "stale: list updated 2026-09-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jonathan-stone",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-justin-fuhr",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-kelly-smelser",
+      "in": false,
+      "reason": "stale: list updated 2026-09-17, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kev-wheeler",
+      "in": false,
+      "reason": "stale: list updated 2026-11-18, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kyle-yates",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-matheus-chaves",
+      "in": false,
+      "reason": "stale: list updated 2026-10-01, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-mike-maher",
+      "in": false,
+      "reason": "stale: list updated 2026-11-19, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-owen-maccarrick",
+      "in": false,
+      "reason": "stale: list updated 2026-09-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-pat-fitzmaurice",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-ryan-linkletter",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-tal-malachovsky",
+      "in": false,
+      "reason": "stale: list updated 2026-11-21, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-ted-chmyz",
+      "in": false,
+      "reason": "stale: list updated 2026-09-23, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-wolf-of-roto-street",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "cand-rsj-wolf",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-rotoballer",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "cand-gwttkb",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-razzball",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "cand-fanduel",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-stm",
+      "in": false,
+      "reason": "no half_ppr list in the registry"
+     },
+     {
+      "id": "cand-footballguys-qb",
+      "in": false,
+      "reason": "disabled in the registry"
+     }
+    ],
+    "charts": [
+     "cbs",
+     "fantasycalc",
+     "usatoday"
+    ],
+    "variant": "per_expert",
+    "rescale": {
+     "factor": 0.9783831214286928,
+     "ddf_total": 2352.0000000000005,
+     "raw_total": 2403.966246438789
+    },
+    "chart_weight_share": 0.21428571428571427,
+    "exclude_positions": [
+     "QB"
+    ]
+   },
+   "coverage": {
+    "ddf": {
+     "priced": 669,
+     "one_source": 0,
+     "three_plus": 669
+    },
+    "eddf": {
+     "priced": 674,
+     "one_source": 3,
+     "three_plus": 671
+    },
+    "eddf_only_priced_by_rankers": 5
+   },
+   "loo": {
+    "QB excluded (default)": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.9222741860433552,
+      "rho_eddf": 0.7494339218521721,
+      "mae_ddf": 0.8277165861306892,
+      "mae_eddf": 0.9484411302561562,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9254893352607694,
+      "ranked_rho_eddf": 0.7917367896138138,
+      "ranked_mae_ddf": 1.0799557186401014,
+      "ranked_mae_eddf": 1.2447853873761752,
+      "top_n": 53,
+      "top_rho_ddf": 0.874674891586347,
+      "top_rho_eddf": 0.8545502710172956,
+      "top_mae_ddf": 6.709422799497391,
+      "top_mae_eddf": 7.309995190303272
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9095119370731878,
+      "rho_eddf": 0.7432206513694903,
+      "mae_ddf": 0.625978887769555,
+      "mae_eddf": 0.7463696924577916,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9153913053189084,
+      "ranked_rho_eddf": 0.7964689879090715,
+      "ranked_mae_ddf": 0.7762215601112178,
+      "ranked_mae_eddf": 0.9446600143375505,
+      "top_n": 42,
+      "top_rho_ddf": 0.8692164330281177,
+      "top_rho_eddf": 0.8705129243983469,
+      "top_mae_ddf": 4.446838746982221,
+      "top_mae_eddf": 4.722931442348724
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9248269815885498,
+      "rho_eddf": 0.7628603521009351,
+      "mae_ddf": 0.7464166578600863,
+      "mae_eddf": 0.694593147155877,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9312700389640411,
+      "ranked_rho_eddf": 0.8013144519236662,
+      "ranked_mae_ddf": 0.977029775328442,
+      "ranked_mae_eddf": 0.891213780724629,
+      "top_n": 33,
+      "top_rho_ddf": 0.8198913755418847,
+      "top_rho_eddf": 0.8404513427573082,
+      "top_mae_ddf": 7.134215705851971,
+      "top_mae_eddf": 5.760286610043833
+     }
+    ],
+    "QB included": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.9222741860433552,
+      "rho_eddf": 0.7495947056883083,
+      "mae_ddf": 0.8277165861306892,
+      "mae_eddf": 0.9789765451165514,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9254893352607694,
+      "ranked_rho_eddf": 0.7915359742472345,
+      "ranked_mae_ddf": 1.0799557186401014,
+      "ranked_mae_eddf": 1.2549439682607102,
+      "top_n": 53,
+      "top_rho_ddf": 0.874674891586347,
+      "top_rho_eddf": 0.8568490753708746,
+      "top_mae_ddf": 6.709422799497391,
+      "top_mae_eddf": 7.531762739140309
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9095119370731878,
+      "rho_eddf": 0.7485648862799332,
+      "mae_ddf": 0.625978887769555,
+      "mae_eddf": 0.7158389829876678,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9153913053189084,
+      "ranked_rho_eddf": 0.7960657563152447,
+      "ranked_mae_ddf": 0.7762215601112178,
+      "ranked_mae_eddf": 0.9190671621218823,
+      "top_n": 42,
+      "top_rho_ddf": 0.8692164330281177,
+      "top_rho_eddf": 0.8718094157685763,
+      "top_mae_ddf": 4.446838746982221,
+      "top_mae_eddf": 4.433014902361522
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9248269815885498,
+      "rho_eddf": 0.7609144773705226,
+      "mae_ddf": 0.7464166578600863,
+      "mae_eddf": 0.7494170722020795,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9312700389640411,
+      "ranked_rho_eddf": 0.80105207005171,
+      "ranked_mae_ddf": 0.977029775328442,
+      "ranked_mae_eddf": 0.9432998926555608,
+      "top_n": 33,
+      "top_rho_ddf": 0.8198913755418847,
+      "top_rho_eddf": 0.8344337913771842,
+      "top_mae_ddf": 7.134215705851971,
+      "top_mae_eddf": 6.003810209213079
+     }
+    ]
+   },
+   "robustness": {
+    "drop": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "n": 669,
+       "mae": 0.2759055287102297,
+       "rho": 0.9812781051360004
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.3541951299002368,
+       "rho": 0.9940427574619413
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "n": 669,
+       "mae": 0.20865962925651835,
+       "rho": 0.9844335034207488
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.11397573816533701,
+       "rho": 0.9941339592171574
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "n": 669,
+       "mae": 0.24880555262002874,
+       "rho": 0.9741688058082806
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.25255477006239346,
+       "rho": 0.974311853297981
+      }
+     }
+    ],
+    "scramble": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "mae": 2.1053434849654,
+       "rho": 0.6921595485463393,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 2.4171616246745846,
+       "rho": 0.6990119976679323,
+       "n": 674
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "mae": 2.1321176568638607,
+       "rho": 0.7081170358391049,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.5686651702850574,
+       "rho": 0.7193127397295043,
+       "n": 674
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "mae": 2.1108597572802763,
+       "rho": 0.6863098593857359,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.5014167025145004,
+       "rho": 0.7088900497740664,
+       "n": 674
+      }
+     }
+    ]
+   },
+   "stability": {
+    "n": 662,
+    "ddf_mae_week_change": 0.5079250697413218,
+    "eddf_mae_week_change": 0.37449701045911027,
+    "note": "anchor history for the prior week uses only two pulls (weeks 11 and 10)"
+   },
+   "weights": {
+    "by_ranker_count": [
+     {
+      "rankers": 0,
+      "chart_weight_share": 1.0,
+      "mae_vs_ddf": 0.0,
+      "rho_vs_ddf": 1.0
+     },
+     {
+      "rankers": 1,
+      "chart_weight_share": 0.75,
+      "mae_vs_ddf": 0.23998199010289561,
+      "rho_vs_ddf": 0.9158810762799288
+     },
+     {
+      "rankers": 3,
+      "chart_weight_share": 0.5,
+      "mae_vs_ddf": 0.367603537381154,
+      "rho_vs_ddf": 0.8579706229798039
+     },
+     {
+      "rankers": 5,
+      "chart_weight_share": 0.375,
+      "mae_vs_ddf": 0.4441500164267667,
+      "rho_vs_ddf": 0.8364747531304563
+     },
+     {
+      "rankers": 8,
+      "chart_weight_share": 0.2727272727272727,
+      "mae_vs_ddf": 0.4826313150056998,
+      "rho_vs_ddf": 0.8149315995229799
+     },
+     {
+      "rankers": 10,
+      "chart_weight_share": 0.23076923076923078,
+      "mae_vs_ddf": 0.5038379499785544,
+      "rho_vs_ddf": 0.80008181057123
+     },
+     {
+      "rankers": 11,
+      "chart_weight_share": 0.21428571428571427,
+      "mae_vs_ddf": 0.5064071621274822,
+      "rho_vs_ddf": 0.7999719278258517
+     }
+    ],
+    "charts": 3,
+    "fresh_rankers": 11,
+    "pooled_vs_separate": {
+     "mae": 0.34803357591940454,
+     "rho": 0.9989538041576713,
+     "pooled_chart_weight_share": 0.75
+    }
+   },
+   "before_after": {
+    "n": 669,
+    "rho": 0.7999719278258517,
+    "mae": 0.5064071621274822,
+    "max_abs_diff": 10.745904046016747,
+    "top24_overlap": 22
+   }
+  },
+  "standard": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "charts_excluded": {
+    "fantasypros": "held: fidelity: publisher_vs_stored"
+   },
+   "weeks": [
+    12,
+    11,
+    10
+   ],
+   "report": {
+    "scoring": "standard",
+    "as_of": "2026-11-27",
+    "anchors": 522,
+    "rankers": [
+     {
+      "id": "fp-aaron-st-denis",
+      "in": false,
+      "reason": "stale: list updated 2026-11-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-andrew-erickson",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-brad-beatson",
+      "in": false,
+      "reason": "stale: list updated 2026-09-26, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-chris-dell",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "fp-david-heilman",
+      "in": false,
+      "reason": "stale: list updated 2026-11-07, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-derek-brown",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-james-emrick-wilson",
+      "in": false,
+      "reason": "stale: list updated 2026-11-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jeff-boggis",
+      "in": false,
+      "reason": "stale: list updated 2026-09-16, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-jonathan-stone",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-justin-fuhr",
+      "in": true,
+      "reason": "fresh: updated 2026-11-25, 2 days old"
+     },
+     {
+      "id": "fp-kelly-smelser",
+      "in": false,
+      "reason": "stale: list updated 2026-09-17, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kev-wheeler",
+      "in": false,
+      "reason": "stale: list updated 2026-11-18, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-kyle-yates",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-matheus-chaves",
+      "in": false,
+      "reason": "stale: list updated 2026-10-01, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-mike-maher",
+      "in": false,
+      "reason": "stale: list updated 2026-11-19, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-owen-maccarrick",
+      "in": false,
+      "reason": "stale: list updated 2026-09-15, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-pat-fitzmaurice",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-ryan-linkletter",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "fp-tal-malachovsky",
+      "in": false,
+      "reason": "stale: list updated 2026-11-21, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-ted-chmyz",
+      "in": false,
+      "reason": "stale: list updated 2026-09-23, before the 2026-11-24 weekly reset"
+     },
+     {
+      "id": "fp-wolf-of-roto-street",
+      "in": true,
+      "reason": "fresh: updated 2026-11-24, 3 days old"
+     },
+     {
+      "id": "cand-rsj-wolf",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-rotoballer",
+      "in": false,
+      "reason": "no standard list in the registry"
+     },
+     {
+      "id": "cand-gwttkb",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-razzball",
+      "in": true,
+      "reason": "fresh: updated 2026-11-26, 1 days old"
+     },
+     {
+      "id": "cand-fanduel",
+      "in": false,
+      "reason": "disabled in the registry"
+     },
+     {
+      "id": "cand-stm",
+      "in": false,
+      "reason": "no standard list in the registry"
+     },
+     {
+      "id": "cand-footballguys-qb",
+      "in": false,
+      "reason": "disabled in the registry"
+     }
+    ],
+    "charts": [
+     "cbs",
+     "fantasycalc",
+     "usatoday"
+    ],
+    "variant": "per_expert",
+    "rescale": {
+     "factor": 1.010971839268188,
+     "ddf_total": 2351.9999999999995,
+     "raw_total": 2326.474297941416
+    },
+    "chart_weight_share": 0.23076923076923078,
+    "exclude_positions": [
+     "QB"
+    ]
+   },
+   "coverage": {
+    "ddf": {
+     "priced": 669,
+     "one_source": 0,
+     "three_plus": 669
+    },
+    "eddf": {
+     "priced": 674,
+     "one_source": 1,
+     "three_plus": 672
+    },
+    "eddf_only_priced_by_rankers": 5
+   },
+   "loo": {
+    "QB excluded (default)": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.9044732473556398,
+      "rho_eddf": 0.7768877846796342,
+      "mae_ddf": 0.8817501608939117,
+      "mae_eddf": 1.0898602704000449,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.907553852103989,
+      "ranked_rho_eddf": 0.7892849664001955,
+      "ranked_mae_ddf": 1.1539368991989596,
+      "ranked_mae_eddf": 1.441087192364246,
+      "top_n": 55,
+      "top_rho_ddf": 0.8471059821803713,
+      "top_rho_eddf": 0.8190315006410176,
+      "top_mae_ddf": 7.06358809939654,
+      "top_mae_eddf": 8.605208812143577
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9401751043019926,
+      "rho_eddf": 0.7538837407401928,
+      "mae_ddf": 0.6154361581623954,
+      "mae_eddf": 0.8409568465991835,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9502141437413488,
+      "ranked_rho_eddf": 0.7945158208441332,
+      "ranked_mae_ddf": 0.7602498934263362,
+      "ranked_mae_eddf": 1.0739701128564367,
+      "top_n": 42,
+      "top_rho_ddf": 0.8256219107041569,
+      "top_rho_eddf": 0.8205980066445183,
+      "top_mae_ddf": 4.342462957349226,
+      "top_mae_eddf": 5.6048967141321855
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9325019517347508,
+      "rho_eddf": 0.7363990966445689,
+      "mae_ddf": 0.828366851897075,
+      "mae_eddf": 0.996474295010899,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9417496295429039,
+      "ranked_rho_eddf": 0.7757262333580203,
+      "ranked_mae_ddf": 1.0900431653539624,
+      "ranked_mae_eddf": 1.317425140900487,
+      "top_n": 30,
+      "top_rho_ddf": 0.8796885057127881,
+      "top_rho_eddf": 0.8260435335779749,
+      "top_mae_ddf": 7.896526820884018,
+      "top_mae_eddf": 9.39523274780536
+     }
+    ],
+    "QB included": [
+     {
+      "held_out": "usatoday",
+      "n": 669,
+      "rho_ddf": 0.9044732473556398,
+      "rho_eddf": 0.7593236419450778,
+      "mae_ddf": 0.8817501608939117,
+      "mae_eddf": 1.136965400674197,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.907553852103989,
+      "ranked_rho_eddf": 0.7861138193306487,
+      "ranked_mae_ddf": 1.1539368991989596,
+      "ranked_mae_eddf": 1.4336193245867053,
+      "top_n": 55,
+      "top_rho_ddf": 0.8471059821803713,
+      "top_rho_eddf": 0.8339708777069461,
+      "top_mae_ddf": 7.06358809939654,
+      "top_mae_eddf": 8.514048676979069
+     },
+     {
+      "held_out": "fantasycalc",
+      "n": 669,
+      "rho_ddf": 0.9401751043019926,
+      "rho_eddf": 0.7457657507549591,
+      "mae_ddf": 0.6154361581623954,
+      "mae_eddf": 0.8804458595241436,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9502141437413488,
+      "ranked_rho_eddf": 0.7950158714228488,
+      "ranked_mae_ddf": 0.7602498934263362,
+      "ranked_mae_eddf": 1.0780733457668192,
+      "top_n": 42,
+      "top_rho_ddf": 0.8256219107041569,
+      "top_rho_eddf": 0.8257839721254355,
+      "top_mae_ddf": 4.342462957349226,
+      "top_mae_eddf": 5.622620757810474
+     },
+     {
+      "held_out": "cbs",
+      "n": 669,
+      "rho_ddf": 0.9325019517347508,
+      "rho_eddf": 0.7273196988466716,
+      "mae_ddf": 0.828366851897075,
+      "mae_eddf": 1.0497166934640356,
+      "ranked_n": 481,
+      "ranked_rho_ddf": 0.9417496295429039,
+      "ranked_rho_eddf": 0.7794726964488267,
+      "ranked_mae_ddf": 1.0900431653539624,
+      "ranked_mae_eddf": 1.2953565303590424,
+      "top_n": 30,
+      "top_rho_ddf": 0.8796885057127881,
+      "top_rho_eddf": 0.8289372457678196,
+      "top_mae_ddf": 7.896526820884018,
+      "top_mae_eddf": 9.43000688472509
+     }
+    ]
+   },
+   "robustness": {
+    "drop": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "n": 669,
+       "mae": 0.29391672029797067,
+       "rho": 0.9785071766364957
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.27122863952018406,
+       "rho": 0.9298748036246506
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "n": 669,
+       "mae": 0.2051453860541318,
+       "rho": 0.9872073158206445
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.22785743956191493,
+       "rho": 0.9819900500192565
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "n": 669,
+       "mae": 0.27612228396569166,
+       "rho": 0.9843775368231357
+      },
+      "eddf": {
+       "n": 674,
+       "mae": 0.18228143153664816,
+       "rho": 0.9829819554510201
+      }
+     }
+    ],
+    "scramble": [
+     {
+      "chart": "usatoday",
+      "ddf": {
+       "mae": 2.106664839081106,
+       "rho": 0.6880786412668018,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 2.133129965861221,
+       "rho": 0.7041497161156729,
+       "n": 674
+      }
+     },
+     {
+      "chart": "fantasycalc",
+      "ddf": {
+       "mae": 2.136273784153687,
+       "rho": 0.7091777117528206,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.6609454077530261,
+       "rho": 0.7296134616013854,
+       "n": 674
+      }
+     },
+     {
+      "chart": "cbs",
+      "ddf": {
+       "mae": 2.162446907006159,
+       "rho": 0.696457861723664,
+       "n": 669
+      },
+      "eddf": {
+       "mae": 1.6361534261874144,
+       "rho": 0.724410945375942,
+       "n": 674
+      }
+     }
+    ]
+   },
+   "stability": {
+    "n": 662,
+    "ddf_mae_week_change": 0.502731532814685,
+    "eddf_mae_week_change": 0.29329224795982767,
+    "note": "anchor history for the prior week uses only two pulls (weeks 11 and 10)"
+   },
+   "weights": {
+    "by_ranker_count": [
+     {
+      "rankers": 0,
+      "chart_weight_share": 1.0,
+      "mae_vs_ddf": 0.0,
+      "rho_vs_ddf": 1.0
+     },
+     {
+      "rankers": 1,
+      "chart_weight_share": 0.75,
+      "mae_vs_ddf": 0.2869207334550715,
+      "rho_vs_ddf": 0.8823338191282633
+     },
+     {
+      "rankers": 3,
+      "chart_weight_share": 0.5,
+      "mae_vs_ddf": 0.46607703592183614,
+      "rho_vs_ddf": 0.8483795974549189
+     },
+     {
+      "rankers": 5,
+      "chart_weight_share": 0.375,
+      "mae_vs_ddf": 0.5421516961392077,
+      "rho_vs_ddf": 0.8333926385766061
+     },
+     {
+      "rankers": 8,
+      "chart_weight_share": 0.2727272727272727,
+      "mae_vs_ddf": 0.5944296429373224,
+      "rho_vs_ddf": 0.8126476764054232
+     },
+     {
+      "rankers": 10,
+      "chart_weight_share": 0.23076923076923078,
+      "mae_vs_ddf": 0.6152181242542966,
+      "rho_vs_ddf": 0.7963921642190822
+     }
+    ],
+    "charts": 3,
+    "fresh_rankers": 10,
+    "pooled_vs_separate": {
+     "mae": 0.4144271838248833,
+     "rho": 0.9981550113266145,
+     "pooled_chart_weight_share": 0.75
+    }
+   },
+   "before_after": {
+    "n": 669,
+    "rho": 0.7963921642190822,
+    "mae": 0.6152181242542966,
+    "max_abs_diff": 15.29037063467134,
+    "top24_overlap": 20
+   }
+  }
+ }
+}

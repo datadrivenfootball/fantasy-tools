@@ -1,0 +1,1618 @@
+{
+ "as_of": "2026-11-27",
+ "variants": [
+  "none",
+  "per_expert",
+  "site_once",
+  "grouped",
+  "chart_floor"
+ ],
+ "scorings": {
+  "ppr": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "candidate_notes": {
+    "cand-rsj-wolf": "duplicates the Wolf list already in the feed (same analyst, same date)",
+    "cand-rotoballer": "usable: 172 non-QB players priced, analyst",
+    "cand-gwttkb": "stale: list updated 2026-11-23, before the 2026-11-24 weekly reset",
+    "cand-razzball": "usable: 464 non-QB players priced, model",
+    "cand-fanduel": "no ppr list in the registry",
+    "cand-stm": "usable: 90 non-QB players priced, model",
+    "cand-footballguys-qb": "QBs only; QBs are excluded from EDDF, so it prices nothing"
+   },
+   "usable": [
+    "cand-rotoballer",
+    "cand-razzball",
+    "cand-stm"
+   ],
+   "sets": {
+    "feed": {
+     "fresh": 8,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter"
+     ],
+     "extra": [],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9084674281212585,
+        "mae": 0.7380837038131685,
+        "ranked_rho": 0.931033486581741,
+        "ranked_mae": 1.4438056440055533
+       },
+       "drop_one": {
+        "mae": 0.24602790127105617,
+        "rho": 0.977985121905126
+       },
+       "scramble_one": {
+        "mae": 2.11206484146119,
+        "rho": 0.6957971271652569
+       },
+       "week_change_mae": 0.5096573923603084,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8337607067153852,
+        "mae": 0.8141815454450613,
+        "ranked_rho": 0.8997978584537507,
+        "ranked_mae": 1.6061607651936742,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09352108117597813,
+         -0.06003408658655773
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3524544555477339,
+        "rho": 0.9831424650682753
+       },
+       "scramble_one": {
+        "mae": 2.440133128820398,
+        "rho": 0.6967636217895323
+       },
+       "week_change_mae": 0.3907048343010657,
+       "priced": 674,
+       "chart_weight": 0.2727272727272727
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8337181717831457,
+        "mae": 0.8153965297710082,
+        "ranked_rho": 0.8996001090495461,
+        "ranked_mae": 1.608046477576858,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09155255439397258,
+         -0.0608943586300319
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3613761158979216,
+        "rho": 0.9830301691862878
+       },
+       "scramble_one": {
+        "mae": 2.354548676051837,
+        "rho": 0.698993459701843
+       },
+       "week_change_mae": 0.38369725832010776,
+       "priced": 674,
+       "chart_weight": 0.3333333333333333
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8340384001403832,
+        "mae": 0.7255375038392786,
+        "ranked_rho": 0.9011434927505235,
+        "ranked_mae": 1.420017593566991,
+        "rho_diff_vs_ddf_ci95": [
+         -0.08988168721225454,
+         -0.058858347326983584
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2412309995491979,
+        "rho": 0.9828472621627801
+       },
+       "scramble_one": {
+        "mae": 2.0639964496339784,
+        "rho": 0.7049315362051143
+       },
+       "week_change_mae": 0.4323337273059296,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.833989806812779,
+        "mae": 0.7473951027855754,
+        "ranked_rho": 0.900813021773611,
+        "ranked_mae": 1.4668923023908194,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09188406948864081,
+         -0.06017412492505525
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2734730500783915,
+        "rho": 0.9830718764057432
+       },
+       "scramble_one": {
+        "mae": 2.1479547026922274,
+        "rho": 0.7038736973161736
+       },
+       "week_change_mae": 0.3952443707216441,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 154,
+      "pair_rank_rho": 0.9217241148658877,
+      "effective_views": 1.0735273935796428
+     },
+     "dispersion": {
+      "sd_charts": 2.159850079381878,
+      "sd_lists": 3.1979757961215793
+     }
+    },
+    "+analyst": {
+     "fresh": 9,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "cand-rotoballer"
+     ],
+     "extra": [
+      "cand-rotoballer"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9084674281212585,
+        "mae": 0.7380837038131685,
+        "ranked_rho": 0.9278709502177346,
+        "ranked_mae": 1.4434113433851758
+       },
+       "drop_one": {
+        "mae": 0.24602790127105617,
+        "rho": 0.977985121905126
+       },
+       "scramble_one": {
+        "mae": 2.11206484146119,
+        "rho": 0.6957971271652569
+       },
+       "week_change_mae": 0.5096573923603084,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8346270062066581,
+        "mae": 0.8055173662026501,
+        "ranked_rho": 0.8975401227352163,
+        "ranked_mae": 1.5875946303057777,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09078454650794399,
+         -0.05925158339746228
+        ]
+       },
+       "drop_one": {
+        "mae": 0.357135181482486,
+        "rho": 0.9843937296645566
+       },
+       "scramble_one": {
+        "mae": 2.4738190631999135,
+        "rho": 0.6957567117770457
+       },
+       "week_change_mae": 0.3757550684223856,
+       "priced": 674,
+       "chart_weight": 0.25
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8345930114340109,
+        "mae": 0.803731543293408,
+        "ranked_rho": 0.8972396583434262,
+        "ranked_mae": 1.583516332539335,
+        "rho_diff_vs_ddf_ci95": [
+         -0.08957845088666039,
+         -0.06207615190277094
+        ]
+       },
+       "drop_one": {
+        "mae": 0.365602637230784,
+        "rho": 0.9843165710544065
+       },
+       "scramble_one": {
+        "mae": 2.3975418175440963,
+        "rho": 0.6978050963116768
+       },
+       "week_change_mae": 0.368780480985931,
+       "priced": 674,
+       "chart_weight": 0.3
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8349763867736836,
+        "mae": 0.7231862228083464,
+        "ranked_rho": 0.8989740166468636,
+        "ranked_mae": 1.4143765504383234,
+        "rho_diff_vs_ddf_ci95": [
+         -0.08795421618703259,
+         -0.058971881088855316
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2410875429048497,
+        "rho": 0.98412293491968
+       },
+       "scramble_one": {
+        "mae": 2.0650708948505203,
+        "rho": 0.7052570151640626
+       },
+       "week_change_mae": 0.42995860396831903,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8349770101872861,
+        "mae": 0.7411663865927305,
+        "ranked_rho": 0.8987628086697191,
+        "ranked_mae": 1.452883366072097,
+        "rho_diff_vs_ddf_ci95": [
+         -0.08667679863632538,
+         -0.06075486650584472
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2729828561574637,
+        "rho": 0.9843434946350241
+       },
+       "scramble_one": {
+        "mae": 2.1444717152767745,
+        "rho": 0.7041890710796065
+       },
+       "week_change_mae": 0.3868973067629448,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 143,
+      "pair_rank_rho": 0.9150547548434872,
+      "effective_views": 1.0816738203069853
+     },
+     "dispersion": {
+      "sd_charts": 2.3257699632853233,
+      "sd_lists": 3.396503294420304
+     }
+    },
+    "+models": {
+     "fresh": 10,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "cand-razzball",
+      "cand-stm"
+     ],
+     "extra": [
+      "cand-razzball",
+      "cand-stm"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9084674281212585,
+        "mae": 0.7380837038131685,
+        "ranked_rho": 0.9125620726172148,
+        "ranked_mae": 0.9559229518215283
+       },
+       "drop_one": {
+        "mae": 0.24602790127105617,
+        "rho": 0.977985121905126
+       },
+       "scramble_one": {
+        "mae": 2.11206484146119,
+        "rho": 0.6957971271652569
+       },
+       "week_change_mae": 0.5096573923603084,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8324214754944367,
+        "mae": 0.8421575341827102,
+        "ranked_rho": 0.8460710316913214,
+        "ranked_mae": 1.1010069276597076,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09409671845219236,
+         -0.06116014938933079
+        ]
+       },
+       "drop_one": {
+        "mae": 0.37667131948686317,
+        "rho": 0.9841945452749273
+       },
+       "scramble_one": {
+        "mae": 2.3681778011747014,
+        "rho": 0.6765900036692934
+       },
+       "week_change_mae": 0.3527202510341746,
+       "priced": 674,
+       "chart_weight": 0.23076923076923078
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8323555116207259,
+        "mae": 0.8506200122820139,
+        "ranked_rho": 0.8458679809609594,
+        "ranked_mae": 1.1123411740230715,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09375178504817172,
+         -0.06165235387969348
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3904594533355483,
+        "rho": 0.9841096228736671
+       },
+       "scramble_one": {
+        "mae": 2.299980571674632,
+        "rho": 0.6787717667288913
+       },
+       "week_change_mae": 0.3527199926529823,
+       "priced": 674,
+       "chart_weight": 0.2727272727272727
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8324564583353674,
+        "mae": 0.7248818068680015,
+        "ranked_rho": 0.846195716733388,
+        "ranked_mae": 0.9396315669821143,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09237924069830772,
+         -0.06090512733615949
+        ]
+       },
+       "drop_one": {
+        "mae": 0.24332833297755718,
+        "rho": 0.9839425215152688
+       },
+       "scramble_one": {
+        "mae": 1.9528570888109549,
+        "rho": 0.6654541638963337
+       },
+       "week_change_mae": 0.423275159167661,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.832621234765859,
+        "mae": 0.7513516212973954,
+        "ranked_rho": 0.846420539719008,
+        "ranked_mae": 0.9769656637777233,
+        "rho_diff_vs_ddf_ci95": [
+         -0.0895223318576519,
+         -0.06181656229642829
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2779358965422659,
+        "rho": 0.9841505267168023
+       },
+       "scramble_one": {
+        "mae": 2.0235813034403014,
+        "rho": 0.6795237883275883
+       },
+       "week_change_mae": 0.37302296705649146,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 80,
+      "pair_rank_rho": 0.8946971884228667,
+      "effective_views": 1.104694713322532
+     },
+     "dispersion": {
+      "sd_charts": 3.1837135427670815,
+      "sd_lists": 5.16004241111069
+     }
+    },
+    "+all usable": {
+     "fresh": 11,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "cand-rotoballer",
+      "cand-razzball",
+      "cand-stm"
+     ],
+     "extra": [
+      "cand-rotoballer",
+      "cand-razzball",
+      "cand-stm"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9084674281212585,
+        "mae": 0.7380837038131685,
+        "ranked_rho": 0.9125620726172148,
+        "ranked_mae": 0.9559229518215283
+       },
+       "drop_one": {
+        "mae": 0.24602790127105617,
+        "rho": 0.977985121905126
+       },
+       "scramble_one": {
+        "mae": 2.11206484146119,
+        "rho": 0.6957971271652569
+       },
+       "week_change_mae": 0.5096573923603084,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8331740815241638,
+        "mae": 0.8303039308382202,
+        "ranked_rho": 0.8469579217640903,
+        "ranked_mae": 1.0850295118658657,
+        "rho_diff_vs_ddf_ci95": [
+         -0.0899066540475727,
+         -0.060896403805280164
+        ]
+       },
+       "drop_one": {
+        "mae": 0.37831849398675177,
+        "rho": 0.9853879465247845
+       },
+       "scramble_one": {
+        "mae": 2.395458568306121,
+        "rho": 0.6754321542713264
+       },
+       "week_change_mae": 0.3421726521978158,
+       "priced": 674,
+       "chart_weight": 0.21428571428571427
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.833270178626601,
+        "mae": 0.8355584334611422,
+        "ranked_rho": 0.8470287934379981,
+        "ranked_mae": 1.0920271231961207,
+        "rho_diff_vs_ddf_ci95": [
+         -0.0930992232602823,
+         -0.061240342462473896
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3902802596880359,
+        "rho": 0.9853234334068749
+       },
+       "scramble_one": {
+        "mae": 2.332748858196107,
+        "rho": 0.6774087223454355
+       },
+       "week_change_mae": 0.34300512766975044,
+       "priced": 674,
+       "chart_weight": 0.25
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8332732205828702,
+        "mae": 0.7227148479984519,
+        "ranked_rho": 0.8471599539206818,
+        "ranked_mae": 0.9364167984940504,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09038416139606043,
+         -0.060226650977028395
+        ]
+       },
+       "drop_one": {
+        "mae": 0.24250501529273344,
+        "rho": 0.9851420932428765
+       },
+       "scramble_one": {
+        "mae": 1.9545573074578249,
+        "rho": 0.6648713668885017
+       },
+       "week_change_mae": 0.42228973365092776,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8334552513797142,
+        "mae": 0.7450506058325173,
+        "ranked_rho": 0.8474490483802477,
+        "ranked_mae": 0.968058258781934,
+        "rho_diff_vs_ddf_ci95": [
+         -0.08969256591284402,
+         -0.06147456928204942
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2771000680676423,
+        "rho": 0.9853128718268543
+       },
+       "scramble_one": {
+        "mae": 2.021218161955993,
+        "rho": 0.6791219704388692
+       },
+       "week_change_mae": 0.36932168653422387,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 80,
+      "pair_rank_rho": 0.8971577872803043,
+      "effective_views": 1.1031353453099861
+     },
+     "dispersion": {
+      "sd_charts": 3.1837135427670815,
+      "sd_lists": 5.118138009441067
+     }
+    }
+   }
+  },
+  "half_ppr": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "candidate_notes": {
+    "cand-rsj-wolf": "duplicates the Wolf list already in the feed (same analyst, same date)",
+    "cand-rotoballer": "usable: 172 non-QB players priced, analyst",
+    "cand-gwttkb": "no half_ppr list in the registry",
+    "cand-razzball": "usable: 464 non-QB players priced, model",
+    "cand-fanduel": "usable: 520 non-QB players priced, model",
+    "cand-stm": "no half_ppr list in the registry",
+    "cand-footballguys-qb": "QBs only; QBs are excluded from EDDF, so it prices nothing"
+   },
+   "usable": [
+    "cand-rotoballer",
+    "cand-razzball",
+    "cand-fanduel"
+   ],
+   "sets": {
+    "feed": {
+     "fresh": 9,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street"
+     ],
+     "extra": [],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9188710349016976,
+        "mae": 0.7333707105867768,
+        "ranked_rho": 0.9428021756738156,
+        "ranked_mae": 1.4099460565100823
+       },
+       "drop_one": {
+        "mae": 0.2444569035289256,
+        "rho": 0.9799601381216766
+       },
+       "scramble_one": {
+        "mae": 2.1161069663698453,
+        "rho": 0.6955288145903934
+       },
+       "week_change_mae": 0.5079250697413218,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8390356347184621,
+        "mae": 0.844216875768882,
+        "ranked_rho": 0.9065210154893405,
+        "ranked_mae": 1.643284391149736,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09282547552151865,
+         -0.06565039058619027
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3295575678807478,
+        "rho": 0.9862365465727511
+       },
+       "scramble_one": {
+        "mae": 2.4764157361226626,
+        "rho": 0.6868843479408147
+       },
+       "week_change_mae": 0.34556504947239464,
+       "priced": 674,
+       "chart_weight": 0.25
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8386102870857294,
+        "mae": 0.828910934720439,
+        "ranked_rho": 0.9057331890323534,
+        "ranked_mae": 1.6118759200401307,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09807464683811118,
+         -0.06610175792131545
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3291702880850328,
+        "rho": 0.9864487435002173
+       },
+       "scramble_one": {
+        "mae": 2.408551367927874,
+        "rho": 0.6903245902756063
+       },
+       "week_change_mae": 0.3666334610444039,
+       "priced": 674,
+       "chart_weight": 0.3
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8390396588661926,
+        "mae": 0.7303699709624344,
+        "ranked_rho": 0.9078531111510348,
+        "ranked_mae": 1.4040149116594414,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09495712672559697,
+         -0.06662354963527961
+        ]
+       },
+       "drop_one": {
+        "mae": 0.24258694810283143,
+        "rho": 0.9859744663244528
+       },
+       "scramble_one": {
+        "mae": 2.0592053497219367,
+        "rho": 0.6975279039020227
+       },
+       "week_change_mae": 0.41574256878497395,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8391902165529626,
+        "mae": 0.760178002084126,
+        "ranked_rho": 0.9077085634692652,
+        "ranked_mae": 1.4667075155886995,
+        "rho_diff_vs_ddf_ci95": [
+         -0.0947470906711273,
+         -0.06422322981916029
+        ]
+       },
+       "drop_one": {
+        "mae": 0.263326494012621,
+        "rho": 0.9861163116962689
+       },
+       "scramble_one": {
+        "mae": 2.1390112742470877,
+        "rho": 0.695957062919726
+       },
+       "week_change_mae": 0.36145166609488166,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 147,
+      "pair_rank_rho": 0.9254781759674128,
+      "effective_views": 1.070940858875015
+     },
+     "dispersion": {
+      "sd_charts": 2.2351964305292893,
+      "sd_lists": 3.063796158084124
+     }
+    },
+    "+analyst": {
+     "fresh": 10,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street",
+      "cand-rotoballer"
+     ],
+     "extra": [
+      "cand-rotoballer"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9188710349016976,
+        "mae": 0.7333707105867768,
+        "ranked_rho": 0.9390308606254545,
+        "ranked_mae": 1.4130799289775549
+       },
+       "drop_one": {
+        "mae": 0.2444569035289256,
+        "rho": 0.9799601381216766
+       },
+       "scramble_one": {
+        "mae": 2.1161069663698453,
+        "rho": 0.6955288145903934
+       },
+       "week_change_mae": 0.5079250697413218,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8398517956802337,
+        "mae": 0.8458117901613387,
+        "ranked_rho": 0.902738856758118,
+        "ranked_mae": 1.6483609210409642,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09441888526841002,
+         -0.0643853418482766
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3475919400391121,
+        "rho": 0.9871055718309373
+       },
+       "scramble_one": {
+        "mae": 2.505417023643922,
+        "rho": 0.6856966349004823
+       },
+       "week_change_mae": 0.3582766976510961,
+       "priced": 674,
+       "chart_weight": 0.23076923076923078
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8395137142263039,
+        "mae": 0.8330147299360816,
+        "ranked_rho": 0.9021666370809128,
+        "ranked_mae": 1.622093702830355,
+        "rho_diff_vs_ddf_ci95": [
+         -0.0939390331841995,
+         -0.06531197147306955
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3509122888039346,
+        "rho": 0.9871578330080377
+       },
+       "scramble_one": {
+        "mae": 2.445673114684224,
+        "rho": 0.688711046728884
+       },
+       "week_change_mae": 0.3842913882793728,
+       "priced": 674,
+       "chart_weight": 0.2727272727272727
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8399365765156195,
+        "mae": 0.7306149850818361,
+        "ranked_rho": 0.904258710704628,
+        "ranked_mae": 1.4073906170625106,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09382617902649726,
+         -0.06357483028606425
+        ]
+       },
+       "drop_one": {
+        "mae": 0.24358215986696446,
+        "rho": 0.9867993691970667
+       },
+       "scramble_one": {
+        "mae": 2.0594514112426645,
+        "rho": 0.6976157991800411
+       },
+       "week_change_mae": 0.41939609444436304,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8400220451115167,
+        "mae": 0.7601163606511173,
+        "ranked_rho": 0.903992206078845,
+        "ranked_mae": 1.4691151356802064,
+        "rho_diff_vs_ddf_ci95": [
+         -0.09458658352922988,
+         -0.06424882834488876
+        ]
+       },
+       "drop_one": {
+        "mae": 0.27092030645093723,
+        "rho": 0.9869537218195394
+       },
+       "scramble_one": {
+        "mae": 2.134834208209417,
+        "rho": 0.695899470550671
+       },
+       "week_change_mae": 0.36868982227786834,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 139,
+      "pair_rank_rho": 0.9211681586407893,
+      "effective_views": 1.0763667775466974
+     },
+     "dispersion": {
+      "sd_charts": 2.3632226546724246,
+      "sd_lists": 3.194564240647015
+     }
+    },
+    "+models": {
+     "fresh": 11,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street",
+      "cand-razzball",
+      "cand-fanduel"
+     ],
+     "extra": [
+      "cand-razzball",
+      "cand-fanduel"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9188710349016976,
+        "mae": 0.7333707105867768,
+        "ranked_rho": 0.9227090535295178,
+        "ranked_mae": 0.8669036851223697
+       },
+       "drop_one": {
+        "mae": 0.2444569035289256,
+        "rho": 0.9799601381216766
+       },
+       "scramble_one": {
+        "mae": 2.1161069663698453,
+        "rho": 0.6955288145903934
+       },
+       "week_change_mae": 0.5079250697413218,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.7875518087921163,
+        "mae": 0.8503427138299137,
+        "ranked_rho": 0.7995975032270337,
+        "ranked_mae": 1.0162799390426285,
+        "rho_diff_vs_ddf_ci95": [
+         -0.1492837063259591,
+         -0.11498140515712518
+        ]
+       },
+       "drop_one": {
+        "mae": 0.28701067559950566,
+        "rho": 0.9818505536984004
+       },
+       "scramble_one": {
+        "mae": 2.3098955817830933,
+        "rho": 0.6655449576054141
+       },
+       "week_change_mae": 0.33835399145299794,
+       "priced": 718,
+       "chart_weight": 0.21428571428571427
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.7871002621834785,
+        "mae": 0.8436249107815943,
+        "ranked_rho": 0.798995670081093,
+        "ranked_mae": 1.0078339424298235,
+        "rho_diff_vs_ddf_ci95": [
+         -0.15052749765495121,
+         -0.11597414046093402
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2879959544237847,
+        "rho": 0.981848612894493
+       },
+       "scramble_one": {
+        "mae": 2.268780381910281,
+        "rho": 0.6681693106605974
+       },
+       "week_change_mae": 0.37281484752438293,
+       "priced": 718,
+       "chart_weight": 0.25
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.7880634162202633,
+        "mae": 0.7268538948782637,
+        "ranked_rho": 0.8004486967199479,
+        "ranked_mae": 0.8586790195962437,
+        "rho_diff_vs_ddf_ci95": [
+         -0.14884459278582252,
+         -0.11205706108984825
+        ]
+       },
+       "drop_one": {
+        "mae": 0.21848700676480326,
+        "rho": 0.9805111897685501
+       },
+       "scramble_one": {
+        "mae": 1.820801515975533,
+        "rho": 0.6436377968639124
+       },
+       "week_change_mae": 0.41086826991521996,
+       "priced": 718,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.7878589374277662,
+        "mae": 0.7587315389519504,
+        "ranked_rho": 0.8000394055089616,
+        "ranked_mae": 0.8994287766158325,
+        "rho_diff_vs_ddf_ci95": [
+         -0.1500491449544622,
+         -0.11326724756616091
+        ]
+       },
+       "drop_one": {
+        "mae": 0.22874042124203178,
+        "rho": 0.9815834708450524
+       },
+       "scramble_one": {
+        "mae": 1.87611204057253,
+        "rho": 0.6644811265010145
+       },
+       "week_change_mae": 0.3524860907044012,
+       "priced": 718,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 147,
+      "pair_rank_rho": 0.8833506687166103,
+      "effective_views": 1.1186243473405382
+     },
+     "dispersion": {
+      "sd_charts": 2.2351964305292893,
+      "sd_lists": 3.9173314270386954
+     }
+    },
+    "+all usable": {
+     "fresh": 12,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street",
+      "cand-rotoballer",
+      "cand-razzball",
+      "cand-fanduel"
+     ],
+     "extra": [
+      "cand-rotoballer",
+      "cand-razzball",
+      "cand-fanduel"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.9188710349016976,
+        "mae": 0.7333707105867768,
+        "ranked_rho": 0.9227090535295178,
+        "ranked_mae": 0.8669036851223697
+       },
+       "drop_one": {
+        "mae": 0.2444569035289256,
+        "rho": 0.9799601381216766
+       },
+       "scramble_one": {
+        "mae": 2.1161069663698453,
+        "rho": 0.6955288145903934
+       },
+       "week_change_mae": 0.5079250697413218,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.7874945990302465,
+        "mae": 0.8524764505833369,
+        "ranked_rho": 0.7994871801874402,
+        "ranked_mae": 1.018772620977451,
+        "rho_diff_vs_ddf_ci95": [
+         -0.14724050921525944,
+         -0.113937181332048
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3000905712362061,
+        "rho": 0.9818648369269617
+       },
+       "scramble_one": {
+        "mae": 2.328241141684842,
+        "rho": 0.664436168670041
+       },
+       "week_change_mae": 0.3497425655948323,
+       "priced": 718,
+       "chart_weight": 0.2
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.787226181333262,
+        "mae": 0.8459094769026352,
+        "ranked_rho": 0.7991283917672461,
+        "ranked_mae": 1.0104757489176706,
+        "rho_diff_vs_ddf_ci95": [
+         -0.14931539811729355,
+         -0.11561017415071861
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3033079231310218,
+        "rho": 0.9818500036082217
+       },
+       "scramble_one": {
+        "mae": 2.290798038435659,
+        "rho": 0.6668443763994396
+       },
+       "week_change_mae": 0.38575911058995177,
+       "priced": 718,
+       "chart_weight": 0.23076923076923078
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.7879374718575244,
+        "mae": 0.7282412829418783,
+        "ranked_rho": 0.8002558483169353,
+        "ranked_mae": 0.8603616155947942,
+        "rho_diff_vs_ddf_ci95": [
+         -0.14776069754387877,
+         -0.11620874661037439
+        ]
+       },
+       "drop_one": {
+        "mae": 0.22004871255855468,
+        "rho": 0.9804923110321029
+       },
+       "scramble_one": {
+        "mae": 1.820272323729605,
+        "rho": 0.6429608820532294
+       },
+       "week_change_mae": 0.4133566038830194,
+       "priced": 718,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.7878397259783878,
+        "mae": 0.7581918346753613,
+        "ranked_rho": 0.7999911641214142,
+        "ranked_mae": 0.8986007239116311,
+        "rho_diff_vs_ddf_ci95": [
+         -0.1462519665610491,
+         -0.11624652655675305
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2348103308274019,
+        "rho": 0.9815753152065194
+       },
+       "scramble_one": {
+        "mae": 1.8680517341180478,
+        "rho": 0.6639811503569212
+       },
+       "week_change_mae": 0.35909419969168943,
+       "priced": 718,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 139,
+      "pair_rank_rho": 0.8815973194730794,
+      "effective_views": 1.1217500257714408
+     },
+     "dispersion": {
+      "sd_charts": 2.3632226546724246,
+      "sd_lists": 4.060998731362203
+     }
+    }
+   }
+  },
+  "standard": {
+   "charts": [
+    "usatoday",
+    "fantasycalc",
+    "cbs"
+   ],
+   "candidate_notes": {
+    "cand-rsj-wolf": "duplicates the Wolf list already in the feed (same analyst, same date)",
+    "cand-rotoballer": "no standard list in the registry",
+    "cand-gwttkb": "no standard list in the registry",
+    "cand-razzball": "usable: 464 non-QB players priced, model",
+    "cand-fanduel": "no standard list in the registry",
+    "cand-stm": "no standard list in the registry",
+    "cand-footballguys-qb": "QBs only; QBs are excluded from EDDF, so it prices nothing"
+   },
+   "usable": [
+    "cand-razzball"
+   ],
+   "sets": {
+    "feed": {
+     "fresh": 9,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street"
+     ],
+     "extra": [],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.925716767797461,
+        "mae": 0.7751843903177941,
+        "ranked_rho": 0.942649363308008,
+        "ranked_mae": 1.5036622242404398
+       },
+       "drop_one": {
+        "mae": 0.258394796772598,
+        "rho": 0.983364009760092
+       },
+       "scramble_one": {
+        "mae": 2.1351285100803175,
+        "rho": 0.6979047382477621
+       },
+       "week_change_mae": 0.502731532814685,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.8318713106761703,
+        "mae": 0.9179690781363181,
+        "ranked_rho": 0.8841979851583177,
+        "ranked_mae": 1.7976857242008462,
+        "rho_diff_vs_ddf_ci95": [
+         -0.10937609749244781,
+         -0.07701118551317487
+        ]
+       },
+       "drop_one": {
+        "mae": 0.36064298755577573,
+        "rho": 0.9928868968004352
+       },
+       "scramble_one": {
+        "mae": 2.276627507216886,
+        "rho": 0.7045914305511759
+       },
+       "week_change_mae": 0.2952440945635287,
+       "priced": 674,
+       "chart_weight": 0.25
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8307861980370614,
+        "mae": 0.9104478870471626,
+        "ranked_rho": 0.8821665279080948,
+        "ranked_mae": 1.7802226538697257,
+        "rho_diff_vs_ddf_ci95": [
+         -0.10924880888251409,
+         -0.07706979426547
+        ]
+       },
+       "drop_one": {
+        "mae": 0.353576709953257,
+        "rho": 0.9928841629238871
+       },
+       "scramble_one": {
+        "mae": 2.2395341157259057,
+        "rho": 0.7058792315739657
+       },
+       "week_change_mae": 0.29863980682983926,
+       "priced": 674,
+       "chart_weight": 0.3
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8340637792984638,
+        "mae": 0.7678119623761673,
+        "ranked_rho": 0.891006410999633,
+        "ranked_mae": 1.4862910782048264,
+        "rho_diff_vs_ddf_ci95": [
+         -0.10741525632456228,
+         -0.07583755383185664
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2570843643153172,
+        "rho": 0.9927827334066497
+       },
+       "scramble_one": {
+        "mae": 2.0507787868565512,
+        "rho": 0.7071091184240424
+       },
+       "week_change_mae": 0.39646051037764324,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8336048536122125,
+        "mae": 0.8008571799410891,
+        "ranked_rho": 0.8899482289559119,
+        "ranked_mae": 1.5546220906679975,
+        "rho_diff_vs_ddf_ci95": [
+         -0.10872332699160703,
+         -0.07532742842758589
+        ]
+       },
+       "drop_one": {
+        "mae": 0.27600154498224194,
+        "rho": 0.9930385279381907
+       },
+       "scramble_one": {
+        "mae": 2.059053281483864,
+        "rho": 0.709442372050936
+       },
+       "week_change_mae": 0.32616303262860763,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 144,
+      "pair_rank_rho": 0.893710982504086,
+      "effective_views": 1.1043367739441128
+     },
+     "dispersion": {
+      "sd_charts": 2.367417609481335,
+      "sd_lists": 3.962919407256719
+     }
+    },
+    "+models": {
+     "fresh": 10,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street",
+      "cand-razzball"
+     ],
+     "extra": [
+      "cand-razzball"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.925716767797461,
+        "mae": 0.7751843903177941,
+        "ranked_rho": 0.9331725417960806,
+        "ranked_mae": 1.001409985993086
+       },
+       "drop_one": {
+        "mae": 0.258394796772598,
+        "rho": 0.983364009760092
+       },
+       "scramble_one": {
+        "mae": 2.1351285100803175,
+        "rho": 0.6979047382477621
+       },
+       "week_change_mae": 0.502731532814685,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.805943644933971,
+        "mae": 0.9147728786921571,
+        "ranked_rho": 0.821677154236498,
+        "ranked_mae": 1.189780377292021,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13690851890571187,
+         -0.10414163933616849
+        ]
+       },
+       "drop_one": {
+        "mae": 0.35266438969770453,
+        "rho": 0.9688890284456229
+       },
+       "scramble_one": {
+        "mae": 2.217268676913579,
+        "rho": 0.686063514737904
+       },
+       "week_change_mae": 0.3004970370458506,
+       "priced": 674,
+       "chart_weight": 0.23076923076923078
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8048729885806589,
+        "mae": 0.9104071721350236,
+        "ranked_rho": 0.8200369565941432,
+        "ranked_mae": 1.1824165285302866,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13621931237259166,
+         -0.1065118188520906
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3460268585371984,
+        "rho": 0.9686643531459516
+       },
+       "scramble_one": {
+        "mae": 2.185488340633632,
+        "rho": 0.6872139339013487
+       },
+       "week_change_mae": 0.3044821209625951,
+       "priced": 674,
+       "chart_weight": 0.2727272727272727
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8080734349780929,
+        "mae": 0.7615022214133979,
+        "ranked_rho": 0.8252581500024553,
+        "ranked_mae": 0.9807295648194256,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13519923241526322,
+         -0.10240690819782183
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2530244534551296,
+        "rho": 0.9679565889900411
+       },
+       "scramble_one": {
+        "mae": 1.9475981274674417,
+        "rho": 0.6790108747023762
+       },
+       "week_change_mae": 0.39467004301216196,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8076809742306977,
+        "mae": 0.7915796627540362,
+        "ranked_rho": 0.8245509143308151,
+        "ranked_mae": 1.021331032664141,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13695164250526648,
+         -0.10322352116647926
+        ]
+       },
+       "drop_one": {
+        "mae": 0.26907055684480086,
+        "rho": 0.9685695334848656
+       },
+       "scramble_one": {
+        "mae": 1.9567614051451279,
+        "rho": 0.6890540991877452
+       },
+       "week_change_mae": 0.32462680631384755,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 144,
+      "pair_rank_rho": 0.8792389704782276,
+      "effective_views": 1.1219377185570298
+     },
+     "dispersion": {
+      "sd_charts": 2.367417609481335,
+      "sd_lists": 4.173700774102116
+     }
+    },
+    "+all usable": {
+     "fresh": 10,
+     "fresh_ids": [
+      "fp-andrew-erickson",
+      "fp-chris-dell",
+      "fp-derek-brown",
+      "fp-jonathan-stone",
+      "fp-justin-fuhr",
+      "fp-kyle-yates",
+      "fp-pat-fitzmaurice",
+      "fp-ryan-linkletter",
+      "fp-wolf-of-roto-street",
+      "cand-razzball"
+     ],
+     "extra": [
+      "cand-razzball"
+     ],
+     "variants": {
+      "none": {
+       "loo": {
+        "rho": 0.925716767797461,
+        "mae": 0.7751843903177941,
+        "ranked_rho": 0.9331725417960806,
+        "ranked_mae": 1.001409985993086
+       },
+       "drop_one": {
+        "mae": 0.258394796772598,
+        "rho": 0.983364009760092
+       },
+       "scramble_one": {
+        "mae": 2.1351285100803175,
+        "rho": 0.6979047382477621
+       },
+       "week_change_mae": 0.502731532814685,
+       "priced": 669,
+       "chart_weight": 1.0
+      },
+      "per_expert": {
+       "loo": {
+        "rho": 0.805943644933971,
+        "mae": 0.9147728786921571,
+        "ranked_rho": 0.821677154236498,
+        "ranked_mae": 1.189780377292021,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13853290588469558,
+         -0.1006986014797846
+        ]
+       },
+       "drop_one": {
+        "mae": 0.35266438969770453,
+        "rho": 0.9688890284456229
+       },
+       "scramble_one": {
+        "mae": 2.217268676913579,
+        "rho": 0.686063514737904
+       },
+       "week_change_mae": 0.3004970370458506,
+       "priced": 674,
+       "chart_weight": 0.23076923076923078
+      },
+      "site_once": {
+       "loo": {
+        "rho": 0.8048729885806589,
+        "mae": 0.9104071721350236,
+        "ranked_rho": 0.8200369565941432,
+        "ranked_mae": 1.1824165285302866,
+        "rho_diff_vs_ddf_ci95": [
+         -0.1388018549207457,
+         -0.10614123970292721
+        ]
+       },
+       "drop_one": {
+        "mae": 0.3460268585371984,
+        "rho": 0.9686643531459516
+       },
+       "scramble_one": {
+        "mae": 2.185488340633632,
+        "rho": 0.6872139339013487
+       },
+       "week_change_mae": 0.3044821209625951,
+       "priced": 674,
+       "chart_weight": 0.2727272727272727
+      },
+      "grouped": {
+       "loo": {
+        "rho": 0.8080734349780929,
+        "mae": 0.7615022214133979,
+        "ranked_rho": 0.8252581500024553,
+        "ranked_mae": 0.9807295648194256,
+        "rho_diff_vs_ddf_ci95": [
+         -0.1350138586005487,
+         -0.1025880765899917
+        ]
+       },
+       "drop_one": {
+        "mae": 0.2530244534551296,
+        "rho": 0.9679565889900411
+       },
+       "scramble_one": {
+        "mae": 1.9475981274674417,
+        "rho": 0.6790108747023762
+       },
+       "week_change_mae": 0.39467004301216196,
+       "priced": 674,
+       "chart_weight": 0.75
+      },
+      "chart_floor": {
+       "loo": {
+        "rho": 0.8076809742306977,
+        "mae": 0.7915796627540362,
+        "ranked_rho": 0.8245509143308151,
+        "ranked_mae": 1.021331032664141,
+        "rho_diff_vs_ddf_ci95": [
+         -0.13500271169624867,
+         -0.10402354028713923
+        ]
+       },
+       "drop_one": {
+        "mae": 0.26907055684480086,
+        "rho": 0.9685695334848656
+       },
+       "scramble_one": {
+        "mae": 1.9567614051451279,
+        "rho": 0.6890540991877452
+       },
+       "week_change_mae": 0.32462680631384755,
+       "priced": 674,
+       "chart_weight": 0.5
+      }
+     },
+     "independence": {
+      "n_common": 144,
+      "pair_rank_rho": 0.8792389704782276,
+      "effective_views": 1.1219377185570298
+     },
+     "dispersion": {
+      "sd_charts": 2.367417609481335,
+      "sd_lists": 4.173700774102116
+     }
+    }
+   }
+  }
+ }
+}
