@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Edit teams · Data Driven Football</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"><link rel="stylesheet" href="styles.css"><style>
+/* JEG-1740: Edit teams. Built from team.html's shell and styles.css tokens; only what this page needs is new. */
+.teams-page{max-width:1040px;padding:44px 28px 56px}
+.teams-page h1{max-width:22ch;margin:0 0 10px;text-wrap:balance}
+.teams-page p{max-width:74ch}
+.teams-page .card{padding:26px;margin:24px 0}
+.teams-page .tm-fresh{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between}
+.teams-page .tm-fresh-copy{flex:1 1 360px}
+.teams-page .tm-fresh h2{margin:0 0 6px;font-size:20px}
+.teams-page .tm-fresh p{margin:4px 0}
+.teams-page .tm-fresh .button{padding:12px 20px;border-radius:10px;min-height:44px;white-space:nowrap}
+.teams-page .tm-fresh[data-band=prompt],.teams-page .tm-fresh[data-band=stale],.teams-page .tm-fresh[data-band=unknown]{background:#fff7e6;border-color:#c9a227}
+.teams-page .tm-keep{color:var(--muted);font-size:14px}
+.teams-page .tm-pick{margin:28px 0 0}
+.teams-page .tm-pick h2{font-size:20px;margin:0 0 12px}
+.teams-page .tm-teams{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.teams-page .tm-teams button{min-height:44px;border-radius:99px;padding:8px 14px;font-weight:600;text-align:left}
+.teams-page .tm-teams button small{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);margin-left:6px}
+.teams-page .tm-teams button[aria-pressed=true]{background:#e8f5ee;border-color:#176c4d;box-shadow:0 0 0 1px #176c4d}
+.teams-page .tm-mine{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;background:#176c4d;color:#fff;font-size:11px;font-weight:700;letter-spacing:.02em;vertical-align:1px}
+.teams-page .tm-editor h2{margin:0 0 4px;font-size:22px}
+.teams-page .tm-field{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin:16px 0 0}
+.teams-page .tm-field label{display:block;width:100%;font-weight:700;margin-bottom:2px}
+.teams-page .tm-field input{flex:1 1 260px;min-height:44px;padding:10px 12px;border:1px solid #bec8c1;border-radius:8px;font:inherit;max-width:520px}
+.teams-page .tm-field button{min-height:44px;padding:10px 18px}
+.teams-page .tm-status{min-height:1.5em;margin:10px 0 0;font-size:14px}
+.teams-page .tm-status[data-tone=warn]{color:#a83e12}
+.teams-page .tm-status[data-tone=ok]{color:#176c4d}
+.teams-page .tm-status button{margin-left:8px;min-height:36px}
+.teams-page .tm-unmatched{margin:18px 0 0;padding:14px 16px;background:#f3f5f2;border:1px solid #dbe0dc;border-radius:10px}
+.teams-page .tm-unmatched h3{font-size:15px;margin:0 0 6px}
+.teams-page .tm-unmatched ul{margin:0;padding:0;list-style:none}
+.teams-page .tm-unmatched li{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:4px 0}
+.teams-page .tm-unmatched li span{flex:1 1 200px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13px}
+.teams-page .link-button{background:none;border:0;padding:6px 4px;color:#176c4d;text-decoration:underline;text-underline-offset:3px;font-weight:600;min-height:44px;cursor:pointer}
+.teams-page .tm-roster td:last-child,.teams-page .tm-roster th:last-child{text-align:right}
+.teams-page .tm-roster td.pos{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13px}
+.teams-page .tm-note{font-size:14px;color:var(--muted);margin:12px 0 0}
+.teams-page .tm-actions{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;margin-top:24px}
+.teams-page .tm-actions .button,.teams-page .tm-actions button{min-height:44px;padding:12px 20px;border-radius:10px}
+.teams-page .tm-actions .primary{min-width:200px;text-align:center}
+.teams-page .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(max-width:760px){.teams-page{padding:24px 20px 40px}.teams-page .card{padding:18px}.teams-page .tm-fresh .button{width:100%;text-align:center}.teams-page .tm-actions{flex-direction:column-reverse;align-items:stretch}.teams-page .tm-actions .button,.teams-page .tm-actions button{text-align:center}.teams-page .tm-field button{flex:1 1 100%}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
+</style><link rel="icon" href="data:,"></head><body class="teams-shell" data-own-fresh><header><div class="header-inner"><div class="brand">DDF<small>DATA DRIVEN FOOTBALL</small></div><nav aria-label="Main navigation"><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="values.html">Values</a><div class="morewrap"><button type="button" aria-expanded="false" aria-controls="teams-more">More ▾</button><div class="menu" id="teams-more"><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a><a href="teams.html">Edit teams</a></div></div></nav></div></header>
+<main class="teams-page">
+<section class="card" id="tm-none" hidden aria-labelledby="tm-none-title">
+<h1 id="tm-none-title">Add your league to edit its teams</h1>
+<p>Paste your league's rosters first. Then you can fix any team here by hand.</p>
+<p><a class="button primary" href="connect.html">Add your league</a></p>
+</section>
+<div id="tm-main" hidden>
+<h1 id="tm-title">Edit teams</h1>
+<p class="muted" id="tm-intro">Fix any roster by hand: rename a team, add or remove a player, or move a player from one team to another. Changes save as you go, and every page uses them.</p>
+
+<section class="card tm-fresh" id="tm-fresh" aria-labelledby="tm-fresh-title">
+<div class="tm-fresh-copy"><h2 id="tm-fresh-title"></h2><p id="tm-fresh-text"></p><p class="tm-keep" id="tm-keep">Your league settings, league name and your team stay as they are. Only the rosters change.</p></div>
+<a class="button" id="tm-again" href="connect.html?edit=1&amp;again=1">Paste rosters again</a>
+</section>
+
+<section class="tm-pick" aria-labelledby="tm-pick-title">
+<h2 id="tm-pick-title">Pick a team to edit</h2>
+<ul class="tm-teams" id="tm-teams"></ul>
+</section>
+
+<section class="card tm-editor" id="tm-editor" aria-labelledby="tm-editor-title" aria-live="polite">
+<h2 id="tm-editor-title" tabindex="-1"></h2>
+<p class="muted" id="tm-editor-sub"></p>
+<div class="tm-field"><label for="tm-name">Team name</label><input id="tm-name" type="text" maxlength="40" autocomplete="off" spellcheck="false"><button type="button" id="tm-rename">Rename</button></div>
+<div class="tm-field"><label for="tm-find">Add a player</label><input id="tm-find" type="text" list="tm-options" autocomplete="off" spellcheck="false" placeholder="Start typing a name" aria-describedby="tm-status"><datalist id="tm-options"></datalist><button type="button" class="primary" id="tm-add">Add player</button></div>
+<p class="tm-status" id="tm-status" role="status"></p>
+<div class="tm-unmatched" id="tm-unmatched" hidden><h3 id="tm-unmatched-title">From your paste, not matched to a player yet</h3><p class="tm-note" style="margin:0 0 6px">Find the right player and add them, or remove the line if it is not a player.</p><ul id="tm-unmatched-list"></ul></div>
+<div class="table-wrap"><table class="tm-roster"><caption class="sr-only" id="tm-roster-cap">Players on this team</caption><thead><tr><th scope="col">PLAYER</th><th scope="col">POS</th><th scope="col">NFL</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead><tbody id="tm-rows"></tbody></table></div>
+<p class="tm-note" id="tm-moves" hidden></p>
+</section>
+
+<div class="tm-actions"><button type="button" id="tm-undo" disabled>Undo last change</button><a class="button primary" id="tm-done" href="team.html">Done: see your team</a></div>
+</div>
+</main><footer class="sitemap"><div class="in"><div><h2>TRADE</h2><a href="index.html">Home</a><a href="build.html">Build a Trade</a><a href="find.html">Trade &amp; Waiver Recommendations</a><a href="waivers.html">Waivers</a></div><div><h2>VALUES</h2><a href="values.html">Values</a><a href="values.html#buy-sell">Buy / Sell</a><a href="values.html#overrides">Overrides</a></div><div><h2>YOUR LEAGUE</h2><a href="connect.html">Paste my league</a><a href="setup.html">Your team</a><a href="settings.html">League settings</a><a href="teams.html">Edit teams</a><a href="team.html">Team assessment</a><a href="explore.html">Pick players</a><a href="partners.html">Pick trading partners</a></div><div><h2>LEARN</h2><a href="learn.html">Learn</a><a href="learn.html#numbers/pie">How we get our numbers</a><a href="ai.html">Use DDF with AI</a><a href="freshness.html">Source freshness</a></div></div><div class="footer">Data Driven Football</div></footer><script src="site.js"></script><!-- ddf-engine -->
+<script src="v2/finder.js" defer></script>
+<script src="v2/team-summary.js" defer></script>
+<script src="ddf-engine.js" defer></script>
+<script src="ddf-league.js" defer></script>
+<script src="setup-entry.js" defer></script>
+<script src="teams-entry.js" defer></script>
+</body></html>

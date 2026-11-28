@@ -36,7 +36,7 @@ VENDOR = f"https://{CODE}.goatcounter.com/count"
 FONT_HOSTS = ("https://fonts.googleapis.com/", "https://fonts.gstatic.com/")
 GIF = bytes.fromhex("47494638396101000100800000000000ffffff21f90401000000002c00000000010001000002024401003b")
 PAGES = {"index.html": "/", "connect.html": "/entry/connect", "setup.html": "/entry/setup",
-         "settings.html": "/entry/settings", "team.html": "/workspace/team", "explore.html": "/workspace/explore",
+         "settings.html": "/entry/settings", "teams.html": "/entry/teams", "team.html": "/workspace/team", "explore.html": "/workspace/explore",
          "partners.html": "/workspace/partners", "find.html": "/workspace/find", "waivers.html": "/workspace/waivers",
          "build.html": "/build", "values.html": "/values", "learn.html": "/learn", "ai.html": "/ai"}
 LEAGUE = "Quokka Sentinel League"

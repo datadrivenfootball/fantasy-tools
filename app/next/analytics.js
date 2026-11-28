@@ -33,6 +33,7 @@
     'connect.html': '/entry/connect',        // Add your league
     'setup.html': '/entry/setup',            // Which team is yours?
     'settings.html': '/entry/settings',      // Settings
+    'teams.html': '/entry/teams',            // Edit teams
     'team.html': '/workspace/team',          // Team assessment
     'explore.html': '/workspace/explore',    // Pick players
     'partners.html': '/workspace/partners',  // Pick trading partners
