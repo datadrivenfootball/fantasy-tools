@@ -1,0 +1,122 @@
+{
+ "mode": "dev",
+ "weeks": [
+  5,
+  6,
+  7
+ ],
+ "head": "0637e6680325ddbf5eee31bbd300d59b25534dda",
+ "record": null,
+ "decision": {
+  "outcome": "B",
+  "rules_fired": [
+   {
+    "outcome": "B",
+    "rule": "T1 not computed"
+   },
+   {
+    "outcome": "B",
+    "rule": "T5 fails (primary): B(i)"
+   },
+   {
+    "outcome": "B",
+    "rule": "T6 hinges on S-FP-Full: passes in the primary, fails there"
+   }
+  ],
+  "primary_passes": {
+   "T2": true,
+   "T3": true,
+   "T4": true,
+   "T5": false,
+   "T6": true,
+   "T7": true,
+   "T8": true
+  },
+  "sensitivity_passes": {
+   "S-FC-Half": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-FP-Full": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": false,
+    "T7": true,
+    "T8": true
+   },
+   "S-noESPN-step4": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-noCBSROS-step4": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-noRZ-step4": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-drop-fantasycalc": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-drop-fantasypros": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-drop-cbs": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   },
+   "S-drop-usatoday": {
+    "T2": true,
+    "T3": true,
+    "T4": true,
+    "T5": false,
+    "T6": true,
+    "T7": true,
+    "T8": true
+   }
+  }
+ },
+ "note": "not a decision: dev or replication run",
+ "seconds": 294.4,
+ "quick": false
+}
