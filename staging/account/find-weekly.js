@@ -143,7 +143,8 @@
       return {kind: "pickup", weeks: a.weeks, delta: a.delta, games: a.games, total: a.total, dollars: isNum(a.total) ? a.dollars : null, rivals: a.rivals || [],
         /* the live card names no drop: with an open roster spot nobody goes; with a full roster addImpact counts the
            cheapest drop and the card says who */
-        assumedDrop: !drop && a.drop ? a.drop.name : null};
+        assumedDrop: !drop && a.drop ? a.drop.name : null,
+        spots: ((sm.settings || {}).roster_positions || []).filter(function (x) { return !/^(IR|IR\+|NA|TAXI)$/i.test(String(x)); }).length || null};
     }};
   }
 
@@ -175,7 +176,7 @@
     if (res.kind === "offer") partnerFlags(res).forEach(function (f) { box.appendChild(f); });
     box.appendChild(chipsOf(res.weeks, res.delta, res.games));
     if (res.kind === "pickup") {
-      if (res.assumedDrop) box.appendChild(el("p", {class: "fw-rivals", text: "The card names no drop, so these numbers drop " + res.assumedDrop + ", your cheapest drop by weekly projections."}));
+      if (res.assumedDrop) box.appendChild(el("p", {class: "fw-rivals", text: "Your roster is full in the league data" + (res.spots ? " (" + res.spots + " of " + res.spots + " spots, K and DEF included)" : "") + ", so a pickup needs a drop: these numbers drop " + res.assumedDrop + ", your cheapest by weekly projections. The card above counts an open spot because it cannot see your K and DEF."}));
       box.appendChild(rivalsLine(res));
     }
     return box;
@@ -228,7 +229,8 @@
       var job = offerJob(card);
       if (!apply(card, job)) { pending++; return; }
       var res = state.cache[job.sig], v = sortValue(res);
-      if (v !== null && v > 0 && (!best || v > best.v)) best = {v: v, res: res, sig: job.sig};
+      // the trade line names only a Natural fit offer (at least 2 public charts even or better for them, both sides gain)
+      if (card.getAttribute("data-cls") === "natural" && v !== null && v > 0 && (!best || v > best.v)) best = {v: v, res: res, sig: job.sig};
     });
     [].forEach.call(document.querySelectorAll("[data-pickup]"), function (card) { if (!apply(card, pickupJob(card))) pending++; });
     if (ourSort()) [].forEach.call(document.querySelectorAll(".find-page .pkgs"), reorder);
@@ -267,7 +269,7 @@
     if (!b || !dl || !dl.date) return [];
     var r = b.res;
     return [{week: null, kind: "trade", when: "by " + dl.date + " (trade deadline)", when_sort: 0, gain: r.total,
-      text: "Trade window: best offer below, " + r.give.join(" and ") + " for " + r.get.join(" and ") + " with " + r.partner + (state.usd ? " (" + dollarText(r.dollars) + " expected over the season)" : "")}];
+      text: "Trade window: best Natural fit offer below, " + r.give.join(" and ") + " for " + r.get.join(" and ") + " with " + r.partner + (state.usd ? " (" + dollarText(r.dollars) + " expected over the season)" : "")}];
   }
   function setBest(best) { /* redraw the panel only when the best offer changes */
     var sig = best ? best.sig : null;
