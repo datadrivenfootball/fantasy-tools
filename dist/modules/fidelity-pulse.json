@@ -1,7 +1,7 @@
 {
  "schema": "fidelity-pulse/1",
- "checked_at": "2026-11-28T06:40:20.230664Z",
- "run_id": "68f50077-c7b6-4475-a54f-464386f0faae",
+ "checked_at": "2026-11-28T09:40:20.368360Z",
+ "run_id": "b02a07dd-2346-4421-b4bc-bf0855c09574",
  "overall": "red",
  "site": {
   "url": "https://datadrivenfootball.github.io/fantasy-tools/assets/comparison-sources-data.json",
@@ -33,7 +33,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "fcwk12_2026-11-28t0505_v1",
    "measured_site": "2026-11-27T22:05:28+00:00",
-   "since": "2026-11-28T06:40:20.230664Z",
+   "since": "2026-11-28T09:40:20.368360Z",
    "summary": "1161/1161 chart values equal stored bake fcwk12_2026-11-27t2205_v1; newer stored bake fcwk12_2026-11-28t0505_v1 (week 12, saved 2026-11-28T05:05:37.823458Z) is not on the chart yet: 1123 values changed, 12 added, 15 dropped"
   },
   "fantasypros": {
@@ -57,7 +57,7 @@
    "reason": "fidelity: publisher_vs_stored",
    "identity": "2026-11-28@2026-11-28T03:26:06.478183Z",
    "measured_site": "2026-11-27",
-   "since": "2026-11-28T06:40:20.230664Z",
+   "since": "2026-11-28T09:40:20.368360Z",
    "summary": "1098/1098 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; parse notes: RB: 2 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)', 'Max Hurleman (WR)']; TE: 1 players listed with another position in the cell (kept as TE):"
   },
   "draftsharks": {
@@ -69,7 +69,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-28@2026-11-28T04:45:38.145136Z",
    "measured_site": null,
-   "since": "2026-11-28T06:40:20.230664Z",
+   "since": "2026-11-28T09:40:20.368360Z",
    "summary": "Draft Sharks is not in the live chart file"
   },
   "fantasysharks": {
@@ -81,7 +81,7 @@
    "reason": "fidelity: stored_vs_chart",
    "identity": "2026-11-27@2026-11-27T12:18:34.114161Z",
    "measured_site": null,
-   "since": "2026-11-28T06:40:20.230664Z",
+   "since": "2026-11-28T09:40:20.368360Z",
    "summary": "Fantasy Sharks is not in the live chart file"
   }
  },
@@ -299,18 +299,18 @@
    "stored_bake": "fcwk12_2026-11-28t0505_v1",
    "stages": {
     "publisher_vs_stored": {
-     "status": "green",
-     "summary": "1158/1158 values match exactly across 6 columns",
+     "status": "amber",
+     "summary": "24/1157 values match exactly across 6 columns; 1133 of 1157 values moved since the save at 2026-11-28T05:05:37.823458Z (largest 100%; 0 outside the max(25%, 50) band: none); 3 players entered or left the bottom of the list since the save (churn)",
      "counts": {
-      "publisher_players": 193,
+      "publisher_players": 195,
       "stored_players": 193,
-      "compared": 1158,
-      "matched": 1158,
-      "mismatched": 0,
+      "compared": 1157,
+      "matched": 24,
+      "mismatched": 1133,
       "missing_in_stored": 0,
       "extra_in_stored": 0,
       "outside_universe": 0,
-      "list_churn": 0,
+      "list_churn": 3,
       "unresolved_names": 0
      },
      "url": "https://api.fantasycalc.com/values/current (12 teams, 1 and 2 QB, 3 scorings)",
@@ -320,49 +320,130 @@
      "bake_saved_at": "2026-11-28T05:05:37.823458Z",
      "grains": {
       "full|1": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
+       "mismatched": 188,
+       "missing": 1,
        "extra": 0
       },
       "full|2": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
+       "mismatched": 189,
+       "missing": 1,
        "extra": 0
       },
       "half|1": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
-       "extra": 0
+       "mismatched": 190,
+       "missing": 2,
+       "extra": 1
       },
       "half|2": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
+       "mismatched": 189,
+       "missing": 1,
        "extra": 0
       },
       "std|1": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
+       "mismatched": 188,
+       "missing": 1,
        "extra": 0
       },
       "std|2": {
-       "left": 193,
+       "left": 194,
        "right": 193,
-       "mismatched": 0,
-       "missing": 0,
+       "mismatched": 189,
+       "missing": 1,
        "extra": 0
       }
      },
-     "examples": [],
+     "examples": [
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 3651,
+       "name": "Justin Herbert",
+       "pos": "QB",
+       "left": "1928",
+       "right": 1665.0,
+       "delta": -263.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 3651,
+       "name": "Justin Herbert",
+       "pos": "QB",
+       "left": "1929",
+       "right": 1666.0,
+       "delta": -263.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 3651,
+       "name": "Justin Herbert",
+       "pos": "QB",
+       "left": "1906",
+       "right": 1646.0,
+       "delta": -260.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 4203,
+       "name": "Deshaun Watson",
+       "pos": "QB",
+       "left": "1666",
+       "right": 1902.0,
+       "delta": 236.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|2",
+       "player_key": 4203,
+       "name": "Deshaun Watson",
+       "pos": "QB",
+       "left": "1667",
+       "right": 1903.0,
+       "delta": 236.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "std|2",
+       "player_key": 4203,
+       "name": "Deshaun Watson",
+       "pos": "QB",
+       "left": "1647",
+       "right": 1880.0,
+       "delta": 233.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "half|1",
+       "player_key": 1107,
+       "name": "Breece Hall",
+       "pos": "RB",
+       "left": "3589",
+       "right": 3768.0,
+       "delta": 179.0
+      },
+      {
+       "type": "value_mismatch",
+       "grain": "full|2",
+       "player_key": 3541,
+       "name": "Kirk Cousins",
+       "pos": "QB",
+       "left": "3565",
+       "right": 3387.0,
+       "delta": -178.0
+      }
+     ],
      "outside_universe": [],
      "unresolved": []
     },
@@ -459,9 +540,9 @@
       "position_counts": {
        "week_compared": 11,
        "publisher": {
-        "QB": 35,
-        "RB": 58,
-        "WR": 75,
+        "QB": 34,
+        "RB": 59,
+        "WR": 76,
         "TE": 25
        },
        "stored": {
@@ -513,7 +594,96 @@
      }
     }
    },
-   "worst_examples": [],
+   "worst_examples": [
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 3651,
+     "name": "Justin Herbert",
+     "pos": "QB",
+     "left": "1928",
+     "right": 1665.0,
+     "delta": -263.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 3651,
+     "name": "Justin Herbert",
+     "pos": "QB",
+     "left": "1929",
+     "right": 1666.0,
+     "delta": -263.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 3651,
+     "name": "Justin Herbert",
+     "pos": "QB",
+     "left": "1906",
+     "right": 1646.0,
+     "delta": -260.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 4203,
+     "name": "Deshaun Watson",
+     "pos": "QB",
+     "left": "1666",
+     "right": 1902.0,
+     "delta": 236.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|2",
+     "player_key": 4203,
+     "name": "Deshaun Watson",
+     "pos": "QB",
+     "left": "1667",
+     "right": 1903.0,
+     "delta": 236.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "std|2",
+     "player_key": 4203,
+     "name": "Deshaun Watson",
+     "pos": "QB",
+     "left": "1647",
+     "right": 1880.0,
+     "delta": 233.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "half|1",
+     "player_key": 1107,
+     "name": "Breece Hall",
+     "pos": "RB",
+     "left": "3589",
+     "right": 3768.0,
+     "delta": 179.0
+    },
+    {
+     "stage": "publisher_vs_stored",
+     "type": "value_mismatch",
+     "grain": "full|2",
+     "player_key": 3541,
+     "name": "Kirk Cousins",
+     "pos": "QB",
+     "left": "3565",
+     "right": 3387.0,
+     "delta": -178.0
+    }
+   ],
    "held": null,
    "hold": {
     "stage": "stored_vs_chart",
@@ -524,7 +694,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "fcwk12_2026-11-28t0505_v1",
     "measured_site": "2026-11-27T22:05:28+00:00",
-    "since": "2026-11-28T06:40:20.230664Z",
+    "since": "2026-11-28T09:40:20.368360Z",
     "summary": "1161/1161 chart values equal stored bake fcwk12_2026-11-27t2205_v1; newer stored bake fcwk12_2026-11-28t0505_v1 (week 12, saved 2026-11-28T05:05:37.823458Z) is not on the chart yet: 1123 values changed, 12 added, 15 dropped"
    }
   },
@@ -1834,7 +2004,7 @@
     "reason": "fidelity: publisher_vs_stored",
     "identity": "2026-11-28@2026-11-28T03:26:06.478183Z",
     "measured_site": "2026-11-27",
-    "since": "2026-11-28T06:40:20.230664Z",
+    "since": "2026-11-28T09:40:20.368360Z",
     "summary": "1098/1098 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; parse notes: RB: 2 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)', 'Max Hurleman (WR)']; TE: 1 players listed with another position in the cell (kept as TE):"
    }
   },
@@ -2203,7 +2373,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-28@2026-11-28T04:45:38.145136Z",
     "measured_site": null,
-    "since": "2026-11-28T06:40:20.230664Z",
+    "since": "2026-11-28T09:40:20.368360Z",
     "summary": "Draft Sharks is not in the live chart file"
    }
   },
@@ -2272,7 +2442,7 @@
     "reason": "fidelity: stored_vs_chart",
     "identity": "2026-11-27@2026-11-27T12:18:34.114161Z",
     "measured_site": null,
-    "since": "2026-11-28T06:40:20.230664Z",
+    "since": "2026-11-28T09:40:20.368360Z",
     "summary": "Fantasy Sharks is not in the live chart file"
    }
   }
@@ -2310,5 +2480,5 @@
   "fantasysharks": "2026-10-16T07:19:25.781124+00:00"
  },
  "resyncs": {},
- "holds_changed": true
+ "holds_changed": false
 }
