@@ -413,3 +413,13 @@ Deno.test("rulings 2026-11-27 (2): K/DEF waiver average for us and opponents; pl
   assertEquals(p.faab.length, 4);
   assert(p.faab.some((f: { me: boolean; faab: number }) => f.me && f.faab === 50));
 });
+
+Deno.test("review fixes 4: the assumed waiver pickup is never a start move or a bench row", async () => {
+  const lg = league();
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 500 });
+  const g13 = p.games[0]; // K1 (8) is below the waiver average (12): the assumed kicker starts
+  assert(g13.mine.starters.some((x: { assumed: boolean }) => x.assumed));
+  assert(!g13.moves.some((m: { kind: string; text: string }) => m.kind === "start" && /Waiver/.test(m.text)), JSON.stringify(g13.moves));
+  for (const g of p.games) for (const l of [g.mine, g.theirs]) if (l) assert(!(l.bench || []).some((x: { assumed: boolean }) => x.assumed));
+});

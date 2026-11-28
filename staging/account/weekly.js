@@ -149,7 +149,7 @@
     return {
       total: total === null ? null : r1(total),
       starters: starters,
-      bench: real.filter(function (p) { return !used[p.player_id]; }).concat(players.filter(function (p) { return p.bye; })),
+      bench: real.filter(function (p) { return !used[p.player_id] && !p.assumed; }).concat(players.filter(function (p) { return p.bye; })), // an assumed waiver pickup never sits on a bench
       empty_slots: empty,
       unscored: missing.map(function (p) { return {player_id: p.player_id, name: p.name, pos: p.pos, reason: p.note || "No projection"}; }),
       reason: blocked.length ? "No projection for a player who would start at " + blocked.join(", ") : null
@@ -639,7 +639,10 @@
     // start/sit: only the current week has a set lineup to compare with; only players yet to play can move
     if (w === cur && (!m || m.status !== "final")) {
       var startersNow = roster.filter(function (e) { return e.slot && e.slot !== "BN" && ELIGIBLE[e.slot] && !played(e); }).map(function (e) { return playerWeek(weekly, e, w); });
-      var openBest = adv.starters.filter(function (s) { return s.player_id && !s.played; });
+      // the assumed K/DEF waiver pickup is not a player you can start: its slots stay out of the start/sit comparison
+      var assumedSlots = adv.starters.filter(function (s) { return s.assumed; }).map(function (s) { return s.slot; });
+      startersNow = startersNow.filter(function (p) { var i = assumedSlots.indexOf(p.slot_now); if (i < 0) return true; assumedSlots.splice(i, 1); return false; });
+      var openBest = adv.starters.filter(function (s) { return s.player_id && !s.played && !s.assumed; });
       var nowOpen = startersNow.reduce(function (a, p) { return a + (p.points || 0); }, 0);
       var bestOpen = openBest.reduce(function (a, p) { return a + (p.points || 0); }, 0);
       var unknown = startersNow.some(function (p) { return p.points === null; }); // a starter with no projection: no made-up gain
