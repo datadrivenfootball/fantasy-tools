@@ -374,10 +374,10 @@ Deno.test("JEG-1737 rule A: an opponent keeps his set lineup with holes filled; 
   assertEquals(p.games[0].win.yahoo, 0.66);
   assertEquals(g14.win.yahoo, null);
   assertEquals(g14.yahoo_proj, null);
-  // stakes: dollars for the title (payout given), points of title odds for best record (no payout)
+  // stakes: with a title payout given (old shape), the stake is the change in expected prize money, in dollars
   const s13 = p.games[0].stake;
-  assert(typeof s13.dollars === "number" && /\$/.test(s13.text), s13.text);
-  assertEquals(s13.unpriced, ["runner_up", "best_record"]);
+  assert(typeof s13.dollars === "number" && /^\$/.test(s13.text), s13.text);
+  assertEquals(s13.unpriced, []);
   assertAlmostEquals(p.games[0].high_score.expected_dollars, 50 * p.games[0].high_score.chance, 0.01);
   // a playoff game has a stake too (title and runner-up)
   assert(p.games.filter((g: { phase: string }) => g.phase === "playoffs").some((g: { stake: { dollars: number | null } }) => typeof g.stake.dollars === "number"));
@@ -422,4 +422,22 @@ Deno.test("review fixes 4: the assumed waiver pickup is never a start move or a 
   assert(g13.mine.starters.some((x: { assumed: boolean }) => x.assumed));
   assert(!g13.moves.some((m: { kind: string; text: string }) => m.kind === "start" && /Waiver/.test(m.text)), JSON.stringify(g13.moves));
   for (const g of p.games) for (const l of [g.mine, g.theirs]) if (l) assert(!(l.bench || []).some((x: { assumed: boolean }) => x.assumed));
+});
+
+Deno.test("payouts (USO, from league emails): places 1-4, a 3rd-place game, high score through a week, no best-record goal", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { source: "from league emails, 2024-25", place: { 1: 450, 2: 300, 3: 200, 4: 100 }, high_score_week: 50, high_score_through_week: 14, best_record: 0 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const p = W.plan(lg, wk, { runs: 3000 });
+  // every team makes a 4-team bracket, so the least anyone wins is $100 and the expected money is between $100 and $450
+  assert(p.money.expected >= 100 && p.money.expected <= 450, String(p.money.expected));
+  const last = p.games[p.games.length - 1];
+  assert(/the 3rd-place game in \d+%/.test(last.opp_note), last.opp_note);
+  assert(/final: \$150, 3rd-place game: \$100/.test(last.stake.text), last.stake.text);
+  const semi = p.games[p.games.length - 2];
+  assert(semi.stake.dollars > 0 && semi.stake.dollars <= 350, String(semi.stake.dollars)); // final ($300-450) v 3rd-place game ($100-200)
+  assertEquals(p.goals.map((g: { id: string }) => g.id), ["high_score", "seed", "playoffs"]); // no record prize, no goal
+  assert(typeof p.games.find((g: { week: number }) => g.week === 14).high_score.expected_dollars === "number");
+  assert(p.games.find((g: { week: number }) => g.week === 15).high_score.no_payout); // weeks after 14 pay no high score here
+  assert(/Payouts \(from league emails, 2024-25\): 1st \$450, 2nd \$300, 3rd \$200, 4th \$100/.test(p.sources.join(" ")), p.sources.join(" "));
 });

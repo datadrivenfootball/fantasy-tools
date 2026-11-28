@@ -140,16 +140,19 @@
   }
 
   /* ---------- panel 2: by weekly gain ---------- */
-  function gainCell(value, label, sub) {
+  function gainCell(value, label, sub, fmt) {
     return el("div", {class: "pk-gain"}, el("small", {text: label}),
-      isNum(value) ? el("b", {class: "gain", text: signed(value)}) : el("b", {class: "gain"}, na("A starter has no projection in one of the weeks left")),
+      isNum(value) ? el("b", {class: "gain", text: (fmt || signed)(value)}) : el("b", {class: "gain"}, na("A starter has no projection in one of the weeks left")),
       sub ? el("small", {class: "pk-total", text: sub}) : null);
   }
   function headline(item, kind) { /* the number the sort ranks by, and the other one beside it */
     var total = kind === "add" ? item.total_gain : item.my_total, weighted = kind === "add" ? item.weighted_gain : item.my_weighted;
+    /* with league payouts, "for your games left" is expected prize money (each week's points priced in $/pt) */
+    var usd = state.rec && state.rec.weight_unit === "$";
+    var wtxt = function (v) { return usd ? (v < 0 ? "−$" : "+$") + Math.abs(v).toFixed(2) : signed(v); };
     return state.sort === "games"
-      ? gainCell(weighted, "For your games left", isNum(total) ? pts(total) + " over the weeks left" : null)
-      : gainCell(total, "Weekly points, weeks left", isNum(weighted) ? signed(weighted) + " for your games left" : null);
+      ? gainCell(weighted, usd ? "Expected $, your games left" : "For your games left", isNum(total) ? pts(total) + " over the weeks left" : null, usd ? wtxt : null)
+      : gainCell(total, "Weekly points, weeks left", isNum(weighted) ? wtxt(weighted) + (usd ? " expected" : " for your games left") : null);
   }
   /* who else this pickup helps, with their FAAB and waiver priority: context for a bid, never a bid */
   function rivalsLine(a) {
