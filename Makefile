@@ -824,6 +824,8 @@ test-core:
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
 	node tests/test_sleeper_league_state.js
+	# JEG-1658: weekly team projection, best-lineup points per team per week (fixtures, no live calls).
+	node tests/test_weekly_team_projection.js
 	node tests/test_v2_name_format.js
 	python3 -m unittest tests.test_v2_headlines
 	python3 -m unittest tests.test_v2_movers
@@ -1067,6 +1069,8 @@ test-core-shard-2:
 	node tests/test_sleeper_import.js
 	node tests/test_league_state.js
 	node tests/test_sleeper_league_state.js
+	# JEG-1658: weekly team projection, best-lineup points per team per week (fixtures, no live calls).
+	node tests/test_weekly_team_projection.js
 	python3 -m unittest tests.test_v2_trade_story
 	python3 -m unittest tests.test_v2_phone_customize_targets_render
 	python3 -m unittest tests.test_v2_phone_fallback_font_render

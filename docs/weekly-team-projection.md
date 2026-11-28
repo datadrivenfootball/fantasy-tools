@@ -1,0 +1,92 @@
+# Weekly team projection (JEG-1658, part of JEG-1653)
+
+Module: `app/next/weekly-team-projection.js` (`DDF.weeklyTeamProjection.project`). Test:
+`node tests/test_weekly_team_projection.js` (in `make test-core` and `test-core-shard-2`). Fixtures:
+`tests/fixtures/weekly-team-projection/small.json` (regenerate with `generate_small.js` in the same folder) and the
+Sleeper producer fixture `tests/fixtures/sleeper-live/full.json`.
+
+Status: pure module only. No page loads it and no data path feeds it yet (see "Data path"). UI is JEG-1660 (My Season).
+It reads nothing from, and feeds nothing into, DDF Value, rest-of-season values, charts or the pipeline.
+
+## What it returns
+
+For each team in a `league-state/1` document and each week from `fromWeek` (default `record_through_week + 1`; the
+spec's W+1 is passed by the caller) to the last playoff week: the points of the best legal lineup for the league's
+starter slots, from that week's Sleeper projections, with ESPN's figure for the same rules beside it.
+
+- Last playoff week: `opts.lastWeek`, otherwise `start_week + rounds - 1`, rounds = log2 of the bracket (2 spots 1
+  round, 3-4 2, 5-8 3, 9-16 4), one week per round. Two-week rounds (Sleeper `playoff_round_type` 1 or 2) are not in
+  league-state/1, so such a league must pass `lastWeek`. Capped at week 18.
+- Lineup: exact assignment (Hungarian method) over the projected slots QB, RB, WR, TE, FLEX, WRRB_FLEX, REC_FLEX,
+  SUPER_FLEX. Greedy filling is wrong when flex sets overlap without nesting. K, DEF and IDP slots are listed in
+  `basis.slots_not_projected` and add nothing (the warehouse has QB/RB/WR/TE only). An unfillable slot is a real 0 and
+  is listed in `flags.empty_slots`.
+- Points: one function, `opts.points(row, {scoring, source, week})`, default `providerPoints` = the stored
+  `points_<format>` column. Per-league rescoring from `row.stats` (JEG-1688, Jeremy 2026-11-16 decision C on
+  JEG-1682) replaces only this function.
+
+## Availability rules (Jeremy 2026-11-16)
+
+| Case | Rule |
+| --- | --- |
+| Bye | nflverse schedule (REG games): the player's team has no game. Team codes normalised to nflverse (`LAR` to `LA`, `JAC` to `JAX`, `WSH` to `WAS`). The team comes from that week's row, else the player's newest row in any source and week (Sleeper has no row in a bye week), else `players`. A week with no schedule rows is `bye_unknown`. The bye check runs before the out rule, so ESPN's 0 in a bye week is a bye, not an out week. |
+| Week before the injury report's week | The report does not apply; the player is projected as healthy (Codex P2, 2026-11-21). Jeremy's rules below cover the report week and later. A report with no week applies to every week. |
+| Listed out now (Out, IR, PUP, NFI, suspended) | Counts only in the weeks where ESPN's projection for him is above 0, flagged `uncertain_return`; a week ESPN projects at 0 (or has no row for him) is out. ESPN zero-pads bye, out and no-role weeks, so its first week above 0 is his expected return. |
+| Out, no ESPN row at all | The Sleeper weeks are used, flagged |
+| Out, week past ESPN's coverage | The Sleeper weeks are used for that week, flagged |
+| IR-type, no ESPN week above 0 | The Sleeper weeks are used, flagged |
+| Weekly Out, every ESPN week at 0 | Out every week |
+| Questionable, Doubtful | Counted, no flag |
+| No row for the player that week (or a row with no points) | Excluded with `points: null` and a reason; the next player fills in |
+| Missing players leave a starter slot that no real player can fill | The team week is `null` with a reason naming the slots and the missing players (never 0). See "Missing data" below. |
+| Roster with no players | The team week is `null` with a reason |
+| Source has no rows for the week | The team week is `null` with a reason (never 0) |
+| Week 18 | `flags.rest_starters_risk` |
+
+## Missing data (Codex P1, 2026-11-21)
+
+"Real" players are those with a usable projected value, a provider 0 included. "Missing" players are those with no
+row for the week or a row with no points, after the bye and out checks (a bye or out player is unavailable, not
+missing). The lineup is built from real players only, so the next player fills in for a missing one. The team week
+is `null` only when no legal lineup can be scored from real data: the exact assignment with the missing players
+added fills more starter slots than the real players alone (slot counts, so a flex shuffle counts too). A missing
+player with no known position counts as able to fill any empty slot. A slot left empty by byes and outs alone is a
+real 0 and is listed in `flags.empty_slots`. The same rule runs for the ESPN cross-check, so an ESPN week with no
+usable points for the team is `null`, and its `diff` is `null`.
+
+ESPN rows whose points are null (for example under a rescoring function with no ESPN stat line) are no evidence,
+so they count as "no ESPN row". The ESPN rule reads `opts.returnSource` (default `espn`) through the same points
+function. Without a schedule a bye cannot be seen, so ESPN's 0 that week reads as out (the week is `bye_unknown`).
+
+## Join keys (checked on the warehouse, 2026-11-16, latest runs)
+
+- Rosters are Sleeper player ids. Sleeper rows: `sleeper_id` always set (3,715 rows, weeks 10-18).
+- ESPN rows: 4,104 of 5,517 have no `sleeper_id`, but all have `player_key`. The module maps `player_key` to the
+  Sleeper id through the Sleeper rows; every ESPN row above 5 half-PPR points joins that way.
+- Team codes: ESPN rows already use nflverse codes; Sleeper writes `LAR` (its only mismatch, 118 rows); CBS rows
+  also use `LAR` and `JAC`. All are mapped.
+- Sleeper has no row for a player on bye; ESPN has a 0 row (MR-20).
+
+## Data path (finding and decision, 2026-11-16)
+
+Decision (Jeremy, 2026-11-16, multiple choice): option A, a static `weekly-projections.json` built with the site, on a
+separate pipeline ticket (not in the module PR).
+
+
+The browser cannot read the warehouse. `source_weekly_projections`, `nflverse_schedule_snapshots` and
+`nflverse_injury_snapshots` have RLS on with all privileges revoked from `anon` and `authenticated`
+(migration `jeg1641_weekly_projection_warehouse_20261114.sql`). The site reads only static files built with it
+(`players-table-1.json`, `sleeper-players.json`) and Sleeper's public API; `get-values` and `mcp` are edge functions
+for the MCP connector and read no warehouse table. Options (each a pipeline or infra change that ships alone):
+
+- A (recommended): a pipeline step writes a static `weekly-projections.json` with the site build (latest Sleeper and
+  ESPN run, weeks W+1..18, the module's row columns only, plus the schedule and injury rows). Same pattern as
+  `players-table-1.json`; no new public database surface; about 9,000 rows a day, so trim columns.
+- B: a read-only edge function that returns the latest run's rows for a list of Sleeper ids. Live, but a new public
+  endpoint with its own egress and rate limits.
+- C: a `security definer` RPC granted to `anon`. Smallest code, but opens a database path from the browser.
+
+## Not in v1
+
+Team score spread and the season simulator (later JEG-1653 tickets), median games, two-week playoff rounds read
+from Sleeper, per-league rescoring (JEG-1688), Sleeper vs ESPN gap flags per player.
