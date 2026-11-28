@@ -23,7 +23,7 @@ Auctions:
 1. **A 12-team ESPN keeper league**, auction on 2026-08-19, $200, standard
    scoring, QB/2RB/2WR/TE/FLEX/K/DST/5 bench. 168 sales, 27 keepers ($683)
    treated as sold; 116 skill players scored (25 K/DST unmatched by design,
-   1 name fixed by alias). Draft-start inflation: ours -0.3%, market +5.6%,
+   1 name fixed by alias). Draft-start inflation: ours +0.2%, market +5.6%,
    platform +5.1%.
 2. **ESPN 2026 average auction values**: the mean price in real ESPN 2026
    auctions (ESPN's default 10-team $200 PPR room), 99 players at $1 or more.
@@ -124,7 +124,7 @@ QB/2RB/3WR/TE/FLEX/K/DEF/5 bench); the $200 budget is assumed.
 
 - Look-ahead: projections and props are dated about three weeks after the
   keeper league's auction (2026-08-19), so ours had information that room
-  did not; even so, ours trails the market by $2.2 per player there.
+  did not; even so, ours trails the market by $1.3 per player there (MAE $5.55 vs $4.26).
 - One real room plus one aggregate, and the aggregate shares ESPN's curve.
   A third auction would help: Jeremy's USO Season XVIII (Yahoo, 2026
   auction) has picks but no prices in the league connector; pasting the

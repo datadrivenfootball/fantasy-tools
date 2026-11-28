@@ -124,7 +124,13 @@ of f662c66 and f0fcfb1):
   "Game Lines" or "Lions vs Bears" line starts a weekly or game section, and
   every line under it is refused.
 - **The right year on every line.** Any line naming another year ("2025
-  Receiving Yards") is refused, and so is its section.
+  Receiving Yards", "'25 Regular Season", "25/26") is refused, and so is its
+  section.
+- **A header is a stat, season words and a year, nothing else.** Any other
+  word refuses the market: "September Receiving Yards (Regular Season)",
+  "Rest of Regular Season ...", "... at Home", "... if Burrow Misses Time"
+  (fourth review of 31faf01). A known player's name may lead the header
+  ("Jahmyr Gibbs - Regular Season Rushing Yards").
 - **One stat per market.** A header that names two stats in any order or
   joiner ("Receiving and Rushing Yards", "Receiving Yds plus Rushing Yds",
   "Rush + Rec", "Rushing and Passing Yards") is refused as combined.
@@ -133,15 +139,21 @@ of f662c66 and f0fcfb1):
   interceptions, sacks, fumbles, points, leaders, awards.
 - **No guessing the player.** A name it does not know clears the selected
   player, so its lines are listed ("unknown player") instead of going to the
-  player above. Any line it cannot read clears the player too.
+  player above. A name two players share ("Mike Williams") is refused and
+  listed. Any line it cannot read clears the player too.
+- **Whole lines only.** An over/under line is the side, the number and
+  optional odds: "O 1375.5 Receiving Yards (Week 1)" is listed, not read.
+  "1375½" reads as 1375.5. Under a split "Over" a whole number ("110") may be
+  unsigned odds and is listed. A line in a market section with a number it
+  cannot read (a Greek "Ο 1375.5") is listed, never dropped.
 - **Consistent lines.** Two different over (or under) lines for the same
   player and market, an over and under more than 5% apart, a number outside
   a plausible season range, or an over/under it cannot read.
 
 Each snapshot's meta file records its pull date (`snapshot_date`,
-`pulled_at`) and the scale factor per market that puts its lines on the
-projection's level (`vegas_factors`, with `vegas_factor_n` players behind
-each); see engine.md "Vegas level".
+`pulled_at`). It stores no scale factors: the engine recomputes them on
+every build from the projection it prices (`vegas_scale` says so); see
+engine.md "Vegas level".
 
 Storage: `public.draft_vegas_lines` (applied 2026-11-27 on Jeremy's yes;
 public read, server-only write; one snapshot per date, the same for every

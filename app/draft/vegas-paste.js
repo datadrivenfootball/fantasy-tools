@@ -72,12 +72,30 @@
 
   function count(res, t) { return res.reduce(function (n, re) { return n + (re.test(t) ? 1 : 0); }, 0); }
 
+  // A season header names a stat, season words and a year, nothing else
+  // (fourth review of 31faf01: "September Receiving Yards (Regular Season)",
+  // "Rest of Regular Season ...", "... at Home", "... if Burrow Misses Time"
+  // passed). Any other word refuses the market.
+  var HEADER_WORDS = ("pass passing rush rushing rec receiving yards yard yds yd touchdowns touchdown " +
+    "td tds receptions reception catches regular reg season long full player players futures " +
+    "future props prop total totals nfl o u over under ou").split(" ");
+  function extraWords(text) {
+    return String(text).toLowerCase().replace(/['’‘]\d{2}\b/g, " ").split(/[^a-z0-9]+/)
+      .filter(function (w) {
+        if (!w) return false;
+        if (/^20\d\d$/.test(w) || /^\d{2}$/.test(w)) return false; // a year or "25/26"
+        return HEADER_WORDS.indexOf(w) === -1;
+      });
+  }
+
   function marketOf(text) {
     for (var i = 0; i < MARKETS.length; i += 1) if (MARKETS[i].re.test(text)) return MARKETS[i].key;
     return null;
   }
   // -> null (not a header) | {market, season} | {refused}
-  function headerOf(text) {
+  // isPlayer(name) (optional): a header may start with a known player's
+  // name ("Josh Allen - Regular Season Passing Yards").
+  function headerOf(text, isPlayer) {
     if (!STATLIKE.test(text)) return null;
     var t = text.replace(/\breceptions?\b/ig, " receptions ");
     var fam = count(FAMILIES, t.replace(/\breceptions?\b/ig, " ")), typ = count(TYPES, t);
@@ -86,11 +104,28 @@
     }
     for (var i = 0; i < REFUSED.length; i += 1) if (REFUSED[i].re.test(text)) return { refused: REFUSED[i].why };
     var m = marketOf(text);
-    return m ? { market: m, season: SEASON.test(text) } : { refused: "unsupported market" };
+    if (!m) return { refused: "unsupported market" };
+    var extra = extraWords(text);
+    if (extra.length) {
+      var parts = text.split(/\s[-–|:]\s/);
+      var who = parts.length > 1 ? parts[0] : null;
+      if (who && isPlayer && isPlayer(who)) extra = extraWords(parts.slice(1).join(" - "));
+      else if (who && isPlayer && nameLike(stripTeam(who)) && !extraWords(parts.slice(1).join(" - ")).length) {
+        return { refused: "unknown player " + who };
+      }
+    }
+    if (extra.length) return { refused: "partial-season or conditional market (\"" + extra.join(" ") + "\")" };
+    return { market: m, season: SEASON.test(text) };
   }
 
   var NUM = "(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d{1,5}(?:\\.\\d+)?)";
-  var OU_ONLY = new RegExp("^(o|over|u|under)\\s*" + NUM + "(?![\\d,])", "i");
+  // The whole line: side, number, optional odds. Trailing text ("O 1375.5
+  // Receiving Yards (Week 1)") is not a line we can trust (fourth review).
+  var OU_ONLY = new RegExp("^(o|over|u|under)\\s*" + NUM + "(?:\\s*\\(?[+\\-]\\d{2,4}\\)?)?$", "i");
+  var OU_START = /^(o|over|u|under)\s*\d/i;
+  // A number that reads like a line: a decimal, or a short token then digits
+  // ("Ο 1375.5" with a Greek omicron).
+  var LINE_NUMBER = /\d\.\d|^[^\d\s]{1,6}\s*\d{2,5}\b/;
   var OU_INLINE = new RegExp("^(.+?)\\s+(o|over|u|under)\\s*" + NUM + "(?![\\d,])(.*)$", "i");
   var ODDS_ONLY = /^\(?[+\-−]\d{2,4}\)?$/;
   // "CIN - WR" under a name is a team/position line and keeps the player.
@@ -117,8 +152,13 @@
   function parse(text, players, options) {
     var opts = options || {};
     var season = Number(opts.season);
-    var byName = {};
-    Object.keys(players || {}).forEach(function (k) { byName[normName(players[k].name)] = k; });
+    // Two players with one name resolve to neither (fourth review: two Mike
+    // Williams lines resolved silently); the name is refused and listed.
+    var byName = {}, AMBIGUOUS = {};
+    Object.keys(players || {}).forEach(function (k) {
+      var n = normName(players[k].name);
+      byName[n] = byName[n] === undefined ? k : AMBIGUOUS;
+    });
     var lines = String(text || "").replace(/\r/g, "").split("\n");
     var errors = [], found = {}, ignored = 0;
     // The current section: its market (or why it is refused), whether it
@@ -127,7 +167,8 @@
     var pendingSide = null; // FanDuel style: "Over" on one line, "1375.5" on the next
 
     function err(i, t, reason) { errors.push({ lineNo: i + 1, text: t, reason: reason }); }
-    function lookup(t) { return byName[normName(stripTeam(t))]; }
+    function lookup(t) { var k = byName[normName(stripTeam(t))]; return k === AMBIGUOUS ? undefined : k; }
+    function ambiguous(t) { return byName[normName(stripTeam(t))] === AMBIGUOUS; }
     function record(i, t, k, mkt, side, value) {
       var r = RANGES[mkt];
       if (!(value >= r[0] && value <= r[1])) { err(i, t, "line " + value + " outside " + r[0] + "-" + r[1] + " for " + mkt); return; }
@@ -148,12 +189,16 @@
     }
 
     lines.forEach(function (raw, i) {
-      var t = raw.replace(/−/g, "-").replace(/\s+/g, " ").trim();
+      // "1375½" is 1375.5; other vulgar fractions are left unread.
+      var t = raw.replace(/−/g, "-").replace(/(\d)\s*½/g, "$1.5").replace(/\s+/g, " ").trim();
       if (!t) return;
       if (ODDS_ONLY.test(t)) return;
       if (pendingSide) {
         var side = pendingSide; pendingSide = null;
-        if (NUM_ONLY.test(t)) t = side + " " + t;
+        // A whole number under a split side may be unsigned odds ("Over" /
+        // "110"), so only a half-point line is read (fourth review).
+        if (NUM_ONLY.test(t) && /\.\d/.test(t)) t = side + " " + t;
+        else if (NUM_ONLY.test(t)) { err(i, side + " " + t, "whole number after a split over/under (unsigned odds?)"); return; }
         else err(i - 1, side, "over/under with no line after it");
       }
       if (SIDE_ONLY.test(t)) { pendingSide = t; return; }
@@ -161,18 +206,24 @@
       // Two-digit season labels: "25/26 Regular Season" is the 2025 season.
       var yr2 = yr ? null : t.match(/\b(\d{2})\s*[\/–-]\s*(\d{2})\b/);
       if (!yr && yr2 && SEASON.test(t) && +yr2[2] === (+yr2[1] + 1) % 100) yr = [yr2[0], String(2000 + Number(yr2[1]))];
+      // "'25 Regular Season" is the 2025 season (fourth review).
+      var yrA = yr ? null : t.match(/(?:^|[^A-Za-z])['’‘](\d{2})\b/);
+      if (!yr && yrA) yr = [yrA[0], String(2000 + Number(yrA[1]))];
       if (yr && season && Number(yr[1]) !== season) {
         err(i, t, "season " + yr[1] + " is not " + season);
         startSection({ refused: "another season" }, t);
         player = null;
         return;
       }
+      if (OU_START.test(t) && !OU_ONLY.test(t)) { err(i, t, "unreadable over/under line"); return; }
       var inl = t.match(OU_INLINE);
-      var hdr = inl ? null : headerOf(t);
+      var hdr = inl ? null : headerOf(t, function (w) { return !!lookup(w) || ambiguous(w); });
       if (hdr) {
         startSection(hdr, t);
         // "Josh Allen - Regular Season Passing Yards": the player is named too.
-        player = lookup(t.split(/\s[-–|:]\s/)[0]) || null;
+        var named = t.split(/\s[-–|:]\s/)[0];
+        if (ambiguous(named)) { err(i, t, "ambiguous name: " + named + " matches more than one player"); startSection({ refused: "ambiguous player" }, t); }
+        player = lookup(named) || null;
         return;
       }
       if (!inl && SECTION_BREAK.test(t)) { startSection({ refused: "weekly or game section" }, t); player = null; return; }
@@ -194,8 +245,10 @@
       if (TEAM_POS_ONLY.test(t)) return;
       if (/^[A-Z]{2,4}$/.test(t)) { player = null; pendingName = { text: t, lineNo: i + 1 }; ignored += 1; return; }
       if (HAS_DIGIT.test(t) && /\b(o|over|u|under)\b/i.test(t)) { err(i, t, "unreadable over/under line"); player = null; return; }
+      if (ambiguous(t)) { err(i, t, "ambiguous name: " + t + " matches more than one player"); player = null; return; }
       var key = lookup(t);
       if (key) { player = key; pendingName = null; return; }
+      if ((market || refused) && LINE_NUMBER.test(t)) { err(i, t, "unread line with a number"); player = null; return; }
       // Anything else clears the selected player, so an unknown name can
       // never hand its lines to the player above it.
       player = null;

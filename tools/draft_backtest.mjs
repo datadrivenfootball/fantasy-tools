@@ -105,7 +105,10 @@ export function buildPrices({ league, fp, vegas, espn, ecr, vegasScale }) {
   vegas.forEach(v => {
     const k = byName.get(normName(v.name));
     if (!k) return;
-    (lines[k] ||= {})[v.market] = Number(v.line);
+    // null, "" and non-numeric lines are missing, never 0 (fourth review).
+    const line = typeof v.line === "number" || (typeof v.line === "string" && v.line.trim()) ? Number(v.line) : NaN;
+    if (!Number.isFinite(line)) return;
+    (lines[k] ||= {})[v.market] = line;
   });
   const vegasStats = {};
   Object.entries(lines).forEach(([k, l]) => { const s = E.vegasStatLine(l, fpStats[k]); if (s) vegasStats[k] = s; });
@@ -120,11 +123,12 @@ export function buildPrices({ league, fp, vegas, espn, ecr, vegasScale }) {
     markets: { fp_ecr: fpMarketRaw }, lineupConfig: LINEUP, vegasScale });
   return {
     players, byName, values: build.values,
-    ours: E.ourPrices(build.values, league),
+    ours: E.ourPrices(build, league),
     market: E.rescaleDollars(fpMarketRaw, league),
     platform: E.rescaleDollars(platformRaw, league),
     method: build.pipeline.method, source: build.source, sourceCounts: build.counts,
     vegasFactors: build.vegasFactors, vegasFactorN: build.vegasFactorN,
+    vegasFactorBasis: build.vegasFactorBasis, vegasFactorPooledN: build.vegasFactorPooledN,
     coverage: { fp: Object.keys(fpStats).length, vegas: Object.keys(vegasStats).length,
       ecr: Object.keys(ecrByKey).length, platform: Object.keys(platformRaw).length },
   };

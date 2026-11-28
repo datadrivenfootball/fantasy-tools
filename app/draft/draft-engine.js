@@ -74,16 +74,27 @@
     season_rec_tds: "rec_tds"
   };
 
+  // A line or stat is a number or a numeric string; null, "", booleans and
+  // anything else are missing, never 0 (fourth review of 31faf01: a null rec
+  // yds line read as a Vegas 0).
+  function num(x) {
+    if (typeof x !== "number" && typeof x !== "string") return NaN;
+    if (typeof x === "string" && !x.trim()) return NaN;
+    var v = Number(x);
+    return isFinite(v) ? v : NaN;
+  }
+  function hasNum(x) { return !isNaN(num(x)); }
+
   // lines: {market: line}. fallback: a projection's stat line for the same
   // player; stats with no prop take the fallback's value. Returns null when
   // the player has no prop at all (Vegas has no opinion on him).
   function vegasStatLine(lines, fallback) {
     var out = {}, covered = [];
-    STAT_KEYS.forEach(function (k) { out[k] = Number(fallback && fallback[k]) || 0; });
+    STAT_KEYS.forEach(function (k) { var f = num(fallback && fallback[k]); out[k] = isNaN(f) ? 0 : f; });
     Object.keys(lines || {}).forEach(function (market) {
       var stat = VEGAS_MARKETS[market];
-      var v = Number(lines[market]);
-      if (stat && isFinite(v)) { out[stat] = v; covered.push(stat); }
+      var v = num(lines[market]);
+      if (stat && !isNaN(v)) { out[stat] = v; covered.push(stat); }
     });
     if (!covered.length) return null;
     out.covered = covered;
@@ -162,13 +173,14 @@
   // (stats + covered) or a plain stat line (every stat present counts).
   function mergeStatLine(vegas, proj) {
     // A null or missing stat is missing, never a Vegas 0 (review of bc19862).
-    var has = function (k) { return vegas && vegas[k] !== null && vegas[k] !== undefined && vegas[k] !== "" && isFinite(Number(vegas[k])); };
+    var has = function (k) { return !!vegas && hasNum(vegas[k]); };
     var covered = vegas ? (vegas.covered || STAT_KEYS.filter(has)).filter(has) : [];
     var out = {}, fromVegas = 0, relevant = 0;
     STAT_KEYS.forEach(function (k) {
-      var pv = proj && isFinite(Number(proj[k])) ? Number(proj[k]) : 0;
+      var pv = proj ? num(proj[k]) : NaN;
+      if (isNaN(pv)) pv = 0;
       var useV = covered.indexOf(k) !== -1;
-      out[k] = useV ? Number(vegas[k]) : pv;
+      out[k] = useV ? num(vegas[k]) : pv;
       // Only stats Vegas has a market for decide the label (no book posts
       // season fumbles, so those always come from the projection).
       if (VEGAS_STATS.indexOf(k) !== -1 && (pv !== 0 || useV)) relevant += 1;
@@ -185,27 +197,44 @@
   // prop and a projection of (projection / line). Vegas still wins wherever
   // it has a line; only its level moves. A market with no overlap keeps 1.
   function propStatCovered(v, st) {
-    return v && v[st] !== null && v[st] !== undefined && isFinite(Number(v[st])) &&
-      (!v.covered || v.covered.indexOf(st) !== -1);
+    return !!v && hasNum(v[st]) && (!v.covered || v.covered.indexOf(st) !== -1);
   }
   function median(xs) {
     var a = xs.slice().sort(function (x, y) { return x - y; }), n = a.length;
     return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
   }
-  function vegasScaleFactors(vegas, proj) {
-    var factors = {}, n = {};
+  // A market's factor needs MIN_FACTOR_N players with both a line and a
+  // projection (fourth review: with n = 1 the factor cancels the prop).
+  // Below that the market takes the pooled factor over every market of the
+  // same stat type (yards, TDs, receptions) when the pool reaches the
+  // minimum, else 1. basis[st] says which: "market", "pooled" or "none".
+  var MIN_FACTOR_N = 10;
+  var STAT_TYPE = { pass_yds: "yards", rush_yds: "yards", rec_yds: "yards",
+    pass_tds: "tds", rush_tds: "tds", rec_tds: "tds", rec: "receptions" };
+  function vegasScaleFactors(vegas, proj, minN) {
+    var min = minN == null ? MIN_FACTOR_N : minN;
+    var ratios = {}, pooled = {};
     VEGAS_STATS.forEach(function (st) {
       var r = [];
       Object.keys(vegas || {}).forEach(function (k) {
         var v = vegas[k], p = proj && proj[k];
         if (!p || typeof p !== "object" || !propStatCovered(v, st)) return;
-        var lv = Number(v[st]), pv = Number(p[st]);
+        var lv = num(v[st]), pv = num(p[st]);
         if (lv > 0 && pv > 0) r.push(pv / lv);
       });
-      factors[st] = r.length ? median(r) : 1;
-      n[st] = r.length;
+      ratios[st] = r;
+      pooled[STAT_TYPE[st]] = (pooled[STAT_TYPE[st]] || []).concat(r);
     });
-    return { factors: factors, n: n };
+    var factors = {}, n = {}, basis = {}, pooledN = {};
+    VEGAS_STATS.forEach(function (st) {
+      var r = ratios[st], pool = pooled[STAT_TYPE[st]];
+      n[st] = r.length;
+      pooledN[st] = pool.length;
+      if (r.length >= min) { factors[st] = median(r); basis[st] = "market"; }
+      else if (pool.length >= min) { factors[st] = median(pool); basis[st] = "pooled"; }
+      else { factors[st] = 1; basis[st] = "none"; }
+    });
+    return { factors: factors, n: n, basis: basis, pooledN: pooledN, minN: min };
   }
   function scaleVegas(vegas, factors) {
     var out = {};
@@ -255,10 +284,10 @@
     var proj = projKey ? input.projections[projKey] : {};
     var vegasOk = !!input.vegas && (input.vegasStatus == null || input.vegasStatus === "ok");
     var vegasRaw = vegasOk ? input.vegas : {};
-    // input.vegasFactors (e.g. the snapshot's recorded factors) wins over
-    // factors computed here; vegasScale: false keeps the raw lines.
-    var scale = input.vegasScale === false ? null
-      : (input.vegasFactors ? { factors: input.vegasFactors, n: null } : vegasScaleFactors(vegasRaw, proj));
+    // The factors are recomputed here from the projection being priced, every
+    // build; nothing stored is read back (fourth review). vegasScale: false
+    // keeps the raw lines.
+    var scale = input.vegasScale === false ? null : vegasScaleFactors(vegasRaw, proj);
     var vegas = scale ? scaleVegas(vegasRaw, scale.factors) : vegasRaw;
     var skill = {};
     Object.keys(input.players).forEach(function (k) {
@@ -276,7 +305,7 @@
         var vl = vegas[k], need = POSITION_STATS[skill[k].pos] || [];
         var cov = mergeStatLine(vl, null);
         var all = need.every(function (st) {
-          return vl && vl[st] !== null && vl[st] !== undefined && isFinite(Number(vl[st])) && (!vl.covered || vl.covered.indexOf(st) !== -1);
+          return propStatCovered(vl, st);
         });
         if (!all) return; // no projection and partial props: the market fallback prices him
         var vpts = fantasyPoints(cov.line, league.scoring);
@@ -311,20 +340,29 @@
     // into DDF units with the ratio of DDF Value to market surplus over the
     // players priced by both, so his price lands on his market price
     // (review of bc19862: mapping whole dollars put him about 7% under).
+    // His DDF value only ranks him; his price is his market dollars in this
+    // league (fixedDollars), so the board shows market x inflation for him
+    // (fourth review: the mapped value still priced Gibbs ~4% under market).
     var mktKey = Object.keys(input.markets || {})[0];
     var mkt = mktKey ? input.markets[mktKey] : {};
     var fill = marketFallbackValues(values, mkt, leagueShape(league).minBid,
       function (k) { return skill[k] && !source[k]; });
-    Object.keys(fill).forEach(function (k) { values[k] = fill[k]; source[k] = "market"; });
+    var mktDollars = Object.keys(fill).length ? rescaleDollars(mkt, league) : {};
+    var fixedDollars = {};
+    Object.keys(fill).forEach(function (k) {
+      values[k] = fill[k]; source[k] = "market";
+      if (mktDollars[k] != null) fixedDollars[k] = mktDollars[k];
+    });
     Object.keys(input.overrides || {}).forEach(function (k) {
-      var v = Number(input.overrides[k]);
-      if (isFinite(v) && v >= 0) values[k] = v;
+      var v = num(input.overrides[k]);
+      if (!isNaN(v) && v >= 0) { values[k] = v; delete fixedDollars[k]; }
     });
     var counts = {};
     SOURCE_LABELS.forEach(function (l) { counts[l] = 0; });
     Object.keys(values).forEach(function (k) { if (source[k]) counts[source[k]] += 1; });
-    return { values: values, source: source, counts: counts, pipeline: pipeline,
+    return { values: values, source: source, counts: counts, pipeline: pipeline, fixedDollars: fixedDollars,
       vegasFactors: scale ? scale.factors : null, vegasFactorN: scale ? scale.n : null,
+      vegasFactorBasis: scale ? scale.basis : null, vegasFactorPooledN: scale ? scale.pooledN : null,
       vegasUsed: vegasOk && Object.keys(input.vegas || {}).length > 0 };
   }
 
@@ -342,14 +380,23 @@
   // floor) in proportion to weight, on top of the minimum bid. Players past
   // N, or with weight 0, get no price. Sum of prices + minBid x (empty pool
   // slots + K/DST slots) = teams x budget.
-  function pricesFromWeights(weights, league) {
+  // fixed {key: dollars} (optional): pool players priced at exactly these
+  // dollars (market-only players); the rest of the surplus is split by weight
+  // among the others.
+  function pricesFromWeights(weights, league, fixed) {
     var sh = leagueShape(league);
     var poolSize = sh.teams * sh.valuedSlotsPerTeam;
     var surplus = sh.teams * sh.budget - sh.teams * sh.rosterSize * sh.minBid;
     var pool = sortedKeys(weights).filter(function (k) { return weights[k] > 0; }).slice(0, poolSize);
-    var total = pool.reduce(function (t, k) { return t + weights[k]; }, 0);
+    var isFixed = function (k) { return fixed && fixed[k] != null && isFinite(fixed[k]); };
     var out = {};
-    pool.forEach(function (k) { out[k] = sh.minBid + (total > 0 ? weights[k] / total * surplus : 0); });
+    pool.forEach(function (k) {
+      if (isFixed(k)) { out[k] = Math.max(sh.minBid, fixed[k]); surplus -= out[k] - sh.minBid; }
+    });
+    surplus = Math.max(0, surplus);
+    var rest = pool.filter(function (k) { return !isFixed(k); });
+    var total = rest.reduce(function (t, k) { return t + weights[k]; }, 0);
+    rest.forEach(function (k) { out[k] = sh.minBid + (total > 0 ? weights[k] / total * surplus : 0); });
     return out;
   }
 
@@ -357,7 +404,8 @@
   // of every price, so each board row carries where its price came from.
   // market / platform: league dollars (rescaleDollars) or omitted.
   function boardPrices(build, league, market, platform) {
-    var out = { ours: pricesFromWeights(build.values, league), source: Object.assign({}, build.source || {}) };
+    if (!build || !build.source) throw new Error("boardPrices needs a ddfDraftValues build (values and source)");
+    var out = { ours: pricesFromWeights(build.values, league, build.fixedDollars), source: Object.assign({}, build.source) };
     if (market) out.market = market;
     if (platform) out.platform = platform;
     return out;
@@ -365,7 +413,11 @@
 
   // Ours in dollars: DDF Value is a share of a fixed pie, so it splits the
   // surplus directly.
-  function ourPrices(ddfValues, league) { return pricesFromWeights(ddfValues, league); }
+  // A ddfDraftValues build passes its market-only players' dollars through.
+  function ourPrices(ddfValues, league) {
+    if (ddfValues && ddfValues.values && ddfValues.source) return pricesFromWeights(ddfValues.values, league, ddfValues.fixedDollars);
+    return pricesFromWeights(ddfValues, league);
+  }
 
   // Market or platform dollars quoted for a reference league (FantasyPros
   // and ESPN quote 12 or 10 teams, $200) rescaled to this league: each
@@ -545,7 +597,11 @@
       var pb = Math.min(buyLimit, rivalCeiling - minBid);
       pushFloor = pb >= minBid ? pb : null;
     }
+    // Every priced row names its price source (fourth review: rows built
+    // without boardPrices carried null). Build prices with boardPrices.
     var src = (state.priceSource && state.priceSource[key]) || (p.source && p.source[key]) || null;
+    if (!src && ours != null) throw new Error("no price source for " + key + ": build prices with DraftEngine.boardPrices");
+    if (!src) src = "unpriced";
     return { key: key, pos: pos, source: src, ours: ours, market: market, platform: platform,
       oursInflated: oursInfl, oursInflatedRoom: oursInflRoom, ourFactor: usePersonal ? "personal" : "room",
       marketInflated: marketInfl, platformInflated: platformInfl,
@@ -760,7 +816,7 @@
     ddfDraftValues: ddfDraftValues,
     pricesFromWeights: pricesFromWeights,
     ourPrices: ourPrices,
-    boardPrices: boardPrices,
+    boardPrices: boardPrices, MIN_FACTOR_N: MIN_FACTOR_N, STAT_TYPE: STAT_TYPE,
     marketFallbackValues: marketFallbackValues,
     rescaleDollars: rescaleDollars,
     rankImpliedDollars: rankImpliedDollars,

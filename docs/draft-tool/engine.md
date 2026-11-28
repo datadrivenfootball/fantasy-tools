@@ -30,9 +30,17 @@ the 50/25/25 blend of the same day; no source weights remain.)
 2. **Projection:** every other stat from the FantasyPros projection.
    The fallback is per stat: a receiver with only a receiving-yards prop
    takes his receptions and TDs from the projection.
-3. **Market:** a player with no projection and no prop takes his market
-   value, mapped into DDF units by the ratio of DDF Value to market value
-   over the players priced by both.
+3. **Market:** a player with no projection and no full set of props for
+   his position takes his market dollars in this league directly
+   (`fixedDollars`, the same rescaled market price the board shows); the
+   rest of the surplus is split among the other players by DDF Value. His
+   DDF value (market surplus mapped by the ratio of DDF Value to market
+   surplus over the players priced by both) only ranks him. On the board
+   his price gets the same inflation as every other price (fourth review of
+   31faf01: the mapped value priced Gibbs $65.6 against a $68.5 market).
+
+A null, blank or non-numeric prop line is missing, never a Vegas 0 (fourth
+review: Chase with a null receiving-yards line fell from $49.2 to $5.0).
 
 A snapshot marked stale or rejected (`vegasStatus` other than "ok") is
 ignored, so every player falls back to his projection, never to zero.
@@ -42,9 +50,15 @@ Book lines sit below projections (a line is a median, shaded by the book).
 Before the per-stat pick each Vegas market is scaled onto the projection's
 level: factor = the median, over players with both a prop and a projection,
 of projection / line (`vegasScaleFactors`, `scaleVegas`). Vegas still wins
-wherever it has a line; only its level moves. A market with no overlap keeps
-1. The paste tool records the factors and the pull date in each snapshot's
-meta file. 2026 factors (2026-09-12 lines vs FantasyPros 2026-09-11):
+wherever it has a line; only its level moves. A market's own factor needs at
+least 10 players with both a line and a projection (`MIN_FACTOR_N`); below
+that it takes the pooled factor over every market of the same stat type
+(yards, TDs, receptions) when that pool reaches 10, else 1. Each build
+reports which (`vegasFactorBasis`: market, pooled or none) and the counts
+(`vegasFactorN`, `vegasFactorPooledN`); the audit page shows them. The
+factors are recomputed on every build from the projection being priced;
+nothing is stored or read back. 2026 factors, all on their own market's
+sample (2026-09-12 lines vs FantasyPros 2026-09-11):
 pass_yds 1.117, pass_tds 1.074, rush_yds 1.238, rush_tds 1.107, rec 1.106, rec_yds 1.137, rec_tds 1.109. Test: lines exactly 0.9x the projection give a factor of 1/0.9
 and ours equal to projections only (`test_vegas_lines_scaled_to_projection_level`).
 
@@ -59,7 +73,10 @@ the existing value build once, as one projection source in points per game
 build's DDF Value, projections version: with no chart source the blended
 version is empty. No math is forked.
 
-Each player records where his price came from (`source`, and on the board
+Every priced board row carries its price source: `board()` throws when a
+priced player has none, so prices must come from `boardPrices` (fourth
+review: rows built without it carried null). A row with no price reads
+"unpriced". Each player records where his price came from (`source`, and on the board
 row): **vegas** (every Vegas-tradable stat from props), **vegas+proj**,
 **proj**, or **market**. 2026 data: 25 vegas, 88 vegas+proj, 286 proj,
 0 market (every player in the FantasyPros list has a projection).
@@ -226,7 +243,7 @@ Decided 2026-11-27: personal inflation is the board default ("Personal by
 default (Recommended)") and the board's push floor is B ("Roster value
 (Recommended)"). Limits: bots do not nominate strategically; one league
 shape; the truth world assumes ours and market are equally accurate. Under
-the market judge B now trails A (A - B = +9.5 +/- 0.5 in the table above), so
+the market judge B now trails A (A - B = +3.2 +/- 0.6 in the table above), so
 B's edge rests on the truth judge and should be re-checked with the USO
 auction and real-room tendencies.
 

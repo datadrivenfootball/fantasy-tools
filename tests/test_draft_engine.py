@@ -416,7 +416,7 @@ class ReviewCases(unittest.TestCase):
 
     LATE = ("{league:{teams:2,budget:30,minBid:1,slots:{RB:2,WR:1}},me:'us',"
             "teams:[{id:'us',budgetLeft:20,open:{RB:1,WR:1}},{id:'them',budgetLeft:3,open:{RB:1}}],"
-            "available:['x'],pos:{x:'RB'},prices:{ours:{x:2},market:{x:2}}}")
+            "available:['x'],pos:{x:'RB'},prices:{ours:{x:2},market:{x:2},source:{x:'proj'}}}")
 
     def test_late_draft_walk_away_capped_by_rival_max(self):
         """Finding 2: $20 and 2 open slots vs a rival with $3 for 1 slot, one $2
@@ -491,3 +491,144 @@ class NotLive(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _js(expr, module=False):
+    """Evaluate expr with E = the engine (and B = draft_backtest.mjs when module)."""
+    if module:
+        js = ("import { createRequire } from 'node:module';const require=createRequire(import.meta.url);"
+              "const E=require('./app/draft/draft-engine.js');import * as B from './tools/draft_backtest.mjs';"
+              f"process.stdout.write(JSON.stringify({expr}));")
+        args = [_node(), "--input-type=module", "-e", js]
+    else:
+        args = [_node(), "-e", f"const E=require('./app/draft/draft-engine.js');process.stdout.write(JSON.stringify({expr}))"]
+    return json.loads(subprocess.run(args, capture_output=True, text=True, check=True, cwd=ROOT).stdout)
+
+
+def _ratio_props(ratios, stat="rec_yds", base=1000.0):
+    """{key: prop} and {key: projection} with projection / line = ratio."""
+    vegas, proj = {}, {}
+    for i, r in enumerate(ratios):
+        k = f"p{stat}{i}"
+        vegas[k] = {stat: base, "covered": [stat]}
+        proj[k] = {stat: base * r}
+    return vegas, proj
+
+
+class FourthReviewEngine(unittest.TestCase):
+    """Fourth Opus review of 31faf01: each probe input it ran."""
+
+    # Item 1: Chase with a null rec yds line went to $5.0, labelled vegas+proj.
+    def test_null_or_blank_line_is_missing_not_zero(self):
+        fp = {"rec": 100, "rec_yds": 1400, "rec_tds": 10}
+        got = _js("[" + ",".join(f"E.vegasStatLine({json.dumps(l)},{json.dumps(fp)})" for l in (
+            {"season_rec_yds": None}, {"season_rec_yds": ""}, {"season_rec_yds": "  "},
+            {"season_rec_yds": True}, {"season_rec_yds": "n/a"})) + "]")
+        self.assertEqual(got, [None] * 5)
+        one = _js(f"E.vegasStatLine({{season_rec_yds:null,season_receptions:95.5}},{json.dumps(fp)})")
+        self.assertEqual(one["covered"], ["rec"])
+        self.assertEqual(one["rec_yds"], 1400)
+
+    def test_null_line_in_a_full_build_keeps_the_projection_price(self):
+        fp = _league_input()["projections"]["fp"]
+        props = _js(f"E.vegasStatLine({{season_rec_yds:null,season_rush_yds:''}},{json.dumps(fp[PROBE_RB])})")
+        self.assertIsNone(props)
+        out = FullLeagueBuild()._build(vegas={PROBE_RB: {"rush_yds": None, "rec_yds": "", "covered": ["rush_yds", "rec_yds"]}})
+        self.assertEqual(out["source"][PROBE_RB], "proj")
+        self.assertAlmostEqual(out["ours"][PROBE_RB], FullLeagueBuild()._build()["ours"][PROBE_RB], places=9)
+
+    def test_backtest_drops_null_lines(self):
+        fp = [{"key": 1, "name": "Ja'Marr Chase", "pos": "WR", "rec": 100, "rec_yds": 1400, "rec_tds": 10},
+              {"key": 2, "name": "Tee Higgins", "pos": "WR", "rec": 70, "rec_yds": 900, "rec_tds": 7}]
+        vegas = [{"name": "Ja'Marr Chase", "market": "season_rec_yds", "line": None},
+                 {"name": "Ja'Marr Chase", "market": "season_receptions", "line": ""},
+                 {"name": "Tee Higgins", "market": "season_rec_yds", "line": "950.5"}]
+        league = {"teams": 2, "budget": 200, "minBid": 1, "scoring": "ppr", "ecr": "ppr",
+                  "slots": {"WR": 1, "K": 1, "DST": 1}}
+        out = _js(f"(()=>{{const P=B.buildPrices({{league:{json.dumps(league)},fp:{json.dumps(fp)},vegas:{json.dumps(vegas)},"
+                  "espn:[],ecr:{ranks:[]}});return {cov:P.coverage.vegas,src:P.source}})()", module=True)
+        self.assertEqual(out["cov"], 1)
+        self.assertEqual(out["src"]["1"], "proj")
+
+    # Item 3: a minimum sample per market.
+    def test_one_player_cannot_set_a_factor(self):
+        v, p = _ratio_props([0.5])
+        got = _js(f"E.vegasScaleFactors({json.dumps(v)},{json.dumps(p)})")
+        self.assertEqual((got["factors"]["rec_yds"], got["basis"]["rec_yds"], got["n"]["rec_yds"]), (1, "none", 1))
+
+    def test_three_players_one_outlier_no_longer_sets_1_20(self):
+        v, p = _ratio_props([1.2, 1.2, 0.4])
+        got = _js(f"E.vegasScaleFactors({json.dumps(v)},{json.dumps(p)})")
+        self.assertEqual(got["factors"]["rec_yds"], 1)
+        self.assertEqual(got["basis"]["rec_yds"], "none")
+
+    def test_ten_players_set_the_market_factor(self):
+        v, p = _ratio_props([1.1] * 9 + [1.3])
+        got = _js(f"E.vegasScaleFactors({json.dumps(v)},{json.dumps(p)})")
+        self.assertAlmostEqual(got["factors"]["rec_yds"], 1.1, places=12)
+        self.assertEqual((got["basis"]["rec_yds"], got["n"]["rec_yds"]), ("market", 10))
+
+    def test_small_market_takes_the_pooled_same_type_factor(self):
+        v1, p1 = _ratio_props([1.5] * 3, stat="rec_yds")
+        v2, p2 = _ratio_props([1.1] * 12, stat="rush_yds")
+        v3, p3 = _ratio_props([2.0] * 20, stat="rec_tds")  # TDs: another type, not pooled with yards
+        v, p = {**v1, **v2, **v3}, {**p1, **p2, **p3}
+        got = _js(f"E.vegasScaleFactors({json.dumps(v)},{json.dumps(p)})")
+        self.assertAlmostEqual(got["factors"]["rec_yds"], 1.1, places=12)
+        self.assertEqual((got["basis"]["rec_yds"], got["pooledN"]["rec_yds"]), ("pooled", 15))
+        self.assertEqual(got["basis"]["rush_yds"], "market")
+        self.assertEqual(got["basis"]["rec"], "none")
+
+    def test_build_reports_each_factor_basis(self):
+        fp = _league_input()["projections"]["fp"]
+        players = _league_input()["players"]
+        rbs = [k for k in fp if players[k]["pos"] == "RB"][:12]
+        props = {k: {"rush_yds": fp[k]["rush_yds"] / 1.25, "covered": ["rush_yds"]} for k in rbs}
+        out = FullLeagueBuild()._build(vegas=props)
+        self.assertAlmostEqual(out["vegasFactors"]["rush_yds"], 1.25, places=9)
+        self.assertEqual(out["vegasFactorBasis"]["rush_yds"], "market")
+        self.assertEqual(out["vegasFactorBasis"]["rec"], "none")
+
+    # Item 5: Gibbs priced $65.6 against a $68.5 market.
+    def test_market_only_player_takes_his_market_dollars(self):
+        doc = _league_input(no_proj=(PROBE_RB,))
+        out = FullLeagueBuild()._build(no_proj=(PROBE_RB,))
+        mkt = _js(f"E.rescaleDollars({json.dumps(doc['markets']['market_a'])},{json.dumps(doc['league'])})")
+        self.assertEqual(out["source"][PROBE_RB], "market")
+        self.assertAlmostEqual(out["ours"][PROBE_RB], mkt[PROBE_RB], places=9)
+        self.assertAlmostEqual(out["fixedDollars"][PROBE_RB], mkt[PROBE_RB], places=9)
+        shape = out["shape"]
+        pool = shape["teams"] * shape["valuedSlotsPerTeam"]
+        total = sum(out["ours"].values()) + (pool - len(out["ours"]) + shape["teams"] * shape["minBidSlotsPerTeam"]) * shape["minBid"]
+        self.assertAlmostEqual(total, shape["teams"] * shape["budget"], places=6)
+
+    def test_fixed_dollars_leave_the_rest_split_by_weight(self):
+        got = _js("E.pricesFromWeights({a:30,b:10,c:5},{teams:1,budget:63,slots:{RB:1,WR:1,TE:1}},{c:20})")
+        # Surplus 60; c takes 19 of it; a and b split the other 41 by 3:1.
+        self.assertAlmostEqual(got["c"], 20, places=12)
+        self.assertAlmostEqual(got["a"], 1 + 41 * 0.75, places=12)
+        self.assertAlmostEqual(got["b"], 1 + 41 * 0.25, places=12)
+
+    # Item 6: every board row carries its price source.
+    STATE = ("{league:{teams:2,budget:30,minBid:1,slots:{RB:1,WR:1}},me:'a',"
+             "teams:[{id:'a',budgetLeft:30,open:{RB:1,WR:1}},{id:'b',budgetLeft:30,open:{RB:1,WR:1}}],"
+             "available:['x','y','z'],pos:{x:'RB',y:'WR',z:'RB'},prices:%s}")
+
+    def test_board_without_a_price_source_fails_loudly(self):
+        js = ("const E=require('./app/draft/draft-engine.js');"
+              f"try{{E.board({self.STATE % '{ours:{x:10,y:5},market:{x:9,y:6}}'});process.stdout.write('no error')}}"
+              "catch(e){process.stdout.write(e.message)}")
+        msg = subprocess.run([_node(), "-e", js], capture_output=True, text=True, check=True, cwd=ROOT).stdout
+        self.assertIn("no price source for x", msg)
+
+    def test_board_rows_from_board_prices_carry_source(self):
+        prices = "E.boardPrices({values:{x:10,y:5},source:{x:'vegas',y:'market'}},{teams:2,budget:30,minBid:1,slots:{RB:1,WR:1}})"
+        rows = _js(f"E.board({self.STATE % prices}).rows.map(r=>[r.key,r.source])")
+        self.assertEqual(rows, [["x", "vegas"], ["y", "market"], ["z", "unpriced"]])
+
+    def test_board_prices_needs_a_build(self):
+        js = ("const E=require('./app/draft/draft-engine.js');"
+              "try{E.boardPrices({values:{x:1}},{teams:1,budget:10,slots:{RB:1}});process.stdout.write('no error')}"
+              "catch(e){process.stdout.write(e.message)}")
+        self.assertIn("needs a ddfDraftValues build",
+                      subprocess.run([_node(), "-e", js], capture_output=True, text=True, check=True, cwd=ROOT).stdout)

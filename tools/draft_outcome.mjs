@@ -52,8 +52,16 @@ export function realizedPoints(csvText, column, weeks, keys) {
   return out;
 }
 
-function errors(maps, real, players, minBid) {
-  const keys = Object.keys(players).filter(k => Object.values(maps).some(m => (m[k] || 0) > minBid) || (real[k] || 0) > minBid);
+// One common player set for every predictor: players the market prices above
+// the minimum bid or whose realized value is above it. Neither ours nor the
+// platform picks players, so the market row cannot move when ours's scaling
+// does (fourth review of 31faf01).
+export function commonSet(market, real, players, minBid) {
+  return Object.keys(players).filter(k => (market[k] || 0) > minBid || (real[k] || 0) > minBid);
+}
+
+export function errors(maps, real, players, minBid) {
+  const keys = commonSet(maps.market || {}, real, players, minBid);
   const out = {};
   Object.entries(maps).forEach(([name, m]) => {
     const by = {};
@@ -87,9 +95,9 @@ function main() {
     const pts = realizedPoints(csv, column, weeks, keys);
     const players = Object.fromEntries([...keys].map(k => [k, P.players[k]]));
     const real = E.ddfDraftValues({ league, players, projections: { realized: pts }, lineupConfig: LINEUP });
-    const realD = E.ourPrices(real.values, league);
+    const realD = E.ourPrices(real, league);
     const maps = { ours: P.ours, market: P.market, platform: P.platform };
-    return { label, league, weeks, vegasFactors: P.vegasFactors, sourceCounts: P.sourceCounts,
+    return { label, league, weeks, vegasFactors: P.vegasFactors, vegasFactorBasis: P.vegasFactorBasis, sourceCounts: P.sourceCounts,
       ...errors(maps, realD, players, sh.minBid),
       split: Object.fromEntries(Object.entries({ realized: realD, ...maps }).map(([n, m]) => [n, split(m, players, sh.minBid)])) };
   });

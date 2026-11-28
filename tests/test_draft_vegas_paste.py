@@ -234,11 +234,13 @@ class SnapshotTool(unittest.TestCase):
         self.assertEqual(set(rows[0]), {"name", "player_key", "team", "market", "line"})
         meta = json.loads((d / "vegas_2026-08-20.meta.json").read_text())
         self.assertEqual((meta["snapshot_date"], meta["season"], meta["label"]), ("2026-08-20", 2026, "2026 data"))
-        # Jeremy, 2026-11-27: "Scale to projections (Recommended)": the
-        # snapshot records each market's factor and how many players set it.
         self.assertIn("pulled_at", meta)
-        self.assertEqual(set(meta["vegas_factors"]), {"pass_yds", "pass_tds", "rush_yds", "rush_tds", "rec", "rec_yds", "rec_tds"})
-        self.assertTrue(all(v > 0 for v in meta["vegas_factors"].values()))
+        # Fourth review of 31faf01: factors written from a players file with
+        # no stats were 1 with n = 0 and never read back. The snapshot stores
+        # none; the engine recomputes them from the projection it prices.
+        self.assertNotIn("vegas_factors", meta)
+        self.assertNotIn("vegas_factor_n", meta)
+        self.assertEqual(meta["vegas_scale"], "recomputed by the engine at build time")
 
     def test_sql_load_script_is_idempotent_and_escaped(self):
         out, d = self._run(SAMPLE, extra=("--sql",))
@@ -285,3 +287,77 @@ process.stdout.write(JSON.stringify({keys:Object.keys(vegas).sort(),base:run(veg
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def parse_with(text, players, season=2026):
+    js = ("const V=require('./app/draft/vegas-paste.js');"
+          f"process.stdout.write(JSON.stringify(V.parse({json.dumps(text)},{json.dumps(players)},{{season:{season}}})))")
+    return json.loads(subprocess.run([_node(), "-e", js], capture_output=True, text=True, check=True, cwd=ROOT).stdout)
+
+
+class FourthReviewProbes(unittest.TestCase):
+    """Fourth Opus review of 31faf01: each probe input it ran."""
+
+    def _refused(self, text, why, players=None):
+        r = parse_with(text, players or PLAYERS)
+        self.assertFalse(r["ok"], r)
+        self.assertEqual(r["rows"], [])
+        self.assertTrue(any(why in e["reason"] for e in r["errors"]), r["errors"])
+        return r
+
+    # Item 2: a season header is a stat, season words and a year, nothing else.
+    def test_monthly_market_refused(self):
+        self._refused("September Receiving Yards (Regular Season)\nJa'Marr Chase\nO 400.5", "partial-season or conditional")
+
+    def test_rest_of_season_refused(self):
+        self._refused("Rest of Regular Season Receiving Yards\nJa'Marr Chase\nO 650.5", "partial-season or conditional")
+
+    def test_home_games_refused(self):
+        self._refused("Regular Season Receiving Yards at Home\nJa'Marr Chase\nO 700.5", "partial-season or conditional")
+
+    def test_conditional_market_refused(self):
+        self._refused("Regular Season Receiving Yards if Burrow Misses Time\nJa'Marr Chase\nO 1100.5",
+                      "partial-season or conditional")
+
+    def test_plain_season_headers_still_read(self):
+        for hdr in ("Regular Season Receiving Yards", "Receiving Yards - 2026 Regular Season",
+                    "2026 Regular Season Receiving Yards", "Player Futures: Regular Season Receiving Yards"):
+            r = parse_with(f"{hdr}\nJa'Marr Chase\nO 1375.5", PLAYERS)
+            self.assertTrue(r["ok"], (hdr, r["errors"]))
+            self.assertEqual([(x["key"], x["line"]) for x in r["rows"]], [("301", 1375.5)], hdr)
+
+    def test_player_named_in_header_still_read(self):
+        r = parse_with("Jahmyr Gibbs - Regular Season Rushing Yards\nO 1225.5", PLAYERS)
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertEqual([(x["key"], x["line"]) for x in r["rows"]], [("202", 1225.5)])
+
+    # Item 7.
+    def test_apostrophe_year_of_another_season_refused(self):
+        self._refused("'25 Regular Season Receiving Yards\nJa'Marr Chase\nO 1375.5", "season 2025 is not 2026")
+
+    def test_half_character_read_as_half_point(self):
+        r = parse_with("Regular Season Receiving Yards\nJa'Marr Chase\nO 1375½", PLAYERS)
+        self.assertTrue(r["ok"], r["errors"])
+        self.assertEqual(r["rows"][0]["line"], 1375.5)
+
+    def test_unsigned_odds_after_split_side_refused(self):
+        self._refused("Regular Season Receptions\nJa'Marr Chase\nOver\n110\nUnder\n110", "unsigned odds")
+
+    def test_greek_omicron_line_listed_not_dropped(self):
+        r = self._refused("Regular Season Receiving Yards\nJa'Marr Chase\nΟ 1375.5", "unread line with a number")
+        self.assertEqual(r["errors"][0]["text"], "Ο 1375.5")
+
+    def test_over_line_with_trailing_text_listed(self):
+        r = self._refused("Regular Season Receiving Yards\nJa'Marr Chase\nO 1375.5 Receiving Yards (Week 1)",
+                          "unreadable over/under line")
+        self.assertEqual(r["errors"][0]["text"], "O 1375.5 Receiving Yards (Week 1)")
+
+    def test_over_line_with_odds_still_read(self):
+        r = parse_with("Regular Season Receiving Yards\nJa'Marr Chase\nO 1375.5 -110", PLAYERS)
+        self.assertTrue(r["ok"], r["errors"])
+
+    def test_ambiguous_name_refused_and_listed(self):
+        dup = dict(PLAYERS, **{"901": {"name": "Mike Williams", "pos": "WR", "team": "LAC"},
+                               "902": {"name": "Mike Williams", "pos": "WR", "team": "NYJ"}})
+        r = self._refused("Regular Season Receiving Yards\nMike Williams\nO 650.5", "ambiguous name: Mike Williams", dup)
+        self.assertIn("Mike Williams", [e["text"] for e in r["errors"]])

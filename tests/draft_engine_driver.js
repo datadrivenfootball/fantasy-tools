@@ -18,10 +18,10 @@ const variant = variantArg && variantArg !== "-" ? variantArg : null;
 const doc = JSON.parse(fs.readFileSync(file, "utf8"));
 
 function workedState(auction, teams, ourFactor) {
-  const pos = {}, ours = {}, market = {};
-  Object.entries(auction.players).forEach(([k, p]) => { pos[k] = p.pos; ours[k] = p.ours; market[k] = p.market; });
+  const pos = {}, ours = {}, market = {}, source = {};
+  Object.entries(auction.players).forEach(([k, p]) => { pos[k] = p.pos; ours[k] = p.ours; market[k] = p.market; source[k] = p.source || "proj"; });
   return { league: auction.league, me: auction.me, teams, available: Object.keys(auction.players),
-    pos, prices: { ours, market }, ...(ourFactor ? { ourFactor } : {}) };
+    pos, prices: { ours, market, source }, ...(ourFactor ? { ourFactor } : {}) };
 }
 
 let out;
@@ -34,10 +34,11 @@ if (mode === "pricing") {
   out = DraftEngine.board(workedState(a, teams, factor));
 } else if (mode === "build") {
   const res = DraftEngine.ddfDraftValues(doc);
-  const ours = DraftEngine.ourPrices(res.values, doc.league);
+  const ours = DraftEngine.ourPrices(res, doc.league);
   out = { values: res.values, ours, snake: DraftEngine.snakeRanks(res.values),
     method: res.pipeline.method, benchShare: res.pipeline.benchShare,
-    source: res.source, counts: res.counts, vegasFactors: res.vegasFactors, vegasFactorN: res.vegasFactorN,
+    source: res.source, counts: res.counts, vegasFactors: res.vegasFactors, vegasFactorN: res.vegasFactorN, vegasFactorBasis: res.vegasFactorBasis,
+    fixedDollars: res.fixedDollars,
     shape: DraftEngine.leagueShape(doc.league) };
 } else {
   throw new Error(`unknown mode ${mode}`);

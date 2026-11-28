@@ -144,7 +144,7 @@ export function simulate({ prices: realPrices, league, policy: pol, draft, seed,
     teams: Array.from({ length: teams }, (_, id) => ({ id, budgetLeft: simLeague.budget, open: { ...simLeague.slots } })),
     // Every projected player is draftable; unpriced ones go for about $1.
     available: Object.keys(prices.players),
-    pos, prices: { ours: prices.ours, market: prices.market, platform: prices.platform },
+    pos, prices: { ours: prices.ours, market: prices.market, platform: prices.platform, source: prices.source },
     ourFactor: pol.factor,
   };
   const rosters = Array.from({ length: teams }, () => []);
