@@ -1000,10 +1000,57 @@
     return {weeks: weeks, weight: weight, weight_unit: inDollars ? "$" : "points", adds: adds, trades: trades, trades_unchecked: unchecked, moves_in_time: moves,
       me: {faab: num(me.faab_remaining), waiver_priority: num(me.waiver_priority), faab_budget: num((summary.settings || {}).faab_budget)}};
   }
+  // ---------- one pickup, as the live Waiver pickups card names it (JEG-1736: enrich the live cards, not a second list) ----------
+  // fa: a snapshot roster-shaped entry {player_id, name, position, nfl_team}; dropId: the live card's drop, else the
+  // cheapest drop by weekly projections. Returns my gain by week, the win chance change in my game each week, expected
+  // dollars when the plan has $/pt, and who else he helps (their FAAB): context for a bid, not a bid.
+  function addImpact(summary, weekly, myKey, fa, dropId, opts) {
+    opts = opts || {};
+    var me = teamOf(summary, myKey || summary.my_team_key); if (!me || !fa) return null;
+    var slots = slotsOf(summary), weeks = weeksLeft(summary, weekly, opts.now), cur = num(summary.current_week);
+    var roster = active(me.roster), entry = Object.assign({}, fa, {slot: "BN"});
+    var drop = dropId ? roster.filter(function (e) { return e.player_id === dropId; })[0] || null : dropCandidate(summary, weekly, roster.concat([entry]), slots, weeks[0], fa.player_id);
+    var after = roster.concat([entry]).filter(function (e) { return !drop || e.player_id !== drop.player_id; });
+    var sd = opts.sd || fitSpread(summary).sd, sched = {};
+    (summary.schedule || []).forEach(function (w) { sched[w.week] = w.matchups || []; });
+    var out = {player_id: fa.player_id, name: fa.name, drop: drop ? {player_id: drop.player_id, name: drop.name} : null, weeks: weeks, delta: {}, total: 0, games: [], dollars: null};
+    weeks.forEach(function (w) {
+      var b = teamWeek(summary, weekly, roster, w, slots).total, a = teamWeek(summary, weekly, after, w, slots).total;
+      out.delta[w] = b === null || a === null ? null : r1(a - b);
+      if (out.delta[w] === null) out.total = null; else if (out.total !== null) out.total = r1(out.total + out.delta[w]);
+      var m = (sched[w] || []).filter(function (x) { return x.team_keys && x.team_keys.indexOf(me.team_key) >= 0; })[0];
+      var opp = m ? teamOf(summary, m.team_keys[1 - m.team_keys.indexOf(me.team_key)]) : null;
+      var o = opp ? setFilled(summary, weekly, opp.roster, w, slots, {cur: cur}).total : null;
+      out.games.push({week: w, opp_name: opp ? opp.name : null, win_before: b !== null && o !== null ? r3(winChance(b - o, sd)) : null, win_after: a !== null && o !== null ? r3(winChance(a - o, sd)) : null});
+    });
+    out.dollars = dollarsFor(opts.plan, out.delta);
+    out.rivals = rivalsFor(summary, weekly, me, entry, weeks, slots);
+    return out;
+  }
+  // expected dollars of a week-by-week point change, at the plan's $/pt (null without league payouts)
+  function dollarsFor(plan, delta) {
+    if (!plan || !plan.games || !plan.games.some(function (g) { return isNum(g.dollars_per_point); })) return null;
+    var t = 0, any = false;
+    plan.games.forEach(function (g) { var d = delta[g.week]; if (isNum(d) && isNum(g.dollars_per_point)) { t += d * g.dollars_per_point; any = true; } });
+    return any ? Math.round(t * 100) / 100 : null;
+  }
+  function rivalsFor(summary, weekly, me, entry, weeks, slots) {
+    return (summary.teams || []).filter(function (t) { return t.team_key !== me.team_key; }).map(function (t) {
+      var g = 0, ok = true;
+      weeks.forEach(function (w) {
+        var b = teamWeek(summary, weekly, t.roster, w, slots).total, a = teamWeek(summary, weekly, t.roster.concat([entry]), w, slots).total;
+        if (a === null || b === null) ok = false; else g += a - b;
+      });
+      return {team_key: t.team_key, name: t.name, gain: ok ? r1(g) : null, why: ok ? null : "a week of their lineup has no projection",
+        faab: num(t.faab_remaining), waiver_priority: num(t.waiver_priority), before_drop: true};
+    }).filter(function (x) { return x.gain === null || x.gain >= 1; }).sort(function (x, y) { return (y.gain === null ? -1 : y.gain) - (x.gain === null ? -1 : x.gain); }).slice(0, 3);
+  }
+
   function playsMe(summary, myKey, otherKey, weeks) {
     var hit = (summary.schedule || []).filter(function (w) { return weeks.indexOf(w.week) >= 0 && (w.matchups || []).some(function (m) { return m.team_keys && m.team_keys.indexOf(myKey) >= 0 && m.team_keys.indexOf(otherKey) >= 0; }); })[0];
     return hit ? hit.week : null;
   }
 
-  root.DDFWeekly = {plan: plan, slotsOf: slotsOf, lineup: lineup, teamWeek: teamWeek, playerWeek: playerWeek, winChance: winChance, fitSpread: fitSpread, phi: phi, dropCandidate: dropCandidate, cover: cover, tradeImpact: tradeImpact, recommendations: recommendations};
+  root.DDFWeekly = {plan: plan, slotsOf: slotsOf, lineup: lineup, teamWeek: teamWeek, playerWeek: playerWeek, winChance: winChance, fitSpread: fitSpread, phi: phi, dropCandidate: dropCandidate, cover: cover, tradeImpact: tradeImpact, recommendations: recommendations,
+    addImpact: addImpact, dollarsFor: dollarsFor};
 })(typeof globalThis !== "undefined" ? globalThis : this);

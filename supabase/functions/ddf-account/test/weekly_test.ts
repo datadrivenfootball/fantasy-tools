@@ -481,3 +481,20 @@ Deno.test("trades: offered only when the partner could accept (the live trade-ch
   assertEquals(unknown.trades, []);
   assert(unknown.trades_unchecked > 0);
 });
+
+Deno.test("addImpact: one live pickup card's weekly gain, win change, dollars and rivals", async () => {
+  const lg = league();
+  (lg.settings as Record<string, unknown>).payouts = { place: { 1: 450, 2: 300, 3: 200, 4: 100 }, high_score_week: 50, high_score_through_week: 14 };
+  const wk = await buildWeekly(lg, deps(lg));
+  const plan = W.plan(lg, wk, { runs: 1000 });
+  const fa = lg.free_agents.find((f: { name: string }) => f.name === "FA WR");
+  const a = W.addImpact(lg, wk, "470.l.1.t.1", fa, "470.p.106", { plan }); // the live card's own drop (RB1b)
+  assertEquals(a.drop.name, "RB1b");
+  assert(a.delta[13] > 0 && a.total > 0);
+  assert(a.games[0].win_after > a.games[0].win_before);
+  assert(typeof a.dollars === "number" && a.dollars > 0);
+  assertAlmostEquals(a.dollars, W.dollarsFor(plan, a.delta), 1e-9);
+  assert(a.rivals.every((r: { team_key: string }) => r.team_key !== "470.l.1.t.1"));
+  const b = W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }); // no drop given: the cheapest by weekly projections
+  assert(b.drop !== null);
+});
