@@ -1,4 +1,4 @@
-/* DDF staging: Games left (JEG-1736). Renders DDFWeekly.plan(summary, weekly, {}) as documented in
+/* DDF staging: Season Plan (JEG-1736; named Games left until Jeremy renamed it, spec decision 2A, 2026-11-27). Renders DDFWeekly.plan(summary, weekly, {}) as documented in
  * docs/signed-in-features.md. Every league string is written with textContent, never as HTML.
  * A missing value is never 0: null renders as "—" with its reason. */
 (function () {
@@ -102,7 +102,7 @@
   function renderHeader(plan) {
     var lg = plan.league || {}, me = plan.me || {}, sim = plan.sim || {}, wins = plan.wins || {}, box = el("section", {"aria-labelledby": "gl-title"});
     box.appendChild(el("p", {class: "eyebrow", text: [lg.name, lg.season, isNum(lg.current_week) ? "Week " + lg.current_week : null, MOCK ? "Sample data" : null].filter(Boolean).join(" · ")}));
-    box.appendChild(el("h1", {id: "gl-title", text: "Games left"}));
+    box.appendChild(el("h1", {id: "gl-title", text: "Season Plan"}));
     var rank = ordinal(me.rank);
     box.appendChild(el("p", {class: "gl-record"}, el("strong", {text: me.name || "Your team"}), " · ", record(me) || na("Record not read from the league"), " · ",
       rank ? rank + (isNum(lg.num_teams) ? " of " + lg.num_teams : "") : na("Rank not read from the league"),
@@ -378,7 +378,7 @@
     /* Same session as the Add your league page: this tab's sessionStorage. */
     sb = window.supabase.createClient(SUPABASE_URL, PUBLISHABLE_KEY, {auth: {flowType: "implicit", detectSessionInUrl: true, persistSession: true, storage: window.sessionStorage}});
     var session = (await sb.auth.getSession()).data.session;
-    if (!session) { status(addLeagueLine("Sign in to see your games left.")); return; }
+    if (!session) { status(addLeagueLine("Sign in to see your Season Plan.")); return; }
     var want = QS.get("league"), id = want;
     if (!id) {
       var me = await api("GET", "/me");
@@ -393,7 +393,7 @@
     if (!window.DDFWeekly || typeof window.DDFWeekly.plan !== "function") throw new Error("The planner did not load. Reload the page.");
     /* The team picked on the Add your league page lives on the league row; the planner falls back to the summary's own. */
     /* the staging Team / Find / Build links stay on this league */
-    Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="games-left.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
+    Array.prototype.forEach.call(document.querySelectorAll('header a[href="team.html"], header a[href="find.html"], header a[href="build.html"], header a[href="plan.html"]'), function (a) { a.href = a.getAttribute("href") + "?league=" + encodeURIComponent(id); });
     var plan = window.DDFWeekly.plan(league.summary, weekly, league.my_team_key ? {myTeamKey: league.my_team_key} : {});
     render(plan, !!(league.summary.source && league.summary.source.kind === "flaim"), league.summary, weekly);
   }

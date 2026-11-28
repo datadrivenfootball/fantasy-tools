@@ -5,7 +5,7 @@
  * cannot be scored from real data is null.
  *
  * globalThis.DDFWeekly:
- *   plan(summary, weekly, opts)            -> the Games left planner (docs/signed-in-features.md)
+ *   plan(summary, weekly, opts)            -> the Season Plan planner (docs/signed-in-features.md)
  *   slotsOf(summary)                       -> starter slots, e.g. ["QB","WR","WR","WR","RB","RB","TE","W/R/T","K","DEF"]
  *   lineup(slots, players)                 -> best legal lineup for one team week
  *   teamWeek(summary, weekly, roster, week)-> Lineup for a roster (array of snapshot roster entries) in one week
@@ -783,7 +783,7 @@
   // ---------- Cover (Team page): what each starter's absence costs, week by week, and who covers ----------
   function teamOf(summary, key) { return (summary.teams || []).filter(function (t) { return t.team_key === key; })[0] || null; }
   // Weeks still ahead. Once the current week's first game has kicked off, that week is a live score, not a plan:
-  // cover, trade and recommendations count from the next week (Games left shows the live week on its own terms).
+  // cover, trade and recommendations count from the next week (the Season Plan page shows the live week on its own terms).
   function weeksLeft(summary, weekly, now) {
     var cur = num(summary.current_week) || 1, t = now ? Date.parse(now) : Date.now();
     var fk = firstKick(weekly, cur);
@@ -878,7 +878,7 @@
       if (!m) return {week: w, opp_name: null, is_partner: false, win_before: null, win_after: null};
       var ok = m.team_keys[1 - m.team_keys.indexOf(me.team_key)], opp = teamOf(summary, ok);
       var isP = ok === them.team_key;
-      // the opponent's lineup follows rule A (set lineup, holes filled), as on Games left
+      // the opponent's lineup follows rule A (set lineup, holes filled), as on the Season Plan page
       var cur = num(summary.current_week);
       var ob = setFilled(summary, weekly, opp.roster, w, slots, {cur: cur}).total;
       var oa = isP ? setFilled(summary, weekly, theirAfter, w, slots, {cur: cur}).total : ob;

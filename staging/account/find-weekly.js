@@ -6,8 +6,8 @@
  *   1. "Your moves, in time order": the one panel the live site has no screen for. Its trade line is the live offer
  *      card with the highest expected $ (below), never a trade found here.
  *   2. Every live offer card ([data-offer]) and pickup card ([data-pickup]) gets a compact weekly block inside it:
- *      expected $ for your games left, points over the weeks left, one chip per week, and who the partner plays.
- *   3. One more option in the live Sort control, "Games left (expected $)", the default while the league is
+ *      expected $ over the rest of the season (the Season Plan), points over the weeks left, one chip per week, and who the partner plays.
+ *   3. One more option in the live Sort control, "Season Plan (expected $)", the default while the league is
  *      connected. It reorders the cards inside each live list; the live options keep working as they do.
  * The live page redraws its cards on every filter and sort change, so the block is re-applied (idempotent, by a
  * signature on the card) and each card's numbers are worked out once and kept.
@@ -151,10 +151,10 @@
   function headLine(res) {
     var p = el("p", {class: "fw-line"});
     if (state.usd) {
-      p.appendChild(el("span", {class: "fw-lab", text: "Expected $, your games left "}));
+      p.appendChild(el("span", {class: "fw-lab", text: "Season Plan, expected $ "}));
       p.appendChild(isNum(res.dollars) ? el("b", {"data-dir": res.dollars >= 0.005 ? "up" : res.dollars <= -0.005 ? "down" : "flat", text: dollarText(res.dollars)}) : na(NO_PROJ));
       p.appendChild(document.createTextNode(" · "));
-    } else p.appendChild(el("span", {class: "fw-lab", text: "Weekly points, your games left "}));
+    } else p.appendChild(el("span", {class: "fw-lab", text: "Season Plan, weekly points "}));
     if (isNum(res.total)) p.appendChild(el(state.usd ? "span" : "b", {text: pts(res.total)}));
     else p.appendChild(na(NO_PROJ));
     p.appendChild(document.createTextNode(" over the weeks left"));
@@ -168,7 +168,7 @@
     });
   }
   function block(res, sig) {
-    var box = el("div", {class: "fw-enrich", "data-fw": sig, role: "group", "aria-label": "Weekly numbers for your games left"});
+    var box = el("div", {class: "fw-enrich", "data-fw": sig, role: "group", "aria-label": "Weekly numbers for your Season Plan"});
     if (!res) { box.appendChild(el("p", {class: "fw-line fw-wait", text: "Weekly numbers: working…"})); return box; }
     if (res.why) { box.appendChild(el("p", {class: "fw-line"}, "Weekly numbers: ", na(res.why), " (" + res.why + ")")); return box; }
     box.appendChild(headLine(res));
@@ -200,9 +200,9 @@
   function addSortOption() {
     var sel = sortSelect();
     if (!sel || sel.querySelector('option[value="' + SORT_VALUE + '"]')) return;
-    sel.insertBefore(el("option", {value: SORT_VALUE, text: state.usd ? "Games left (expected $)" : "Games left (weekly points)"}), sel.firstChild);
+    sel.insertBefore(el("option", {value: SORT_VALUE, text: state.usd ? "Season Plan (expected $)" : "Season Plan (weekly points)"}), sel.firstChild);
     var note = document.getElementById("sort-note");
-    if (note) note.appendChild(el("span", {"data-fw-note": "", text: " For your games left: " + (state.usd ? "expected prize money from weekly projections, each week's points priced by what that game is worth to your season." : "the projected points a move adds to your best lineup over the weeks left.") + " It orders the offers listed in each section, and the waiver pickups."}));
+    if (note) note.appendChild(el("span", {"data-fw-note": "", text: " Season Plan sort: " + (state.usd ? "expected prize money from weekly projections, each week's points priced by what that game is worth to your season." : "the projected points a move adds to your best lineup over the weeks left.") + " It orders the offers listed in each section, and the waiver pickups."}));
     sel.value = SORT_VALUE; /* the default while the league is connected (framework 3d) */
     sel.dispatchEvent(new Event("change", {bubbles: true})); /* the live page redraws: its Sort chip now names this option */
     var reset = document.getElementById("reset"); /* the live Reset goes back to the live default; ours is the default here */
@@ -267,7 +267,7 @@
     if (!b || !dl || !dl.date) return [];
     var r = b.res;
     return [{week: null, kind: "trade", when: "by " + dl.date + " (trade deadline)", when_sort: 0, gain: r.total,
-      text: "Trade window: best offer below, " + r.give.join(" and ") + " for " + r.get.join(" and ") + " with " + r.partner + (state.usd ? " (" + dollarText(r.dollars) + " expected for your games left)" : "")}];
+      text: "Trade window: best offer below, " + r.give.join(" and ") + " for " + r.get.join(" and ") + " with " + r.partner + (state.usd ? " (" + dollarText(r.dollars) + " expected over the season)" : "")}];
   }
   function setBest(best) { /* redraw the panel only when the best offer changes */
     var sig = best ? best.sig : null;
@@ -355,7 +355,7 @@
       root.textContent = "";
       state.movesBox = el("section", {class: "card fw-moves", "aria-labelledby": "fw-moves-h"});
       root.appendChild(state.movesBox);
-      root.appendChild(el("p", {class: "muted fw-below", text: "On the offer and pickup cards below, the “" + (state.usd ? "Expected $, your games left" : "Weekly points, your games left") + "” lines come from weekly projections only, never DDF Value. Each chip is one week left: points gained in your best lineup, and the change in your win chance where the opponent is known." + (data.mock ? " Sample data: an invented league." : "")}));
+      root.appendChild(el("p", {class: "muted fw-below", text: "On the offer and pickup cards below, the “" + (state.usd ? "Season Plan, expected $" : "Season Plan, weekly points") + "” lines come from weekly projections only, never DDF Value. Each chip is one week left: points gained in your best lineup, and the change in your win chance where the opponent is known." + (data.mock ? " Sample data: an invented league." : "")}));
       renderMoves(state.movesBox);
       addSortOption(); watch(); pass();
     }, 30);

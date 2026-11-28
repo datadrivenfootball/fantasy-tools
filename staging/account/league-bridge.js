@@ -126,7 +126,7 @@
   };
   /* Data age (JEG-1736): the league data is a snapshot that does not refresh by itself, so every page says how old it
    * is. Attention when it is over 6 hours old, or when a game of the current week has kicked off since the pull.
-   * games-left.js carries the same function (that page does not load the bridge). */
+   * plan.js carries the same function (that page does not load the bridge). */
   function dataAge(summary, weekly, now) {
     var flaim = !!(summary.source && summary.source.kind === "flaim"), site = String(summary.platform || "");
     var from = "League data from " + (site ? site.charAt(0).toUpperCase() + site.slice(1) : "your league site") + (flaim ? " via Flaim" : "");
@@ -189,9 +189,9 @@
       // the Team link, matched by its path (its href now carries ?league=)
       Array.prototype.filter.call(nav.querySelectorAll("a[href]"), function (x) { try { return /\/team\.html$/.test(new URL(x.href, location.href).pathname); } catch (e) { return false; } }).forEach(function (team) {
         var next = team.nextElementSibling;
-        if (next && next.dataset && next.dataset.staging === "games-left") return;
+        if (next && next.dataset && next.dataset.staging === "plan") return;
         var g = document.createElement("a");
-        g.href = S.url("games-left.html" + (S.league ? "?league=" + encodeURIComponent(S.league.id) : "")); g.textContent = "Games left"; g.dataset.staging = "games-left";
+        g.href = S.url("plan.html" + (S.league ? "?league=" + encodeURIComponent(S.league.id) : "")); g.textContent = "Season Plan"; g.dataset.staging = "plan";
         if (team.className) g.className = team.className;
         team.insertAdjacentElement("afterend", g);
       });
