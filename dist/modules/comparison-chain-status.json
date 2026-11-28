@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-11-27T23:44:06.268600+00:00",
+  "run_at": "2026-11-28T00:44:59.703261+00:00",
   "nfl_week": 12,
   "sources": {
     "usatoday": "promoted 3/3",
@@ -16,6 +16,7 @@
   "success": false,
   "outcome": "failed",
   "held": [
+    "cbsros",
     "fantasypros"
   ],
   "hold_severity": "red",
@@ -31,6 +32,19 @@
       ],
       "detail": "438/438 values match exactly across 6 columns; 0 value mismatches, 0 publisher players not stored, 32 stored players not on the page; parse notes: no table found for QB",
       "hold_severity": "red",
+      "week": 12
+    },
+    "cbsros": {
+      "reason": "fidelity: publisher_vs_stored",
+      "held_series": [
+        "cbsros",
+        "cbsros_vorp"
+      ],
+      "sections": [
+        "cbsros"
+      ],
+      "detail": "1098/1098 values match exactly across 3 columns; 1 publisher names do not resolve to a canonical player; parse notes: RB: 2 players listed with another position in the cell (kept as RB): ['Kyle Juszczyk (FB)', 'Max Hurleman (WR)']; TE: 1 players listed with another position in the cell (kept as TE):",
+      "hold_severity": "amber",
       "week": 12
     }
   },
@@ -228,7 +242,8 @@
   "lagging_sources": [],
   "stale_rule": "a source still serving week N after Thursday 12:00 CT of week N+1 is stale (Jeremy, 2026-10-27, JEG-1176); a warning only, never a chain failure",
   "fidelity_holds": {
-    "fantasypros": "fidelity: publisher_vs_stored"
+    "fantasypros": "fidelity: publisher_vs_stored",
+    "cbsros": "fidelity: publisher_vs_stored"
   },
   "post_rebuild_validation": {
     "status": "failed",
@@ -244,7 +259,7 @@
       "Makefile:700: data-gate"
     ],
     "detail": "FAIL tests.test_ppg_tie_parity.PpgTieParity.test_partition_matches_leg\nAssertionError: Lists differ: [('standard', 8, 'bench', ['Dylan Sampson'], ['Kaelon Black'])] != []",
-    "recorded_at": "2026-11-27T23:57:27.954810+00:00",
+    "recorded_at": "2026-11-28T00:57:27.802284+00:00",
     "breach_artifact": "output/post-rebuild-validation-breaches.json"
   }
 }
