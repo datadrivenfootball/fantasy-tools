@@ -495,6 +495,8 @@ Deno.test("addImpact: one live pickup card's weekly gain, win change, dollars an
   assert(typeof a.dollars === "number" && a.dollars > 0);
   assertAlmostEquals(a.dollars, W.dollarsFor(plan, a.delta), 1e-9);
   assert(a.rivals.every((r: { team_key: string }) => r.team_key !== "470.l.1.t.1"));
-  const b = W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }); // no drop given: the cheapest by weekly projections
-  assert(b.drop !== null);
+  // no drop named: 9 players in 10 non-reserve spots, so nobody goes; a full roster drops the cheapest
+  assertEquals(W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }).drop, null);
+  lg.teams[0].roster.push(p(129, "WR1d", "WR", "NE"));
+  assert(W.addImpact(lg, wk, "470.l.1.t.1", fa, null, { plan }).drop !== null);
 });

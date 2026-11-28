@@ -1009,7 +1009,11 @@
     var me = teamOf(summary, myKey || summary.my_team_key); if (!me || !fa) return null;
     var slots = slotsOf(summary), weeks = weeksLeft(summary, weekly, opts.now), cur = num(summary.current_week);
     var roster = active(me.roster), entry = Object.assign({}, fa, {slot: "BN"});
-    var drop = dropId ? roster.filter(function (e) { return e.player_id === dropId; })[0] || null : dropCandidate(summary, weekly, roster.concat([entry]), slots, weeks[0], fa.player_id);
+    // no drop named: with an open roster spot nobody goes; with a full roster, the cheapest drop by weekly projections
+    var spots = ((summary.settings || {}).roster_positions || []).filter(function (x) { return !RESERVE[String(x).toUpperCase()]; }).length;
+    var room = spots > 0 && roster.length < spots;
+    var drop = dropId ? roster.filter(function (e) { return e.player_id === dropId; })[0] || null
+      : room ? null : dropCandidate(summary, weekly, roster.concat([entry]), slots, weeks[0], fa.player_id);
     var after = roster.concat([entry]).filter(function (e) { return !drop || e.player_id !== drop.player_id; });
     var sd = opts.sd || fitSpread(summary).sd, sched = {};
     (summary.schedule || []).forEach(function (w) { sched[w.week] = w.matchups || []; });

@@ -7,7 +7,7 @@
  *      card with the highest expected $ (below), never a trade found here.
  *   2. Every live offer card ([data-offer]) and pickup card ([data-pickup]) gets a compact weekly block inside it:
  *      expected $ for your games left, points over the weeks left, one chip per week, and who the partner plays.
- *   3. One more option in the live Sort control, "For your games left (expected $)", the default while the league is
+ *   3. One more option in the live Sort control, "Games left (expected $)", the default while the league is
  *      connected. It reorders the cards inside each live list; the live options keep working as they do.
  * The live page redraws its cards on every filter and sort change, so the block is re-applied (idempotent, by a
  * signature on the card) and each card's numbers are worked out once and kept.
@@ -141,7 +141,8 @@
       var a = W.addImpact(sm, state.data.weekly, myKey(), fa, dropId, {plan: state.plan, sd: state.plan.spread && state.plan.spread.sd});
       if (!a) return {why: "the league data has no team for you"};
       return {kind: "pickup", weeks: a.weeks, delta: a.delta, games: a.games, total: a.total, dollars: isNum(a.total) ? a.dollars : null, rivals: a.rivals || [],
-        /* the live card names no drop (open spot): addImpact then counts the cheapest drop, and the card says who */
+        /* the live card names no drop: with an open roster spot nobody goes; with a full roster addImpact counts the
+           cheapest drop and the card says who */
         assumedDrop: !drop && a.drop ? a.drop.name : null};
     }};
   }
@@ -199,7 +200,7 @@
   function addSortOption() {
     var sel = sortSelect();
     if (!sel || sel.querySelector('option[value="' + SORT_VALUE + '"]')) return;
-    sel.insertBefore(el("option", {value: SORT_VALUE, text: state.usd ? "For your games left (expected $)" : "For your games left (weekly points)"}), sel.firstChild);
+    sel.insertBefore(el("option", {value: SORT_VALUE, text: state.usd ? "Games left (expected $)" : "Games left (weekly points)"}), sel.firstChild);
     var note = document.getElementById("sort-note");
     if (note) note.appendChild(el("span", {"data-fw-note": "", text: " For your games left: " + (state.usd ? "expected prize money from weekly projections, each week's points priced by what that game is worth to your season." : "the projected points a move adds to your best lineup over the weeks left.") + " It orders the offers listed in each section, and the waiver pickups."}));
     sel.value = SORT_VALUE; /* the default while the league is connected (framework 3d) */
