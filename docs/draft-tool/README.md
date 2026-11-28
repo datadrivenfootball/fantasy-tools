@@ -11,4 +11,5 @@ merges or deploys before Jeremy reviews it. Last updated 2026-11-27 (Phase 0).
 | [backtest.md](backtest.md) | Price error by position against two real 2026 auctions |
 | [research-nominations-opponents.md](research-nominations-opponents.md) | JEG-1668: opponent model and nomination plays, options A/B/C |
 | [yahoo-app-request.md](yahoo-app-request.md) | Draft Yahoo developer app and license request for Jeremy to submit |
+| [phase1.md](phase1.md) | Phase 1 page (2026-11-28): files, data, board rules, keys, link format, gates and known limits |
 | [learnings.md](learnings.md) | Methods tried, what held, what failed (one line each) |
